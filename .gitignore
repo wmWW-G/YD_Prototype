@@ -1,0 +1,7 @@
+# 历史备份（不入 GitHub）
+backups/
+
+# 其它项目和系统文件
+coze-workflows/
+.DS_Store
+**/.DS_Store

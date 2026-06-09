@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="540" viewBox="0 0 720 540" role="img" aria-label="明亮车间生产线">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f7fbff"/>
+      <stop offset="1" stop-color="#eee7df"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#efe8dd"/>
+      <stop offset="1" stop-color="#d6c7b8"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="540" fill="url(#wall)"/>
+  <path d="M0 348h720v192H0z" fill="url(#floor)"/>
+  <path d="M68 96h584v50H68z" fill="#2d3438"/>
+  <path d="M98 122h92m60 0h92m60 0h92m60 0h68" stroke="#ffd07b" stroke-width="8" stroke-linecap="round"/>
+  <path d="M92 214h164v132H92zM294 196h164v150H294zM496 230h120v116H496z" fill="#ffffff" stroke="#cfc5bb" stroke-width="5"/>
+  <path d="M112 248h124m78-8h124m78 32h78" stroke="#ff6b00" stroke-width="10" stroke-linecap="round"/>
+  <path d="M80 360h568" stroke="#8a8178" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="160" cy="384" r="22" fill="#262320"/>
+  <circle cx="392" cy="384" r="22" fill="#262320"/>
+  <circle cx="570" cy="384" r="22" fill="#262320"/>
+  <path d="M108 444c90-34 173-28 250-16 93 15 164 12 258-20" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" opacity=".65"/>
+  <text x="82" y="72" fill="#292522" font-family="Arial, sans-serif" font-size="32" font-weight="800">PRODUCTION LINE</text>
+</svg>

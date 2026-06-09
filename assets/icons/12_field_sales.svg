@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <g fill="none" stroke="#1A1A1A" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M115 188 L115 25 L188 25 L188 188"/>
+    <circle cx="128" cy="115" r="5" fill="#1A1A1A"/>
+    <circle cx="42" cy="42" r="20"/>
+    <line x1="42" y1="62" x2="42" y2="135"/>
+    <polyline points="42,82 72,68 102,76"/>
+    <line x1="42" y1="82" x2="22" y2="130"/>
+    <line x1="42" y1="135" x2="22" y2="185"/>
+    <line x1="42" y1="135" x2="62" y2="185"/>
+  </g>
+  <g fill="none" stroke="#FF6B35" stroke-width="9" stroke-linecap="round">
+    <line x1="105" y1="76" x2="113" y2="76"/>
+    <line x1="100" y1="62" x2="106" y2="56"/>
+    <line x1="100" y1="92" x2="106" y2="98"/>
+  </g>
+</svg>

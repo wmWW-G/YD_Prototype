@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="540" viewBox="0 0 720 540" role="img" aria-label="海外展会展位">
+  <rect width="720" height="540" fill="#f6fbff"/>
+  <path d="M76 124h568v304H76z" fill="#fffdf9" stroke="#d9c8b7" stroke-width="5"/>
+  <path d="M108 158h504v78H108z" fill="#292522"/>
+  <text x="142" y="207" fill="#ffffff" font-family="Arial, sans-serif" font-size="38" font-weight="800">VINCO ORDER</text>
+  <path d="M130 270h150v118H130zm210 0h120v118H340zm178 0h70v118h-70z" fill="#fff4e9" stroke="#f3c8ac" stroke-width="5"/>
+  <path d="M148 304h112m98 26h82m92-40h36" stroke="#ff6b00" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="190" cy="442" r="22" fill="#46515a"/>
+  <circle cx="392" cy="442" r="22" fill="#46515a"/>
+  <circle cx="546" cy="442" r="22" fill="#46515a"/>
+  <path d="M78 462h564" stroke="#d8c8b8" stroke-width="14" stroke-linecap="round"/>
+  <text x="130" y="102" fill="#7d6a59" font-family="Arial, sans-serif" font-size="24" font-weight="700">GLOBAL SOURCING EXPO</text>
+</svg>

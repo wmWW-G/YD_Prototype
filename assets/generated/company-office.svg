@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="540" viewBox="0 0 720 540" role="img" aria-label="公司办公楼和门头">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eaf5ff"/>
+      <stop offset="1" stop-color="#fff7ec"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d8ecff"/>
+      <stop offset="1" stop-color="#79a9c8"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="540" fill="url(#sky)"/>
+  <circle cx="602" cy="88" r="46" fill="#ffb56f" opacity=".55"/>
+  <path d="M78 425h564v46H78z" fill="#efe5d8"/>
+  <path d="M142 166h328v260H142z" fill="#fffdf8" stroke="#d9c8b7" stroke-width="4"/>
+  <path d="M470 228h92v198h-92z" fill="#f3eee7" stroke="#d9c8b7" stroke-width="4"/>
+  <path d="M176 206h72v58h-72zm104 0h72v58h-72zm104 0h72v58h-72zM176 294h72v58h-72zm104 0h72v58h-72zm104 0h72v58h-72z" fill="url(#glass)" stroke="#ffffff" stroke-width="7"/>
+  <path d="M214 385h92v40h-92z" fill="#ff6b00"/>
+  <path d="M320 385h82v40h-82z" fill="#2c2a28"/>
+  <text x="172" y="151" fill="#27231f" font-family="Arial, sans-serif" font-size="34" font-weight="800">VINCO ORDER</text>
+  <text x="188" y="411" fill="#ffffff" font-family="Arial, sans-serif" font-size="20" font-weight="700">OFFICE</text>
+  <path d="M92 426c54-36 110-55 168-57 72-2 131 32 205 27 48-3 83-21 147-17" fill="none" stroke="#7dbf9b" stroke-width="12" stroke-linecap="round"/>
+</svg>
