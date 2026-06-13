@@ -35,6 +35,7 @@
  *   inviteRedeemResult: string,
  *   adminInvitePreview: null | string,
  *   userPreviewFields: Set<string>,
+ *   userPreviewFieldsOpen: boolean,
  *   userPreviewTimePreset: "today" | "week" | "month" | "custom",
  *   userPreviewStartDate: string,
  *   userPreviewEndDate: string,
@@ -79,13 +80,15 @@ const state = {
   inviteCodeDraft: "",
   inviteRedeemResult: "",
   adminInvitePreview: null,
-  userPreviewFields: new Set(["userId", "username", "registeredAt", "registerSource", "lastLoginAt", "lastUsedAt", "firstFeature", "topFeature", "lastFeature", "usageCount", "messageCount", "tokenUsed", "amount", "paidStatus", "upgradeClickCount", "payPageViewCount"]),
+  userPreviewFields: new Set(["logIndex", "usedAt", "userContact", "lastActiveAt", "activeDays", "calledFeature", "calledModel", "callCount", "inputToken", "outputToken", "totalToken", "creditBalance", "runStatus", "estimatedCost", "operationLog"]),
+  userPreviewFieldsOpen: false,
   userPreviewTimePreset: "today",
   userPreviewStartDate: "2026-06-13",
   userPreviewEndDate: "2026-06-13",
   adminDialog: null,
   adminMenuOpen: false,
-  adminUserFilterOpen: true
+  adminUserFilterOpen: true,
+  accountSpaceSwitcherOpen: false
 };
 
 /**
@@ -285,6 +288,10 @@ function renderApp() {
 
   if (!app) {
     throw new Error("页面缺少 #app 容器，无法渲染赢单原型。");
+  }
+
+  if (state.popup !== "accountSettings") {
+    state.accountSpaceSwitcherOpen = false;
   }
 
   if (state.activeMain.startsWith("admin-")) {
@@ -652,7 +659,8 @@ function renderUserPreviewFunctionSummary() {
         <table class="admin-table user-preview-function-table">
           <thead>
             <tr>
-              <th>功能调用排行（TOP 10）</th>
+              <th>排行</th>
+              <th>功能调用排行</th>
               <th>调用总次数</th>
               <th>使用人数</th>
               <th>人均使用时长/次数</th>
@@ -664,7 +672,8 @@ function renderUserPreviewFunctionSummary() {
           <tbody>
             ${ADMIN_USER_PREVIEW_FUNCTION_SUMMARY.map((row) => `
               <tr>
-                <td><strong>${row.rank}. ${escapeHtml(row.feature)}</strong></td>
+                <td>${row.rank}</td>
+                <td><strong>${escapeHtml(row.feature)}</strong></td>
                 <td>${escapeHtml(row.calls)}</td>
                 <td>${escapeHtml(row.users)}</td>
                 <td>${escapeHtml(row.avgUse)}</td>
@@ -838,27 +847,36 @@ function renderUserPreviewReportBuilder() {
       <header class="user-preview-report-head">
         <div>
           <h4>用户字段报表</h4>
-          <p>上方调整显示字段，下方报表会按当前字段生成；导出报表时导出这张表。</p>
+          <p>默认展示用户功能调用流水账；需要改字段时展开字段配置。</p>
         </div>
         <div class="user-preview-field-actions">
-          <button type="button" data-user-preview-preset="core">核心字段</button>
-          <button type="button" data-user-preview-preset="all">全选字段</button>
-          <button type="button" data-user-preview-preset="cost">成本金额</button>
+          <button type="button" data-user-preview-preset="default">默认字段</button>
         </div>
       </header>
 
-      <div class="user-preview-field-picker">
-        ${ADMIN_USER_PREVIEW_FIELDS.map((field) => {
-          const isChecked = state.userPreviewFields.has(field.id);
-          return `
-            <label class="user-preview-field-chip ${isChecked ? "checked" : ""}">
-              <input type="checkbox" value="${escapeHtml(field.id)}" data-user-preview-field="true" ${isChecked ? "checked" : ""} />
-              <span>${escapeHtml(field.label)}</span>
-              <em>${escapeHtml(field.group)}</em>
-            </label>
-          `;
-        }).join("")}
-      </div>
+      ${state.userPreviewFieldsOpen ? `
+        <div class="user-preview-field-picker">
+          ${ADMIN_USER_PREVIEW_FIELDS.map((field) => {
+            const isChecked = state.userPreviewFields.has(field.id);
+            return `
+              <label class="user-preview-field-chip ${isChecked ? "checked" : ""}">
+                <input type="checkbox" value="${escapeHtml(field.id)}" data-user-preview-field="true" ${isChecked ? "checked" : ""} />
+                <span>${escapeHtml(field.label)}</span>
+                <em>${escapeHtml(field.group)}</em>
+              </label>
+            `;
+          }).join("")}
+          <button class="user-preview-field-collapse-inline" type="button" data-user-preview-field-toggle="true">
+            收起字段
+          </button>
+        </div>
+      ` : `
+        <button class="user-preview-field-collapsed" type="button" data-user-preview-field-toggle="true">
+          <span>字段配置已折叠</span>
+          <strong>${selectedFields.length} 个字段</strong>
+          <em>点击展开</em>
+        </button>
+      `}
 
       <div class="admin-table-scroll user-preview-report-scroll">
         <table class="admin-table user-preview-user-table" style="min-width: ${Math.max(980, selectedFields.length * 148)}px">
@@ -871,7 +889,7 @@ function renderUserPreviewReportBuilder() {
             ${ADMIN_USER_PREVIEW_USERS.map((user) => `
               <tr>
                 ${selectedFields.map((field) => `
-                  <td class="${field.id === "amount" ? "admin-money-cell" : ""}">${escapeHtml(user[field.id] || "-")}</td>
+                  <td class="${field.id === "amount" || field.id === "estimatedCost" ? "admin-money-cell" : ""}">${escapeHtml(user[field.id] || "-")}</td>
                 `).join("")}
               </tr>
             `).join("")}
@@ -3962,16 +3980,54 @@ function renderCustomerSettingsPopup() {
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderAccountSettingsPopup() {
+  const switcherOpen = state.accountSpaceSwitcherOpen;
+
   return `
-    <section class="floating-popover account-popover" data-popup-surface="true">
-      <button class="account-pop-head" type="button" data-toast="账号详情是原型反馈。">
+    <section class="floating-popover account-popover ${switcherOpen ? "switcher-open" : ""}" data-popup-surface="true">
+      <button
+        class="account-pop-head ${switcherOpen ? "open" : ""}"
+        type="button"
+        data-account-space-toggle="true"
+        aria-expanded="${switcherOpen ? "true" : "false"}"
+      >
         <span class="avatar" aria-hidden="true"></span>
         <span class="account-pop-id">
           <strong>Tina · 外贸业务<i class="account-pop-id-badge" aria-hidden="true">VIP</i></strong>
           <span>个人账号 · 180****9154</span>
         </span>
-        <span class="account-pop-caret" aria-hidden="true">›</span>
+        <span class="account-pop-head-switch" aria-hidden="true">
+          <i>⇄</i>切换
+        </span>
       </button>
+
+      <aside class="account-pop-space-flyout" data-popup-surface="true" aria-label="切换空间" aria-hidden="${switcherOpen ? "false" : "true"}">
+        <header class="account-pop-space-head">
+          <span>切换空间</span>
+          <button type="button" class="account-pop-space-close" data-account-space-toggle="true" aria-label="关闭">×</button>
+        </header>
+        <ul class="account-pop-space-list">
+          <li>
+            <button type="button" class="active" data-toast="当前已在 Tina · 外贸业务 个人空间。">
+              <span class="avatar small" aria-hidden="true"></span>
+              <span class="account-pop-space-text">
+                <strong>Tina · 外贸业务</strong>
+                <em>个人账号 · 180****9154</em>
+              </span>
+              <span class="account-pop-space-check" aria-hidden="true">✓</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" data-toast="已切换到 鸡公网络 团队空间（原型反馈）。">
+              <span class="account-pop-space-team" aria-hidden="true">鸡</span>
+              <span class="account-pop-space-text">
+                <strong>鸡公网络</strong>
+                <em>团队空间 · 8 人协作</em>
+              </span>
+              <span class="account-pop-space-action" aria-hidden="true">切换 ›</span>
+            </button>
+          </li>
+        </ul>
+      </aside>
 
       <section class="account-pop-banner" aria-label="当前套餐">
         <div class="account-pop-banner-text">
@@ -3984,23 +4040,19 @@ function renderAccountSettingsPopup() {
         <button class="account-pop-banner-cta" type="button" data-popup="upgrade">立即升级</button>
       </section>
 
-      <section class="account-pop-stats">
-        <article class="account-pop-stat-card account-pop-stat-quota">
-          <header>
-            <span class="account-pop-stat-icon" aria-hidden="true">◆</span>
-            <span>本月积分</span>
-          </header>
-          <div class="account-pop-stat-value"><strong>75</strong><em>/ 520</em></div>
-          <div class="account-pop-stat-bar"><span style="width: 86%"></span></div>
-        </article>
-        <a class="account-pop-stat-card account-pop-stat-link" href="#/account/usage" data-account-go="true">
-          <header>
-            <span class="account-pop-stat-icon" aria-hidden="true">▤</span>
-            <span>用量明细</span>
-          </header>
-          <div class="account-pop-stat-value account-pop-stat-arrow">查看 30 天<span aria-hidden="true">›</span></div>
-          <div class="account-pop-stat-sub">最近 86% · 1.2k Token</div>
-        </a>
+      <section class="account-pop-quota" aria-label="本月积分">
+        <header>
+          <span class="account-pop-quota-icon" aria-hidden="true">◆</span>
+          <span class="account-pop-quota-title">本月积分</span>
+          <a class="account-pop-quota-link" href="#/account/usage" data-account-go="true">
+            使用明细 <span aria-hidden="true">›</span>
+          </a>
+        </header>
+        <div class="account-pop-quota-row">
+          <span class="account-pop-quota-value"><strong>75</strong><em>/ 520</em></span>
+          <span class="account-pop-quota-percent">已用 <i>86%</i> · 1.2k Token</span>
+        </div>
+        <div class="account-pop-stat-bar"><span style="width: 86%"></span></div>
       </section>
 
       <nav class="account-pop-grid" aria-label="账号快捷动作">
@@ -4008,9 +4060,9 @@ function renderAccountSettingsPopup() {
           <span class="account-pop-grid-icon" aria-hidden="true">◇</span>
           <em>邀请兑换</em>
         </button>
-        <button type="button" data-toast="切换空间是原型反馈。">
-          <span class="account-pop-grid-icon" aria-hidden="true">⇄</span>
-          <em>切换空间</em>
+        <button type="button" data-toast="订单记录是原型反馈。">
+          <span class="account-pop-grid-icon" aria-hidden="true">▦</span>
+          <em>订单记录</em>
         </button>
         <button type="button" data-toast="帮助中心是原型反馈。">
           <span class="account-pop-grid-icon" aria-hidden="true">?</span>
@@ -4272,6 +4324,34 @@ function bindEvents() {
   });
 
   bindUserPreviewReportControls();
+
+  document.querySelectorAll("[data-account-space-toggle]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      state.accountSpaceSwitcherOpen = !state.accountSpaceSwitcherOpen;
+      const popover = document.querySelector(".account-popover");
+      const head = popover?.querySelector(".account-pop-head");
+      const flyout = popover?.querySelector(".account-pop-space-flyout");
+      popover?.classList.toggle("switcher-open", state.accountSpaceSwitcherOpen);
+      head?.classList.toggle("open", state.accountSpaceSwitcherOpen);
+      if (flyout) {
+        flyout.setAttribute("aria-hidden", state.accountSpaceSwitcherOpen ? "false" : "true");
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-account-go][data-href]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const target = button.getAttribute("data-href");
+      state.popup = null;
+      if (target) {
+        window.location.hash = target;
+      } else {
+        renderApp();
+      }
+    });
+  });
 
   document.querySelectorAll("[data-main]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -4724,6 +4804,27 @@ function bindEvents() {
  * @throws {Error} 本函数不主动抛异常。
  */
 function bindUserPreviewReportControls() {
+  const report = document.querySelector(".user-preview-report");
+
+  if (report) {
+    report.onclick = (event) => {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const toggle = target.closest("[data-user-preview-field-toggle]");
+
+      if (toggle) {
+        event.preventDefault();
+        event.stopPropagation();
+        state.userPreviewFieldsOpen = !state.userPreviewFieldsOpen;
+        refreshUserPreviewReport();
+      }
+    };
+  }
+
   document.querySelectorAll("[data-user-preview-field]").forEach((input) => {
     input.addEventListener("change", (event) => {
       event.stopPropagation();
@@ -4747,12 +4848,11 @@ function bindUserPreviewReportControls() {
 
       const preset = button.getAttribute("data-user-preview-preset");
       const presets = {
-        core: ["userId", "username", "registeredAt", "registerSource", "lastLoginAt", "lastUsedAt", "topFeature", "amount", "paidStatus"],
-        all: ADMIN_USER_PREVIEW_FIELDS.map((field) => field.id),
-        cost: ["username", "topFeature", "usageCount", "messageCount", "tokenUsed", "modelSplit", "amount", "paymentCount", "paidStatus", "upgradeClickCount", "payPageViewCount"]
+        default: ["logIndex", "usedAt", "userContact", "lastActiveAt", "activeDays", "calledFeature", "calledModel", "callCount", "inputToken", "outputToken", "totalToken", "creditBalance", "runStatus", "estimatedCost", "operationLog"]
       };
 
-      state.userPreviewFields = new Set(presets[preset] || presets.core);
+      state.userPreviewFields = new Set(presets[preset] || presets.default);
+      state.userPreviewFieldsOpen = false;
       refreshUserPreviewReport();
     });
   });

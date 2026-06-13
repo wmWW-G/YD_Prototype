@@ -4696,11 +4696,6 @@ button:disabled {
   white-space: nowrap;
 }
 
-.account-pop-caret {
-  color: #b6ada6;
-  font-size: 18px;
-}
-
 .account-pop-banner {
   position: relative;
   display: grid;
@@ -4790,121 +4785,121 @@ button:disabled {
   box-shadow: 0 4px 10px rgba(255, 122, 43, 0.34);
 }
 
-.account-pop-stats {
+.account-pop-quota {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.account-pop-stat-card {
-  display: grid;
-  gap: 5px;
-  padding: 9px 10px 9px;
-  border-radius: 10px;
+  gap: 7px;
+  padding: 11px 12px 12px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid #f3e7da;
-  text-decoration: none;
-  transition: border-color 0.18s, transform 0.18s, box-shadow 0.18s;
+  transition: border-color 0.18s, box-shadow 0.18s;
 }
 
-.account-pop-stat-card:hover {
+.account-pop-quota:hover {
   border-color: #f3c7a3;
-  transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(220, 140, 50, 0.1);
 }
 
-.account-pop-stat-card header {
+.account-pop-quota > header {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   color: #6f6359;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 
-.account-pop-stat-icon {
+.account-pop-quota-icon {
   display: grid;
   place-items: center;
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   border-radius: 4px;
   background: #fff1e2;
   color: var(--accent);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
-.account-pop-stat-value {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.1;
+.account-pop-quota-title {
+  color: #6f6359;
 }
 
-.account-pop-stat-value strong {
+.account-pop-quota-link {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   color: var(--accent);
-  font-size: 17px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.18s, transform 0.18s;
+}
+
+.account-pop-quota-link span {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.account-pop-quota-link:hover {
+  color: #e44d00;
+  transform: translateX(1px);
+}
+
+.account-pop-quota-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.account-pop-quota-value {
+  display: inline-flex;
+  align-items: baseline;
+  color: var(--text);
+  line-height: 1;
+}
+
+.account-pop-quota-value strong {
+  color: var(--accent);
+  font-size: 20px;
   font-weight: 800;
   font-family: "DIN Alternate", "Helvetica Neue", sans-serif;
-  letter-spacing: 0;
 }
 
-.account-pop-stat-value em {
+.account-pop-quota-value em {
   margin-left: 3px;
   color: #b3a99f;
   font-style: normal;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 
-.account-pop-stat-quota .account-pop-stat-bar {
-  height: 4px;
+.account-pop-quota-percent {
+  margin-left: auto;
+  color: #9c8f83;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.account-pop-quota-percent i {
+  font-style: normal;
+  color: var(--accent);
+  font-weight: 700;
+  margin: 0 1px;
+}
+
+.account-pop-quota .account-pop-stat-bar {
+  height: 5px;
   border-radius: 999px;
   background: #f3e3d2;
   overflow: hidden;
-  margin-top: 1px;
 }
 
-.account-pop-stat-quota .account-pop-stat-bar span {
+.account-pop-quota .account-pop-stat-bar span {
   display: block;
   height: 100%;
   background: linear-gradient(90deg, #ff7a2b, #ffb074);
   border-radius: 999px;
-}
-
-.account-pop-stat-sub {
-  color: #9c8f83;
-  font-size: 10.5px;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.account-pop-stat-link {
-  cursor: pointer;
-}
-
-.account-pop-stat-arrow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--text);
-  font-size: 12.5px;
-  font-weight: 700;
-}
-
-.account-pop-stat-arrow span {
-  color: #b6ada6;
-  font-size: 16px;
-  line-height: 1;
-}
-
-.account-pop-stat-link:hover .account-pop-stat-arrow {
-  color: var(--accent);
-}
-
-.account-pop-stat-link:hover .account-pop-stat-arrow span {
-  color: var(--accent);
 }
 
 .account-pop-grid {
@@ -4981,6 +4976,195 @@ button:disabled {
   background: #fff0ed;
   border-color: #f3b8ab;
   color: #d6432a;
+}
+
+/* ===================== 账号弹层 · 空间切换 ===================== */
+
+.account-pop-head-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  background: #fff1e2;
+  color: var(--accent);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: background 0.18s, color 0.18s, transform 0.18s;
+}
+
+.account-pop-head-switch i {
+  font-style: normal;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.account-pop-head:hover .account-pop-head-switch {
+  background: #ffe0c2;
+  transform: translateX(-1px);
+}
+
+.account-pop-head.open .account-pop-head-switch {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.account-pop-head.open {
+  background: #fff8f3;
+}
+
+.account-popover {
+  overflow: visible;
+}
+
+.account-pop-space-flyout {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  z-index: 52;
+  width: 248px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid #f1ded1;
+  border-radius: 12px;
+  box-shadow: 0 18px 42px rgba(45, 30, 18, 0.16);
+  display: none;
+}
+
+.account-popover.switcher-open .account-pop-space-flyout {
+  display: block;
+  animation: spaceListSlide 0.18s ease-out;
+}
+
+@keyframes spaceListSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.account-pop-space-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 6px;
+  color: #8a7f76;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.account-pop-space-close {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #9c8f83;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.account-pop-space-close:hover {
+  background: #fff5ec;
+  color: var(--accent);
+}
+
+.account-pop-space-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.account-pop-space-list li {
+  margin: 0;
+}
+
+.account-pop-space-list button {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 50px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.account-pop-space-list button:hover {
+  background: #fff5ec;
+}
+
+.account-pop-space-list button.active {
+  background: #fff1e2;
+}
+
+.account-pop-space-list .avatar.small {
+  width: 32px;
+  height: 32px;
+}
+
+.account-pop-space-team {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffd9a8, #ff9a5a);
+  color: #5a3a1a;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.account-pop-space-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.account-pop-space-text strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.account-pop-space-text em {
+  font-style: normal;
+  color: #9c8f83;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-pop-space-check {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.account-pop-space-action {
+  color: var(--accent);
+  font-size: 11.5px;
+  font-weight: 600;
 }
 
 /* ===================== 邀请码兑换 modal ===================== */
@@ -7950,7 +8134,7 @@ button:disabled {
 }
 
 .user-preview-function-table {
-  min-width: 980px;
+  min-width: 1040px;
 }
 
 .user-preview-function-table th {
@@ -7964,6 +8148,12 @@ button:disabled {
   padding-top: 10px;
   padding-bottom: 10px;
   white-space: nowrap;
+}
+
+.user-preview-function-table th:first-child,
+.user-preview-function-table td:first-child {
+  width: 64px;
+  text-align: center;
 }
 
 .user-preview-timebar {
@@ -8109,11 +8299,59 @@ button:disabled {
 .user-preview-field-picker {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   padding: 12px;
   border: 1px dashed #d9dee8;
   border-radius: 8px;
   background: #fbfcff;
+}
+
+.user-preview-field-collapsed {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  border: 1px dashed #d9dee8;
+  border-radius: 8px;
+  background: #fbfcff;
+  color: var(--admin-text);
+  cursor: pointer;
+}
+
+.user-preview-field-collapsed span,
+.user-preview-field-collapsed strong,
+.user-preview-field-collapsed em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-preview-field-collapsed span {
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.user-preview-field-collapsed strong {
+  color: var(--admin-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.user-preview-field-collapsed em {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.user-preview-field-collapsed:hover {
+  border-color: var(--admin-primary);
+  background: var(--admin-primary-soft);
 }
 
 .user-preview-field-chip {
@@ -8148,6 +8386,24 @@ button:disabled {
 .user-preview-field-chip.checked {
   border-color: var(--admin-primary);
   background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+}
+
+.user-preview-field-collapse-inline {
+  min-height: 32px;
+  margin-left: auto;
+  padding: 0 12px;
+  border: 1px solid #d9dee8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.user-preview-field-collapse-inline:hover {
+  border-color: var(--admin-primary);
   color: var(--admin-primary);
 }
 

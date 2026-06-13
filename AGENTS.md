@@ -20,10 +20,24 @@
 - 需要说明设计意图、技术选择或后续开发注意事项时，写在 `CONTEXT.md`、代码注释或聊天回复里，不要写进用户会看到的原型界面。
 - 页面文案只保留真实用户在产品里会看到并使用的内容，例如标题、字段标签、按钮、占位提示、筛选项、结果示例和业务数据。
 
+## 项目负责人和协作方式
+
+用户是本项目的产品经理、原型图 UI 设计者和 AI 工作流设计者。平时这个项目里的 UI 原型、功能路径、AI 能力设计、扣子工作流资料整理和业务判断，主要由用户主导。
+
+协作时要按这个身份理解需求：
+
+- 用户提出的页面调整，通常代表产品原型和用户流程决策，不要当成单纯的代码样式偏好。
+- 用户提供的 AI 工作流、扣子工作流、节点画布、schema、调用函数和真实验证结果，都是项目核心资产，需要按资料库规则沉淀。
+- 如果代码实现和用户的产品判断冲突，优先保留用户的产品判断；除非存在明显安全、隐私、可维护性或浏览器兼容问题，再用简洁中文说明风险。
+- 修改原型时，重点服务“能不能让开发、业务和用户一眼看懂这个功能怎么用”，不要把界面做成技术说明页。
+- 给建议时可以主动指出信息架构、用户路径、字段收集、AI 输出形态和扣子工作流落点是否匹配。
+
 ## 技术栈约定
 
 - 默认以前端静态原型为主：`HTML` + `CSS` + 原生 `JavaScript`。
-- 单页原型优先放在一个 `.html` 文件里，方便浏览器直接打开和演示。
+- 当前主原型已拆成 `index.html` + `src/data.js` + `src/app.js` + `src/styles.css`。不要再把大段样式或脚本塞回 `index.html`。
+- `index.html` 只负责页面骨架、样式引用和脚本引用；业务数据改 `src/data.js`，交互和路由改 `src/app.js`，视觉和响应式改 `src/styles.css`。
+- 新增赢单页面或子流程时，优先接入现有 hash 路由和 `src/` 结构。只有做完全独立、临时对比用的原型时，才单独创建语义清楚的 `.html` 文件。
 - 只有当交互明显复杂、状态很多、需要组件复用时，才考虑引入框架。
 - 创建正式前后端项目或复杂功能前，必须先询问用户：
   - 前端使用什么语言/框架？
@@ -52,9 +66,50 @@ Python 后端：
 - 优点：适合快速接 API、处理文件、生成数据和调试 AI 工作流。
 - 缺点：如果只是做 UI 原型，会显得过重。
 
+## 当前真实文件结构（2026-06-11 扫描）
+
+当前项目下共有 136 个文件。后续定位问题时，先按下面优先级读取，不要把历史备份或工作树副本当成当前主工程。
+
+活跃主工程：
+
+- `index.html`：当前唯一页面入口，只挂载 `#app`，并引用 `src/styles.css`、`src/data.js`、`src/app.js`。
+- `src/data.js`：静态业务数据，包括左侧导航、历史记录、销售准备标签、12 个外贸成交阶段、外贸流程客户映射、套餐、用量记录、公司资料模块、产品表、案例库、客户Kass 分组和阶段。
+- `src/app.js`：页面状态、hash 路由、整页渲染、事件绑定、toast、抽屉、弹层、模拟生成、外贸流程 A/B/C/D 变体、客户Kass、用量页和支付页。
+- `src/styles.css`：全部样式、响应式规则、动效、外贸流程变体、客户Kass、聊天输入、弹层、用量页和支付页样式。
+- `assets/icons/`：左侧导航和功能入口 SVG 图标。
+- `assets/generated/`：当前原型内使用的本地 SVG 视觉素材。
+
+项目资料和交接文件：
+
+- `CONTEXT.md`：项目目标、入口、状态、路由、数据结构、验证方式和后续改动位置。
+- `AI板块统计.md`：客户KASS 与销售准备中 AI 能力的现状统计和后续整理建议。
+- `coze-workflows/`：扣子工作流资料库，不是页面原型代码。收到调用链接、函数、input schema、output schema 或节点画布时优先维护这里。
+- `coze-workflows/_node-reference/`：扣子节点参考库，只是节点能力索引；`workflow-7645250322341134390.md` 的 `edges` 为空，不是可直接执行的完整业务流程。
+- `coze-workflows/_template/`：新增工作流目录时复制的模板。
+
+默认不要作为主工程编辑目标：
+
+- `backups/`：历史备份，只用于查旧实现或回看某次改动前状态，不主动修改。
+- `.claude/worktrees/`：Claude 工作树副本，默认不作为当前主工程事实来源；除非用户明确要求处理这个 worktree。
+- `.DS_Store`：系统文件，不读取业务含义，不写入规则。
+
 ## 当前应用理解
 
-浏览器中观察到的应用标题为「赢单外贸成交顾问」，主页面位于 `/chat`。
+本地浏览器直接打开 `index.html` 即可查看，页面标题为「赢单外贸成交顾问 - 逆向原型」。当前默认入口是 `#/ask`，通过 hash 路由模拟线上路径，不依赖服务器 rewrite。
+
+## 线上预览与发布
+
+当前原型已部署到 GitHub Pages：
+
+- 线上地址：`https://wmww-g.github.io/YD_Prototype/#/ask`
+
+发布同步方式：
+
+- 可以通过 `github-b` SSH alias push 到对应 GitHub 仓库。
+- 如果用户说明当前开了 TUN，先不要执行 push；这个环境下 TUN 可能导致 GitHub SSH 无法 connect。
+- 需要 push 前，先确认用户已经关闭 TUN 或明确要求继续尝试。
+
+当前主应用不是生产系统，也不接真实接口。页面中的发送、上传、导出、删除、保存、支付、复制、AI 生成等动作都必须保持为原型反馈或模拟状态，不能产生真实副作用。
 
 整体界面结构：
 
@@ -62,11 +117,13 @@ Python 后端：
 - 右侧为主工作区，承载当前顾问或技能的输入界面。
 - 主工作区底部/中部有统一输入区，包括文本框、附件、模型选择、语音入口和发送按钮。
 - 顶部或输入区附近有「教学视频」「历史」入口。
+- 销售准备页面有顶部子标签，当前包括 `外贸流程`、`了解公司`、`产品&市场`、`案例知识库`。
+- 账号卡可进入 `#/account/usage` 用量明细；升级相关页面走 `#/upgrade/pay/...`，全部是支付原型，不是真实支付。
 
 核心导航分组：
 
 - `问一下`：通用外贸问题问答入口。
-- `销售准备`：成交前资料准备、公司/产品/资产/SOP。
+- `销售准备`：成交前资料准备、外贸流程、公司资料、产品市场和案例知识库。
 - `成交顾问`：
   - `客户背调顾问`
   - `场景谈判顾问`
@@ -82,8 +139,80 @@ Python 后端：
   - `地推陌拜`
   - `来访接待`
   - `展会成交`
-  - `谈判`
   - `组合标题`
+- `客户Kass`：
+  - `A`
+  - `B`
+
+当前 hash 路由：
+
+| Hash 路径 | 对应界面 |
+| --- | --- |
+| `#/ask` | 问一下 |
+| `#/sales-prep/flow` | 销售准备 > 外贸流程基础版 |
+| `#/sales-prep/flow/a` | 外贸流程 A 变体，阶段进度条、checklist、键盘左右切换 |
+| `#/sales-prep/flow/b` | 外贸流程 B 变体，问 AI、阶段客户、资料预览 |
+| `#/sales-prep/flow/c` | 外贸流程 C 变体，KPI、常见错误、上下阶段 |
+| `#/sales-prep/flow/d` | 外贸流程 D 变体，教学视频、私房笔记、阶段对比 |
+| `#/sales-prep/company` | 销售准备 > 了解公司 |
+| `#/sales-prep/market` | 销售准备 > 产品&市场 |
+| `#/sales-prep/cases` | 销售准备 > 案例知识库 |
+| `#/agents/customer-research` | 成交顾问 > 客户背调顾问 |
+| `#/agents/negotiation-scene` | 成交顾问 > 场景谈判顾问 |
+| `#/agents/inquiry-reply` | 成交顾问 > 询盘分析回复 |
+| `#/skills/market-research` | 技能Skill > 市场调研 |
+| `#/skills/cold-email` | 技能Skill > 新客开发信 |
+| `#/skills/complaint` | 技能Skill > 客诉处理 |
+| `#/skills/reactivation` | 技能Skill > 客户激活 |
+| `#/skills/relationship` | 技能Skill > 关系维护 |
+| `#/skills/phone-sales` | 技能Skill > 海外电销 |
+| `#/skills/video-meeting` | 技能Skill > 视频会议 |
+| `#/skills/field-visit` | 技能Skill > 地推陌拜 |
+| `#/skills/visit-reception` | 技能Skill > 来访接待 |
+| `#/skills/title-combo` | 技能Skill > 标题组合 |
+| `#/skills/trade-show` | 技能Skill > 展会成交 |
+| `#/customer-kass/A` | 客户Kass > A 分组 |
+| `#/customer-kass/B` | 客户Kass > B 分组 |
+| `#/account/usage` | 账号 > 用量明细 |
+| `#/upgrade/pay/pro`、`#/upgrade/pay/pro/checkout`、`#/upgrade/pay/pro/done` | 专业版支付原型三步 |
+| `#/upgrade/pay/team`、`#/upgrade/pay/team/checkout`、`#/upgrade/pay/team/done` | 团队版支付原型三步 |
+
+新增路由时必须同步检查：
+
+1. `src/data.js` 的 `NAV_GROUPS` 是否需要新增左侧入口。
+2. `src/app.js` 顶部 `state` 是否需要新增状态字段。
+3. `src/app.js` 的 `ROUTES`、`hashForState()`、`renderWorkspace()` 或对应 `renderXxxView()` 是否需要更新。
+4. `src/styles.css` 是否需要新增稳定布局、窄屏样式和动效。
+
+## 当前状态与本地存储
+
+当前所有页面状态集中在 `src/app.js` 顶部的 `state` 对象中。新增交互时优先扩展这个对象，不要让多个 DOM 节点各自维护隐式状态。
+
+重要状态字段：
+
+- `activeMain`：当前一级入口或路由目标。
+- `expandedGroups`：左侧分组展开状态。
+- `activeSalesTab`：销售准备顶部标签。
+- `activeStageId`：外贸流程当前阶段。
+- `flowVariant`：外贸流程基础版或 A/B/C/D 变体。
+- `flowChecklist`：A 变体 checklist 勾选状态。
+- `flowNotes`：D 变体私房笔记。
+- `flowCompareStageId`：D 变体阶段对比目标。
+- `flowAi`：B 变体 AI 顾问展开、加载、回答和追问状态。
+- `payCycle` / `payMethod` / `payAgreed` / `payPhase`：升级支付原型状态。
+- `activeCompanyModule`：了解公司当前模块。
+- `selectedProductId`：产品&市场当前选中产品。
+- `activeCaseCategory` / `activeCaseTag` / `caseSearchQuery`：案例知识库筛选。
+- `activeCustomerId` / `activeCustomerPanel` / `kassAssistantOpen`：客户Kass 页面状态。
+- `drawer` / `popup`：右侧抽屉和弹层。
+- `selectedModel` / `chatDraft` / `isGenerating` / `generatedResult`：通用聊天输入和模拟生成状态。
+
+本地存储边界：
+
+- `localStorage.reverse-yingdan-flow-checklist`：只保存外贸流程 A 变体 checklist。
+- `localStorage.reverse-yingdan-flow-notes`：只保存外贸流程 D 变体私房笔记。
+- `sessionStorage.reverse-yingdan-prefill-ask`：只用于从外贸流程 B 变体的问 AI 动作跳回 `#/ask` 时预填问题。
+- 不要把真实客户资料、真实聊天、真实账号信息或真实支付信息写入浏览器存储。
 
 ## 功能区域命名约定
 
@@ -94,11 +223,12 @@ Python 后端：
 一级功能区是左侧主导航里的大入口，代表用户来这里要做哪类事。
 
 - `问一下`：通用外贸问答。
-- `销售准备`：成交前资料准备、公司/产品/资产/SOP。
+- `销售准备`：成交前资料准备、外贸流程、公司资料、产品市场和案例知识库。
 - `成交顾问`：围绕具体客户和成交动作的顾问。
 - `技能Skill`：更细的外贸工作流工具。
 - `客户Kass`：客户档案/客户上下文。
 - `历史记录`：历史会话和历史任务。
+- `账号/用量/升级`：通过账号卡、用量页和升级支付 hash 进入，不是左侧一级导航。
 
 ### 二级模块
 
@@ -106,10 +236,12 @@ Python 后端：
 
 `销售准备` 下的二级模块：
 
-- `了解公司`
-- `了解产品和市场`
-- `公司资产`
 - `外贸流程`
+- `了解公司`
+- `产品&市场`
+- `案例知识库`
+
+历史资料里出现过 `了解产品和市场`、`公司资产`、`外贸全流程 SOP` 等叫法。实现时以当前 `src/data.js` 的 `SALES_TABS` 和 `src/app.js` 的路由为准；如果要恢复旧模块，必须同步补导航、路由、渲染函数和样式。
 
 `成交顾问` 下的二级模块：
 
@@ -129,8 +261,9 @@ Python 后端：
 - `地推陌拜`
 - `来访接待`
 - `展会成交`
-- `谈判`
 - `组合标题`
+
+当前代码里没有独立的 `技能Skill > 谈判` 左侧入口；谈判能力主要体现在 `成交顾问 > 场景谈判顾问`、`技能Skill > 展会成交` 和外贸流程阶段按钮中。若要新增独立谈判页，需要按新增路由流程补齐。
 
 ### 子流程 / 子页面
 
@@ -143,9 +276,13 @@ Python 后端：
 - `技能Skill > 展会成交 > 展后跟进拜访`
 - `技能Skill > 组合标题 > 标题组合`
 - `技能Skill > 组合标题 > 标题+卖点+FAQ`
-- `销售准备 > 了解产品和市场 > 产品目录表`
-- `销售准备 > 了解产品和市场 > 产品营销海报库`
-- `销售准备 > 外贸流程 > 外贸全流程 SOP 导图`
+- `销售准备 > 产品&市场 > 产品目录表`
+- `销售准备 > 产品&市场 > 产品营销海报库`
+- `销售准备 > 外贸流程 > A 变体 > Checklist`
+- `销售准备 > 外贸流程 > B 变体 > 问 AI 顾问`
+- `销售准备 > 外贸流程 > D 变体 > 私房笔记`
+- `客户Kass > A 分组 > 客户档案`
+- `账号/用量/升级 > 用量明细 > 最近记录`
 
 ### 页面区域
 
@@ -170,7 +307,7 @@ Python 后端：
 示例：
 
 - `销售准备 > 了解公司 > 输入区`
-- `销售准备 > 了解产品和市场 > 产品目录表`
+- `销售准备 > 产品&市场 > 产品目录表`
 - `技能Skill > 展会成交 > 展中客户接待 > 结果预览区`
 - `成交顾问 > 询盘分析回复 > 筛选条件区`
 
@@ -183,6 +320,8 @@ Python 后端：
 当用户提供扣子工作流的调用链接、调用函数、input schema 或 output schema 时，优先写入 `coze-workflows/`，不要写进 `index.html` 原型界面。
 
 当用户提供扣子节点画布、节点样例或要求“下一次直接按这些节点做工作流”时，优先写入 `coze-workflows/_node-reference/`，并维护节点类型索引。后续搭建具体业务工作流前，先读取该目录，再根据用户需求选择最短节点链路。
+
+如果扣子资料会影响页面交互，只在 `coze-workflows/` 记录接口和 schema；页面里只放用户可见的入口、状态、字段和模拟反馈。不要把完整调用函数、真实返回样例或开发说明塞进 `index.html`、`src/app.js` 或 `src/data.js` 的界面文案里。
 
 每个工作流必须单独建目录，建议格式：
 
@@ -206,6 +345,17 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 - 不要写入真实客户资料、真实聊天记录、手机号、邮箱或其他隐私。
 - 用户明确要求生成图时，直接使用 ImageGen tool，并把图片需求、提示词和对应调用函数关系记录到 `imagegen-brief.md`。
 - 如果用户只提供部分资料，就先记录已提供内容，缺失项标记为 `待提供`。
+
+当前已记录的扣子工作流：
+
+- `销售准备 > 了解公司 > 上传文档导入`：已完成 PPTX URL、DOCX、PPTX、PDF 真实调用验证，正式 output schema 待提供。
+- `销售准备 > 了解公司 > 当前模块 AI 提炼`：已完成真实调用验证，正式 output schema 待提供。
+- `销售准备 > 产品&市场 > 产品表格解读`：已完成 XLSX URL 真实调用验证，正式 output schema 待提供。
+- `销售准备 > 案例知识库 > 百问百答解析`：已完成 DOCX URL 真实调用验证，正式 output schema 待提供。
+- `客户Kass > 客户档案 > 背调报告入档`：已完成长文本真实调用验证，正式 output schema 待提供。
+- `客户Kass > 客户档案 > 跟进节点识别`：草稿，workflow ID 待提供，未验证。
+
+工作流状态冲突时，以对应目录下的 `workflow.md`、`input.schema.json`、`output.schema.json` 和 `call-function.md` 为准，再更新 `coze-workflows/README.md`。
 
 ## 核心页面与业务含义
 
@@ -350,11 +500,11 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 
 ### 谈判
 
-用于更通用的谈判输入和策略生成。
+用于更通用的谈判输入和策略生成。当前代码没有独立左侧导航项，相关能力先落在 `成交顾问 > 场景谈判顾问` 和外贸流程的谈判/报价阶段里。
 
 原型重点：
 
-- 当前页面输入提示较少，后续原型应补充谈判背景、客户异议、我方目标、底线和可让步条件。
+- 如果后续新增独立谈判页，应补充谈判背景、客户异议、我方目标、底线和可让步条件。
 
 ### 组合标题
 
@@ -395,11 +545,16 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 ## 文件与目录规则
 
 - 优先编辑现有文件。
-- 如果是单个原型，优先创建一个语义清楚的 `.html` 文件。
+- 当前主原型优先编辑 `src/data.js`、`src/app.js`、`src/styles.css`，不要把主流程重新写成大体量单文件 HTML。
+- 如果是完全独立的临时原型，才创建一个语义清楚的 `.html` 文件。
 - 如果原型包含多条用户流程，可以按功能创建多个 `.html` 文件，但不要过度拆分。
 - 不主动创建新的文档文件，除非用户明确要求，或项目规则要求维护 `CONTEXT.md`。
 - 本项目必须保留项目级 `CONTEXT.md`，用于说明项目目标、入口、模块、验证方式和后续改动位置。
 - 创建或修改 skill 时，不需要创建、补充或更新 `CONTEXT.md`。
+- `backups/` 只用于查历史，不主动改里面的旧 HTML。
+- `.claude/worktrees/` 是工具生成的工作树副本，不要把其中的文件当作当前主工程来更新。
+- `coze-workflows/` 虽然在 `.gitignore` 中，但它是本地工作流资料库；用户提供扣子资料时仍然要按规则维护。
+- 新增 SVG 图标优先放 `assets/icons/`，新增原型视觉素材优先放 `assets/generated/`，并在 `src/data.js` 或 `src/app.js` 用相对路径引用。
 
 ## 代码风格
 
@@ -425,12 +580,17 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 
 修改 HTML/CSS/JS 后，应使用浏览器打开或刷新页面验证。
 
+当前主入口可以直接打开 `index.html`。如本地资源缓存导致样式或脚本没刷新，可启动静态服务器再访问，但不要为了普通静态验证引入构建工具。
+
 重点检查：
 
 - 页面是否能正常打开。
 - 左侧导航和主工作区是否清楚。
 - 按钮、输入框、下拉项是否可见。
 - 主要用户流程是否能走通。
+- 至少抽查 `#/ask`、`#/sales-prep/flow`、`#/sales-prep/flow/b`、`#/sales-prep/company`、`#/sales-prep/market`、`#/sales-prep/cases`、`#/customer-kass/A`、`#/account/usage`。
+- 如果改了支付页，额外检查 `#/upgrade/pay/pro`、`#/upgrade/pay/pro/checkout`、`#/upgrade/pay/pro/done`。
+- 如果改了外贸流程 A/D 变体，注意本地 checklist、私房笔记会写入 localStorage，验证后如需干净状态可手动清除对应 key。
 - 桌面和窄屏下文字是否重叠或溢出。
 - 不要点击发送、删除、保存账号设置等可能产生真实副作用的动作，除非用户明确确认。
 
