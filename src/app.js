@@ -5268,6 +5268,7 @@ window.addEventListener("hashchange", applyRoute);
  */
 function init() {
   console.log("[reverse-yingdan] 初始化静态逆向原型");
+  installAutoRefreshWorker();
   hydrateFlowStorage();
   consumePrefillPromptIfAny();
   installFlowKeyboardShortcuts();
@@ -5326,6 +5327,54 @@ function installFlowKeyboardShortcuts() {
     state.activeStageId = TRADE_STAGES[nextIdx].id;
     renderApp();
     event.preventDefault();
+  });
+}
+
+/**
+ * 注册自动刷新 Service Worker。
+ *
+ * 为什么要加这个：
+ * - GitHub Pages 的静态资源会被浏览器缓存。
+ * - 同事拿到同一个链接时，可能仍在看旧 index.html 和旧 JS。
+ * - Service Worker 接管后，后续页面、JS、CSS 会优先走网络，减少“推了但别人看不到”的情况。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常；注册失败只写 warning，不影响原型打开。
+ */
+function installAutoRefreshWorker() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  if (window.location.protocol === "file:") {
+    return;
+  }
+
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let hasReloadedForNewWorker = false;
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || hasReloadedForNewWorker) {
+      return;
+    }
+
+    hasReloadedForNewWorker = true;
+    window.location.reload();
+  });
+
+  navigator.serviceWorker.register("./sw.js", {
+    scope: "./",
+    updateViaCache: "none"
+  }).then((registration) => {
+    registration.update();
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        registration.update();
+      }
+    });
+  }).catch((error) => {
+    console.warn("[reverse-yingdan] 自动刷新 Service Worker 注册失败", error);
   });
 }
 
