@@ -1,4 +1,4 @@
-/* global NAV_GROUPS, HISTORY_ITEMS, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS */
+/* global NAV_GROUPS, HISTORY_ITEMS, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
 
 /**
  * 页面级状态对象。
@@ -30,7 +30,10 @@
  *   selectedModel: string,
  *   chatDraft: string,
  *   isGenerating: boolean,
- *   generatedResult: string
+ *   generatedResult: string,
+ *   adminDialog: null | string,
+ *   adminMenuOpen: boolean,
+ *   adminUserFilterOpen: boolean
  * }}
  */
 const state = {
@@ -65,7 +68,10 @@ const state = {
   selectedModel: "A",
   chatDraft: "",
   isGenerating: false,
-  generatedResult: ""
+  generatedResult: "",
+  adminDialog: null,
+  adminMenuOpen: false,
+  adminUserFilterOpen: true
 };
 
 /**
@@ -267,6 +273,18 @@ function renderApp() {
     throw new Error("页面缺少 #app 容器，无法渲染赢单逆向原型。");
   }
 
+  if (state.activeMain.startsWith("admin-")) {
+    app.innerHTML = renderAdminApp();
+    bindEvents();
+    syncHashFromState();
+    console.log("[reverse-yingdan] 后台原型已渲染", {
+      activeMain: state.activeMain,
+      dialog: state.adminDialog,
+      hash: window.location.hash
+    });
+    return;
+  }
+
   app.innerHTML = `
     <div class="layout">
       ${renderSidebar()}
@@ -291,6 +309,797 @@ function renderApp() {
     activeStageId: state.activeStageId,
     hash: window.location.hash
   });
+}
+
+/**
+ * 渲染后台管理系统整体壳。
+ *
+ * 作用：
+ * - 复刻真实后台的 SoybeanAdmin 结构：左侧菜单、顶部面包屑、右侧管理表格。
+ * - 后台和前台原型互不混用，方便后续单独扩展管理端。
+ *
+ * @returns {string} 后台管理系统 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminApp() {
+  return `
+    <div class="admin-shell ${state.adminMenuOpen ? "mobile-menu-open" : ""}">
+      ${renderAdminSidebar()}
+      <main class="admin-main">
+        ${renderAdminTopbar()}
+        <section class="admin-workspace">
+          ${renderAdminWorkspace()}
+        </section>
+      </main>
+      ${renderAdminDialog()}
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染后台左侧菜单。
+ *
+ * @returns {string} 后台侧边栏 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminSidebar() {
+  return `
+    <aside class="admin-sidebar" aria-label="赢单管理系统后台菜单">
+      <a class="admin-brand" href="#/admin/home" data-admin-route="admin-home">
+        <span class="admin-brand-dot" aria-hidden="true"></span>
+        <h2>赢单管理系统</h2>
+      </a>
+      <nav class="admin-menu" aria-label="后台导航">
+        ${renderAdminMenuItem("admin-home")}
+        <div class="admin-menu-group">
+          <button class="admin-menu-parent" type="button" data-admin-action="系统管理菜单已展开。">
+            <span class="admin-menu-icon" aria-hidden="true">⚙</span>
+            <span>系统管理</span>
+            <span class="admin-menu-caret" aria-hidden="true">⌃</span>
+          </button>
+          <div class="admin-menu-children">
+            ${["admin-knowledge", "admin-user", "admin-character", "admin-model"].map(renderAdminMenuItem).join("")}
+          </div>
+        </div>
+      </nav>
+    </aside>
+  `;
+}
+
+/**
+ * 渲染一个后台菜单项。
+ *
+ * @param {string} id - 菜单对应的 activeMain。
+ * @returns {string} 菜单项 HTML。
+ * @throws {Error} 本函数不主动抛异常；找不到菜单时返回空字符串。
+ */
+function renderAdminMenuItem(id) {
+  const item = ADMIN_NAV_ITEMS.find((nav) => nav.id === id);
+  if (!item) return "";
+
+  return `
+    <a class="admin-menu-item ${state.activeMain === id ? "active" : ""}" href="${escapeHtml(hashForAdminMain(id))}" data-admin-route="${escapeHtml(id)}">
+      <span class="admin-menu-icon" aria-hidden="true">${escapeHtml(item.icon)}</span>
+      <span>${escapeHtml(item.label)}</span>
+    </a>
+  `;
+}
+
+/**
+ * 渲染后台顶部栏。
+ *
+ * @returns {string} 顶部栏 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminTopbar() {
+  const title = getAdminTitle(state.activeMain);
+  const group = state.activeMain === "admin-home" ? "" : `<span>系统管理</span><span class="admin-crumb-sep">/</span>`;
+
+  return `
+    <header class="admin-topbar">
+      <button class="admin-icon-btn" type="button" data-admin-menu-toggle="true" aria-label="展开后台菜单">☰</button>
+      <nav class="admin-breadcrumb" aria-label="后台面包屑">
+        ${group}
+        <strong>${escapeHtml(title)}</strong>
+      </nav>
+      <div class="admin-top-actions">
+        <button class="admin-icon-btn" type="button" data-admin-action="全屏是原型反馈。">⛶</button>
+        <button class="admin-user-pill" type="button" data-admin-action="Admin 用户菜单是原型反馈。">
+          <span class="admin-user-avatar" aria-hidden="true">◎</span>
+          <span>Admin</span>
+        </button>
+      </div>
+    </header>
+  `;
+}
+
+/**
+ * 根据后台路由渲染右侧工作区。
+ *
+ * @returns {string} 当前后台页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminWorkspace() {
+  if (state.activeMain === "admin-home") return renderAdminHome();
+  if (state.activeMain === "admin-knowledge") return renderAdminKnowledge();
+  if (state.activeMain === "admin-user") return renderAdminUsers();
+  if (state.activeMain === "admin-model") return renderAdminModels();
+  return renderAdminCharacters();
+}
+
+/**
+ * 后台首页。
+ *
+ * @returns {string} 首页 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminHome() {
+  return `
+    <section class="admin-empty-page">
+      <h3>敬请期待</h3>
+    </section>
+  `;
+}
+
+/**
+ * 知识库管理页面。
+ *
+ * @returns {string} 知识库页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminKnowledge() {
+  return `
+    <article class="admin-card">
+      <header class="admin-card-head">
+        <h3>知识库列表</h3>
+        <button class="admin-primary-btn" type="button" data-admin-dialog="knowledge-add">＋ 新增</button>
+      </header>
+      <div class="admin-table-scroll">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>知识库名称</th>
+              <th>文件URL</th>
+              <th>MIME类型</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ADMIN_KNOWLEDGE_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td>${escapeHtml(row.name)}</td>
+                <td><span class="admin-url">${escapeHtml(row.url)}</span></td>
+                <td>${escapeHtml(row.mime)}</td>
+                <td><button class="admin-danger-link" type="button" data-admin-action="删除知识库需要二次确认，当前原型不删除。">删除</button></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${renderAdminPagination(13, 1, false)}
+    </article>
+  `;
+}
+
+/**
+ * 用户管理页面。
+ *
+ * @returns {string} 用户管理 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminUsers() {
+  return `
+    <article class="admin-card">
+      <header class="admin-card-head">
+        <h3>用户列表</h3>
+        <div class="admin-head-actions">
+          <button class="admin-outline-btn" type="button" data-admin-dialog="token-rank">查看Token排行</button>
+          <button class="admin-primary-btn" type="button" data-admin-dialog="user-add">新增用户</button>
+        </div>
+      </header>
+      <section class="admin-filter ${state.adminUserFilterOpen ? "open" : ""}" aria-label="注册时间筛选">
+        <label>
+          <span>注册时间：</span>
+          <input type="text" placeholder="开始日期" />
+        </label>
+        <span class="admin-filter-to">至</span>
+        <label>
+          <input type="text" placeholder="结束日期" />
+        </label>
+        <button class="admin-primary-btn small" type="button" data-admin-action="已按注册时间执行模拟查询。">查 询</button>
+        <button class="admin-ghost-btn small" type="button" data-admin-action="已重置筛选条件。">重 置</button>
+      </section>
+      <div class="admin-table-scroll">
+        <table class="admin-table user-table">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>用户名</th>
+              <th>注册时间</th>
+              <th>账户信息</th>
+              <th>消息/Token统计</th>
+              <th>Token使用详情</th>
+              <th>用户状态</th>
+              <th>账户操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ADMIN_USER_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td>${escapeHtml(row.username)}</td>
+                <td>${escapeHtml(row.registeredAt)}</td>
+                <td>
+                  <div class="admin-cell-stack">
+                    <span>积分: <strong>${row.credits}</strong></span>
+                    <span>子账号: <strong>${escapeHtml(row.subAccounts)}</strong></span>
+                    <em>无可用积分</em>
+                  </div>
+                </td>
+                <td>
+                  <div class="admin-cell-stack">
+                    <span>消息总数: <strong>${row.messageCount}</strong></span>
+                    <span>Token总数: <strong>${row.tokenCount}</strong></span>
+                  </div>
+                </td>
+                <td><button class="admin-link" type="button" data-admin-action="Token详情是原型反馈。">查看详情</button></td>
+                <td>${renderAdminSwitch(row.enabled)}</td>
+                <td>
+                  <div class="admin-row-actions">
+                    <button class="admin-link" type="button" data-admin-dialog="points-add">加积分</button>
+                    <button class="admin-link" type="button" data-admin-dialog="sub-account">调整子账号</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${renderAdminPagination(2130, 213, true)}
+    </article>
+  `;
+}
+
+/**
+ * AI 人设管理页面。
+ *
+ * @returns {string} AI 人设页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminCharacters() {
+  return `
+    <article class="admin-card">
+      <header class="admin-card-head">
+        <h3>人设列表</h3>
+        <div class="admin-head-actions">
+          <button class="admin-outline-btn" type="button" data-admin-dialog="menu-manage">☰ 菜单管理</button>
+          <button class="admin-primary-btn" type="button" data-admin-dialog="character-add">＋ 新增</button>
+        </div>
+      </header>
+      <div class="admin-table-scroll">
+        <table class="admin-table character-table">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>人设名称</th>
+              <th>人设等级</th>
+              <th>人设描述</th>
+              <th>输入提示词</th>
+              <th>人设提问说明</th>
+              <th>状态</th>
+              <th>排序</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ADMIN_CHARACTER_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td>${escapeHtml(row.name)}</td>
+                <td>${renderAdminTag(row.level)}</td>
+                <td><span class="admin-ellipsis">${escapeHtml(row.description || "-")}</span></td>
+                <td><span class="admin-ellipsis wide">${escapeHtml(row.prompt || "-")}</span></td>
+                <td><span class="admin-ellipsis wide">${escapeHtml(row.guide || "-")}</span></td>
+                <td>${renderAdminStatus(row.enabled)}</td>
+                <td>${row.sort}</td>
+                <td>
+                  <div class="admin-row-actions">
+                    <button class="admin-link" type="button" data-admin-dialog="character-edit">编辑</button>
+                    <button class="admin-link" type="button" data-admin-dialog="character-extend">拓展</button>
+                    <button class="admin-success-link" type="button" data-admin-action="${row.enabled ? "禁用" : "启用"}人设是原型反馈，不修改线上状态。">${row.enabled ? "禁用" : "启用"}</button>
+                    <button class="admin-danger-link" type="button" data-admin-action="删除人设需要二次确认，当前原型不删除。">删除</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  `;
+}
+
+/**
+ * AI 模型管理页面。
+ *
+ * @returns {string} AI 模型页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminModels() {
+  return `
+    <article class="admin-card compact">
+      <header class="admin-card-head">
+        <h3>AI模型列表</h3>
+      </header>
+      <div class="admin-table-scroll">
+        <table class="admin-table model-table">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>模型ID</th>
+              <th>思考层级</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ADMIN_MODEL_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td><span class="admin-model-id">${escapeHtml(row.modelId)}</span></td>
+                <td>${renderAdminTag(row.thinking)}</td>
+                <td><button class="admin-link" type="button" data-admin-dialog="model-edit">编辑</button></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  `;
+}
+
+/**
+ * 渲染后台弹窗。
+ *
+ * @returns {string} 当前弹窗 HTML；没有弹窗时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminDialog() {
+  const dialog = state.adminDialog;
+  if (!dialog) return "";
+
+  const dialogMap = {
+    "knowledge-add": renderAdminKnowledgeDialog,
+    "user-add": renderAdminUserDialog,
+    "token-rank": renderAdminTokenRankDialog,
+    "points-add": renderAdminPointsDialog,
+    "sub-account": renderAdminSubAccountDialog,
+    "character-add": () => renderAdminCharacterDialog("新增AI人设"),
+    "character-edit": () => renderAdminCharacterDialog("编辑AI人设"),
+    "character-extend": renderAdminCharacterExtendDialog,
+    "menu-manage": renderAdminMenuDialog,
+    "model-edit": renderAdminModelDialog
+  };
+
+  const renderer = dialogMap[dialog];
+  if (!renderer) return "";
+
+  return `
+    <div class="admin-dialog-backdrop" data-admin-close="true">
+      <section class="admin-dialog ${dialog === "menu-manage" ? "wide" : ""} ${dialog === "token-rank" ? "rank" : ""}" role="dialog" aria-modal="true">
+        <button class="admin-dialog-close" type="button" data-admin-close="true" aria-label="关闭">×</button>
+        ${renderer()}
+      </section>
+    </div>
+  `;
+}
+
+/**
+ * 知识库新增弹窗。
+ *
+ * @returns {string} 弹窗内容 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminKnowledgeDialog() {
+  return `
+    <h3>新增知识库</h3>
+    <div class="admin-form-grid">
+      ${renderAdminInput("知识库名称", "请输入知识库名称", true, "0 / 100")}
+      ${renderAdminSelect("MIME类型", ["application/pdf (PDF文档)", "text/plain (TXT文档)"], true)}
+      <label class="admin-form-field full">
+        <span><strong>*</strong> 文件</span>
+        <button class="admin-upload-box" type="button" data-admin-action="文件上传是原型反馈，不读取本地文件。">⇧ 点击上传文件</button>
+        <em>支持 PDF、TXT 格式文件，最大 50MB</em>
+      </label>
+    </div>
+    ${renderAdminDialogActions("确 定")}
+  `;
+}
+
+/**
+ * 用户新增弹窗。
+ *
+ * @returns {string} 弹窗内容 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminUserDialog() {
+  return `
+    <h3>新增用户</h3>
+    <div class="admin-form-grid two">
+      ${renderAdminInput("用户名", "请输入用户名", true)}
+      ${renderAdminRadio("性别", ["男", "女"], "男")}
+      ${renderAdminInput("昵称", "请输入昵称", false)}
+      ${renderAdminInput("手机号", "请输入手机号", false)}
+      ${renderAdminInput("邮箱", "请输入邮箱", false)}
+      ${renderAdminRadio("用户状态", ["启用", "禁用"], "启用", true)}
+      ${renderAdminSelect("用户角色", ["请选择用户角色", "超级管理员", "运营管理员", "客服"], false)}
+    </div>
+    ${renderAdminDialogActions("确 认")}
+  `;
+}
+
+/**
+ * Token 排行弹窗。
+ *
+ * @returns {string} 弹窗内容 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminTokenRankDialog() {
+  return `
+    <h3>用户Token消费排行</h3>
+    <section class="admin-filter dialog-filter">
+      <label><span>开始日期：</span><input type="text" /></label>
+      <label><span>结束日期：</span><input type="text" /></label>
+      <button class="admin-primary-btn small" type="button" data-admin-action="Token排行查询是原型反馈。">查 询</button>
+      <button class="admin-ghost-btn small" type="button" data-admin-action="已重置Token排行筛选。">重 置</button>
+    </section>
+    <div class="admin-table-scroll">
+      <table class="admin-table">
+        <thead>
+          <tr><th>排名</th><th>用户ID</th><th>用户名</th><th>昵称</th><th>消息总数</th><th>Token总数</th><th>用户Token</th><th>AI Token</th></tr>
+        </thead>
+        <tbody><tr><td colspan="8" class="admin-empty-cell">暂无数据</td></tr></tbody>
+      </table>
+    </div>
+    ${renderAdminPagination(0, 1, false)}
+  `;
+}
+
+/**
+ * 加积分弹窗。
+ *
+ * @returns {string} 弹窗内容 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminPointsDialog() {
+  return `
+    <h3>加积分</h3>
+    <div class="admin-form-grid">
+      ${renderAdminInput("增加积分", "请输入积分数量", true)}
+      ${renderAdminInput("备注", "请输入操作备注", false)}
+    </div>
+    ${renderAdminDialogActions("确 定")}
+  `;
+}
+
+/**
+ * 调整子账号弹窗。
+ *
+ * @returns {string} 弹窗内容 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminSubAccountDialog() {
+  return `
+    <h3>调整子账号</h3>
+    <div class="admin-form-grid">
+      ${renderAdminInput("子账号数量", "请输入子账号数量", true)}
+      ${renderAdminInput("备注", "请输入操作备注", false)}
+    </div>
+    ${renderAdminDialogActions("确 定")}
+  `;
+}
+
+/**
+ * AI 人设新增/编辑弹窗。
+ *
+ * @param {string} title - 弹窗标题。
+ * @returns {string} 弹窗内容 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminCharacterDialog(title) {
+  return `
+    <h3>${escapeHtml(title)}</h3>
+    <div class="admin-form-grid two">
+      ${renderAdminSelect("人设等级", ["一级人设", "二级人设"], true)}
+      ${renderAdminInput("人设名称", "请输入人设名称", true, "0 / 50")}
+      ${renderAdminSelect("选择知识库", ["请选择知识库（可选），最多选择8个", "询盘分析回复", "新客开发信", "场景谈判顾问"], false)}
+      ${renderAdminInput("排序", "请输入排序", false)}
+      ${renderAdminTextarea("人设描述", "请输入人设描述", false)}
+      <label class="admin-form-field">
+        <span>Logo</span>
+        <button class="admin-upload-box small" type="button" data-admin-action="Logo上传是原型反馈。">上传Logo</button>
+        <em>支持 jpg、png、gif 等常见图片格式，最大 5MB，建议尺寸 200x200</em>
+      </label>
+      <label class="admin-form-field full">
+        <span>视频</span>
+        <button class="admin-upload-box" type="button" data-admin-action="视频上传是原型反馈。">点击上传视频</button>
+        <em>支持 mp4、avi、mov 等常见视频格式，最大 100MB</em>
+      </label>
+      ${renderAdminInput("输入提示", "请输入输入提示词", false, "0 / 100")}
+      ${renderAdminInput("人设提问说明", "请输入人设提问说明", false, "0 / 100")}
+    </div>
+    ${renderAdminDialogActions("保 存")}
+  `;
+}
+
+/**
+ * AI 人设拓展弹窗。
+ *
+ * @returns {string} 弹窗内容 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminCharacterExtendDialog() {
+  return `
+    <h3>拓展人设</h3>
+    <div class="admin-form-grid">
+      ${renderAdminInput("父级人设", "B2B销售准备", false)}
+      ${renderAdminInput("拓展名称", "请输入二级人设名称", true)}
+      ${renderAdminTextarea("拓展说明", "请输入拓展说明", false)}
+    </div>
+    ${renderAdminDialogActions("保 存")}
+  `;
+}
+
+/**
+ * 菜单管理弹窗。
+ *
+ * @returns {string} 弹窗内容 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminMenuDialog() {
+  return `
+    <h3>菜单管理</h3>
+    <div class="admin-dialog-toolbar">
+      <button class="admin-primary-btn" type="button" data-admin-action="新增菜单表单是原型反馈。">新增菜单</button>
+    </div>
+    <div class="admin-table-scroll menu">
+      <table class="admin-table">
+        <thead>
+          <tr><th>ID</th><th>菜单名称</th><th>菜单等级</th><th>所属父菜单</th><th>Logo</th><th>排序</th><th>创建时间</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          ${ADMIN_MENU_ROWS.map((row) => `
+            <tr>
+              <td>${row.id}</td>
+              <td>${escapeHtml(row.name)}</td>
+              <td>${escapeHtml(row.level)}</td>
+              <td>${escapeHtml(row.parent)}</td>
+              <td>${escapeHtml(row.logo)}</td>
+              <td>${row.sort}</td>
+              <td>${escapeHtml(row.createdAt)}</td>
+              <td>
+                <button class="admin-link" type="button" data-admin-action="编辑菜单是原型反馈。">编辑</button>
+                <button class="admin-danger-link" type="button" data-admin-action="删除菜单需要二次确认，当前原型不删除。">删除</button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/**
+ * AI 模型编辑弹窗。
+ *
+ * @returns {string} 弹窗内容 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminModelDialog() {
+  return `
+    <h3>编辑AI模型</h3>
+    <div class="admin-form-grid">
+      ${renderAdminInput("模型ID", "gemini-3.0-pro-preview", false)}
+      ${renderAdminRadio("思考层级", ["低", "中", "高"], "高")}
+    </div>
+    ${renderAdminDialogActions("确 定")}
+  `;
+}
+
+/**
+ * 渲染后台输入框。
+ *
+ * @param {string} label - 字段名。
+ * @param {string} placeholder - 占位符。
+ * @param {boolean} required - 是否必填。
+ * @param {string=} counter - 字数计数文本。
+ * @returns {string} 表单字段 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminInput(label, placeholder, required, counter) {
+  return `
+    <label class="admin-form-field">
+      <span>${required ? "<strong>*</strong> " : ""}${escapeHtml(label)}</span>
+      <input type="text" placeholder="${escapeHtml(placeholder)}" />
+      ${counter ? `<em>${escapeHtml(counter)}</em>` : ""}
+    </label>
+  `;
+}
+
+/**
+ * 渲染后台文本域。
+ *
+ * @param {string} label - 字段名。
+ * @param {string} placeholder - 占位符。
+ * @param {boolean} required - 是否必填。
+ * @returns {string} 表单字段 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminTextarea(label, placeholder, required) {
+  return `
+    <label class="admin-form-field full">
+      <span>${required ? "<strong>*</strong> " : ""}${escapeHtml(label)}</span>
+      <textarea placeholder="${escapeHtml(placeholder)}"></textarea>
+    </label>
+  `;
+}
+
+/**
+ * 渲染后台下拉框。
+ *
+ * @param {string} label - 字段名。
+ * @param {string[]} options - 下拉选项。
+ * @param {boolean} required - 是否必填。
+ * @returns {string} 表单字段 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminSelect(label, options, required) {
+  return `
+    <label class="admin-form-field">
+      <span>${required ? "<strong>*</strong> " : ""}${escapeHtml(label)}</span>
+      <select>
+        ${options.map((option) => `<option>${escapeHtml(option)}</option>`).join("")}
+      </select>
+    </label>
+  `;
+}
+
+/**
+ * 渲染后台单选组。
+ *
+ * @param {string} label - 字段名。
+ * @param {string[]} options - 选项。
+ * @param {string} active - 默认选中项。
+ * @param {boolean=} required - 是否必填。
+ * @returns {string} 单选组 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminRadio(label, options, active, required) {
+  return `
+    <fieldset class="admin-form-field">
+      <legend>${required ? "<strong>*</strong> " : ""}${escapeHtml(label)}</legend>
+      <div class="admin-radio-row">
+        ${options.map((option) => `
+          <label>
+            <input type="radio" name="${escapeHtml(label)}" ${option === active ? "checked" : ""} />
+            <span>${escapeHtml(option)}</span>
+          </label>
+        `).join("")}
+      </div>
+    </fieldset>
+  `;
+}
+
+/**
+ * 渲染弹窗底部按钮。
+ *
+ * @param {string} confirmText - 确认按钮文案。
+ * @returns {string} 按钮区 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminDialogActions(confirmText) {
+  return `
+    <footer class="admin-dialog-actions">
+      <button class="admin-ghost-btn" type="button" data-admin-close="true">取 消</button>
+      <button class="admin-primary-btn" type="button" data-admin-action="保存是原型反馈，不提交真实后台。">${escapeHtml(confirmText)}</button>
+    </footer>
+  `;
+}
+
+/**
+ * 渲染后台分页。
+ *
+ * @param {number} total - 总条数。
+ * @param {number} lastPage - 最后一页页码。
+ * @param {boolean} longPager - 是否展示长分页。
+ * @returns {string} 分页 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminPagination(total, lastPage, longPager) {
+  if (total <= 0) {
+    return `<div class="admin-pagination"><span>1</span><span>10 条/页</span></div>`;
+  }
+
+  return `
+    <div class="admin-pagination">
+      <span>共 ${total} 条</span>
+      <button disabled>‹</button>
+      <button class="active">1</button>
+      ${longPager ? `<button>2</button><button>3</button><button>4</button><button>5</button><span>•••</span><button>${lastPage}</button>` : ""}
+      <button ${longPager ? "" : "disabled"}>›</button>
+      ${longPager ? `<select><option>10 条/页</option></select><span>跳至</span><input value="" /><span>页</span>` : ""}
+    </div>
+  `;
+}
+
+/**
+ * 后台标签。
+ *
+ * @param {string} label - 标签文本。
+ * @returns {string} 标签 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminTag(label) {
+  return `<span class="admin-tag">${escapeHtml(label)}</span>`;
+}
+
+/**
+ * 后台状态标签。
+ *
+ * @param {boolean} enabled - 是否启用。
+ * @returns {string} 状态 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminStatus(enabled) {
+  return `<span class="admin-status ${enabled ? "on" : "off"}">${enabled ? "启用" : "禁用"}</span>`;
+}
+
+/**
+ * 后台开关。
+ *
+ * @param {boolean} enabled - 是否启用。
+ * @returns {string} 开关 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminSwitch(enabled) {
+  return `
+    <button class="admin-switch ${enabled ? "on" : ""}" type="button" data-admin-action="用户状态开关是原型反馈，不修改真实账号。">
+      <span>${enabled ? "启用" : "禁用"}</span>
+    </button>
+  `;
+}
+
+/**
+ * 获取后台页面标题。
+ *
+ * @param {string} main - activeMain。
+ * @returns {string} 页面标题。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getAdminTitle(main) {
+  const item = ADMIN_NAV_ITEMS.find((nav) => nav.id === main);
+  return item ? item.label : "AI人设管理";
+}
+
+/**
+ * 后台 main → hash。
+ *
+ * @param {string} main - activeMain。
+ * @returns {string} hash。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function hashForAdminMain(main) {
+  const map = {
+    "admin-home": "#/admin/home",
+    "admin-knowledge": "#/admin/knowledge-base",
+    "admin-user": "#/admin/user",
+    "admin-character": "#/admin/ai-character",
+    "admin-model": "#/admin/ai-model"
+  };
+
+  return map[main] || "#/admin/ai-character";
 }
 
 /**
@@ -2814,6 +3623,62 @@ function renderUpgradePlan(plan) {
  * @throws {Error} 本函数不主动抛异常。
  */
 function bindEvents() {
+  document.querySelectorAll("[data-admin-route]").forEach((node) => {
+    node.addEventListener("click", (event) => {
+      const main = node.getAttribute("data-admin-route");
+
+      if (!main) {
+        return;
+      }
+
+      event.preventDefault();
+      state.activeMain = main;
+      state.adminDialog = null;
+      state.adminMenuOpen = false;
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-admin-menu-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.adminMenuOpen = !state.adminMenuOpen;
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-admin-dialog]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      state.adminDialog = button.getAttribute("data-admin-dialog");
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-admin-close]").forEach((node) => {
+    node.addEventListener("click", (event) => {
+      const isBackdrop = node.classList.contains("admin-dialog-backdrop");
+      if (isBackdrop && event.target !== node) {
+        return;
+      }
+
+      state.adminDialog = null;
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll(".admin-dialog").forEach((node) => {
+    node.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+  });
+
+  document.querySelectorAll("[data-admin-action]").forEach((node) => {
+    node.addEventListener("click", () => {
+      const message = node.getAttribute("data-admin-action") || "后台操作已触发。";
+      showToast(message);
+    });
+  });
+
   document.querySelectorAll("[data-main]").forEach((button) => {
     button.addEventListener("click", () => {
       state.activeMain = button.getAttribute("data-main") || "sales-prep";
@@ -3609,6 +4474,11 @@ function showToast(message) {
  */
 const ROUTES = [
   { hash: "/ask", main: "ask" },
+  { hash: "/admin/home", main: "admin-home" },
+  { hash: "/admin/knowledge-base", main: "admin-knowledge" },
+  { hash: "/admin/user", main: "admin-user" },
+  { hash: "/admin/ai-character", main: "admin-character" },
+  { hash: "/admin/ai-model", main: "admin-model" },
   { hash: "/sales-prep", main: "sales-prep", tab: "flow" },
   { hash: "/sales-prep/flow", main: "sales-prep", tab: "flow", flowVariant: null },
   { hash: "/sales-prep/flow/a", main: "sales-prep", tab: "flow", flowVariant: "a" },
@@ -3658,6 +4528,10 @@ let isApplyingRoute = false;
  */
 function hashForState() {
   const main = state.activeMain;
+
+  if (main.startsWith("admin-")) {
+    return hashForAdminMain(main);
+  }
 
   if (main === "ask") {
     return "#/ask";
@@ -3763,6 +4637,8 @@ function applyRoute() {
 
   // 路由变化时强制收掉之前的 popup（升级 modal、账号设置等），避免漂浮在新页上。
   state.popup = null;
+  state.adminDialog = null;
+  state.adminMenuOpen = false;
 
   // 直接进入某个子项时，自动把它所属的导航分组展开，让侧栏跟 URL 状态一致。
   const parent = NAV_GROUPS.find((group) => group.type === "group" && (group.children || []).some((child) => child.id === state.activeMain));

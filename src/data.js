@@ -749,3 +749,116 @@ window.KASS_FLOW_STAGES = [
   "11-大货单",
   "12-成交复购"
 ];
+
+/**
+ * 后台管理原型的左侧菜单。
+ *
+ * 为什么单独放一份后台菜单：
+ * - 后台真实页面来自 SoybeanAdmin，信息架构和前台赢单工作台完全不同。
+ * - 单独维护能避免把“管理系统”的菜单混进普通用户侧导航。
+ *
+ * @type {Array<{ id: string, label: string, icon: string, parent?: string }>}
+ */
+window.ADMIN_NAV_ITEMS = [
+  { id: "admin-home", label: "首页", icon: "▣" },
+  { id: "admin-knowledge", label: "知识库管理", icon: "☰", parent: "系统管理" },
+  { id: "admin-user", label: "用户管理", icon: "♟", parent: "系统管理" },
+  { id: "admin-character", label: "AI人设管理", icon: "♣", parent: "系统管理" },
+  { id: "admin-model", label: "AI模型管理", icon: "♟", parent: "系统管理" }
+];
+
+/**
+ * 知识库管理表格数据。
+ *
+ * 注意：
+ * - 这里只保留后台字段形态和可读样例。
+ * - 文件 URL 使用省略号，避免原型里沉淀完整线上资源地址。
+ *
+ * @type {Array<{ id: number, name: string, url: string, mime: string }>}
+ */
+window.ADMIN_KNOWLEDGE_ROWS = [
+  { id: 1, name: "地推陌拜", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._field_visit.txt", mime: "text/plain" },
+  { id: 2, name: "关系维护", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._relationship.txt", mime: "text/plain" },
+  { id: 3, name: "海外电销", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._phone_sales.txt", mime: "text/plain" },
+  { id: 4, name: "客户激活", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._reactivation.txt", mime: "text/plain" },
+  { id: 5, name: "客诉处理", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._complaint.txt", mime: "text/plain" },
+  { id: 6, name: "来访接待", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._visit_reception.txt", mime: "text/plain" },
+  { id: 7, name: "视频会议", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._video_meeting.txt", mime: "text/plain" },
+  { id: 8, name: "新客开发信", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._cold_email.txt", mime: "text/plain" },
+  { id: 9, name: "展会成交_展后", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._expo_post.txt", mime: "text/plain" },
+  { id: 10, name: "展会成交_展前", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._expo_pre.txt", mime: "text/plain" },
+  { id: 11, name: "展会成交_展中", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._expo_during.txt", mime: "text/plain" },
+  { id: 12, name: "场景谈判顾问", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._negotiation.txt", mime: "text/plain" },
+  { id: 13, name: "询盘分析回复", url: "https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._inquiry_reply.txt", mime: "text/plain" }
+];
+
+/**
+ * 用户管理表格数据。
+ *
+ * 真实后台里用户名是手机号。原型里统一脱敏，避免复制真实用户信息。
+ *
+ * @type {Array<{ id: number, username: string, registeredAt: string, credits: number, subAccounts: string, messageCount: number, tokenCount: number, enabled: boolean }>}
+ */
+window.ADMIN_USER_ROWS = [
+  { id: 1, username: "135****0024", registeredAt: "2026/06/13 10:02:34", credits: 0, subAccounts: "0/0", messageCount: 0, tokenCount: 0, enabled: true },
+  { id: 2, username: "158****8358", registeredAt: "2026/06/13 10:02:22", credits: 0, subAccounts: "0/0", messageCount: 0, tokenCount: 0, enabled: true },
+  { id: 3, username: "188****1044", registeredAt: "2026/06/13 09:53:37", credits: 0, subAccounts: "0/0", messageCount: 0, tokenCount: 0, enabled: true },
+  { id: 4, username: "137****3499", registeredAt: "2026/06/13 09:53:00", credits: 0, subAccounts: "0/0", messageCount: 13, tokenCount: 4194, enabled: true },
+  { id: 5, username: "134****9547", registeredAt: "2026/06/13 09:51:35", credits: 0, subAccounts: "0/0", messageCount: 0, tokenCount: 0, enabled: true },
+  { id: 6, username: "136****9392", registeredAt: "2026/06/13 09:51:19", credits: 0, subAccounts: "0/0", messageCount: 2, tokenCount: 5860, enabled: true },
+  { id: 7, username: "189****4871", registeredAt: "2026/06/13 09:49:46", credits: 0, subAccounts: "0/0", messageCount: 0, tokenCount: 0, enabled: true },
+  { id: 8, username: "178****7070", registeredAt: "2026/06/13 09:49:21", credits: 0, subAccounts: "0/0", messageCount: 0, tokenCount: 0, enabled: true },
+  { id: 9, username: "133****9094", registeredAt: "2026/06/13 09:48:31", credits: 0, subAccounts: "0/0", messageCount: 0, tokenCount: 0, enabled: true },
+  { id: 10, username: "136****0196", registeredAt: "2026/06/13 09:44:17", credits: 0, subAccounts: "0/0", messageCount: 6, tokenCount: 13687, enabled: true }
+];
+
+/**
+ * AI 人设管理表格数据。
+ *
+ * @type {Array<{ id: number, name: string, level: string, description: string, prompt: string, guide: string, enabled: boolean, sort: number }>}
+ */
+window.ADMIN_CHARACTER_ROWS = [
+  { id: 1, name: "B2B销售准备", level: "一级人设", description: "", prompt: "请输入查询内容[例如：3月新贸节老板 运营 业务要做什么工作？/ 新手外贸要准备什么]", guide: "请输入关于外贸相关的问题", enabled: false, sort: 1 },
+  { id: 30, name: "问一下", level: "一级人设", description: "", prompt: "请输入查询内容[例如：3月新贸节老板 运营 业务要做什么工作？/ 新手外贸要准备什么]", guide: "请输入关于外贸相关的问题", enabled: true, sort: 1 },
+  { id: 2, name: "外贸市场调研", level: "一级人设", description: "", prompt: "市场调研：墨西哥·建筑材料行业·PVC地板·目标客户是工程采购商和批发商", guide: "输入「核心产品」为主，可选加上「目标国家/地区」和「目标客户类型」，用于整体市场调研与选品推荐。", enabled: false, sort: 2 },
+  { id: 3, name: "客户背调助手", level: "一级人设", description: "", prompt: "背调：中东·新能源行业·Yellow Door Energy", guide: "输入客户所在国家/地区 + 行业/标签 + 公司名称，用于做客户背景调研。", enabled: false, sort: 3 },
+  { id: 4, name: "写开发信技巧", level: "一级人设", description: "", prompt: "写开发信：美国·美容仪器·目标客户是品牌商·英文·首次开发", guide: "输入目标国家/地区、行业/产品、客户类型、语言和开发目的。", enabled: false, sort: 4 },
+  { id: 5, name: "询盘分析回复", level: "一级人设", description: "", prompt: "询盘分析：这是客户的英文询盘内容…… 帮我判断客户诚意并给一封回复建议", guide: "直接粘贴客户询盘/聊天记录全文，可补充产品、价格和底线。", enabled: false, sort: 5 },
+  { id: 10, name: "客户激活顾问", level: "二级人设", description: "", prompt: "激活客户：美国户外用品品牌商，2年没下单，帮我写一封唤醒邮件", guide: "输入客户国家/地区、行业、沉默时长、历史合作和新卖点。", enabled: false, sort: 9 },
+  { id: 110, name: "市场调研", level: "二级人设", description: "", prompt: "市场调研：墨西哥·建筑材料行业·PVC地板·目标客户是工程采购商和批发商", guide: "输入核心产品、目标国家/地区和目标客户类型。", enabled: true, sort: 11 },
+  { id: 17, name: "电话跟进技巧", level: "二级人设", description: "", prompt: "美国 + EST + 催回复报价 + Price is too high / Let me think about it", guide: "根据客户关系和沟通目标，生成完整外贸电话脚本。", enabled: false, sort: 17 },
+  { id: 18, name: "视频会议主持专家", level: "二级人设", description: "# 角色 你是一名B2B视频会议主持助手", prompt: "", guide: "", enabled: false, sort: 18 },
+  { id: 19, name: "出货提醒顾问", level: "二级人设", description: "外贸B2B出货前确认与提醒文案顾问", prompt: "", guide: "", enabled: false, sort: 19 },
+  { id: 32, name: "客户背调顾问", level: "二级人设", description: "", prompt: "背调：中东·新能源行业·Yellow Door Energy", guide: "输入客户信息，用于做客户背景调研。", enabled: true, sort: 28 },
+  { id: 37, name: "新客开发信", level: "二级人设", description: "", prompt: "写开发信：美国·美容仪器·目标客户是品牌商·英文·首次开发", guide: "输入目标国家、行业、客户类型、语言和开发目的。", enabled: true, sort: 33 },
+  { id: 419, name: "销售准备", level: "一级人设", description: "销售准备的功能入口。", prompt: "", guide: "", enabled: true, sort: 35 }
+];
+
+/**
+ * AI 人设菜单管理弹窗数据。
+ *
+ * @type {Array<{ id: number, name: string, level: string, parent: string, logo: string, sort: number, createdAt: string }>}
+ */
+window.ADMIN_MENU_ROWS = [
+  { id: 21, name: "问一下", level: "一级菜单", parent: "-", logo: "-", sort: 0, createdAt: "2026/4/15 16:56:03" },
+  { id: 26, name: "测试一级人设菜单", level: "二级菜单", parent: "-", logo: "-", sort: 0, createdAt: "2026/4/23 10:18:11" },
+  { id: 29, name: "背调谈判跟进", level: "二级菜单", parent: "-", logo: "-", sort: 0, createdAt: "2026/4/24 14:54:24" },
+  { id: 4, name: "B2B销售百问", level: "二级菜单", parent: "-", logo: "预览", sort: 1, createdAt: "2026/2/5 16:11:52" },
+  { id: 22, name: "成交顾问", level: "一级菜单", parent: "-", logo: "预览", sort: 1, createdAt: "2026/4/16 20:34:51" },
+  { id: 5, name: "外贸市场调研", level: "二级菜单", parent: "-", logo: "预览", sort: 2, createdAt: "2026/2/5 16:13:37" },
+  { id: 23, name: "技能Skill", level: "一级菜单", parent: "-", logo: "预览", sort: 3, createdAt: "2026/4/16 20:35:19" },
+  { id: 6, name: "新客写开发信", level: "二级菜单", parent: "-", logo: "-", sort: 5, createdAt: "2026/2/5 16:14:31" },
+  { id: 9, name: "询盘分析跟进", level: "二级菜单", parent: "-", logo: "-", sort: 6, createdAt: "2026/2/5 16:15:20" },
+  { id: 46, name: "标题组合", level: "二级菜单", parent: "-", logo: "预览", sort: 44, createdAt: "2026/5/29 10:25:29" },
+  { id: 13, name: "展会成交", level: "二级菜单", parent: "-", logo: "预览", sort: 55, createdAt: "2026/2/5 16:16:04" }
+];
+
+/**
+ * AI 模型管理表格数据。
+ *
+ * @type {Array<{ id: number, modelId: string, thinking: string }>}
+ */
+window.ADMIN_MODEL_ROWS = [
+  { id: 1, modelId: "gemini-3.0-pro-preview", thinking: "高" },
+  { id: 2, modelId: "gemini-3.1-pro-preview", thinking: "高" }
+];
