@@ -825,11 +825,32 @@ window.ADMIN_USER_ROWS = [
  */
 window.ADMIN_USER_PREVIEW_METRICS = [
   { id: "total-users", metric: "累计用户总数", value: "2,130", amount: "-" },
+  { id: "total-deal-amount", metric: "累计成交金额", value: "¥286,400", amount: "-" },
   { id: "new-today", metric: "今日新增注册", value: "48", amount: "-" },
   { id: "active-today", metric: "今日活跃用户", value: "326", amount: "-" },
-  { id: "paid-today", metric: "今日付费用户", value: "9", amount: "¥8,920" },
-  { id: "paid-total", metric: "付费会员总数", value: "186 / 2,130", amount: "¥286,400" },
-  { id: "token-today", metric: "今日 Token 消耗", value: "3,286,500", amount: "¥412" }
+  { id: "paid-today", metric: "今日付费用户", value: "9", amount: "-" },
+  { id: "paid-total", metric: "付费会员总数", value: "186", amount: "-" },
+  { id: "deal-amount-today", metric: "今日成交金额", value: "¥8,920", amount: "-" },
+  { id: "token-today", metric: "今日 Token 总消耗", value: "3,286,500", amount: "-" },
+  { id: "token-cost-today", metric: "Token成本(估算)", value: "¥412", amount: "-" }
+];
+
+/**
+ * User Preview 功能调用总看板。
+ *
+ * @type {Array<{ rank: number, feature: string, calls: string, users: string, avgUse: string, token: string, tokenShare: string, cost: string }>}
+ */
+window.ADMIN_USER_PREVIEW_FUNCTION_SUMMARY = [
+  { rank: 1, feature: "问一下", calls: "1,268", users: "342", avgUse: "3.7 次", token: "918K", tokenShare: "28%", cost: "¥86" },
+  { rank: 2, feature: "客户背调顾问", calls: "936", users: "188", avgUse: "5.0 次", token: "1,108K", tokenShare: "34%", cost: "¥142" },
+  { rank: 3, feature: "询盘分析回复", calls: "642", users: "156", avgUse: "4.1 次", token: "672K", tokenShare: "20%", cost: "¥61" },
+  { rank: 4, feature: "市场调研", calls: "420", users: "96", avgUse: "4.4 次", token: "498K", tokenShare: "15%", cost: "¥49" },
+  { rank: 5, feature: "新客开发信", calls: "386", users: "121", avgUse: "3.2 次", token: "286K", tokenShare: "9%", cost: "¥24" },
+  { rank: 6, feature: "场景谈判顾问", calls: "304", users: "87", avgUse: "3.5 次", token: "318K", tokenShare: "10%", cost: "¥31" },
+  { rank: 7, feature: "客户Kass", calls: "218", users: "73", avgUse: "3.0 次", token: "226K", tokenShare: "7%", cost: "¥22" },
+  { rank: 8, feature: "案例知识库搜索", calls: "186", users: "64", avgUse: "2.9 次", token: "142K", tokenShare: "4%", cost: "¥13" },
+  { rank: 9, feature: "产品&市场", calls: "164", users: "52", avgUse: "3.2 次", token: "126K", tokenShare: "4%", cost: "¥12" },
+  { rank: 10, feature: "报价邮件", calls: "132", users: "48", avgUse: "2.8 次", token: "96K", tokenShare: "3%", cost: "¥9" }
 ];
 
 /**

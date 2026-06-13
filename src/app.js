@@ -1,4 +1,4 @@
-/* global NAV_GROUPS, HISTORY_ITEMS, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
+/* global NAV_GROUPS, HISTORY_ITEMS, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
 
 /**
  * 页面级状态对象。
@@ -593,10 +593,14 @@ function renderAdminUsers() {
 function renderAdminUserPreview() {
   const headlineMetrics = ADMIN_USER_PREVIEW_METRICS.filter((item) => [
     "total-users",
+    "total-deal-amount",
     "new-today",
     "active-today",
     "paid-today",
-    "token-today"
+    "paid-total",
+    "deal-amount-today",
+    "token-today",
+    "token-cost-today"
   ].includes(item.id));
 
   return `
@@ -604,7 +608,7 @@ function renderAdminUserPreview() {
       <header class="admin-card-head">
         <div>
           <h3>User Preview</h3>
-          <p class="admin-card-subtitle">用户增长、活跃、付费金额和 Token 成本的运营看板。</p>
+          <p class="admin-card-subtitle">用户增长、成交金额、活跃、付费和 Token 成本的运营看板。</p>
         </div>
         <div class="admin-head-actions">
           <button class="admin-outline-btn" type="button" data-admin-action="已模拟刷新 User Preview 数据。">刷新数据</button>
@@ -619,13 +623,60 @@ function renderAdminUserPreview() {
           <article class="user-preview-kpi">
             <span>${escapeHtml(item.metric)}</span>
             <strong>${escapeHtml(item.value)}</strong>
-            <em>${escapeHtml(item.amount)}</em>
+            ${item.amount && item.amount !== "-" ? `<em>${escapeHtml(item.amount)}</em>` : ""}
           </article>
         `).join("")}
       </section>
 
+      ${renderUserPreviewFunctionSummary()}
+
       ${renderUserPreviewReportBuilder()}
     </article>
+  `;
+}
+
+/**
+ * 渲染功能调用总看板。
+ *
+ * @returns {string} 功能调用排行表格 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewFunctionSummary() {
+  return `
+    <section class="user-preview-function-board" aria-label="功能调用总看板">
+      <header>
+        <h4>功能调用总看板</h4>
+        <p>大家都用什么功能，用于观察功能调用、使用人数、Token 消耗和成本分布。</p>
+      </header>
+      <div class="admin-table-scroll flat">
+        <table class="admin-table user-preview-function-table">
+          <thead>
+            <tr>
+              <th>功能调用排行（TOP 10）</th>
+              <th>调用总次数</th>
+              <th>使用人数</th>
+              <th>人均使用时长/次数</th>
+              <th>Token 总消耗</th>
+              <th>占总消耗比例</th>
+              <th>成本(估算)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ADMIN_USER_PREVIEW_FUNCTION_SUMMARY.map((row) => `
+              <tr>
+                <td><strong>${row.rank}. ${escapeHtml(row.feature)}</strong></td>
+                <td>${escapeHtml(row.calls)}</td>
+                <td>${escapeHtml(row.users)}</td>
+                <td>${escapeHtml(row.avgUse)}</td>
+                <td>${escapeHtml(row.token)}</td>
+                <td>${escapeHtml(row.tokenShare)}</td>
+                <td class="admin-money-cell">${escapeHtml(row.cost)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
   `;
 }
 
@@ -3916,34 +3967,68 @@ function renderAccountSettingsPopup() {
       <button class="account-pop-head" type="button" data-toast="账号详情是原型反馈。">
         <span class="avatar" aria-hidden="true"></span>
         <span class="account-pop-id">
-          <strong>Tina · 外贸业务</strong>
-          <span>180****9154 · 个人空间</span>
+          <strong>Tina · 外贸业务<i class="account-pop-id-badge" aria-hidden="true">VIP</i></strong>
+          <span>个人账号 · 180****9154</span>
         </span>
         <span class="account-pop-caret" aria-hidden="true">›</span>
       </button>
 
-      <section class="account-pop-plan">
-        <div class="account-pop-plan-row">
-          <span class="account-pop-plan-tier">免费版</span>
-          <a class="account-pop-plan-detail" href="#/account/usage" data-account-go="true">用量明细</a>
+      <section class="account-pop-banner" aria-label="当前套餐">
+        <div class="account-pop-banner-text">
+          <div class="account-pop-banner-row">
+            <span class="account-pop-banner-tier">免费版</span>
+            <strong>升级解锁更多积分</strong>
+          </div>
+          <p>200+ 成交顾问能力 · 月底自动重置</p>
         </div>
-        <div class="account-pop-plan-bar"><span style="width: 86%"></span></div>
-        <div class="account-pop-plan-meta">还剩 <strong>75</strong> 积分 · 月底重置</div>
-        <button class="account-pop-invite-cta" type="button" data-popup="inviteRedeem">
-          <span aria-hidden="true">◇</span> 邀请码兑换积分
-        </button>
-        <button class="account-pop-upgrade-cta" type="button" data-popup="upgrade">
-          <span aria-hidden="true">✦</span> 升级解锁更多积分
-        </button>
+        <button class="account-pop-banner-cta" type="button" data-popup="upgrade">立即升级</button>
       </section>
 
-      <ul class="account-pop-menu">
-        <li><button type="button" data-toast="切换空间是原型反馈。"><span class="acc-i" aria-hidden="true">👥</span><span class="acc-label">切换空间</span><span class="acc-r" aria-hidden="true">›</span></button></li>
-        <li><button type="button" data-toast="帮助中心是原型反馈。"><span class="acc-i" aria-hidden="true">?</span><span class="acc-label">帮助中心</span></button></li>
-        <li><button type="button" data-toast="账号设置是原型入口，不修改真实账号。"><span class="acc-i" aria-hidden="true">⚙</span><span class="acc-label">设置</span></button></li>
-        <li><button type="button" data-toast="关于页是原型反馈。"><span class="acc-i" aria-hidden="true">ⓘ</span><span class="acc-label">关于</span></button></li>
-        <li><button class="danger" type="button" data-toast="退出登录是高风险动作，当前原型不执行。"><span class="acc-i" aria-hidden="true">↪</span><span class="acc-label">退出登录</span></button></li>
-      </ul>
+      <section class="account-pop-stats">
+        <article class="account-pop-stat-card account-pop-stat-quota">
+          <header>
+            <span class="account-pop-stat-icon" aria-hidden="true">◆</span>
+            <span>本月积分</span>
+          </header>
+          <div class="account-pop-stat-value"><strong>75</strong><em>/ 520</em></div>
+          <div class="account-pop-stat-bar"><span style="width: 86%"></span></div>
+        </article>
+        <a class="account-pop-stat-card account-pop-stat-link" href="#/account/usage" data-account-go="true">
+          <header>
+            <span class="account-pop-stat-icon" aria-hidden="true">▤</span>
+            <span>用量明细</span>
+          </header>
+          <div class="account-pop-stat-value account-pop-stat-arrow">查看 30 天<span aria-hidden="true">›</span></div>
+          <div class="account-pop-stat-sub">最近 86% · 1.2k Token</div>
+        </a>
+      </section>
+
+      <nav class="account-pop-grid" aria-label="账号快捷动作">
+        <button type="button" data-popup="inviteRedeem">
+          <span class="account-pop-grid-icon" aria-hidden="true">◇</span>
+          <em>邀请兑换</em>
+        </button>
+        <button type="button" data-toast="切换空间是原型反馈。">
+          <span class="account-pop-grid-icon" aria-hidden="true">⇄</span>
+          <em>切换空间</em>
+        </button>
+        <button type="button" data-toast="帮助中心是原型反馈。">
+          <span class="account-pop-grid-icon" aria-hidden="true">?</span>
+          <em>帮助中心</em>
+        </button>
+        <button type="button" data-toast="账号设置是原型入口，不修改真实账号。">
+          <span class="account-pop-grid-icon" aria-hidden="true">⚙</span>
+          <em>设置</em>
+        </button>
+        <button type="button" data-toast="关于页是原型反馈。">
+          <span class="account-pop-grid-icon" aria-hidden="true">ⓘ</span>
+          <em>关于</em>
+        </button>
+      </nav>
+
+      <button class="account-pop-logout" type="button" data-toast="退出登录是高风险动作，当前原型不执行。">
+        <span aria-hidden="true">↪</span> 退出登录
+      </button>
     </section>
   `;
 }
