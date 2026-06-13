@@ -1,4 +1,4 @@
-/* global NAV_GROUPS, HISTORY_ITEMS, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
+/* global NAV_GROUPS, HISTORY_ITEMS, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
 
 /**
  * 页面级状态对象。
@@ -34,6 +34,10 @@
  *   inviteCodeDraft: string,
  *   inviteRedeemResult: string,
  *   adminInvitePreview: null | string,
+ *   userPreviewFields: Set<string>,
+ *   userPreviewTimePreset: "today" | "week" | "month" | "custom",
+ *   userPreviewStartDate: string,
+ *   userPreviewEndDate: string,
  *   adminDialog: null | string,
  *   adminMenuOpen: boolean,
  *   adminUserFilterOpen: boolean
@@ -75,6 +79,10 @@ const state = {
   inviteCodeDraft: "",
   inviteRedeemResult: "",
   adminInvitePreview: null,
+  userPreviewFields: new Set(["userId", "username", "registeredAt", "registerSource", "lastLoginAt", "lastUsedAt", "firstFeature", "topFeature", "lastFeature", "usageCount", "messageCount", "tokenUsed", "amount", "paidStatus", "upgradeClickCount", "payPageViewCount"]),
+  userPreviewTimePreset: "today",
+  userPreviewStartDate: "2026-06-13",
+  userPreviewEndDate: "2026-06-13",
   adminDialog: null,
   adminMenuOpen: false,
   adminUserFilterOpen: true
@@ -365,7 +373,7 @@ function renderAdminSidebar() {
             <span class="admin-menu-caret" aria-hidden="true">⌃</span>
           </button>
           <div class="admin-menu-children">
-            ${["admin-knowledge", "admin-user", "admin-invite", "admin-character", "admin-model"].map(renderAdminMenuItem).join("")}
+            ${["admin-knowledge", "admin-user", "admin-user-preview", "admin-invite", "admin-character", "admin-model"].map(renderAdminMenuItem).join("")}
           </div>
         </div>
       </nav>
@@ -410,6 +418,7 @@ function renderAdminTopbar() {
         <strong>${escapeHtml(title)}</strong>
       </nav>
       <div class="admin-top-actions">
+        <a class="admin-user-interface-btn" href="#/ask">用户界面</a>
         <button class="admin-icon-btn" type="button" data-admin-action="全屏是原型反馈。">⛶</button>
         <button class="admin-user-pill" type="button" data-admin-action="Admin 用户菜单是原型反馈。">
           <span class="admin-user-avatar" aria-hidden="true">◎</span>
@@ -430,6 +439,7 @@ function renderAdminWorkspace() {
   if (state.activeMain === "admin-home") return renderAdminHome();
   if (state.activeMain === "admin-knowledge") return renderAdminKnowledge();
   if (state.activeMain === "admin-user") return renderAdminUsers();
+  if (state.activeMain === "admin-user-preview") return renderAdminUserPreview();
   if (state.activeMain === "admin-invite") return renderAdminInviteCodes();
   if (state.activeMain === "admin-model") return renderAdminModels();
   return renderAdminCharacters();
@@ -568,6 +578,317 @@ function renderAdminUsers() {
       ${renderAdminPagination(2130, 213, true)}
     </article>
   `;
+}
+
+/**
+ * User Preview 页面。
+ *
+ * 这个页面刻意不复用 renderAdminUsers()：
+ * - 用户要求不要修改现有「用户管理」。
+ * - 后续所有用户管理新方案都可以在这个独立 Preview 里改，不影响旧页面对照。
+ *
+ * @returns {string} User Preview HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminUserPreview() {
+  const headlineMetrics = ADMIN_USER_PREVIEW_METRICS.filter((item) => [
+    "total-users",
+    "new-today",
+    "active-today",
+    "paid-today",
+    "token-today",
+    "risk-alert"
+  ].includes(item.id));
+
+  return `
+    <article class="admin-card user-preview-page">
+      <header class="admin-card-head">
+        <div>
+          <h3>User Preview</h3>
+          <p class="admin-card-subtitle">用户增长、活跃、付费金额、Token 成本和风险预警的运营看板。</p>
+        </div>
+        <div class="admin-head-actions">
+          <button class="admin-outline-btn" type="button" data-admin-action="已模拟刷新 User Preview 数据。">刷新数据</button>
+          <button class="admin-primary-btn" type="button" data-admin-action="已模拟导出下方用户字段报表。">导出报表</button>
+        </div>
+      </header>
+
+      ${renderUserPreviewTimeFilter()}
+
+      <section class="user-preview-kpis" aria-label="User Preview 核心指标">
+        ${headlineMetrics.map((item) => `
+          <article class="user-preview-kpi ${item.id === "risk-alert" ? "warn" : ""}">
+            <span>${escapeHtml(item.metric)}</span>
+            <strong>${escapeHtml(item.value)}</strong>
+            <em>${escapeHtml(item.amount)}</em>
+            ${renderUserPreviewStatus(item.status)}
+          </article>
+        `).join("")}
+      </section>
+
+      ${renderUserPreviewReportBuilder()}
+    </article>
+  `;
+}
+
+/**
+ * 渲染 User Preview 的时间范围筛选。
+ *
+ * 为什么放在 KPI 上方：
+ * - KPI、用户明细和导出报表都应该共享同一套时间口径。
+ * - 用户先选时间，再看数据，更符合运营看板的使用习惯。
+ *
+ * @returns {string} 时间筛选区 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewTimeFilter() {
+  const presets = [
+    { id: "today", label: "今日" },
+    { id: "week", label: "本周" },
+    { id: "month", label: "本月" }
+  ];
+
+  return `
+    <section class="user-preview-timebar" aria-label="数据时间范围">
+      <div>
+        <span class="user-preview-time-label">时间范围</span>
+        <strong>${escapeHtml(getUserPreviewTimeRangeLabel())}</strong>
+      </div>
+      <div class="user-preview-time-controls">
+        <div class="user-preview-time-presets" role="group" aria-label="快捷时间">
+          ${presets.map((preset) => `
+            <button class="${state.userPreviewTimePreset === preset.id ? "active" : ""}" type="button" data-user-preview-time-preset="${escapeHtml(preset.id)}">
+              ${escapeHtml(preset.label)}
+            </button>
+          `).join("")}
+        </div>
+        <label>
+          <span>开始</span>
+          <input type="date" value="${escapeHtml(state.userPreviewStartDate)}" data-user-preview-date="start" />
+        </label>
+        <label>
+          <span>结束</span>
+          <input type="date" value="${escapeHtml(state.userPreviewEndDate)}" data-user-preview-date="end" />
+        </label>
+        <button class="admin-outline-btn small" type="button" data-user-preview-apply-date="true">应用时间</button>
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * 把 Date 对象转成 input[type=date] 需要的 yyyy-mm-dd。
+ *
+ * 为什么不用 toISOString：
+ * - toISOString 会按 UTC 转换，东八区凌晨附近可能错一天。
+ * - 这里用本地年月日拼接，和用户在浏览器看到的日期一致。
+ *
+ * @param {Date} date - 要格式化的日期对象。
+ * @returns {string} yyyy-mm-dd 格式日期。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function formatDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * 把 yyyy-mm-dd 转成页面里更易扫读的 yyyy/mm/dd。
+ *
+ * @param {string} value - input[type=date] 的日期值。
+ * @returns {string} 页面展示用日期。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function formatDateDisplayValue(value) {
+  return value ? value.replaceAll("-", "/") : "-";
+}
+
+/**
+ * 根据快捷时间计算开始和结束日期。
+ *
+ * @param {"today" | "week" | "month"} preset - 快捷时间类型。
+ * @returns {{ start: string, end: string }} 计算后的起止日期。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getUserPreviewPresetRange(preset) {
+  const today = new Date();
+  const start = new Date(today);
+
+  if (preset === "week") {
+    const day = today.getDay() || 7;
+    start.setDate(today.getDate() - day + 1);
+  }
+
+  if (preset === "month") {
+    start.setDate(1);
+  }
+
+  return {
+    start: formatDateInputValue(start),
+    end: formatDateInputValue(today)
+  };
+}
+
+/**
+ * 读取当前 User Preview 时间范围展示文案。
+ *
+ * @returns {string} 当前起止日期文案。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getUserPreviewTimeRangeLabel() {
+  return `${formatDateDisplayValue(state.userPreviewStartDate)} - ${formatDateDisplayValue(state.userPreviewEndDate)}`;
+}
+
+/**
+ * 设置 User Preview 快捷时间。
+ *
+ * @param {"today" | "week" | "month"} preset - 快捷时间类型。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function setUserPreviewTimePreset(preset) {
+  const range = getUserPreviewPresetRange(preset);
+  state.userPreviewTimePreset = preset;
+  state.userPreviewStartDate = range.start;
+  state.userPreviewEndDate = range.end;
+}
+
+/**
+ * 应用用户手动输入的时间范围。
+ *
+ * 为什么要做顺序修正：
+ * - 用户可能先选结束日期再选开始日期，导致开始晚于结束。
+ * - 原型里自动交换，避免出现一个明显不可用的时间段。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function applyUserPreviewCustomDateRange() {
+  state.userPreviewTimePreset = "custom";
+
+  if (state.userPreviewStartDate && state.userPreviewEndDate && state.userPreviewStartDate > state.userPreviewEndDate) {
+    const nextStart = state.userPreviewEndDate;
+    state.userPreviewEndDate = state.userPreviewStartDate;
+    state.userPreviewStartDate = nextStart;
+  }
+}
+
+/**
+ * 渲染 User Preview 字段选择器和用户报表。
+ *
+ * @returns {string} 字段配置区和报表表格 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewReportBuilder() {
+  const selectedFields = getUserPreviewSelectedFields();
+
+  return `
+    <section class="user-preview-report" aria-label="用户字段报表">
+      <header class="user-preview-report-head">
+        <div>
+          <h4>用户字段报表</h4>
+          <p>上方调整显示字段，下方报表会按当前字段生成；导出报表时导出这张表。</p>
+        </div>
+        <div class="user-preview-field-actions">
+          <button type="button" data-user-preview-preset="core">核心字段</button>
+          <button type="button" data-user-preview-preset="all">全选字段</button>
+          <button type="button" data-user-preview-preset="cost">成本金额</button>
+        </div>
+      </header>
+
+      <div class="user-preview-field-picker">
+        ${ADMIN_USER_PREVIEW_FIELDS.map((field) => {
+          const isChecked = state.userPreviewFields.has(field.id);
+          return `
+            <label class="user-preview-field-chip ${isChecked ? "checked" : ""}">
+              <input type="checkbox" value="${escapeHtml(field.id)}" data-user-preview-field="true" ${isChecked ? "checked" : ""} />
+              <span>${escapeHtml(field.label)}</span>
+              <em>${escapeHtml(field.group)}</em>
+            </label>
+          `;
+        }).join("")}
+      </div>
+
+      <div class="admin-table-scroll user-preview-report-scroll">
+        <table class="admin-table user-preview-user-table" style="min-width: ${Math.max(980, selectedFields.length * 148)}px">
+          <thead>
+            <tr>
+              ${selectedFields.map((field) => `<th>${escapeHtml(field.label)}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+            ${ADMIN_USER_PREVIEW_USERS.map((user) => `
+              <tr>
+                ${selectedFields.map((field) => `
+                  <td class="${field.id === "amount" ? "admin-money-cell" : ""}">${escapeHtml(user[field.id] || "-")}</td>
+                `).join("")}
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * 读取当前被选中的 User Preview 字段。
+ *
+ * 为什么至少保留一个字段：
+ * - 表格完全空白会让用户误以为数据丢了。
+ * - 如果用户取消全部字段，就自动回退到“用户”字段。
+ *
+ * @returns {typeof ADMIN_USER_PREVIEW_FIELDS} 已选择的字段配置。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getUserPreviewSelectedFields() {
+  const selected = ADMIN_USER_PREVIEW_FIELDS.filter((field) => state.userPreviewFields.has(field.id));
+  return selected.length ? selected : ADMIN_USER_PREVIEW_FIELDS.slice(0, 1);
+}
+
+/**
+ * 局部刷新 User Preview 的字段报表区。
+ *
+ * 为什么不用 renderApp：
+ * - renderApp 会重画整个后台页面，浏览器滚动位置会被重置。
+ * - 用户在字段区勾选时只需要更新这一张报表，所以局部替换更稳定。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常；找不到报表节点时会退回整页渲染。
+ */
+function refreshUserPreviewReport() {
+  const report = document.querySelector(".user-preview-report");
+
+  if (!report) {
+    renderApp();
+    return;
+  }
+
+  const workspace = document.querySelector(".admin-workspace");
+  const scrollTop = workspace ? workspace.scrollTop : 0;
+  const scrollLeft = workspace ? workspace.scrollLeft : 0;
+
+  report.outerHTML = renderUserPreviewReportBuilder();
+  bindUserPreviewReportControls();
+
+  if (workspace) {
+    workspace.scrollTop = scrollTop;
+    workspace.scrollLeft = scrollLeft;
+  }
+}
+
+/**
+ * 渲染 User Preview 里的状态标签。
+ *
+ * @param {string} status - 指标状态文本。
+ * @returns {string} 状态标签 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewStatus(status) {
+  const type = status === "预警" || status === "关注" ? "warn" : status === "上升" || status === "健康" ? "good" : "normal";
+  return `<span class="user-preview-status ${type}">${escapeHtml(status)}</span>`;
 }
 
 /**
@@ -1230,6 +1551,7 @@ function hashForAdminMain(main) {
     "admin-home": "#/admin/home",
     "admin-knowledge": "#/admin/knowledge-base",
     "admin-user": "#/admin/user",
+    "admin-user-preview": "#/admin/user-preview",
     "admin-invite": "#/admin/invite-code",
     "admin-character": "#/admin/ai-character",
     "admin-model": "#/admin/ai-model"
@@ -3841,6 +4163,45 @@ function bindEvents() {
     });
   });
 
+  document.querySelectorAll("[data-user-preview-time-preset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const preset = button.getAttribute("data-user-preview-time-preset");
+
+      if (preset !== "today" && preset !== "week" && preset !== "month") {
+        return;
+      }
+
+      setUserPreviewTimePreset(preset);
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-user-preview-date]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const type = input.getAttribute("data-user-preview-date");
+
+      if (type === "start") {
+        state.userPreviewStartDate = input.value;
+      }
+
+      if (type === "end") {
+        state.userPreviewEndDate = input.value;
+      }
+
+      state.userPreviewTimePreset = "custom";
+    });
+  });
+
+  document.querySelectorAll("[data-user-preview-apply-date]").forEach((button) => {
+    button.addEventListener("click", () => {
+      applyUserPreviewCustomDateRange();
+      showToast(`已应用时间范围：${getUserPreviewTimeRangeLabel()}`);
+      renderApp();
+    });
+  });
+
+  bindUserPreviewReportControls();
+
   document.querySelectorAll("[data-main]").forEach((button) => {
     button.addEventListener("click", () => {
       state.activeMain = button.getAttribute("data-main") || "sales-prep";
@@ -4283,6 +4644,50 @@ function bindEvents() {
 }
 
 /**
+ * 绑定 User Preview 字段报表里的控件。
+ *
+ * 这个函数会在整页渲染后调用，也会在字段区局部刷新后调用。
+ * 这样字段区可以独立更新，不需要每次勾选都重画整个后台页面。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function bindUserPreviewReportControls() {
+  document.querySelectorAll("[data-user-preview-field]").forEach((input) => {
+    input.addEventListener("change", (event) => {
+      event.stopPropagation();
+
+      const field = input.value;
+
+      if (input.checked) {
+        state.userPreviewFields.add(field);
+      } else {
+        state.userPreviewFields.delete(field);
+      }
+
+      refreshUserPreviewReport();
+    });
+  });
+
+  document.querySelectorAll("[data-user-preview-preset]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const preset = button.getAttribute("data-user-preview-preset");
+      const presets = {
+        core: ["userId", "username", "registeredAt", "registerSource", "lastLoginAt", "lastUsedAt", "topFeature", "amount", "paidStatus"],
+        all: ADMIN_USER_PREVIEW_FIELDS.map((field) => field.id),
+        cost: ["username", "topFeature", "usageCount", "messageCount", "tokenUsed", "modelSplit", "amount", "paymentCount", "paidStatus", "upgradeClickCount", "payPageViewCount"]
+      };
+
+      state.userPreviewFields = new Set(presets[preset] || presets.core);
+      refreshUserPreviewReport();
+    });
+  });
+}
+
+/**
  * 二维码倒计时计时器（每秒减 1）。
  *
  * @type {number | null}
@@ -4668,6 +5073,7 @@ const ROUTES = [
   { hash: "/admin/home", main: "admin-home" },
   { hash: "/admin/knowledge-base", main: "admin-knowledge" },
   { hash: "/admin/user", main: "admin-user" },
+  { hash: "/admin/user-preview", main: "admin-user-preview" },
   { hash: "/admin/invite-code", main: "admin-invite" },
   { hash: "/admin/ai-character", main: "admin-character" },
   { hash: "/admin/ai-model", main: "admin-model" },

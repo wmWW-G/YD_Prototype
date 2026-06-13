@@ -763,6 +763,7 @@ window.ADMIN_NAV_ITEMS = [
   { id: "admin-home", label: "首页", icon: "▣" },
   { id: "admin-knowledge", label: "知识库管理", icon: "☰", parent: "系统管理" },
   { id: "admin-user", label: "用户管理", icon: "♟", parent: "系统管理" },
+  { id: "admin-user-preview", label: "User Preview", icon: "◉", parent: "系统管理" },
   { id: "admin-invite", label: "邀请码管理", icon: "◇", parent: "系统管理" },
   { id: "admin-character", label: "AI人设管理", icon: "♣", parent: "系统管理" },
   { id: "admin-model", label: "AI模型管理", icon: "♟", parent: "系统管理" }
@@ -811,6 +812,77 @@ window.ADMIN_USER_ROWS = [
   { id: 8, username: "178****7070", registeredAt: "2026/06/13 09:49:21", credits: 0, subAccounts: "0/0", messageCount: 0, tokenCount: 0, enabled: true },
   { id: 9, username: "133****9094", registeredAt: "2026/06/13 09:48:31", credits: 0, subAccounts: "0/0", messageCount: 0, tokenCount: 0, enabled: true },
   { id: 10, username: "136****0196", registeredAt: "2026/06/13 09:44:17", credits: 0, subAccounts: "0/0", messageCount: 6, tokenCount: 13687, enabled: true }
+];
+
+/**
+ * User Preview 数据概览指标。
+ *
+ * 为什么单独建这份数据：
+ * - User Preview 是新方案试验页，不能影响现有「用户管理」。
+ * - 这里把统计口径、当前值、金额和业务价值放在同一行，便于后续产品讨论。
+ *
+ * @type {Array<{ id: string, metric: string, value: string, amount: string, logic: string, businessValue: string, status: string }>}
+ */
+window.ADMIN_USER_PREVIEW_METRICS = [
+  { id: "total-users", metric: "累计用户总数", value: "2,130", amount: "-", logic: "累计所有注册用户数", businessValue: "业务基本盘", status: "稳定" },
+  { id: "new-today", metric: "今日新增注册", value: "48", amount: "-", logic: "今日 0:00 至今新注册人数", businessValue: "衡量拉新速度", status: "上升" },
+  { id: "active-today", metric: "今日活跃用户", value: "326", amount: "-", logic: "今日登录过或使用过功能的人数", businessValue: "衡量产品粘性", status: "健康" },
+  { id: "paid-today", metric: "今日付费用户", value: "9", amount: "¥8,920", logic: "今日完成付费转化的用户数和付款金额", businessValue: "即时转化率", status: "关注" },
+  { id: "paid-total", metric: "付费会员总数", value: "186 / 2,130", amount: "¥286,400", logic: "累计付费会员数 / 总用户数", businessValue: "衡量商业化健康度", status: "健康" },
+  { id: "token-today", metric: "今日 Token 消耗", value: "3,286,500", amount: "¥412", logic: "全平台今日已消耗的 Token 总量和预估成本", businessValue: "衡量成本支出", status: "正常" },
+  { id: "risk-alert", metric: "异常预警", value: "2 条", amount: "¥0", logic: "Token 突增、注册量突增，用于防刷机制", businessValue: "风险防范", status: "预警" }
+];
+
+/**
+ * User Preview 可选报表字段。
+ *
+ * @type {Array<{ id: string, label: string, group: string }>}
+ */
+window.ADMIN_USER_PREVIEW_FIELDS = [
+  { id: "userId", label: "用户ID", group: "基础" },
+  { id: "username", label: "用户", group: "基础" },
+  { id: "registeredAt", label: "注册时间", group: "基础" },
+  { id: "registerSource", label: "注册来源", group: "来源" },
+  { id: "inviteCode", label: "邀请码", group: "来源" },
+  { id: "salesOwner", label: "所属销售", group: "来源" },
+  { id: "lastLoginAt", label: "最近登录时间", group: "登录" },
+  { id: "lastUsedAt", label: "最近使用时间", group: "使用" },
+  { id: "firstFeature", label: "首次使用功能", group: "使用" },
+  { id: "topFeature", label: "最常用功能", group: "使用" },
+  { id: "lastFeature", label: "最近使用功能", group: "使用" },
+  { id: "usageCount", label: "功能调用次数", group: "使用" },
+  { id: "sessionCount", label: "会话数", group: "使用" },
+  { id: "messageCount", label: "消息数", group: "使用" },
+  { id: "avgRounds", label: "平均对话轮数", group: "使用" },
+  { id: "uploadCount", label: "上传次数", group: "深度行为" },
+  { id: "exportCount", label: "导出次数", group: "深度行为" },
+  { id: "tokenUsed", label: "Token 消耗", group: "成本" },
+  { id: "modelSplit", label: "按模型分配", group: "成本" },
+  { id: "amount", label: "金额", group: "金额" },
+  { id: "paymentCount", label: "付款次数", group: "金额" },
+  { id: "lastPaidAt", label: "最近付款时间", group: "金额" },
+  { id: "paidStatus", label: "付费状态", group: "金额" },
+  { id: "creditBalance", label: "剩余积分", group: "积分" },
+  { id: "creditUsed", label: "已用积分", group: "积分" },
+  { id: "upgradeClickCount", label: "升级点击次数", group: "转化" },
+  { id: "payPageViewCount", label: "支付页访问次数", group: "转化" },
+  { id: "redeemedInviteAt", label: "邀请码兑换时间", group: "转化" }
+];
+
+/**
+ * User Preview 用户字段报表数据。
+ *
+ * @type {Array<Record<string, string>>}
+ */
+window.ADMIN_USER_PREVIEW_USERS = [
+  { userId: "U-10001", username: "180****9154", registeredAt: "2026/06/08 01:27", registerSource: "销售邀请", inviteCode: "YD-TRY-M4Q9", salesOwner: "销售B", lastLoginAt: "2026/06/13 15:38", lastUsedAt: "2026/06/13 15:42", firstFeature: "问一下", topFeature: "客户背调顾问", lastFeature: "客户背调顾问", usageCount: "36", sessionCount: "18", messageCount: "146", avgRounds: "8.2", uploadCount: "5", exportCount: "3", tokenUsed: "218K", modelSplit: "Plus 62% / 标准 38%", amount: "¥99", paymentCount: "1", lastPaidAt: "2026/06/12 10:20", paidStatus: "专业版", creditBalance: "9,480", creditUsed: "520", upgradeClickCount: "3", payPageViewCount: "2", redeemedInviteAt: "2026/06/13 11:08" },
+  { userId: "U-10002", username: "137****3499", registeredAt: "2026/06/13 09:53", registerSource: "自然注册", inviteCode: "-", salesOwner: "-", lastLoginAt: "2026/06/13 14:16", lastUsedAt: "2026/06/13 14:18", firstFeature: "问一下", topFeature: "问一下", lastFeature: "问一下", usageCount: "13", sessionCount: "5", messageCount: "38", avgRounds: "4.1", uploadCount: "0", exportCount: "0", tokenUsed: "42K", modelSplit: "标准 100%", amount: "¥0", paymentCount: "0", lastPaidAt: "-", paidStatus: "免费版", creditBalance: "0", creditUsed: "86", upgradeClickCount: "1", payPageViewCount: "0", redeemedInviteAt: "-" },
+  { userId: "U-10003", username: "136****9392", registeredAt: "2026/06/13 09:51", registerSource: "销售邀请", inviteCode: "YD-TRY-8K2P", salesOwner: "销售A", lastLoginAt: "2026/06/13 13:02", lastUsedAt: "2026/06/13 13:06", firstFeature: "询盘分析回复", topFeature: "询盘分析回复", lastFeature: "询盘分析回复", usageCount: "2", sessionCount: "1", messageCount: "7", avgRounds: "3.5", uploadCount: "1", exportCount: "0", tokenUsed: "5.8K", modelSplit: "标准 100%", amount: "¥0", paymentCount: "0", lastPaidAt: "-", paidStatus: "免费版", creditBalance: "300", creditUsed: "20", upgradeClickCount: "0", payPageViewCount: "0", redeemedInviteAt: "2026/06/13 12:58" },
+  { userId: "U-10004", username: "158****8358", registeredAt: "2026/06/13 10:02", registerSource: "展会二维码", inviteCode: "-", salesOwner: "销售A", lastLoginAt: "2026/06/13 10:10", lastUsedAt: "2026/06/13 10:12", firstFeature: "新客开发信", topFeature: "新客开发信", lastFeature: "新客开发信", usageCount: "1", sessionCount: "1", messageCount: "2", avgRounds: "1.0", uploadCount: "0", exportCount: "0", tokenUsed: "1.2K", modelSplit: "标准 100%", amount: "¥0", paymentCount: "0", lastPaidAt: "-", paidStatus: "免费版", creditBalance: "520", creditUsed: "0", upgradeClickCount: "0", payPageViewCount: "0", redeemedInviteAt: "-" },
+  { userId: "U-10005", username: "133****9094", registeredAt: "2026/06/13 09:48", registerSource: "自然注册", inviteCode: "-", salesOwner: "-", lastLoginAt: "2026/05/09 18:18", lastUsedAt: "2026/05/09 18:20", firstFeature: "问一下", topFeature: "问一下", lastFeature: "问一下", usageCount: "1", sessionCount: "1", messageCount: "2", avgRounds: "0.8", uploadCount: "0", exportCount: "0", tokenUsed: "0.9K", modelSplit: "标准 100%", amount: "¥0", paymentCount: "0", lastPaidAt: "-", paidStatus: "免费版", creditBalance: "505", creditUsed: "15", upgradeClickCount: "0", payPageViewCount: "0", redeemedInviteAt: "-" },
+  { userId: "U-10006", username: "189****4871", registeredAt: "2026/06/13 09:49", registerSource: "搜索投放", inviteCode: "-", salesOwner: "-", lastLoginAt: "2026/06/12 20:58", lastUsedAt: "2026/06/12 21:04", firstFeature: "市场调研", topFeature: "市场调研", lastFeature: "市场调研", usageCount: "7", sessionCount: "3", messageCount: "21", avgRounds: "5.6", uploadCount: "0", exportCount: "1", tokenUsed: "28K", modelSplit: "Flash 40% / 标准 60%", amount: "¥0", paymentCount: "0", lastPaidAt: "-", paidStatus: "免费版", creditBalance: "445", creditUsed: "75", upgradeClickCount: "2", payPageViewCount: "1", redeemedInviteAt: "-" },
+  { userId: "U-10007", username: "178****7070", registeredAt: "2026/06/13 09:49", registerSource: "销售邀请", inviteCode: "YD-TEAM-7N6C", salesOwner: "销售主管", lastLoginAt: "2026/06/13 12:55", lastUsedAt: "2026/06/13 12:58", firstFeature: "客户背调顾问", topFeature: "场景谈判顾问", lastFeature: "场景谈判顾问", usageCount: "22", sessionCount: "9", messageCount: "82", avgRounds: "7.4", uploadCount: "3", exportCount: "4", tokenUsed: "96K", modelSplit: "Plus 51% / 标准 49%", amount: "¥499", paymentCount: "1", lastPaidAt: "2026/06/13 12:40", paidStatus: "团队版", creditBalance: "49,120", creditUsed: "880", upgradeClickCount: "4", payPageViewCount: "2", redeemedInviteAt: "2026/06/13 10:18" },
+  { userId: "U-10008", username: "134****9547", registeredAt: "2026/06/13 09:51", registerSource: "自然注册", inviteCode: "-", salesOwner: "-", lastLoginAt: "2026/06/13 09:53", lastUsedAt: "2026/06/13 09:55", firstFeature: "问一下", topFeature: "问一下", lastFeature: "问一下", usageCount: "1", sessionCount: "1", messageCount: "3", avgRounds: "1.3", uploadCount: "0", exportCount: "0", tokenUsed: "1.5K", modelSplit: "标准 100%", amount: "¥0", paymentCount: "0", lastPaidAt: "-", paidStatus: "免费版", creditBalance: "520", creditUsed: "0", upgradeClickCount: "0", payPageViewCount: "0", redeemedInviteAt: "-" }
 ];
 
 /**
