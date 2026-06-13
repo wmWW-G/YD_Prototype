@@ -284,7 +284,7 @@ function renderApp() {
   const app = document.querySelector("#app");
 
   if (!app) {
-    throw new Error("页面缺少 #app 容器，无法渲染赢单逆向原型。");
+    throw new Error("页面缺少 #app 容器，无法渲染赢单原型。");
   }
 
   if (state.activeMain.startsWith("admin-")) {
@@ -5253,7 +5253,7 @@ window.addEventListener("hashchange", applyRoute);
  * @throws {Error} renderApp 内部会在缺少 #app 时抛出错误。
  */
 function init() {
-  console.log("[reverse-yingdan] 初始化静态逆向原型");
+  console.log("[reverse-yingdan] 初始化静态原型");
   installAutoRefreshWorker();
   hydrateFlowStorage();
   consumePrefillPromptIfAny();
