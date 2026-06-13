@@ -7811,7 +7811,7 @@ button:disabled {
 
 .user-preview-kpis {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -7823,11 +7823,6 @@ button:disabled {
   border: 1px solid #e7ebf3;
   border-radius: 10px;
   background: linear-gradient(180deg, #ffffff, #fbfcff);
-}
-
-.user-preview-kpi.warn {
-  border-color: #ffd8bf;
-  background: linear-gradient(180deg, #fff7e6, #ffffff);
 }
 
 .user-preview-kpi > span {
@@ -7848,36 +7843,6 @@ button:disabled {
   font-size: 13px;
   font-style: normal;
   font-weight: 800;
-}
-
-.user-preview-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  min-height: 24px;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.user-preview-status.good {
-  border: 1px solid #b7eb8f;
-  background: #f6ffed;
-  color: #389e0d;
-}
-
-.user-preview-status.warn {
-  border: 1px solid #ffd8bf;
-  background: #fff7e6;
-  color: #d4380d;
-}
-
-.user-preview-status.normal {
-  border: 1px solid #d9dee8;
-  background: #f7f8ff;
-  color: var(--admin-primary);
 }
 
 .user-preview-metric-table {

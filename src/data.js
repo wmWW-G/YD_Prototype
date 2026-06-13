@@ -821,16 +821,15 @@ window.ADMIN_USER_ROWS = [
  * - User Preview 是新方案试验页，不能影响现有「用户管理」。
  * - 这里把统计口径、当前值、金额和业务价值放在同一行，便于后续产品讨论。
  *
- * @type {Array<{ id: string, metric: string, value: string, amount: string, logic: string, businessValue: string, status: string }>}
+ * @type {Array<{ id: string, metric: string, value: string, amount: string }>}
  */
 window.ADMIN_USER_PREVIEW_METRICS = [
-  { id: "total-users", metric: "累计用户总数", value: "2,130", amount: "-", logic: "累计所有注册用户数", businessValue: "业务基本盘", status: "稳定" },
-  { id: "new-today", metric: "今日新增注册", value: "48", amount: "-", logic: "今日 0:00 至今新注册人数", businessValue: "衡量拉新速度", status: "上升" },
-  { id: "active-today", metric: "今日活跃用户", value: "326", amount: "-", logic: "今日登录过或使用过功能的人数", businessValue: "衡量产品粘性", status: "健康" },
-  { id: "paid-today", metric: "今日付费用户", value: "9", amount: "¥8,920", logic: "今日完成付费转化的用户数和付款金额", businessValue: "即时转化率", status: "关注" },
-  { id: "paid-total", metric: "付费会员总数", value: "186 / 2,130", amount: "¥286,400", logic: "累计付费会员数 / 总用户数", businessValue: "衡量商业化健康度", status: "健康" },
-  { id: "token-today", metric: "今日 Token 消耗", value: "3,286,500", amount: "¥412", logic: "全平台今日已消耗的 Token 总量和预估成本", businessValue: "衡量成本支出", status: "正常" },
-  { id: "risk-alert", metric: "异常预警", value: "2 条", amount: "¥0", logic: "Token 突增、注册量突增，用于防刷机制", businessValue: "风险防范", status: "预警" }
+  { id: "total-users", metric: "累计用户总数", value: "2,130", amount: "-" },
+  { id: "new-today", metric: "今日新增注册", value: "48", amount: "-" },
+  { id: "active-today", metric: "今日活跃用户", value: "326", amount: "-" },
+  { id: "paid-today", metric: "今日付费用户", value: "9", amount: "¥8,920" },
+  { id: "paid-total", metric: "付费会员总数", value: "186 / 2,130", amount: "¥286,400" },
+  { id: "token-today", metric: "今日 Token 消耗", value: "3,286,500", amount: "¥412" }
 ];
 
 /**

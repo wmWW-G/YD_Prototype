@@ -596,8 +596,7 @@ function renderAdminUserPreview() {
     "new-today",
     "active-today",
     "paid-today",
-    "token-today",
-    "risk-alert"
+    "token-today"
   ].includes(item.id));
 
   return `
@@ -605,7 +604,7 @@ function renderAdminUserPreview() {
       <header class="admin-card-head">
         <div>
           <h3>User Preview</h3>
-          <p class="admin-card-subtitle">用户增长、活跃、付费金额、Token 成本和风险预警的运营看板。</p>
+          <p class="admin-card-subtitle">用户增长、活跃、付费金额和 Token 成本的运营看板。</p>
         </div>
         <div class="admin-head-actions">
           <button class="admin-outline-btn" type="button" data-admin-action="已模拟刷新 User Preview 数据。">刷新数据</button>
@@ -617,11 +616,10 @@ function renderAdminUserPreview() {
 
       <section class="user-preview-kpis" aria-label="User Preview 核心指标">
         ${headlineMetrics.map((item) => `
-          <article class="user-preview-kpi ${item.id === "risk-alert" ? "warn" : ""}">
+          <article class="user-preview-kpi">
             <span>${escapeHtml(item.metric)}</span>
             <strong>${escapeHtml(item.value)}</strong>
             <em>${escapeHtml(item.amount)}</em>
-            ${renderUserPreviewStatus(item.status)}
           </article>
         `).join("")}
       </section>
@@ -877,18 +875,6 @@ function refreshUserPreviewReport() {
     workspace.scrollTop = scrollTop;
     workspace.scrollLeft = scrollLeft;
   }
-}
-
-/**
- * 渲染 User Preview 里的状态标签。
- *
- * @param {string} status - 指标状态文本。
- * @returns {string} 状态标签 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderUserPreviewStatus(status) {
-  const type = status === "预警" || status === "关注" ? "warn" : status === "上升" || status === "健康" ? "good" : "normal";
-  return `<span class="user-preview-status ${type}">${escapeHtml(status)}</span>`;
 }
 
 /**
