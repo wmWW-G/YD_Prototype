@@ -1445,7 +1445,6 @@ function renderAccountUsageView() {
             <li>
               <span class="usage-a-rec-time">${escapeHtml(r.time.slice(5, 16))}</span>
               <span class="usage-a-rec-scene">${escapeHtml(r.scene)}</span>
-              <span class="usage-a-rec-model">${escapeHtml(r.model)}</span>
               <span class="usage-a-rec-credits">${escapeHtml(r.credits)}</span>
             </li>
           `).join("")}
@@ -1898,8 +1897,6 @@ function renderFlowView() {
 
   return `
     <div class="flow-view ${variant ? `flow-variant-${escapeHtml(variant)}` : "flow-variant-baseline"}">
-      ${renderFlowVariantSwitcher(variant)}
-
       ${variant === "a" ? renderFlowProgressBar(activeIndex) : `
         <article class="intro-card">
           <h3 class="intro-title"><span class="orange-bar"></span>成交流程</h3>
@@ -1966,38 +1963,6 @@ function getChecklistProgress(stage) {
   const total = (stage.actions || []).length;
   const checked = state.flowChecklist[stage.id] || [];
   return { done: checked.filter((v) => v).length, total };
-}
-
-/**
- * 渲染顶部 5 个变体切换 pill。
- *
- * @param {string | null} variant - 当前变体。
- * @returns {string} 切换条 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderFlowVariantSwitcher(variant) {
-  const options = [
-    { id: null, label: "基础", tag: "默认" },
-    { id: "a", label: "A · 操作流", tag: "Checklist + 进度" },
-    { id: "b", label: "B · 闭环", tag: "问 AI + 客户 + 资料" },
-    { id: "c", label: "C · 信息密度", tag: "KPI + 错例 + 上下阶段" },
-    { id: "d", label: "D · 加分", tag: "教学 + 笔记 + 对比" }
-  ];
-
-  return `
-    <nav class="flow-variant-switch" aria-label="外贸流程变体切换">
-      ${options.map((opt) => {
-        const isActive = (variant || null) === opt.id;
-        const href = opt.id ? `#/sales-prep/flow/${opt.id}` : "#/sales-prep/flow";
-        return `
-          <a class="flow-variant-pill ${isActive ? "active" : ""}" href="${href}">
-            <strong>${escapeHtml(opt.label)}</strong>
-            <span>${escapeHtml(opt.tag)}</span>
-          </a>
-        `;
-      }).join("")}
-    </nav>
-  `;
 }
 
 /**
@@ -2195,18 +2160,6 @@ function renderFlowAiCard(stage) {
               <p>${escapeHtml(answer.nextStep)}</p>
             </div>
           `, "full")}
-
-          <div class="ai-chips" style="--ai-delay: 420ms">
-            <button type="button" data-flow-ai-rerun="${escapeHtml(stage.id)}">
-              <span aria-hidden="true">↻</span> 再来一版
-            </button>
-            <button type="button" data-flow-ai-copy="true" data-toast="已模拟把 AI 回答复制到剪贴板。">
-              <span aria-hidden="true">📋</span> 复制对话
-            </button>
-            <button type="button" class="primary" data-flow-ai-send-kass="true" data-toast="已模拟把这条 AI 建议沉淀到对应客户的 Kass 跟进记录。">
-              <span aria-hidden="true">→</span> 发到客户 Kass
-            </button>
-          </div>
         `}
       </div>
 
@@ -4044,14 +3997,6 @@ function bindEvents() {
     button.addEventListener("click", () => {
       cancelFlowAiSimulation();
       state.flowAi = { open: false, phase: "idle", followUp: "" };
-      renderApp();
-    });
-  });
-
-  document.querySelectorAll("[data-flow-ai-rerun]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.flowAi.phase = "loading";
-      scheduleFlowAiAnswered();
       renderApp();
     });
   });

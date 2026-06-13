@@ -3530,55 +3530,6 @@ button:disabled {
 
 /* ===================== 外贸流程变体 A/B/C/D ===================== */
 
-.flow-variant-switch {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: linear-gradient(180deg, #fff8f2, #ffffff);
-}
-
-.flow-variant-pill {
-  display: grid;
-  gap: 2px;
-  min-width: 132px;
-  padding: 8px 14px;
-  border: 1px solid #ead9cb;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #4a4039;
-  text-decoration: none;
-  transition: border-color 0.18s, transform 0.18s, box-shadow 0.18s;
-}
-
-.flow-variant-pill:hover {
-  border-color: #f3c7a3;
-  transform: translateY(-1px);
-}
-
-.flow-variant-pill strong {
-  color: var(--text);
-  font-size: 13.5px;
-  font-weight: 700;
-}
-
-.flow-variant-pill span {
-  color: #8a7f76;
-  font-size: 12px;
-}
-
-.flow-variant-pill.active {
-  border-color: var(--accent);
-  background: linear-gradient(180deg, #fff1e2, #fff7ef);
-  box-shadow: 0 10px 22px rgba(255, 92, 0, 0.12);
-}
-
-.flow-variant-pill.active strong {
-  color: var(--accent);
-}
-
 /* ----- A · 进度条 + checklist ----- */
 
 .flow-progress {
@@ -4241,14 +4192,6 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .flow-variant-switch {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-  }
-
-  .flow-variant-pill {
-    flex-shrink: 0;
-  }
 }
 
 /* ===================== B 变体 · 原地展开的 AI 顾问对话 ===================== */
@@ -4256,6 +4199,8 @@ button:disabled {
 .flow-ai-chat {
   position: relative;
   margin: 14px 0 6px;
+  /* 打开 AI 顾问时直接预留回答态高度，避免 loading → answered 时二次撑开页面。 */
+  height: clamp(520px, calc(100vh - 260px), 620px);
   display: flex;
   flex-direction: column;
   border: 1px solid #f3c7a3;
@@ -4332,10 +4277,11 @@ button:disabled {
 }
 
 .flow-ai-conversation {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 480px;
   padding: 18px 16px 10px;
   overflow-y: auto;
   background: linear-gradient(180deg, #fffaf5, #ffffff);
@@ -4496,49 +4442,6 @@ button:disabled {
   font-style: italic;
   font-size: 13.5px;
   line-height: 1.75;
-}
-
-.ai-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 8px 0 4px 36px;
-  opacity: 0;
-  transform: translateY(6px);
-  animation: aiMsgIn 0.36s ease-out forwards;
-  animation-delay: var(--ai-delay, 0ms);
-}
-
-.ai-chips button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 14px;
-  border: 1px solid #ead9cb;
-  border-radius: 999px;
-  background: #ffffff;
-  color: #4a4039;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 0.18s, background 0.18s, color 0.18s;
-}
-
-.ai-chips button:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.ai-chips button.primary {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #ffffff;
-}
-
-.ai-chips button.primary:hover {
-  background: #e44d00;
-  color: #ffffff;
 }
 
 .flow-ai-input-bar {
@@ -5188,13 +5091,20 @@ button:disabled {
 }
 
 .upgrade-plan-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
   height: 38px;
+  margin-top: auto;
   border: 1px solid var(--accent);
   border-radius: 10px;
   background: #ffffff;
   color: var(--accent);
   font-size: 13.5px;
   font-weight: 700;
+  text-align: center;
+  text-decoration: none;
   cursor: pointer;
   transition: background 0.18s, transform 0.18s;
 }
@@ -6663,7 +6573,7 @@ button:disabled {
 
 .usage-a-records li {
   display: grid;
-  grid-template-columns: 90px minmax(0, 1.2fr) minmax(0, 1fr) 60px;
+  grid-template-columns: 90px minmax(0, 1fr) 60px;
   align-items: center;
   gap: 12px;
   padding: 10px 0;
@@ -6683,8 +6593,8 @@ button:disabled {
 @media (max-width: 900px) {
   .usage-a-hero { grid-template-columns: 1fr; justify-items: center; text-align: center; }
   .usage-a-stats { grid-template-columns: repeat(2, 1fr); }
-  .usage-a-records li { grid-template-columns: 1fr 1fr; }
-  .usage-a-rec-time, .usage-a-rec-model { display: none; }
+  .usage-a-records li { grid-template-columns: 1fr auto; }
+  .usage-a-rec-time { display: none; }
 }
 
 /* ===================== 变体 B · 时间轴 ===================== */
