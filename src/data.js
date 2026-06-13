@@ -763,6 +763,7 @@ window.ADMIN_NAV_ITEMS = [
   { id: "admin-home", label: "首页", icon: "▣" },
   { id: "admin-knowledge", label: "知识库管理", icon: "☰", parent: "系统管理" },
   { id: "admin-user", label: "用户管理", icon: "♟", parent: "系统管理" },
+  { id: "admin-invite", label: "邀请码管理", icon: "◇", parent: "系统管理" },
   { id: "admin-character", label: "AI人设管理", icon: "♣", parent: "系统管理" },
   { id: "admin-model", label: "AI模型管理", icon: "♟", parent: "系统管理" }
 ];
@@ -810,6 +811,22 @@ window.ADMIN_USER_ROWS = [
   { id: 8, username: "178****7070", registeredAt: "2026/06/13 09:49:21", credits: 0, subAccounts: "0/0", messageCount: 0, tokenCount: 0, enabled: true },
   { id: 9, username: "133****9094", registeredAt: "2026/06/13 09:48:31", credits: 0, subAccounts: "0/0", messageCount: 0, tokenCount: 0, enabled: true },
   { id: 10, username: "136****0196", registeredAt: "2026/06/13 09:44:17", credits: 0, subAccounts: "0/0", messageCount: 6, tokenCount: 13687, enabled: true }
+];
+
+/**
+ * 邀请码管理表格数据。
+ *
+ * 注意：
+ * - 这里只展示后台字段形态和销售运营场景，不代表真实可兑换码。
+ * - 用户名、手机号和销售姓名都使用模拟或脱敏内容，避免把真实敏感信息写进原型。
+ *
+ * @type {Array<{ id: number, code: string, credits: number, batch: string, owner: string, status: string, redeemedBy: string, redeemedAt: string, expiresAt: string, createdAt: string }>}
+ */
+window.ADMIN_INVITE_ROWS = [
+  { id: 1, code: "YD-TRY-8K2P", credits: 500, batch: "6月展会试用", owner: "销售A", status: "未兑换", redeemedBy: "-", redeemedAt: "-", expiresAt: "2026/07/31", createdAt: "2026/06/13 10:32:18" },
+  { id: 2, code: "YD-TRY-M4Q9", credits: 300, batch: "老客户激活", owner: "销售B", status: "已兑换", redeemedBy: "180****9154", redeemedAt: "2026/06/13 11:08:42", expiresAt: "2026/07/15", createdAt: "2026/06/12 18:05:21" },
+  { id: 3, code: "YD-TEAM-7N6C", credits: 1000, batch: "团队试用", owner: "销售主管", status: "未兑换", redeemedBy: "-", redeemedAt: "-", expiresAt: "2026/08/01", createdAt: "2026/06/11 15:44:09" },
+  { id: 4, code: "YD-TRY-X2V5", credits: 200, batch: "新用户首访", owner: "销售A", status: "已过期", redeemedBy: "-", redeemedAt: "-", expiresAt: "2026/06/01", createdAt: "2026/05/20 09:16:34" }
 ];
 
 /**

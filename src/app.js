@@ -1,4 +1,4 @@
-/* global NAV_GROUPS, HISTORY_ITEMS, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
+/* global NAV_GROUPS, HISTORY_ITEMS, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
 
 /**
  * 页面级状态对象。
@@ -24,13 +24,16 @@
  *   isCustomerGenerating: boolean,
  *   customerResult: string,
  *   drawer: null | "teaching" | "history",
- *   popup: null | "attachment" | "model" | "topHistory" | "customerSettings" | "accountSettings",
+ *   popup: null | "attachment" | "model" | "topHistory" | "customerSettings" | "accountSettings" | "inviteRedeem",
  *   historySearchOpen: boolean,
  *   historySearchQuery: string,
  *   selectedModel: string,
  *   chatDraft: string,
  *   isGenerating: boolean,
  *   generatedResult: string,
+ *   inviteCodeDraft: string,
+ *   inviteRedeemResult: string,
+ *   adminInvitePreview: null | string,
  *   adminDialog: null | string,
  *   adminMenuOpen: boolean,
  *   adminUserFilterOpen: boolean
@@ -69,6 +72,9 @@ const state = {
   chatDraft: "",
   isGenerating: false,
   generatedResult: "",
+  inviteCodeDraft: "",
+  inviteRedeemResult: "",
+  adminInvitePreview: null,
   adminDialog: null,
   adminMenuOpen: false,
   adminUserFilterOpen: true
@@ -359,7 +365,7 @@ function renderAdminSidebar() {
             <span class="admin-menu-caret" aria-hidden="true">⌃</span>
           </button>
           <div class="admin-menu-children">
-            ${["admin-knowledge", "admin-user", "admin-character", "admin-model"].map(renderAdminMenuItem).join("")}
+            ${["admin-knowledge", "admin-user", "admin-invite", "admin-character", "admin-model"].map(renderAdminMenuItem).join("")}
           </div>
         </div>
       </nav>
@@ -424,6 +430,7 @@ function renderAdminWorkspace() {
   if (state.activeMain === "admin-home") return renderAdminHome();
   if (state.activeMain === "admin-knowledge") return renderAdminKnowledge();
   if (state.activeMain === "admin-user") return renderAdminUsers();
+  if (state.activeMain === "admin-invite") return renderAdminInviteCodes();
   if (state.activeMain === "admin-model") return renderAdminModels();
   return renderAdminCharacters();
 }
@@ -561,6 +568,134 @@ function renderAdminUsers() {
       ${renderAdminPagination(2130, 213, true)}
     </article>
   `;
+}
+
+/**
+ * 邀请码管理页面。
+ *
+ * 这个后台页面用于给销售同事生成试用福利码：
+ * - 生成表单只做原型交互，不真正创建数据库记录。
+ * - 表格展示字段边界：码、积分、批次、销售归属、状态、兑换人和有效期。
+ *
+ * @returns {string} 邀请码管理页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminInviteCodes() {
+  return `
+    <article class="admin-card invite-admin-card">
+      <header class="admin-card-head">
+        <h3>邀请码管理</h3>
+        <div class="admin-head-actions">
+          <button class="admin-outline-btn" type="button" data-admin-action="已模拟导出邀请码批次。">导出批次</button>
+        </div>
+      </header>
+
+      <section class="admin-invite-builder" aria-label="生成邀请码">
+        <div class="admin-invite-builder-head">
+          <div>
+            <strong>生成试用福利码</strong>
+            <span>给销售同事发放，用于用户侧兑换积分。</span>
+          </div>
+          <span class="admin-invite-badge">兑换 1 次后失效</span>
+        </div>
+
+        <div class="admin-invite-form">
+          <label>
+            <span>批次名称</span>
+            <input type="text" value="6月销售试用福利" data-admin-invite-batch="true" />
+          </label>
+          <label>
+            <span>单码积分</span>
+            <select data-admin-invite-credit="true">
+              <option value="200">200 积分</option>
+              <option value="500" selected>500 积分</option>
+              <option value="1000">1000 积分</option>
+            </select>
+          </label>
+          <label>
+            <span>生成数量</span>
+            <input type="number" value="20" min="1" max="200" data-admin-invite-count="true" />
+          </label>
+          <label>
+            <span>有效期</span>
+            <input type="text" value="2026/07/31" data-admin-invite-expire="true" />
+          </label>
+          <label>
+            <span>销售归属</span>
+            <select data-admin-invite-owner="true">
+              <option>销售A</option>
+              <option>销售B</option>
+              <option>销售主管</option>
+            </select>
+          </label>
+          <button class="admin-primary-btn admin-invite-generate" type="button" data-admin-invite-generate="true">生成邀请码</button>
+        </div>
+
+        ${state.adminInvitePreview ? `
+          <div class="admin-invite-preview" aria-live="polite">
+            <span>最新生成</span>
+            <strong>${escapeHtml(state.adminInvitePreview)}</strong>
+            <em>原型预览，不写入真实后台。</em>
+          </div>
+        ` : ""}
+      </section>
+
+      <div class="admin-table-scroll">
+        <table class="admin-table invite-table">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>邀请码</th>
+              <th>积分</th>
+              <th>批次</th>
+              <th>销售归属</th>
+              <th>状态</th>
+              <th>兑换用户</th>
+              <th>兑换时间</th>
+              <th>有效期</th>
+              <th>创建时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ADMIN_INVITE_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td><span class="admin-invite-code">${escapeHtml(row.code)}</span></td>
+                <td><strong>${row.credits}</strong></td>
+                <td>${escapeHtml(row.batch)}</td>
+                <td>${escapeHtml(row.owner)}</td>
+                <td>${renderAdminInviteStatus(row.status)}</td>
+                <td>${escapeHtml(row.redeemedBy)}</td>
+                <td>${escapeHtml(row.redeemedAt)}</td>
+                <td>${escapeHtml(row.expiresAt)}</td>
+                <td>${escapeHtml(row.createdAt)}</td>
+                <td>
+                  <div class="admin-row-actions">
+                    <button class="admin-link" type="button" data-admin-action="复制邀请码是原型反馈。">复制</button>
+                    <button class="admin-danger-link" type="button" data-admin-action="作废邀请码需要二次确认，当前原型不作废。">作废</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${renderAdminPagination(4, 1, false)}
+    </article>
+  `;
+}
+
+/**
+ * 渲染邀请码状态标签。
+ *
+ * @param {string} status - 邀请码状态。
+ * @returns {string} 状态标签 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminInviteStatus(status) {
+  const className = status === "未兑换" ? "ready" : status === "已兑换" ? "used" : "expired";
+  return `<span class="admin-invite-status ${className}">${escapeHtml(status)}</span>`;
 }
 
 /**
@@ -1095,6 +1230,7 @@ function hashForAdminMain(main) {
     "admin-home": "#/admin/home",
     "admin-knowledge": "#/admin/knowledge-base",
     "admin-user": "#/admin/user",
+    "admin-invite": "#/admin/invite-code",
     "admin-character": "#/admin/ai-character",
     "admin-model": "#/admin/ai-model"
   };
@@ -1310,6 +1446,7 @@ function renderTopActions() {
 
   return `
     <div class="top-actions">
+      <a class="admin-ghost-entry" href="#/admin/home" aria-label="进入后台管理"></a>
       <button class="teach-pill" type="button" data-toast="无教学视频资源">
         <span class="teach-play" aria-hidden="true">▶</span>
         <span>教学视频</span>
@@ -3370,6 +3507,7 @@ function renderPopupLayer() {
     topHistory: renderTopHistoryPopup,
     customerSettings: renderCustomerSettingsPopup,
     accountSettings: renderAccountSettingsPopup,
+    inviteRedeem: renderInviteRedeemModal,
     upgrade: renderUpgradeModal
   }[state.popup];
 
@@ -3483,6 +3621,9 @@ function renderAccountSettingsPopup() {
         </div>
         <div class="account-pop-plan-bar"><span style="width: 86%"></span></div>
         <div class="account-pop-plan-meta">还剩 <strong>75</strong> 积分 · 月底重置</div>
+        <button class="account-pop-invite-cta" type="button" data-popup="inviteRedeem">
+          <span aria-hidden="true">◇</span> 邀请码兑换积分
+        </button>
         <button class="account-pop-upgrade-cta" type="button" data-popup="upgrade">
           <span aria-hidden="true">✦</span> 升级解锁更多积分
         </button>
@@ -3495,6 +3636,62 @@ function renderAccountSettingsPopup() {
         <li><button type="button" data-toast="关于页是原型反馈。"><span class="acc-i" aria-hidden="true">ⓘ</span><span class="acc-label">关于</span></button></li>
         <li><button class="danger" type="button" data-toast="退出登录是高风险动作，当前原型不执行。"><span class="acc-i" aria-hidden="true">↪</span><span class="acc-label">退出登录</span></button></li>
       </ul>
+    </section>
+  `;
+}
+
+/**
+ * 渲染邀请码兑换弹窗。
+ *
+ * 这是前台用户侧的原型入口：
+ * - 用户输入销售给的邀请码。
+ * - 点击兑换后只更新当前页面的模拟成功状态，不调用真实接口，也不写入本地存储。
+ *
+ * @returns {string} 邀请码兑换弹窗 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderInviteRedeemModal() {
+  const draft = state.inviteCodeDraft || "";
+  const result = state.inviteRedeemResult || "";
+  const canRedeem = draft.trim().length >= 4;
+
+  return `
+    <section class="invite-redeem-modal" data-popup-surface="true" role="dialog" aria-label="邀请码兑换积分">
+      <header class="invite-redeem-head">
+        <div>
+          <span class="invite-redeem-kicker">试用福利</span>
+          <h3>邀请码兑换积分</h3>
+          <p>输入销售同事给你的邀请码，兑换后积分会进入当前个人空间。</p>
+        </div>
+        <button class="invite-redeem-close" type="button" data-close-modal="true" aria-label="关闭">×</button>
+      </header>
+
+      <div class="invite-redeem-body">
+        <label class="invite-code-field">
+          <span>邀请码</span>
+          <input
+            type="text"
+            value="${escapeHtml(draft)}"
+            placeholder="例如：YD-TRY-8K2P"
+            data-invite-code-input="true"
+          />
+        </label>
+        <button class="invite-redeem-submit ${canRedeem ? "enabled" : ""}" type="button" data-invite-redeem-submit="true" ${canRedeem ? "" : "disabled"}>
+          兑换积分
+        </button>
+      </div>
+
+      ${result ? `
+        <article class="invite-redeem-result" aria-live="polite">
+          <strong>${escapeHtml(result)}</strong>
+          <span>本次为原型演示，正式版会校验有效期、兑换次数和绑定用户。</span>
+        </article>
+      ` : `
+        <div class="invite-redeem-hints">
+          <span>适合销售发放新用户试用、展会现场体验和老客户激活福利。</span>
+          <span>每个邀请码通常只能兑换一次。</span>
+        </div>
+      `}
     </section>
   `;
 }
@@ -3629,6 +3826,18 @@ function bindEvents() {
     node.addEventListener("click", () => {
       const message = node.getAttribute("data-admin-action") || "后台操作已触发。";
       showToast(message);
+    });
+  });
+
+  document.querySelectorAll("[data-admin-invite-generate]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const credit = document.querySelector("[data-admin-invite-credit]")?.value || "500";
+      const count = document.querySelector("[data-admin-invite-count]")?.value || "20";
+      const owner = document.querySelector("[data-admin-invite-owner]")?.value || "销售A";
+      const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+      state.adminInvitePreview = `YD-TRY-${suffix} · ${credit} 积分 · ${count} 个 · ${owner}`;
+      showToast("已模拟生成邀请码批次。");
+      renderApp();
     });
   });
 
@@ -3792,6 +4001,10 @@ function bindEvents() {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       const popup = button.getAttribute("data-popup");
+      if (popup === "inviteRedeem" && state.popup !== "inviteRedeem") {
+        state.inviteCodeDraft = "";
+        state.inviteRedeemResult = "";
+      }
       state.popup = state.popup === popup ? null : popup;
       renderApp();
     });
@@ -3811,6 +4024,39 @@ function bindEvents() {
   document.querySelectorAll("[data-close-modal]").forEach((button) => {
     button.addEventListener("click", () => {
       state.popup = null;
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-invite-code-input]").forEach((input) => {
+    input.addEventListener("input", () => {
+      state.inviteCodeDraft = input.value.toUpperCase();
+      state.inviteRedeemResult = "";
+      const submit = document.querySelector("[data-invite-redeem-submit]");
+      const canRedeem = state.inviteCodeDraft.trim().length >= 4;
+      if (submit) {
+        submit.disabled = !canRedeem;
+        submit.classList.toggle("enabled", canRedeem);
+      }
+    });
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const submit = document.querySelector("[data-invite-redeem-submit]");
+        if (submit && !submit.disabled) {
+          submit.click();
+        }
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-invite-redeem-submit]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const code = state.inviteCodeDraft.trim() || "YD-TRY-8K2P";
+      state.inviteCodeDraft = code;
+      state.inviteRedeemResult = `已模拟兑换 ${code}，获得 500 积分`;
+      showToast("邀请码兑换成功，已模拟增加 500 积分。");
       renderApp();
     });
   });
@@ -4422,6 +4668,7 @@ const ROUTES = [
   { hash: "/admin/home", main: "admin-home" },
   { hash: "/admin/knowledge-base", main: "admin-knowledge" },
   { hash: "/admin/user", main: "admin-user" },
+  { hash: "/admin/invite-code", main: "admin-invite" },
   { hash: "/admin/ai-character", main: "admin-character" },
   { hash: "/admin/ai-model", main: "admin-model" },
   { hash: "/sales-prep", main: "sales-prep", tab: "flow" },
