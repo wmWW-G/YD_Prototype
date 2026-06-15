@@ -860,7 +860,7 @@ function renderUserPreviewReportBuilder() {
       <header class="user-preview-report-head">
         <div>
           <h4>用户字段报表</h4>
-          <p>默认展示用户功能调用流水账；需要改字段时打开字段配置。</p>
+          <p>默认展示用户功能调用记录；需要改字段时打开字段配置。</p>
         </div>
         <div class="user-preview-field-actions">
           <button type="button" data-user-preview-preset="default">默认字段</button>
@@ -1287,7 +1287,7 @@ function renderUserPreviewFieldDialog() {
 
   return `
     <h3>字段配置</h3>
-    <p class="user-preview-field-dialog-desc">选择要展示的字段，并调整已展示字段的顺序。序号、使用时间、手机号会固定在表格左侧。</p>
+    <p class="user-preview-field-dialog-desc">选择要展示的字段，右侧可调整展示顺序。</p>
 
     <div class="user-preview-field-dialog-grid">
       <section class="user-preview-field-panel" aria-label="选择展示字段">
@@ -1302,7 +1302,6 @@ function renderUserPreviewFieldDialog() {
               <button class="user-preview-field-option ${isChecked ? "checked" : ""}" type="button" data-user-preview-field-option="${escapeHtml(field.id)}" aria-pressed="${isChecked ? "true" : "false"}">
                 <span class="user-preview-field-check">${isChecked ? "✅" : ""}</span>
                 <span class="user-preview-field-name">${escapeHtml(field.label)}</span>
-                <em>${escapeHtml(field.group)}</em>
               </button>
             `;
           }).join("")}
@@ -1317,9 +1316,8 @@ function renderUserPreviewFieldDialog() {
         <div class="user-preview-selected-list">
           ${frozenFields.map((field) => `
             <div class="user-preview-selected-item frozen" data-user-preview-selected="${escapeHtml(field.id)}">
-              <span class="drag-handle">锁</span>
+              <span class="drag-handle"></span>
               <strong>${escapeHtml(field.label)}</strong>
-              <em>冻结</em>
             </div>
           `).join("")}
 
@@ -1327,7 +1325,6 @@ function renderUserPreviewFieldDialog() {
             <button class="user-preview-selected-item" type="button" draggable="true" data-user-preview-selected="${escapeHtml(field.id)}">
               <span class="drag-handle">⋮⋮</span>
               <strong>${escapeHtml(field.label)}</strong>
-              <em>${escapeHtml(field.group)}</em>
               <span class="field-sort-actions">
                 <span data-user-preview-move="${escapeHtml(field.id)}" data-user-preview-move-direction="up" aria-label="上移字段">↑</span>
                 <span data-user-preview-move="${escapeHtml(field.id)}" data-user-preview-move-direction="down" aria-label="下移字段">↓</span>

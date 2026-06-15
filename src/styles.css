@@ -8936,7 +8936,7 @@ button:disabled {
   width: 100%;
   min-height: 40px;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
@@ -8990,7 +8990,7 @@ button:disabled {
   width: 100%;
   min-height: 42px;
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto auto;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
@@ -9016,6 +9016,15 @@ button:disabled {
   border-color: #c8d9ef;
   background: #eef6ff;
   cursor: default;
+}
+
+.user-preview-selected-item.frozen .drag-handle::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  display: block;
+  border-radius: 999px;
+  background: var(--admin-primary);
 }
 
 .user-preview-selected-item.dragging {
