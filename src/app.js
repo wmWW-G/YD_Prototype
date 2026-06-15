@@ -35,7 +35,7 @@
  *   inviteRedeemResult: string,
  *   adminInvitePreview: null | string,
  *   userPreviewFields: Set<string>,
- *   userPreviewFieldsOpen: boolean,
+ *   userPreviewFieldOrder: string[],
  *   userPreviewTimePreset: "today" | "week" | "month" | "custom",
  *   userPreviewStartDate: string,
  *   userPreviewEndDate: string,
@@ -44,6 +44,19 @@
  *   adminUserFilterOpen: boolean
  * }}
  */
+const USER_PREVIEW_DEFAULT_FIELD_IDS = ["logIndex", "usedAt", "userContact", "lastActiveAt", "activeDays", "calledFeature", "calledModel", "callCount", "inputToken", "outputToken", "totalToken", "creditBalance", "runStatus", "estimatedCost", "operationLog"];
+
+/**
+ * User Preview 报表需要横向冻结的字段。
+ *
+ * 为什么单独定义：
+ * - 后台同事左右滑动宽表时，序号、使用时间、手机号是定位一行数据的锚点。
+ * - 这 3 列固定在最左侧，可以减少横向滚动时“看不清这行是谁”的问题。
+ *
+ * @type {string[]}
+ */
+const USER_PREVIEW_FROZEN_FIELD_IDS = ["logIndex", "usedAt", "userContact"];
+
 const state = {
   activeMain: "ask",
   expandedGroups: new Set(["deal-advisor"]),
@@ -80,8 +93,8 @@ const state = {
   inviteCodeDraft: "",
   inviteRedeemResult: "",
   adminInvitePreview: null,
-  userPreviewFields: new Set(["logIndex", "usedAt", "userContact", "lastActiveAt", "activeDays", "calledFeature", "calledModel", "callCount", "inputToken", "outputToken", "totalToken", "creditBalance", "runStatus", "estimatedCost", "operationLog"]),
-  userPreviewFieldsOpen: false,
+  userPreviewFields: new Set(USER_PREVIEW_DEFAULT_FIELD_IDS),
+  userPreviewFieldOrder: [...USER_PREVIEW_DEFAULT_FIELD_IDS],
   userPreviewTimePreset: "today",
   userPreviewStartDate: "2026-06-13",
   userPreviewEndDate: "2026-06-13",
@@ -847,49 +860,41 @@ function renderUserPreviewReportBuilder() {
       <header class="user-preview-report-head">
         <div>
           <h4>用户字段报表</h4>
-          <p>默认展示用户功能调用流水账；需要改字段时展开字段配置。</p>
+          <p>默认展示用户功能调用流水账；需要改字段时打开字段配置。</p>
         </div>
         <div class="user-preview-field-actions">
           <button type="button" data-user-preview-preset="default">默认字段</button>
         </div>
       </header>
 
-      ${state.userPreviewFieldsOpen ? `
-        <div class="user-preview-field-picker">
-          ${ADMIN_USER_PREVIEW_FIELDS.map((field) => {
-            const isChecked = state.userPreviewFields.has(field.id);
-            return `
-              <label class="user-preview-field-chip ${isChecked ? "checked" : ""}">
-                <input type="checkbox" value="${escapeHtml(field.id)}" data-user-preview-field="true" ${isChecked ? "checked" : ""} />
-                <span>${escapeHtml(field.label)}</span>
-                <em>${escapeHtml(field.group)}</em>
-              </label>
-            `;
-          }).join("")}
-          <button class="user-preview-field-collapse-inline" type="button" data-user-preview-field-toggle="true">
-            收起字段
-          </button>
-        </div>
-      ` : `
-        <button class="user-preview-field-collapsed" type="button" data-user-preview-field-toggle="true">
-          <span>字段配置已折叠</span>
-          <strong>${selectedFields.length} 个字段</strong>
-          <em>点击展开</em>
-        </button>
-      `}
+      <button class="user-preview-field-collapsed" type="button" data-admin-dialog="user-preview-fields">
+        <span>字段配置</span>
+        <strong>${selectedFields.length} 个字段</strong>
+        <em>点击展开</em>
+      </button>
 
       <div class="admin-table-scroll user-preview-report-scroll">
         <table class="admin-table user-preview-user-table" style="min-width: ${Math.max(980, selectedFields.length * 148)}px">
+          <colgroup>
+            ${selectedFields.map((field) => {
+              const widthMap = {
+                logIndex: 96,
+                usedAt: 190,
+                userContact: 170
+              };
+              return `<col style="width: ${widthMap[field.id] || 148}px" />`;
+            }).join("")}
+          </colgroup>
           <thead>
             <tr>
-              ${selectedFields.map((field) => `<th>${escapeHtml(field.label)}</th>`).join("")}
+              ${selectedFields.map((field) => `<th class="${getUserPreviewStickyClass(field.id)}">${escapeHtml(field.label)}</th>`).join("")}
             </tr>
           </thead>
           <tbody>
             ${ADMIN_USER_PREVIEW_USERS.map((user) => `
               <tr>
                 ${selectedFields.map((field) => `
-                  <td class="${field.id === "amount" || field.id === "estimatedCost" ? "admin-money-cell" : ""}">${escapeHtml(user[field.id] || "-")}</td>
+                  <td class="${getUserPreviewStickyClass(field.id)} ${field.id === "amount" || field.id === "estimatedCost" ? "admin-money-cell" : ""}">${escapeHtml(user[field.id] || "-")}</td>
                 `).join("")}
               </tr>
             `).join("")}
@@ -911,8 +916,59 @@ function renderUserPreviewReportBuilder() {
  * @throws {Error} 本函数不主动抛异常。
  */
 function getUserPreviewSelectedFields() {
-  const selected = ADMIN_USER_PREVIEW_FIELDS.filter((field) => state.userPreviewFields.has(field.id));
+  const orderedIds = getUserPreviewOrderedFieldIds();
+  const selected = orderedIds
+    .map((fieldId) => getUserPreviewFieldById(fieldId))
+    .filter(Boolean);
+
   return selected.length ? selected : ADMIN_USER_PREVIEW_FIELDS.slice(0, 1);
+}
+
+/**
+ * 根据字段 ID 读取字段配置。
+ *
+ * @param {string} fieldId - 字段唯一 ID。
+ * @returns {{ id: string, label: string, group: string } | undefined} 字段配置；找不到时返回 undefined。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getUserPreviewFieldById(fieldId) {
+  return ADMIN_USER_PREVIEW_FIELDS.find((field) => field.id === fieldId);
+}
+
+/**
+ * 读取 User Preview 字段的最终展示顺序。
+ *
+ * 为什么冻结字段永远排在前面：
+ * - 横向冻结列依赖明确的 left 偏移量。
+ * - 允许冻结列拖到中后段会造成滚动时列叠在一起，反而不利于后台看数。
+ *
+ * @returns {string[]} 已选字段 ID，冻结字段在前，其他字段按用户拖拽顺序排列。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getUserPreviewOrderedFieldIds() {
+  const knownIds = ADMIN_USER_PREVIEW_FIELDS.map((field) => field.id);
+  const selectedKnownIds = knownIds.filter((fieldId) => state.userPreviewFields.has(fieldId));
+  const orderedKnownIds = state.userPreviewFieldOrder.filter((fieldId) => selectedKnownIds.includes(fieldId));
+  const missingSelectedIds = selectedKnownIds.filter((fieldId) => !orderedKnownIds.includes(fieldId));
+  const combinedIds = [...orderedKnownIds, ...missingSelectedIds];
+  const frozenIds = USER_PREVIEW_FROZEN_FIELD_IDS.filter((fieldId) => state.userPreviewFields.has(fieldId));
+  const movableIds = combinedIds.filter((fieldId) => !USER_PREVIEW_FROZEN_FIELD_IDS.includes(fieldId));
+
+  return [...frozenIds, ...movableIds];
+}
+
+/**
+ * 生成表格冻结列的 CSS 类名。
+ *
+ * @param {string} fieldId - 字段唯一 ID。
+ * @returns {string} sticky 类名；非冻结字段返回空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getUserPreviewStickyClass(fieldId) {
+  if (fieldId === "logIndex") return "user-preview-sticky-col sticky-log-index";
+  if (fieldId === "usedAt") return "user-preview-sticky-col sticky-used-at";
+  if (fieldId === "userContact") return "user-preview-sticky-col sticky-user-contact";
+  return "";
 }
 
 /**
@@ -1191,7 +1247,8 @@ function renderAdminDialog() {
     "character-edit": () => renderAdminCharacterDialog("编辑AI人设"),
     "character-extend": renderAdminCharacterExtendDialog,
     "menu-manage": renderAdminMenuDialog,
-    "model-edit": renderAdminModelDialog
+    "model-edit": renderAdminModelDialog,
+    "user-preview-fields": renderUserPreviewFieldDialog
   };
 
   const renderer = dialogMap[dialog];
@@ -1199,11 +1256,94 @@ function renderAdminDialog() {
 
   return `
     <div class="admin-dialog-backdrop" data-admin-close="true">
-      <section class="admin-dialog ${dialog === "menu-manage" ? "wide" : ""} ${dialog === "token-rank" ? "rank" : ""}" role="dialog" aria-modal="true">
+      <section class="admin-dialog ${dialog === "menu-manage" || dialog === "user-preview-fields" ? "wide" : ""} ${dialog === "token-rank" ? "rank" : ""} ${dialog === "user-preview-fields" ? "field-config" : ""}" role="dialog" aria-modal="true">
         <button class="admin-dialog-close" type="button" data-admin-close="true" aria-label="关闭">×</button>
         ${renderer()}
       </section>
     </div>
+  `;
+}
+
+/**
+ * 渲染 User Preview 字段配置弹窗。
+ *
+ * 交互分成左右两栏：
+ * - 左侧负责决定字段是否展示，用 ✅ 表示已选中。
+ * - 右侧负责展示当前列顺序，非冻结字段支持拖拽排序。
+ *
+ * @returns {string} 字段配置弹窗 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewFieldDialog() {
+  const selectedIds = getUserPreviewOrderedFieldIds();
+  const frozenFields = selectedIds
+    .filter((fieldId) => USER_PREVIEW_FROZEN_FIELD_IDS.includes(fieldId))
+    .map((fieldId) => getUserPreviewFieldById(fieldId))
+    .filter(Boolean);
+  const movableFields = selectedIds
+    .filter((fieldId) => !USER_PREVIEW_FROZEN_FIELD_IDS.includes(fieldId))
+    .map((fieldId) => getUserPreviewFieldById(fieldId))
+    .filter(Boolean);
+
+  return `
+    <h3>字段配置</h3>
+    <p class="user-preview-field-dialog-desc">选择要展示的字段，并调整已展示字段的顺序。序号、使用时间、手机号会固定在表格左侧。</p>
+
+    <div class="user-preview-field-dialog-grid">
+      <section class="user-preview-field-panel" aria-label="选择展示字段">
+        <header>
+          <strong>全部字段</strong>
+          <span>${state.userPreviewFields.size} / ${ADMIN_USER_PREVIEW_FIELDS.length}</span>
+        </header>
+        <div class="user-preview-field-option-list">
+          ${ADMIN_USER_PREVIEW_FIELDS.map((field) => {
+            const isChecked = state.userPreviewFields.has(field.id);
+            return `
+              <button class="user-preview-field-option ${isChecked ? "checked" : ""}" type="button" data-user-preview-field-option="${escapeHtml(field.id)}" aria-pressed="${isChecked ? "true" : "false"}">
+                <span class="user-preview-field-check">${isChecked ? "✅" : ""}</span>
+                <span class="user-preview-field-name">${escapeHtml(field.label)}</span>
+                <em>${escapeHtml(field.group)}</em>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      </section>
+
+      <section class="user-preview-field-panel" aria-label="已展示字段排序">
+        <header>
+          <strong>已展示字段</strong>
+          <span>拖拽排序</span>
+        </header>
+        <div class="user-preview-selected-list">
+          ${frozenFields.map((field) => `
+            <div class="user-preview-selected-item frozen" data-user-preview-selected="${escapeHtml(field.id)}">
+              <span class="drag-handle">锁</span>
+              <strong>${escapeHtml(field.label)}</strong>
+              <em>冻结</em>
+            </div>
+          `).join("")}
+
+          ${movableFields.length ? movableFields.map((field) => `
+            <button class="user-preview-selected-item" type="button" draggable="true" data-user-preview-selected="${escapeHtml(field.id)}">
+              <span class="drag-handle">⋮⋮</span>
+              <strong>${escapeHtml(field.label)}</strong>
+              <em>${escapeHtml(field.group)}</em>
+              <span class="field-sort-actions">
+                <span data-user-preview-move="${escapeHtml(field.id)}" data-user-preview-move-direction="up" aria-label="上移字段">↑</span>
+                <span data-user-preview-move="${escapeHtml(field.id)}" data-user-preview-move-direction="down" aria-label="下移字段">↓</span>
+              </span>
+            </button>
+          `).join("") : `
+            <div class="user-preview-selected-empty">先在左侧勾选更多字段</div>
+          `}
+        </div>
+      </section>
+    </div>
+
+    <footer class="admin-dialog-actions">
+      <button class="admin-outline-btn" type="button" data-user-preview-preset="default">恢复默认字段</button>
+      <button class="admin-primary-btn" type="button" data-admin-close="true">完成</button>
+    </footer>
   `;
 }
 
@@ -4804,40 +4944,78 @@ function bindEvents() {
  * @throws {Error} 本函数不主动抛异常。
  */
 function bindUserPreviewReportControls() {
-  const report = document.querySelector(".user-preview-report");
+  document.querySelectorAll("[data-user-preview-field-option]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
 
-  if (report) {
-    report.onclick = (event) => {
-      const target = event.target;
+      const field = button.getAttribute("data-user-preview-field-option");
 
-      if (!(target instanceof Element)) {
+      if (!field) {
         return;
       }
 
-      const toggle = target.closest("[data-user-preview-field-toggle]");
+      if (state.userPreviewFields.has(field)) {
+        if (state.userPreviewFields.size <= 1) {
+          showToast("至少保留 1 个字段。");
+          return;
+        }
 
-      if (toggle) {
-        event.preventDefault();
-        event.stopPropagation();
-        state.userPreviewFieldsOpen = !state.userPreviewFieldsOpen;
-        refreshUserPreviewReport();
+        state.userPreviewFields.delete(field);
+      } else {
+        state.userPreviewFields.add(field);
+
+        if (!state.userPreviewFieldOrder.includes(field)) {
+          state.userPreviewFieldOrder.push(field);
+        }
       }
-    };
-  }
 
-  document.querySelectorAll("[data-user-preview-field]").forEach((input) => {
-    input.addEventListener("change", (event) => {
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-user-preview-selected][draggable='true']").forEach((item) => {
+    item.addEventListener("dragstart", (event) => {
+      const field = item.getAttribute("data-user-preview-selected") || "";
+      event.dataTransfer?.setData("text/plain", field);
+      item.classList.add("dragging");
+    });
+
+    item.addEventListener("dragend", () => {
+      item.classList.remove("dragging");
+    });
+
+    item.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      item.classList.add("drag-over");
+    });
+
+    item.addEventListener("dragleave", () => {
+      item.classList.remove("drag-over");
+    });
+
+    item.addEventListener("drop", (event) => {
+      event.preventDefault();
+      item.classList.remove("drag-over");
+
+      const draggedField = event.dataTransfer?.getData("text/plain") || "";
+      const targetField = item.getAttribute("data-user-preview-selected") || "";
+
+      moveUserPreviewFieldBefore(draggedField, targetField);
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-user-preview-move]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
       event.stopPropagation();
 
-      const field = input.value;
+      const field = button.getAttribute("data-user-preview-move") || "";
+      const direction = button.getAttribute("data-user-preview-move-direction") || "up";
 
-      if (input.checked) {
-        state.userPreviewFields.add(field);
-      } else {
-        state.userPreviewFields.delete(field);
-      }
-
-      refreshUserPreviewReport();
+      moveUserPreviewFieldByStep(field, direction === "down" ? 1 : -1);
+      renderApp();
     });
   });
 
@@ -4848,14 +5026,86 @@ function bindUserPreviewReportControls() {
 
       const preset = button.getAttribute("data-user-preview-preset");
       const presets = {
-        default: ["logIndex", "usedAt", "userContact", "lastActiveAt", "activeDays", "calledFeature", "calledModel", "callCount", "inputToken", "outputToken", "totalToken", "creditBalance", "runStatus", "estimatedCost", "operationLog"]
+        default: USER_PREVIEW_DEFAULT_FIELD_IDS
       };
 
       state.userPreviewFields = new Set(presets[preset] || presets.default);
-      state.userPreviewFieldsOpen = false;
-      refreshUserPreviewReport();
+      state.userPreviewFieldOrder = [...(presets[preset] || presets.default)];
+      state.adminDialog = null;
+      renderApp();
     });
   });
+}
+
+/**
+ * 把一个 User Preview 字段移动到另一个字段前面。
+ *
+ * @param {string} draggedField - 被拖动的字段 ID。
+ * @param {string} targetField - 拖拽释放位置所在的目标字段 ID。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function moveUserPreviewFieldBefore(draggedField, targetField) {
+  if (!draggedField || !targetField || draggedField === targetField) {
+    return;
+  }
+
+  if (USER_PREVIEW_FROZEN_FIELD_IDS.includes(draggedField) || USER_PREVIEW_FROZEN_FIELD_IDS.includes(targetField)) {
+    return;
+  }
+
+  const orderedIds = getUserPreviewOrderedFieldIds();
+  const frozenIds = orderedIds.filter((fieldId) => USER_PREVIEW_FROZEN_FIELD_IDS.includes(fieldId));
+  const movableIds = orderedIds.filter((fieldId) => !USER_PREVIEW_FROZEN_FIELD_IDS.includes(fieldId));
+  const draggedIndex = movableIds.indexOf(draggedField);
+  const targetIndex = movableIds.indexOf(targetField);
+
+  if (draggedIndex === -1 || targetIndex === -1) {
+    return;
+  }
+
+  const nextMovableIds = [...movableIds];
+  const [movedField] = nextMovableIds.splice(draggedIndex, 1);
+  const nextTargetIndex = nextMovableIds.indexOf(targetField);
+  nextMovableIds.splice(nextTargetIndex, 0, movedField);
+
+  const selectedOrder = [...frozenIds, ...nextMovableIds];
+  const hiddenOrder = state.userPreviewFieldOrder.filter((fieldId) => !selectedOrder.includes(fieldId));
+
+  state.userPreviewFieldOrder = [...selectedOrder, ...hiddenOrder];
+}
+
+/**
+ * 将一个可排序字段上移或下移一格。
+ *
+ * @param {string} field - 要移动的字段 ID。
+ * @param {number} step - 移动方向；-1 表示上移，1 表示下移。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function moveUserPreviewFieldByStep(field, step) {
+  if (!field || USER_PREVIEW_FROZEN_FIELD_IDS.includes(field)) {
+    return;
+  }
+
+  const orderedIds = getUserPreviewOrderedFieldIds();
+  const frozenIds = orderedIds.filter((fieldId) => USER_PREVIEW_FROZEN_FIELD_IDS.includes(fieldId));
+  const movableIds = orderedIds.filter((fieldId) => !USER_PREVIEW_FROZEN_FIELD_IDS.includes(fieldId));
+  const currentIndex = movableIds.indexOf(field);
+  const nextIndex = currentIndex + step;
+
+  if (currentIndex === -1 || nextIndex < 0 || nextIndex >= movableIds.length) {
+    return;
+  }
+
+  const nextMovableIds = [...movableIds];
+  const [movedField] = nextMovableIds.splice(currentIndex, 1);
+  nextMovableIds.splice(nextIndex, 0, movedField);
+
+  const selectedOrder = [...frozenIds, ...nextMovableIds];
+  const hiddenOrder = state.userPreviewFieldOrder.filter((fieldId) => !selectedOrder.includes(fieldId));
+
+  state.userPreviewFieldOrder = [...selectedOrder, ...hiddenOrder];
 }
 
 /**
