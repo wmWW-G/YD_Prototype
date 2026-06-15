@@ -112,6 +112,24 @@ const state = {
 let toastTimer = null;
 
 /**
+ * 后台弹窗打开前的滚动位置快照。
+ *
+ * 为什么用 mousedown 提前记录：
+ * - 浏览器可能在 click 事件前先调整滚动位置，让被点击按钮进入焦点区域。
+ * - 如果 click 时才记录，拿到的已经是“跳过以后”的位置。
+ *
+ * @type {{ top: number, left: number } | null}
+ */
+let adminWorkspaceScrollSnapshot = null;
+
+/**
+ * User Preview 字段弹窗打开时的后台滚动位置。
+ *
+ * @type {{ top: number, left: number } | null}
+ */
+let userPreviewDialogWorkspaceScrollSnapshot = null;
+
+/**
  * 生成 HTML 安全文本。
  *
  * 作用：
@@ -342,6 +360,212 @@ function renderApp() {
     activeSalesTab: state.activeSalesTab,
     activeStageId: state.activeStageId,
     hash: window.location.hash
+  });
+}
+
+/**
+ * 重画后台页面并恢复工作区滚动位置。
+ *
+ * 为什么需要这个函数：
+ * - 后台弹窗打开/关闭会调用 renderApp()。
+ * - renderApp() 会替换整棵 DOM，如果不记录滚动位置，页面会回到顶部。
+ * - User Preview 的字段配置在页面较下方，跳回顶部会让用户以为界面失控。
+ *
+ * @returns {void}
+ * @throws {Error} renderApp() 找不到 #app 时仍会抛出原始错误。
+ */
+function renderAdminAppPreservingScroll() {
+  const workspace = document.querySelector(".admin-workspace");
+  const scrollTop = workspace ? workspace.scrollTop : 0;
+  const scrollLeft = workspace ? workspace.scrollLeft : 0;
+
+  renderApp();
+
+  const nextWorkspace = document.querySelector(".admin-workspace");
+
+  if (nextWorkspace) {
+    nextWorkspace.scrollTop = scrollTop;
+    nextWorkspace.scrollLeft = scrollLeft;
+
+    window.requestAnimationFrame(() => {
+      nextWorkspace.scrollTop = scrollTop;
+      nextWorkspace.scrollLeft = scrollLeft;
+    });
+
+    window.setTimeout(() => {
+      nextWorkspace.scrollTop = scrollTop;
+      nextWorkspace.scrollLeft = scrollLeft;
+    }, 0);
+  }
+}
+
+/**
+ * 在当前后台 DOM 上直接打开弹窗。
+ *
+ * 为什么不用 renderApp：
+ * - 打开弹窗不应该改变后台页面内容。
+ * - 直接插入弹窗可以保持后台工作区滚动位置、表格横向位置和弹窗内列表位置。
+ *
+ * @param {string | null} dialog - 要打开的弹窗类型。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function openAdminDialog(dialog, scrollSnapshot = null) {
+  if (!dialog) {
+    return;
+  }
+
+  const snapshot = scrollSnapshot || getAdminWorkspaceScrollSnapshot();
+  state.adminDialog = dialog;
+
+  if (dialog === "user-preview-fields") {
+    userPreviewDialogWorkspaceScrollSnapshot = snapshot;
+  }
+
+  document.querySelector(".admin-dialog-backdrop")?.remove();
+
+  const host = document.querySelector(".admin-main") || document.querySelector("#app");
+
+  if (!host) {
+    renderApp();
+    return;
+  }
+
+  host.insertAdjacentHTML("beforeend", renderAdminDialog());
+  restoreAdminWorkspaceScroll(snapshot);
+  bindAdminDialogSurfaceEvents();
+  bindUserPreviewReportControls();
+}
+
+/**
+ * 读取后台工作区当前滚动位置。
+ *
+ * @returns {{ top: number, left: number }} 当前滚动位置。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getAdminWorkspaceScrollSnapshot() {
+  const workspace = document.querySelector(".admin-workspace");
+  return {
+    top: workspace ? workspace.scrollTop : 0,
+    left: workspace ? workspace.scrollLeft : 0
+  };
+}
+
+/**
+ * 恢复后台工作区滚动位置。
+ *
+ * @param {{ top: number, left: number }} snapshot - 需要恢复的滚动位置。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function restoreAdminWorkspaceScroll(snapshot) {
+  const workspace = document.querySelector(".admin-workspace");
+
+  if (!workspace) {
+    return;
+  }
+
+  workspace.scrollTop = snapshot.top;
+  workspace.scrollLeft = snapshot.left;
+
+  window.requestAnimationFrame(() => {
+    workspace.scrollTop = snapshot.top;
+    workspace.scrollLeft = snapshot.left;
+  });
+
+  window.setTimeout(() => {
+    workspace.scrollTop = snapshot.top;
+    workspace.scrollLeft = snapshot.left;
+  }, 0);
+}
+
+/**
+ * 关闭当前后台弹窗。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function closeAdminDialog() {
+  const shouldRefreshUserPreviewReport = state.adminDialog === "user-preview-fields";
+
+  state.adminDialog = null;
+  document.querySelector(".admin-dialog-backdrop")?.remove();
+
+  if (shouldRefreshUserPreviewReport) {
+    refreshUserPreviewReport();
+  }
+
+  userPreviewDialogWorkspaceScrollSnapshot = null;
+}
+
+/**
+ * 绑定后台弹窗自身事件。
+ *
+ * 为什么单独绑定：
+ * - 弹窗现在可以直接插入 DOM，不一定经过 bindEvents() 的整页事件绑定。
+ * - 关闭、阻止冒泡这些弹窗基础行为仍然需要立即可用。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function bindAdminDialogSurfaceEvents() {
+  document.querySelectorAll("[data-admin-close]").forEach((node) => {
+    if (node.dataset.adminCloseBound === "true") {
+      return;
+    }
+
+    node.dataset.adminCloseBound = "true";
+    node.addEventListener("click", (event) => {
+      const isBackdrop = node.classList.contains("admin-dialog-backdrop");
+
+      if (isBackdrop && event.target !== node) {
+        return;
+      }
+
+      closeAdminDialog();
+    });
+  });
+
+  document.querySelectorAll(".admin-dialog").forEach((node) => {
+    if (node.dataset.adminDialogBound === "true") {
+      return;
+    }
+
+    node.dataset.adminDialogBound = "true";
+    node.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+  });
+}
+
+/**
+ * 绑定后台弹窗打开按钮。
+ *
+ * 为什么单独拆出来：
+ * - User Preview 报表会局部替换“字段配置”按钮。
+ * - 替换后的新按钮不经过整页 bindEvents()，必须单独重新绑定打开弹窗事件。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function bindAdminDialogOpenControls() {
+  document.querySelectorAll("[data-admin-dialog]").forEach((button) => {
+    if (button.dataset.adminDialogOpenBound === "true") {
+      return;
+    }
+
+    button.dataset.adminDialogOpenBound = "true";
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      adminWorkspaceScrollSnapshot = getAdminWorkspaceScrollSnapshot();
+    });
+
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openAdminDialog(button.getAttribute("data-admin-dialog"), adminWorkspaceScrollSnapshot);
+      adminWorkspaceScrollSnapshot = null;
+    });
   });
 }
 
@@ -990,16 +1214,115 @@ function refreshUserPreviewReport() {
   }
 
   const workspace = document.querySelector(".admin-workspace");
-  const scrollTop = workspace ? workspace.scrollTop : 0;
-  const scrollLeft = workspace ? workspace.scrollLeft : 0;
+  const scrollTop = userPreviewDialogWorkspaceScrollSnapshot?.top ?? (workspace ? workspace.scrollTop : 0);
+  const scrollLeft = userPreviewDialogWorkspaceScrollSnapshot?.left ?? (workspace ? workspace.scrollLeft : 0);
 
   report.outerHTML = renderUserPreviewReportBuilder();
+  bindAdminDialogOpenControls();
   bindUserPreviewReportControls();
 
   if (workspace) {
     workspace.scrollTop = scrollTop;
     workspace.scrollLeft = scrollLeft;
+
+    window.requestAnimationFrame(() => {
+      workspace.scrollTop = scrollTop;
+      workspace.scrollLeft = scrollLeft;
+    });
+
+    window.setTimeout(() => {
+      workspace.scrollTop = scrollTop;
+      workspace.scrollLeft = scrollLeft;
+    }, 0);
   }
+}
+
+/**
+ * 局部刷新 User Preview 字段配置弹窗和下方报表。
+ *
+ * 为什么不用 renderApp：
+ * - renderApp 会重新创建整个弹窗，视觉上就像“闪一下”。
+ * - 字段配置只是本地原型状态变化，局部替换列表和表格更安静。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function refreshUserPreviewFieldConfig() {
+  const optionList = document.querySelector("[data-user-preview-option-list]");
+  const selectedList = document.querySelector("[data-user-preview-selected-list]");
+  const fieldCount = document.querySelector("[data-user-preview-field-count]");
+  const optionScrollTop = optionList ? optionList.scrollTop : 0;
+  const selectedScrollTop = selectedList ? selectedList.scrollTop : 0;
+
+  if (optionList) {
+    optionList.innerHTML = renderUserPreviewFieldOptionList();
+    optionList.scrollTop = optionScrollTop;
+  }
+
+  if (selectedList) {
+    selectedList.innerHTML = renderUserPreviewSelectedFieldList();
+    selectedList.scrollTop = selectedScrollTop;
+  }
+
+  if (fieldCount) {
+    fieldCount.textContent = `${state.userPreviewFields.size} / ${ADMIN_USER_PREVIEW_FIELDS.length}`;
+  }
+
+  const collapsedCount = document.querySelector(".user-preview-field-collapsed strong");
+
+  if (collapsedCount) {
+    collapsedCount.textContent = `${state.userPreviewFields.size} 个字段`;
+  }
+
+  window.requestAnimationFrame(() => {
+    if (optionList) optionList.scrollTop = optionScrollTop;
+    if (selectedList) selectedList.scrollTop = selectedScrollTop;
+  });
+
+  window.setTimeout(() => {
+    if (optionList) optionList.scrollTop = optionScrollTop;
+    if (selectedList) selectedList.scrollTop = selectedScrollTop;
+  }, 0);
+}
+
+/**
+ * 字段勾选后只刷新右侧已展示字段区。
+ *
+ * 为什么不刷新左侧列表：
+ * - 用户点击的字段按钮就在左侧列表里。
+ * - 如果把左侧列表整体重建，浏览器会丢失当前焦点并可能把滚动拉回顶部。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function refreshUserPreviewSelectedFieldsOnly() {
+  const selectedList = document.querySelector("[data-user-preview-selected-list]");
+  const fieldCount = document.querySelector("[data-user-preview-field-count]");
+  const collapsedCount = document.querySelector(".user-preview-field-collapsed strong");
+  const selectedScrollTop = selectedList ? selectedList.scrollTop : 0;
+
+  if (selectedList) {
+    selectedList.innerHTML = renderUserPreviewSelectedFieldList();
+    selectedList.scrollTop = selectedScrollTop;
+  }
+
+  if (fieldCount) {
+    fieldCount.textContent = `${state.userPreviewFields.size} / ${ADMIN_USER_PREVIEW_FIELDS.length}`;
+  }
+
+  if (collapsedCount) {
+    collapsedCount.textContent = `${state.userPreviewFields.size} 个字段`;
+  }
+
+  window.requestAnimationFrame(() => {
+    if (selectedList) selectedList.scrollTop = selectedScrollTop;
+  });
+
+  window.setTimeout(() => {
+    if (selectedList) selectedList.scrollTop = selectedScrollTop;
+  }, 0);
+
+  bindUserPreviewReportControls();
 }
 
 /**
@@ -1275,6 +1598,68 @@ function renderAdminDialog() {
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderUserPreviewFieldDialog() {
+  return `
+    <h3>字段配置</h3>
+    <p class="user-preview-field-dialog-desc">选择要展示的字段，右侧可调整展示顺序。</p>
+
+    <div class="user-preview-field-dialog-grid">
+      <section class="user-preview-field-panel" aria-label="选择展示字段">
+        <header>
+          <strong>全部字段</strong>
+          <span data-user-preview-field-count>${state.userPreviewFields.size} / ${ADMIN_USER_PREVIEW_FIELDS.length}</span>
+        </header>
+        <div class="user-preview-field-option-list" data-user-preview-option-list>
+          ${renderUserPreviewFieldOptionList()}
+        </div>
+      </section>
+
+      <section class="user-preview-field-panel" aria-label="已展示字段排序">
+        <header>
+          <strong>已展示字段</strong>
+          <span>拖拽排序</span>
+        </header>
+        <div class="user-preview-selected-list" data-user-preview-selected-list>
+          ${renderUserPreviewSelectedFieldList()}
+        </div>
+      </section>
+    </div>
+
+    <footer class="admin-dialog-actions">
+      <button class="admin-outline-btn" type="button" data-user-preview-preset="default">恢复默认字段</button>
+      <button class="admin-primary-btn" type="button" data-admin-close="true">完成</button>
+    </footer>
+  `;
+}
+
+/**
+ * 渲染字段配置弹窗左侧的字段选择列表。
+ *
+ * 为什么单独拆出来：
+ * - 点击字段时只需要刷新弹窗里的列表，不需要重画整个后台页面。
+ * - 这样弹窗不会闪烁，用户也不会感觉点一下就“跳一下”。
+ *
+ * @returns {string} 字段按钮 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewFieldOptionList() {
+  return ADMIN_USER_PREVIEW_FIELDS.map((field) => {
+    const isChecked = state.userPreviewFields.has(field.id);
+    return `
+      <button class="user-preview-field-option ${isChecked ? "checked" : ""}" type="button" data-user-preview-field-option="${escapeHtml(field.id)}" aria-pressed="${isChecked ? "true" : "false"}">
+        <span class="user-preview-field-check" aria-hidden="true"></span>
+        <span class="user-preview-field-name">${escapeHtml(field.label)}</span>
+      </button>
+    `;
+  }).join("");
+}
+
+/**
+ * 渲染字段配置弹窗右侧的已展示字段列表。
+ *
+ * @returns {string} 已展示字段 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewSelectedFieldList() {
   const selectedIds = getUserPreviewOrderedFieldIds();
   const frozenFields = selectedIds
     .filter((fieldId) => USER_PREVIEW_FROZEN_FIELD_IDS.includes(fieldId))
@@ -1286,61 +1671,25 @@ function renderUserPreviewFieldDialog() {
     .filter(Boolean);
 
   return `
-    <h3>字段配置</h3>
-    <p class="user-preview-field-dialog-desc">选择要展示的字段，右侧可调整展示顺序。</p>
+    ${frozenFields.map((field) => `
+      <div class="user-preview-selected-item frozen" data-user-preview-selected="${escapeHtml(field.id)}">
+        <span class="drag-handle"></span>
+        <strong>${escapeHtml(field.label)}</strong>
+      </div>
+    `).join("")}
 
-    <div class="user-preview-field-dialog-grid">
-      <section class="user-preview-field-panel" aria-label="选择展示字段">
-        <header>
-          <strong>全部字段</strong>
-          <span>${state.userPreviewFields.size} / ${ADMIN_USER_PREVIEW_FIELDS.length}</span>
-        </header>
-        <div class="user-preview-field-option-list">
-          ${ADMIN_USER_PREVIEW_FIELDS.map((field) => {
-            const isChecked = state.userPreviewFields.has(field.id);
-            return `
-              <button class="user-preview-field-option ${isChecked ? "checked" : ""}" type="button" data-user-preview-field-option="${escapeHtml(field.id)}" aria-pressed="${isChecked ? "true" : "false"}">
-                <span class="user-preview-field-check">${isChecked ? "✅" : ""}</span>
-                <span class="user-preview-field-name">${escapeHtml(field.label)}</span>
-              </button>
-            `;
-          }).join("")}
-        </div>
-      </section>
-
-      <section class="user-preview-field-panel" aria-label="已展示字段排序">
-        <header>
-          <strong>已展示字段</strong>
-          <span>拖拽排序</span>
-        </header>
-        <div class="user-preview-selected-list">
-          ${frozenFields.map((field) => `
-            <div class="user-preview-selected-item frozen" data-user-preview-selected="${escapeHtml(field.id)}">
-              <span class="drag-handle"></span>
-              <strong>${escapeHtml(field.label)}</strong>
-            </div>
-          `).join("")}
-
-          ${movableFields.length ? movableFields.map((field) => `
-            <button class="user-preview-selected-item" type="button" draggable="true" data-user-preview-selected="${escapeHtml(field.id)}">
-              <span class="drag-handle">⋮⋮</span>
-              <strong>${escapeHtml(field.label)}</strong>
-              <span class="field-sort-actions">
-                <span data-user-preview-move="${escapeHtml(field.id)}" data-user-preview-move-direction="up" aria-label="上移字段">↑</span>
-                <span data-user-preview-move="${escapeHtml(field.id)}" data-user-preview-move-direction="down" aria-label="下移字段">↓</span>
-              </span>
-            </button>
-          `).join("") : `
-            <div class="user-preview-selected-empty">先在左侧勾选更多字段</div>
-          `}
-        </div>
-      </section>
-    </div>
-
-    <footer class="admin-dialog-actions">
-      <button class="admin-outline-btn" type="button" data-user-preview-preset="default">恢复默认字段</button>
-      <button class="admin-primary-btn" type="button" data-admin-close="true">完成</button>
-    </footer>
+    ${movableFields.length ? movableFields.map((field) => `
+      <button class="user-preview-selected-item" type="button" draggable="true" data-user-preview-selected="${escapeHtml(field.id)}">
+        <span class="drag-handle">⋮⋮</span>
+        <strong>${escapeHtml(field.label)}</strong>
+        <span class="field-sort-actions">
+          <span data-user-preview-move="${escapeHtml(field.id)}" data-user-preview-move-direction="up" aria-label="上移字段">↑</span>
+          <span data-user-preview-move="${escapeHtml(field.id)}" data-user-preview-move-direction="down" aria-label="下移字段">↓</span>
+        </span>
+      </button>
+    `).join("") : `
+      <div class="user-preview-selected-empty">先在左侧勾选更多字段</div>
+    `}
   `;
 }
 
@@ -4378,13 +4727,7 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll("[data-admin-dialog]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      state.adminDialog = button.getAttribute("data-admin-dialog");
-      renderApp();
-    });
-  });
+  bindAdminDialogOpenControls();
 
   document.querySelectorAll("[data-admin-close]").forEach((node) => {
     node.addEventListener("click", (event) => {
@@ -4393,8 +4736,7 @@ function bindEvents() {
         return;
       }
 
-      state.adminDialog = null;
-      renderApp();
+      closeAdminDialog();
     });
   });
 
@@ -4942,6 +5284,15 @@ function bindEvents() {
  */
 function bindUserPreviewReportControls() {
   document.querySelectorAll("[data-user-preview-field-option]").forEach((button) => {
+    if (button.dataset.userPreviewBound === "true") {
+      return;
+    }
+
+    button.dataset.userPreviewBound = "true";
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+    });
+
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -4967,11 +5318,22 @@ function bindUserPreviewReportControls() {
         }
       }
 
-      renderApp();
+      button.classList.toggle("checked", state.userPreviewFields.has(field));
+      button.setAttribute("aria-pressed", state.userPreviewFields.has(field) ? "true" : "false");
+      refreshUserPreviewSelectedFieldsOnly();
     });
   });
 
   document.querySelectorAll("[data-user-preview-selected][draggable='true']").forEach((item) => {
+    if (item.dataset.userPreviewBound === "true") {
+      return;
+    }
+
+    item.dataset.userPreviewBound = "true";
+    item.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+    });
+
     item.addEventListener("dragstart", (event) => {
       const field = item.getAttribute("data-user-preview-selected") || "";
       event.dataTransfer?.setData("text/plain", field);
@@ -4999,11 +5361,20 @@ function bindUserPreviewReportControls() {
       const targetField = item.getAttribute("data-user-preview-selected") || "";
 
       moveUserPreviewFieldBefore(draggedField, targetField);
-      renderApp();
+      refreshUserPreviewFieldConfig();
     });
   });
 
   document.querySelectorAll("[data-user-preview-move]").forEach((button) => {
+    if (button.dataset.userPreviewBound === "true") {
+      return;
+    }
+
+    button.dataset.userPreviewBound = "true";
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+    });
+
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -5012,11 +5383,16 @@ function bindUserPreviewReportControls() {
       const direction = button.getAttribute("data-user-preview-move-direction") || "up";
 
       moveUserPreviewFieldByStep(field, direction === "down" ? 1 : -1);
-      renderApp();
+      refreshUserPreviewFieldConfig();
     });
   });
 
   document.querySelectorAll("[data-user-preview-preset]").forEach((button) => {
+    if (button.dataset.userPreviewBound === "true") {
+      return;
+    }
+
+    button.dataset.userPreviewBound = "true";
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -5028,8 +5404,13 @@ function bindUserPreviewReportControls() {
 
       state.userPreviewFields = new Set(presets[preset] || presets.default);
       state.userPreviewFieldOrder = [...(presets[preset] || presets.default)];
-      state.adminDialog = null;
-      renderApp();
+
+      if (state.adminDialog === "user-preview-fields") {
+        refreshUserPreviewFieldConfig();
+        return;
+      }
+
+      refreshUserPreviewReport();
     });
   });
 }

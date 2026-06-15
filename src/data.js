@@ -897,6 +897,12 @@ window.ADMIN_USER_PREVIEW_FIELDS = [
   { id: "paymentCount", label: "付款次数", group: "金额" },
   { id: "lastPaidAt", label: "最近付款时间", group: "金额" },
   { id: "paidStatus", label: "付费状态", group: "金额" },
+  { id: "rechargeDate", label: "充值日期", group: "充值" },
+  { id: "expiryDate", label: "到期日期", group: "充值" },
+  { id: "rechargePlan", label: "充值套餐", group: "充值" },
+  { id: "rechargeAmount", label: "充值金额", group: "充值" },
+  { id: "renewalCountdown", label: "续费倒计时", group: "充值" },
+  { id: "rechargeRecord", label: "充值记录", group: "充值" },
   { id: "creditUsed", label: "已用积分", group: "积分" },
   { id: "upgradeClickCount", label: "升级点击次数", group: "转化" },
   { id: "payPageViewCount", label: "支付页访问次数", group: "转化" },
@@ -918,6 +924,31 @@ window.ADMIN_USER_PREVIEW_USERS = [
   { logIndex: "7", usedAt: "2026/06/13 12:58", userContact: "178****7070", lastActiveAt: "2026/06/13 12:58", activeDays: "1", calledFeature: "场景谈判顾问", calledModel: "Plus", callCount: "22", inputToken: "41,000", outputToken: "55,000", totalToken: "96,000", runStatus: "成功", estimatedCost: "¥1.28", operationLog: "查看所有记录", userId: "U-10007", username: "178****7070", registeredAt: "2026/06/13 09:49", registerSource: "销售邀请", inviteCode: "YD-TEAM-7N6C", salesOwner: "销售主管", lastLoginAt: "2026/06/13 12:55", lastUsedAt: "2026/06/13 12:58", firstFeature: "客户背调顾问", topFeature: "场景谈判顾问", lastFeature: "场景谈判顾问", usageCount: "22", sessionCount: "9", messageCount: "82", avgRounds: "7.4", uploadCount: "3", exportCount: "4", tokenUsed: "96K", modelSplit: "Plus 51% / 标准 49%", amount: "¥499", paymentCount: "1", lastPaidAt: "2026/06/13 12:40", paidStatus: "团队版", creditBalance: "49,120", creditUsed: "880", upgradeClickCount: "4", payPageViewCount: "2", redeemedInviteAt: "2026/06/13 10:18" },
   { logIndex: "8", usedAt: "2026/06/13 09:55", userContact: "134****9547", lastActiveAt: "2026/06/13 09:55", activeDays: "1", calledFeature: "问一下", calledModel: "标准", callCount: "1", inputToken: "650", outputToken: "850", totalToken: "1,500", runStatus: "失败", estimatedCost: "¥0.02", operationLog: "查看所有记录", userId: "U-10008", username: "134****9547", registeredAt: "2026/06/13 09:51", registerSource: "自然注册", inviteCode: "-", salesOwner: "-", lastLoginAt: "2026/06/13 09:53", lastUsedAt: "2026/06/13 09:55", firstFeature: "问一下", topFeature: "问一下", lastFeature: "问一下", usageCount: "1", sessionCount: "1", messageCount: "3", avgRounds: "1.3", uploadCount: "0", exportCount: "0", tokenUsed: "1.5K", modelSplit: "标准 100%", amount: "¥0", paymentCount: "0", lastPaidAt: "-", paidStatus: "免费版", creditBalance: "520", creditUsed: "0", upgradeClickCount: "0", payPageViewCount: "0", redeemedInviteAt: "-" }
 ];
+
+/**
+ * User Preview 充值相关模拟字段。
+ *
+ * 为什么不直接写进上面的长对象：
+ * - 用户字段报表已经有很多列，继续把充值字段塞进单行对象会很难读。
+ * - 这里按用户序号补充模拟值，方便后续继续加充值字段。
+ * - 这是后台 UI 原型数据，不代表真实订单或真实支付记录。
+ *
+ * @type {Array<{ rechargeDate: string, expiryDate: string, rechargePlan: string, rechargeAmount: string, renewalCountdown: string, rechargeRecord: string }>}
+ */
+const ADMIN_USER_PREVIEW_RECHARGE_FIELDS = [
+  { rechargeDate: "2026/06/12", expiryDate: "2027/06/12", rechargePlan: "专业版年付", rechargeAmount: "¥99", renewalCountdown: "362 天", rechargeRecord: "2026/06/12 · 专业版年付 · ¥99" },
+  { rechargeDate: "-", expiryDate: "-", rechargePlan: "免费版", rechargeAmount: "¥0", renewalCountdown: "-", rechargeRecord: "暂无充值" },
+  { rechargeDate: "-", expiryDate: "-", rechargePlan: "免费版", rechargeAmount: "¥0", renewalCountdown: "-", rechargeRecord: "暂无充值" },
+  { rechargeDate: "-", expiryDate: "-", rechargePlan: "免费版", rechargeAmount: "¥0", renewalCountdown: "-", rechargeRecord: "暂无充值" },
+  { rechargeDate: "-", expiryDate: "-", rechargePlan: "免费版", rechargeAmount: "¥0", renewalCountdown: "-", rechargeRecord: "暂无充值" },
+  { rechargeDate: "-", expiryDate: "-", rechargePlan: "免费版", rechargeAmount: "¥0", renewalCountdown: "-", rechargeRecord: "暂无充值" },
+  { rechargeDate: "2026/06/13", expiryDate: "2027/06/13", rechargePlan: "团队版年付", rechargeAmount: "¥499", renewalCountdown: "363 天", rechargeRecord: "2026/06/13 · 团队版年付 · ¥499" },
+  { rechargeDate: "-", expiryDate: "-", rechargePlan: "免费版", rechargeAmount: "¥0", renewalCountdown: "-", rechargeRecord: "暂无充值" }
+];
+
+window.ADMIN_USER_PREVIEW_USERS.forEach((user, index) => {
+  Object.assign(user, ADMIN_USER_PREVIEW_RECHARGE_FIELDS[index] || ADMIN_USER_PREVIEW_RECHARGE_FIELDS[1]);
+});
 
 /**
  * 邀请码管理表格数据。

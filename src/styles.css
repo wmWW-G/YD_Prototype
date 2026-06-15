@@ -8947,12 +8947,11 @@ button:disabled {
   color: #374151;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+  transition: border-color 0.18s, background 0.18s;
 }
 
 .user-preview-field-option:hover {
   border-color: var(--admin-primary);
-  transform: translateY(-1px);
 }
 
 .user-preview-field-option.checked {
@@ -8961,10 +8960,27 @@ button:disabled {
 }
 
 .user-preview-field-check {
-  width: 24px;
-  color: #16a34a;
-  font-size: 15px;
+  width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #cfd6e3;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #ffffff;
   line-height: 1;
+}
+
+.user-preview-field-option.checked .user-preview-field-check {
+  border-color: var(--admin-primary);
+  background: var(--admin-primary);
+}
+
+.user-preview-field-option.checked .user-preview-field-check::before {
+  content: "✓";
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
 }
 
 .user-preview-field-name {
