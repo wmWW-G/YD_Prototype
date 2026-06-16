@@ -95,7 +95,7 @@ Python 后端：
 
 ## 当前应用理解
 
-本地浏览器直接打开 `index.html` 即可查看，页面标题为「赢单外贸成交顾问 - 逆向原型」。当前默认入口是 `#/ask`，通过 hash 路由模拟线上路径，不依赖服务器 rewrite。
+本地浏览器直接打开 `index.html` 即可查看，页面标题为「赢单外贸成交顾问 - 原型」。当前默认入口是 `#/ask`，通过 hash 路由模拟线上路径，不依赖服务器 rewrite。
 
 ## 线上预览与发布
 
@@ -119,6 +119,9 @@ Python 后端：
 - 顶部或输入区附近有「教学视频」「历史」入口。
 - 销售准备页面有顶部子标签，当前包括 `外贸流程`、`了解公司`、`产品&市场`、`案例知识库`。
 - 账号卡可进入 `#/account/usage` 用量明细；升级相关页面走 `#/upgrade/pay/...`，全部是支付原型，不是真实支付。
+- `#/ask` 顶部右侧有一个透明圆形后台入口，hover 才轻微显色，点击进入后台管理。
+- 后台管理是同一个静态原型里的另一套壳，包含首页、知识库管理、用户总表（即原 User Preview 看板）、邀请码管理、AI 人设管理和 AI 模型管理。
+- 账号弹层包含邀请兑换入口、用量明细、订单记录、帮助、设置、关于和团队/企业空间切换飞出层；这些动作均为原型反馈。
 
 核心导航分组：
 
@@ -149,6 +152,13 @@ Python 后端：
 | Hash 路径 | 对应界面 |
 | --- | --- |
 | `#/ask` | 问一下 |
+| `#/admin/home` | 后台管理 > 首页 |
+| `#/admin/knowledge-base` | 后台管理 > 知识库管理 |
+| `#/admin/user` | 后台管理 > 用户 > 用户总表（User Preview 看板） |
+| `#/admin/user-preview` | 旧入口，已合并，自动重定向到 `#/admin/user` |
+| `#/admin/invite-code` | 后台管理 > 邀请码管理 |
+| `#/admin/ai-character` | 后台管理 > AI 人设管理 |
+| `#/admin/ai-model` | 后台管理 > AI 模型管理 |
 | `#/sales-prep/flow` | 销售准备 > 外贸流程基础版 |
 | `#/sales-prep/flow/a` | 外贸流程 A 变体，阶段进度条、checklist、键盘左右切换 |
 | `#/sales-prep/flow/b` | 外贸流程 B 变体，问 AI、阶段客户、资料预览 |
@@ -180,9 +190,11 @@ Python 后端：
 新增路由时必须同步检查：
 
 1. `src/data.js` 的 `NAV_GROUPS` 是否需要新增左侧入口。
-2. `src/app.js` 顶部 `state` 是否需要新增状态字段。
-3. `src/app.js` 的 `ROUTES`、`hashForState()`、`renderWorkspace()` 或对应 `renderXxxView()` 是否需要更新。
-4. `src/styles.css` 是否需要新增稳定布局、窄屏样式和动效。
+2. 如果是后台管理入口，检查 `src/data.js` 的 `ADMIN_NAV_ITEMS` 和 `src/app.js` 的 `hashForAdminMain()` / `renderAdminWorkspace()`。
+3. `src/app.js` 顶部 `state` 是否需要新增状态字段。
+4. `src/app.js` 的 `ROUTES`、`hashForState()`、`renderWorkspace()` 或对应 `renderXxxView()` 是否需要更新。
+5. `src/styles.css` 是否需要新增稳定布局、窄屏样式和动效。
+6. `index.html` 的 `?v=` 资源版本号是否需要更新，避免线上和同事浏览器缓存旧 CSS/JS。
 
 ## 当前状态与本地存储
 
@@ -206,6 +218,12 @@ Python 后端：
 - `activeCustomerId` / `activeCustomerPanel` / `kassAssistantOpen`：客户Kass 页面状态。
 - `drawer` / `popup`：右侧抽屉和弹层。
 - `selectedModel` / `chatDraft` / `isGenerating` / `generatedResult`：通用聊天输入和模拟生成状态。
+- `inviteCodeDraft` / `inviteRedeemResult`：账号弹层里邀请码兑换积分的输入和模拟兑换结果。
+- `adminInvitePreview`：后台邀请码管理里生成邀请码后的预览文案。
+- `userPreviewFields` / `userPreviewFieldsOpen`：后台 User Preview 用户字段报表当前显示字段和字段配置折叠状态。
+- `userPreviewTimePreset` / `userPreviewStartDate` / `userPreviewEndDate`：后台 User Preview 的今日、本周、本月和自定义时间范围。
+- `adminDialog` / `adminMenuOpen` / `adminUserFilterOpen`：后台管理弹窗、菜单和用户筛选状态。
+- `accountSpaceSwitcherOpen`：账号弹层中团队/企业空间切换飞出层的开关。
 
 本地存储边界：
 
@@ -213,6 +231,7 @@ Python 后端：
 - `localStorage.reverse-yingdan-flow-notes`：只保存外贸流程 D 变体私房笔记。
 - `sessionStorage.reverse-yingdan-prefill-ask`：只用于从外贸流程 B 变体的问 AI 动作跳回 `#/ask` 时预填问题。
 - 不要把真实客户资料、真实聊天、真实账号信息或真实支付信息写入浏览器存储。
+- 账号邀请兑换、后台邀请码生成、后台导出报表、后台刷新数据、账号团队/企业切换都只做原型反馈，不写后端、不落本地存储。
 
 ## 功能区域命名约定
 
@@ -229,6 +248,7 @@ Python 后端：
 - `客户Kass`：客户档案/客户上下文。
 - `历史记录`：历史会话和历史任务。
 - `账号/用量/升级`：通过账号卡、用量页和升级支付 hash 进入，不是左侧一级导航。
+- `后台管理`：通过隐藏后台入口或 `#/admin/...` hash 进入，不是用户侧左侧导航。
 
 ### 二级模块
 
@@ -283,6 +303,12 @@ Python 后端：
 - `销售准备 > 外贸流程 > D 变体 > 私房笔记`
 - `客户Kass > A 分组 > 客户档案`
 - `账号/用量/升级 > 用量明细 > 最近记录`
+- `账号弹层 > 邀请兑换积分`
+- `账号弹层 > 团队/企业空间切换`
+- `后台管理 > User Preview > 时间范围`
+- `后台管理 > User Preview > 功能调用总看板`
+- `后台管理 > User Preview > 用户字段报表`
+- `后台管理 > 邀请码管理 > 生成邀请码`
 
 ### 页面区域
 
@@ -588,8 +614,10 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 - 左侧导航和主工作区是否清楚。
 - 按钮、输入框、下拉项是否可见。
 - 主要用户流程是否能走通。
-- 至少抽查 `#/ask`、`#/sales-prep/flow`、`#/sales-prep/flow/b`、`#/sales-prep/company`、`#/sales-prep/market`、`#/sales-prep/cases`、`#/customer-kass/A`、`#/account/usage`。
+- 至少抽查 `#/ask`、`#/sales-prep/flow`、`#/sales-prep/flow/b`、`#/sales-prep/company`、`#/sales-prep/market`、`#/sales-prep/cases`、`#/customer-kass/A`、`#/account/usage`、`#/admin/user`、`#/admin/invite-code`。
 - 如果改了支付页，额外检查 `#/upgrade/pay/pro`、`#/upgrade/pay/pro/checkout`、`#/upgrade/pay/pro/done`。
+- 如果改了后台 User Preview，额外检查时间范围按钮、功能调用总看板、用户字段报表默认字段、字段展开/收起、手机号列和时间字段格式。
+- 如果改了账号弹层，额外检查邀请兑换、团队/企业飞出层、用量明细跳转和退出登录的原型反馈。
 - 如果改了外贸流程 A/D 变体，注意本地 checklist、私房笔记会写入 localStorage，验证后如需干净状态可手动清除对应 key。
 - 桌面和窄屏下文字是否重叠或溢出。
 - 不要点击发送、删除、保存账号设置等可能产生真实副作用的动作，除非用户明确确认。

@@ -761,9 +761,16 @@ window.KASS_FLOW_STAGES = [
  */
 window.ADMIN_NAV_ITEMS = [
   { id: "admin-home", label: "首页", icon: "▣" },
+  { id: "admin-business", label: "经营分析", icon: "◈" },
+  { id: "admin-user", label: "用户总表", icon: "♟", parent: "用户" },
+  { id: "admin-user-pool", label: "公海客户", icon: "♟", parent: "用户" },
+  { id: "admin-paid-pool", label: "付费公海", icon: "♟", parent: "用户" },
+  { id: "admin-user-sales", label: "销售信息", icon: "♟", parent: "用户" },
+  { id: "admin-user-active", label: "活跃用户", icon: "♟", parent: "用户" },
+  { id: "admin-user-paid", label: "付费用户", icon: "♟", parent: "用户" },
+  { id: "admin-user-invited", label: "受邀用户", icon: "♟", parent: "用户" },
+  { id: "admin-agent", label: "代理总览", icon: "♟", parent: "代理" },
   { id: "admin-knowledge", label: "知识库管理", icon: "☰", parent: "系统管理" },
-  { id: "admin-user", label: "用户管理", icon: "♟", parent: "系统管理" },
-  { id: "admin-user-preview", label: "User Preview", icon: "◉", parent: "系统管理" },
   { id: "admin-invite", label: "邀请码管理", icon: "◇", parent: "系统管理" },
   { id: "admin-character", label: "AI人设管理", icon: "♣", parent: "系统管理" },
   { id: "admin-model", label: "AI模型管理", icon: "♟", parent: "系统管理" }
@@ -838,19 +845,19 @@ window.ADMIN_USER_PREVIEW_METRICS = [
 /**
  * User Preview 功能调用总看板。
  *
- * @type {Array<{ rank: number, feature: string, calls: string, users: string, avgUse: string, token: string, tokenShare: string, cost: string }>}
+ * @type {Array<{ rank: number, feature: string, calls: string, users: string, avgUse: string, avgDuration: string, modelSplit: string, valueSignal: string, token: string, tokenShare: string, cost: string }>}
  */
 window.ADMIN_USER_PREVIEW_FUNCTION_SUMMARY = [
-  { rank: 1, feature: "问一下", calls: "1,268", users: "342", avgUse: "3.7 次", token: "918K", tokenShare: "28%", cost: "¥86" },
-  { rank: 2, feature: "客户背调顾问", calls: "936", users: "188", avgUse: "5.0 次", token: "1,108K", tokenShare: "34%", cost: "¥142" },
-  { rank: 3, feature: "询盘分析回复", calls: "642", users: "156", avgUse: "4.1 次", token: "672K", tokenShare: "20%", cost: "¥61" },
-  { rank: 4, feature: "市场调研", calls: "420", users: "96", avgUse: "4.4 次", token: "498K", tokenShare: "15%", cost: "¥49" },
-  { rank: 5, feature: "新客开发信", calls: "386", users: "121", avgUse: "3.2 次", token: "286K", tokenShare: "9%", cost: "¥24" },
-  { rank: 6, feature: "场景谈判顾问", calls: "304", users: "87", avgUse: "3.5 次", token: "318K", tokenShare: "10%", cost: "¥31" },
-  { rank: 7, feature: "客户Kass", calls: "218", users: "73", avgUse: "3.0 次", token: "226K", tokenShare: "7%", cost: "¥22" },
-  { rank: 8, feature: "案例知识库搜索", calls: "186", users: "64", avgUse: "2.9 次", token: "142K", tokenShare: "4%", cost: "¥13" },
-  { rank: 9, feature: "产品&市场", calls: "164", users: "52", avgUse: "3.2 次", token: "126K", tokenShare: "4%", cost: "¥12" },
-  { rank: 10, feature: "报价邮件", calls: "132", users: "48", avgUse: "2.8 次", token: "96K", tokenShare: "3%", cost: "¥9" }
+  { rank: 1, feature: "问一下", calls: "1,268", users: "342", avgUse: "3.7 次", avgDuration: "4分12秒", modelSplit: "标准 68% / Plus 32%", valueSignal: "刚需", token: "918K", tokenShare: "28%", cost: "¥86" },
+  { rank: 2, feature: "客户背调顾问", calls: "936", users: "188", avgUse: "5.0 次", avgDuration: "7分40秒", modelSplit: "Plus 62% / 标准 38%", valueSignal: "刚需", token: "1,108K", tokenShare: "34%", cost: "¥142" },
+  { rank: 3, feature: "询盘分析回复", calls: "642", users: "156", avgUse: "4.1 次", avgDuration: "6分18秒", modelSplit: "标准 72% / Plus 28%", valueSignal: "刚需", token: "672K", tokenShare: "20%", cost: "¥61" },
+  { rank: 4, feature: "市场调研", calls: "420", users: "96", avgUse: "4.4 次", avgDuration: "8分05秒", modelSplit: "Flash 40% / 标准 60%", valueSignal: "需优化", token: "498K", tokenShare: "15%", cost: "¥49" },
+  { rank: 5, feature: "新客开发信", calls: "386", users: "121", avgUse: "3.2 次", avgDuration: "3分56秒", modelSplit: "标准 81% / Plus 19%", valueSignal: "刚需", token: "286K", tokenShare: "9%", cost: "¥24" },
+  { rank: 6, feature: "场景谈判顾问", calls: "304", users: "87", avgUse: "3.5 次", avgDuration: "6分44秒", modelSplit: "Plus 51% / 标准 49%", valueSignal: "需优化", token: "318K", tokenShare: "10%", cost: "¥31" },
+  { rank: 7, feature: "客户Kass", calls: "218", users: "73", avgUse: "3.0 次", avgDuration: "5分20秒", modelSplit: "标准 64% / Plus 36%", valueSignal: "观察", token: "226K", tokenShare: "7%", cost: "¥22" },
+  { rank: 8, feature: "案例知识库搜索", calls: "186", users: "64", avgUse: "2.9 次", avgDuration: "2分48秒", modelSplit: "标准 90% / Flash 10%", valueSignal: "鸡肋", token: "142K", tokenShare: "4%", cost: "¥13" },
+  { rank: 9, feature: "产品&市场", calls: "164", users: "52", avgUse: "3.2 次", avgDuration: "4分36秒", modelSplit: "标准 70% / Plus 30%", valueSignal: "观察", token: "126K", tokenShare: "4%", cost: "¥12" },
+  { rank: 10, feature: "报价邮件", calls: "132", users: "48", avgUse: "2.8 次", avgDuration: "3分12秒", modelSplit: "标准 86% / Plus 14%", valueSignal: "需优化", token: "96K", tokenShare: "3%", cost: "¥9" }
 ];
 
 /**
@@ -874,12 +881,17 @@ window.ADMIN_USER_PREVIEW_FIELDS = [
   { id: "runStatus", label: "成状态（成功/失败）", group: "流水账" },
   { id: "estimatedCost", label: "成本（估算）", group: "流水账" },
   { id: "operationLog", label: "操作日志", group: "流水账" },
+  { id: "trialDetails", label: "试用详情", group: "流水账" },
   { id: "userId", label: "用户ID", group: "基础" },
   { id: "username", label: "用户", group: "基础" },
   { id: "registeredAt", label: "注册时间", group: "基础" },
-  { id: "registerSource", label: "注册来源", group: "来源" },
-  { id: "inviteCode", label: "邀请码", group: "来源" },
-  { id: "salesOwner", label: "所属销售", group: "来源" },
+  { id: "registerSource", label: "注册来源", group: "用户来源" },
+  { id: "channelName", label: "渠道名称", group: "用户来源" },
+  { id: "channelSourceId", label: "渠道来源标识", group: "用户来源" },
+  { id: "inviteRegisterAccount", label: "邀请注册账号", group: "用户来源" },
+  { id: "inviteRechargeAccount", label: "邀请充值账号", group: "用户来源" },
+  { id: "inviteCode", label: "邀请码", group: "用户来源" },
+  { id: "salesOwner", label: "所属销售", group: "用户来源" },
   { id: "lastLoginAt", label: "最近登录时间", group: "登录" },
   { id: "lastUsedAt", label: "最近使用时间", group: "使用" },
   { id: "firstFeature", label: "首次使用功能", group: "使用" },
@@ -906,7 +918,9 @@ window.ADMIN_USER_PREVIEW_FIELDS = [
   { id: "creditUsed", label: "已用积分", group: "积分" },
   { id: "upgradeClickCount", label: "升级点击次数", group: "转化" },
   { id: "payPageViewCount", label: "支付页访问次数", group: "转化" },
-  { id: "redeemedInviteAt", label: "邀请码兑换时间", group: "转化" }
+  { id: "redeemedInviteAt", label: "邀请码兑换时间", group: "转化" },
+  { id: "accountStatus", label: "用户状态", group: "用户状态" },
+  { id: "accountActions", label: "账户操作", group: "账户操作" }
 ];
 
 /**
@@ -946,9 +960,260 @@ const ADMIN_USER_PREVIEW_RECHARGE_FIELDS = [
   { rechargeDate: "-", expiryDate: "-", rechargePlan: "免费版", rechargeAmount: "¥0", renewalCountdown: "-", rechargeRecord: "暂无充值" }
 ];
 
+/**
+ * User Preview 用户来源、状态和账号操作模拟字段。
+ *
+ * @type {Array<{ channelName: string, channelSourceId: string, inviteRegisterAccount: string, inviteRechargeAccount: string, accountStatus: string, accountActions: string }>}
+ */
+const ADMIN_USER_PREVIEW_ACCOUNT_FIELDS = [
+  { channelName: "销售邀请", channelSourceId: "sales-b-m4q9", inviteRegisterAccount: "销售B", inviteRechargeAccount: "销售B", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
+  { channelName: "自然注册", channelSourceId: "organic-web", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
+  { channelName: "销售邀请", channelSourceId: "sales-a-8k2p", inviteRegisterAccount: "销售A", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
+  { channelName: "展会二维码", channelSourceId: "expo-qr-0613", inviteRegisterAccount: "销售A", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
+  { channelName: "自然注册", channelSourceId: "organic-web", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "关闭", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
+  { channelName: "搜索投放", channelSourceId: "sem-b2b-01", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
+  { channelName: "销售邀请", channelSourceId: "team-7n6c", inviteRegisterAccount: "销售主管", inviteRechargeAccount: "销售主管", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
+  { channelName: "自然注册", channelSourceId: "organic-web", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "账号禁用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" }
+];
+
 window.ADMIN_USER_PREVIEW_USERS.forEach((user, index) => {
-  Object.assign(user, ADMIN_USER_PREVIEW_RECHARGE_FIELDS[index] || ADMIN_USER_PREVIEW_RECHARGE_FIELDS[1]);
+  Object.assign(
+    user,
+    ADMIN_USER_PREVIEW_RECHARGE_FIELDS[index] || ADMIN_USER_PREVIEW_RECHARGE_FIELDS[1],
+    ADMIN_USER_PREVIEW_ACCOUNT_FIELDS[index] || ADMIN_USER_PREVIEW_ACCOUNT_FIELDS[1]
+  );
 });
+
+/**
+ * 经营分析 - 三大核心数字。
+ *
+ * 为什么单独建一份:
+ * - User Preview 是字段流水的自由报表; 经营分析是按角色组织的运营驾驶舱。
+ * - 不复用同一份数据,方便后续运营和客服分别迭代字段。
+ *
+ * @type {Array<{ id: string, metric: string, value: string, delta: string, trend: "up"|"down" }>}
+ */
+window.ADMIN_BUSINESS_HEADLINE = [
+  { id: "new-today", metric: "今日新增", value: "48", delta: "+12%", trend: "up" },
+  { id: "paid-today", metric: "今日付费", value: "9", delta: "+50%", trend: "up" },
+  { id: "deal-amount-today", metric: "今日成交金额", value: "¥8,920", delta: "+22%", trend: "up" }
+];
+
+/**
+ * 经营分析 - 第二层辅助指标。
+ *
+ * @type {Array<{ metric: string, value: string }>}
+ */
+window.ADMIN_BUSINESS_SUB_METRICS = [
+  { metric: "今日活跃", value: "326" },
+  { metric: "付费会员总数", value: "186" },
+  { metric: "累计成交", value: "¥286,400" },
+  { metric: "Token 总消耗", value: "3.28M" },
+  { metric: "Token 成本", value: "¥412" },
+  { metric: "30 日续费率", value: "78%" }
+];
+
+/**
+ * 经营分析 - 近 30 日趋势 (注册 / 付费 / 成交金额)。
+ *
+ * 为什么用三组并列数组:
+ * - sparkline 渲染只需要数值序列,不需要每天单独建对象。
+ * - labels 只在 tooltip 真正接入时用,原型用不到也保留。
+ *
+ * @type {{ labels: string[], register: number[], paid: number[], amount: number[] }}
+ */
+window.ADMIN_BUSINESS_TREND = {
+  labels: ["5/15","5/16","5/17","5/18","5/19","5/20","5/21","5/22","5/23","5/24","5/25","5/26","5/27","5/28","5/29","5/30","5/31","6/1","6/2","6/3","6/4","6/5","6/6","6/7","6/8","6/9","6/10","6/11","6/12","6/13"],
+  register: [22,28,34,30,26,33,40,38,46,42,38,44,40,48,52,45,42,48,55,50,47,52,58,54,49,56,62,58,52,48],
+  paid: [3,4,5,3,4,6,5,6,7,5,4,6,5,7,8,6,5,7,8,6,5,7,9,7,6,8,10,9,7,9],
+  amount: [2400,3100,3600,3000,3200,4100,3800,4400,5200,4000,3600,4500,3900,5100,5800,4200,3800,4900,5800,4600,4100,5200,6600,5100,4400,5800,7100,6500,5200,8920]
+};
+
+/**
+ * 经营分析 - 新用户转化漏斗。
+ *
+ * @type {Array<{ stage: string, value: number, conversion?: string, hint?: string }>}
+ */
+window.ADMIN_BUSINESS_FUNNEL = [
+  { stage: "注册", value: 482, hint: "近 30 日累计" },
+  { stage: "首次使用", value: 386, conversion: "80%" },
+  { stage: "7 天回访", value: 224, conversion: "58%" },
+  { stage: "付费", value: 62, conversion: "28%" },
+  { stage: "30 日续费", value: 48, conversion: "77%" }
+];
+
+/**
+ * 经营分析 - 渠道效率对比。
+ *
+ * rating 决定渠道标签颜色: high / watch / low。
+ *
+ * @type {Array<{ channel: string, register: number, activateRate: string, paidRate: string, cpa: string, ltv: string, rating: "high"|"watch"|"low" }>}
+ */
+window.ADMIN_BUSINESS_CHANNELS = [
+  { channel: "销售邀请", register: 186, activateRate: "82%", paidRate: "21%", cpa: "¥38", ltv: "¥420", rating: "high" },
+  { channel: "展会二维码", register: 92, activateRate: "76%", paidRate: "18%", cpa: "¥52", ltv: "¥360", rating: "high" },
+  { channel: "搜索投放", register: 142, activateRate: "58%", paidRate: "9%", cpa: "¥86", ltv: "¥280", rating: "watch" },
+  { channel: "自然注册", register: 62, activateRate: "44%", paidRate: "6%", cpa: "¥0", ltv: "¥180", rating: "low" }
+];
+
+/**
+ * 经营分析 - 销售业绩 TOP 3。
+ *
+ * @type {Array<{ rank: number, name: string, invited: number, paid: number, amount: string }>}
+ */
+window.ADMIN_BUSINESS_TOP_SALES = [
+  { rank: 1, name: "销售主管", invited: 24, paid: 9, amount: "¥4,491" },
+  { rank: 2, name: "销售B", invited: 18, paid: 6, amount: "¥2,594" },
+  { rank: 3, name: "销售A", invited: 16, paid: 4, amount: "¥1,996" }
+];
+
+/**
+ * 经营分析 - 功能 ROI 明细。
+ *
+ * 为什么不复用 ADMIN_USER_PREVIEW_FUNCTION_SUMMARY:
+ * - 那张是"调用量看板"思路, 列以 calls/tokens 为主。
+ * - 这里是"功能价值"思路, 用 7 日回访率 + 付费提升判断 ROI,
+ *   两套字段重叠少, 复用反而会被误改。
+ *
+ * @type {Array<{ feature: string, users: number, retention7: string, paidLift: string, cost: string, roi: string }>}
+ */
+window.ADMIN_BUSINESS_FEATURE_INSIGHTS = [
+  { feature: "客户背调顾问", users: 188, retention7: "62%", paidLift: "+18%", cost: "¥142", roi: "高价值" },
+  { feature: "问一下", users: 342, retention7: "54%", paidLift: "+12%", cost: "¥86", roi: "高价值" },
+  { feature: "询盘分析回复", users: 156, retention7: "48%", paidLift: "+9%", cost: "¥61", roi: "高价值" },
+  { feature: "新客开发信", users: 121, retention7: "41%", paidLift: "+6%", cost: "¥24", roi: "明星" },
+  { feature: "场景谈判顾问", users: 87, retention7: "44%", paidLift: "+7%", cost: "¥31", roi: "明星" },
+  { feature: "市场调研", users: 96, retention7: "32%", paidLift: "+3%", cost: "¥49", roi: "优化" },
+  { feature: "客户Kass", users: 73, retention7: "38%", paidLift: "+4%", cost: "¥22", roi: "优化" },
+  { feature: "产品&市场", users: 52, retention7: "28%", paidLift: "+2%", cost: "¥12", roi: "观察" },
+  { feature: "案例知识库搜索", users: 64, retention7: "21%", paidLift: "0%", cost: "¥13", roi: "鸡肋" },
+  { feature: "报价邮件", users: 48, retention7: "19%", paidLift: "-2%", cost: "¥9", roi: "鸡肋" }
+];
+
+/**
+ * 经营分析 - 功能价值象限。
+ *
+ * color 控制象限格子的背景色: must / star / optimize / weak。
+ *
+ * @type {Array<{ id: string, label: string, hint: string, color: string, features: string[] }>}
+ */
+window.ADMIN_BUSINESS_QUADRANTS = [
+  { id: "must", label: "高价值", hint: "高使用 × 高回报", color: "must", features: ["客户背调顾问","问一下","询盘分析回复"] },
+  { id: "star", label: "明星潜力", hint: "高使用 × 待验证", color: "star", features: ["新客开发信","场景谈判顾问"] },
+  { id: "optimize", label: "需优化", hint: "高成本 × 低回报", color: "optimize", features: ["市场调研","客户Kass"] },
+  { id: "weak", label: "鸡肋", hint: "低使用 × 无价值", color: "weak", features: ["案例知识库搜索","报价邮件","产品&市场"] }
+];
+
+/**
+ * 后台 · 公海客户 (未分配销售的免费用户)。
+ *
+ * 字段:用户 / 注册时间 / 注册来源 / 最近活跃 / 累计调用 / 状态。
+ *
+ * @type {Array<{ id: number, username: string, registeredAt: string, source: string, lastActiveAt: string, calls: number, status: string }>}
+ */
+window.ADMIN_USER_POOL_ROWS = [
+  { id: 1, username: "137****3499", registeredAt: "2026/06/13 09:53", source: "自然注册", lastActiveAt: "2026/06/13 14:18", calls: 13, status: "待分配" },
+  { id: 2, username: "133****9094", registeredAt: "2026/06/13 09:48", source: "自然注册", lastActiveAt: "2026/05/09 18:20", calls: 1, status: "沉默" },
+  { id: 3, username: "189****4871", registeredAt: "2026/06/13 09:49", source: "搜索投放", lastActiveAt: "2026/06/12 21:04", calls: 7, status: "待分配" },
+  { id: 4, username: "134****9547", registeredAt: "2026/06/13 09:51", source: "自然注册", lastActiveAt: "2026/06/13 09:55", calls: 1, status: "失败异常" },
+  { id: 5, username: "188****1044", registeredAt: "2026/06/13 09:53", source: "自然注册", lastActiveAt: "-", calls: 0, status: "未激活" },
+  { id: 6, username: "152****4480", registeredAt: "2026/06/12 18:42", source: "搜索投放", lastActiveAt: "2026/06/13 14:12", calls: 7, status: "失败异常" },
+  { id: 7, username: "135****0024", registeredAt: "2026/06/13 10:02", source: "自然注册", lastActiveAt: "-", calls: 0, status: "未激活" }
+];
+
+/**
+ * 后台 · 付费公海 (付费但未分配销售的用户)。
+ *
+ * @type {Array<{ id: number, username: string, plan: string, totalSpent: string, lastActiveAt: string, renewalCountdown: string }>}
+ */
+window.ADMIN_PAID_POOL_ROWS = [
+  { id: 1, username: "180****9154", plan: "专业版", totalSpent: "¥99", lastActiveAt: "2026/06/13 15:42", renewalCountdown: "362 天" },
+  { id: 2, username: "139****2207", plan: "专业版", totalSpent: "¥99", lastActiveAt: "2026/06/06 17:02", renewalCountdown: "14 天" },
+  { id: 3, username: "176****3380", plan: "团队版", totalSpent: "¥499", lastActiveAt: "2026/06/13 09:18", renewalCountdown: "180 天" },
+  { id: 4, username: "186****8810", plan: "专业版", totalSpent: "¥99", lastActiveAt: "2026/06/05 11:30", renewalCountdown: "9 天" },
+  { id: 5, username: "162****1190", plan: "专业版", totalSpent: "¥198", lastActiveAt: "2026/06/13 11:20", renewalCountdown: "26 天" },
+  { id: 6, username: "159****8077", plan: "团队版", totalSpent: "¥499", lastActiveAt: "2026/06/11 16:08", renewalCountdown: "320 天" }
+];
+
+/**
+ * 后台 · 销售信息 (按销售维度统计业绩)。
+ *
+ * 为什么单独建一份, 不直接复用 ADMIN_BUSINESS_TOP_SALES:
+ * - TOP_SALES 是看板上的精简榜单, 只有 3 行;
+ *   销售信息子页要看到所有销售 + 转化率 + 平均 LTV, 字段更宽。
+ *
+ * @type {Array<{ id: number, name: string, ownedUsers: number, paidUsers: number, totalAmount: string, avgLtv: string, conversion: string }>}
+ */
+window.ADMIN_SALES_ROWS = [
+  { id: 1, name: "销售主管", ownedUsers: 24, paidUsers: 9, totalAmount: "¥4,491", avgLtv: "¥499", conversion: "38%" },
+  { id: 2, name: "销售B", ownedUsers: 18, paidUsers: 6, totalAmount: "¥2,594", avgLtv: "¥432", conversion: "33%" },
+  { id: 3, name: "销售A", ownedUsers: 16, paidUsers: 4, totalAmount: "¥1,996", avgLtv: "¥499", conversion: "25%" },
+  { id: 4, name: "销售C", ownedUsers: 12, paidUsers: 2, totalAmount: "¥198", avgLtv: "¥99", conversion: "17%" },
+  { id: 5, name: "销售D", ownedUsers: 9, paidUsers: 1, totalAmount: "¥99", avgLtv: "¥99", conversion: "11%" },
+  { id: 6, name: "销售E", ownedUsers: 7, paidUsers: 0, totalAmount: "¥0", avgLtv: "¥0", conversion: "0%" }
+];
+
+/**
+ * 后台 · 活跃用户 (近 7 日有调用)。
+ *
+ * @type {Array<{ id: number, username: string, lastActiveAt: string, weekCalls: number, topFeature: string, plan: string }>}
+ */
+window.ADMIN_ACTIVE_USER_ROWS = [
+  { id: 1, username: "180****9154", lastActiveAt: "2026/06/13 15:42", weekCalls: 36, topFeature: "客户背调顾问", plan: "专业版" },
+  { id: 2, username: "178****7070", lastActiveAt: "2026/06/13 12:58", weekCalls: 22, topFeature: "场景谈判顾问", plan: "团队版" },
+  { id: 3, username: "176****3380", lastActiveAt: "2026/06/13 09:18", weekCalls: 84, topFeature: "询盘分析回复", plan: "团队版" },
+  { id: 4, username: "137****3499", lastActiveAt: "2026/06/13 14:18", weekCalls: 13, topFeature: "问一下", plan: "免费版" },
+  { id: 5, username: "189****4871", lastActiveAt: "2026/06/12 21:04", weekCalls: 7, topFeature: "市场调研", plan: "免费版" },
+  { id: 6, username: "162****1190", lastActiveAt: "2026/06/13 11:20", weekCalls: 28, topFeature: "新客开发信", plan: "专业版" },
+  { id: 7, username: "152****4480", lastActiveAt: "2026/06/13 14:12", weekCalls: 7, topFeature: "市场调研", plan: "免费版" },
+  { id: 8, username: "159****8077", lastActiveAt: "2026/06/11 16:08", weekCalls: 12, topFeature: "案例知识库搜索", plan: "团队版" }
+];
+
+/**
+ * 后台 · 付费用户 (当前付费会员)。
+ *
+ * @type {Array<{ id: number, username: string, plan: string, paidAt: string, expireAt: string, renewalCountdown: string, status: string }>}
+ */
+window.ADMIN_PAID_USER_ROWS = [
+  { id: 1, username: "180****9154", plan: "专业版年付", paidAt: "2026/06/12", expireAt: "2027/06/12", renewalCountdown: "362 天", status: "正常" },
+  { id: 2, username: "178****7070", plan: "团队版年付", paidAt: "2026/06/13", expireAt: "2027/06/13", renewalCountdown: "363 天", status: "正常" },
+  { id: 3, username: "176****3380", plan: "团队版半年付", paidAt: "2026/06/01", expireAt: "2026/12/01", renewalCountdown: "180 天", status: "正常" },
+  { id: 4, username: "139****2207", plan: "专业版月付", paidAt: "2026/06/06", expireAt: "2026/06/27", renewalCountdown: "14 天", status: "续费提醒" },
+  { id: 5, username: "186****8810", plan: "专业版月付", paidAt: "2026/06/01", expireAt: "2026/06/22", renewalCountdown: "9 天", status: "续费提醒" },
+  { id: 6, username: "162****1190", plan: "专业版月付", paidAt: "2026/05/21", expireAt: "2026/07/09", renewalCountdown: "26 天", status: "正常" },
+  { id: 7, username: "159****8077", plan: "团队版年付", paidAt: "2026/05/01", expireAt: "2027/05/01", renewalCountdown: "320 天", status: "正常" }
+];
+
+/**
+ * 后台 · 受邀用户 (通过邀请码注册)。
+ *
+ * activated / paid 字段是中文文案 (是 / 否), 直接铺到表格不再额外转换。
+ *
+ * @type {Array<{ id: number, username: string, inviteCode: string, inviter: string, registeredAt: string, activated: string, paid: string }>}
+ */
+window.ADMIN_INVITED_USER_ROWS = [
+  { id: 1, username: "180****9154", inviteCode: "YD-TRY-M4Q9", inviter: "销售B", registeredAt: "2026/06/08 01:27", activated: "是", paid: "是" },
+  { id: 2, username: "136****9392", inviteCode: "YD-TRY-8K2P", inviter: "销售A", registeredAt: "2026/06/13 09:51", activated: "是", paid: "否" },
+  { id: 3, username: "178****7070", inviteCode: "YD-TEAM-7N6C", inviter: "销售主管", registeredAt: "2026/06/13 09:49", activated: "是", paid: "是" },
+  { id: 4, username: "158****8358", inviteCode: "YD-EXPO-0613", inviter: "销售A", registeredAt: "2026/06/13 10:02", activated: "是", paid: "否" },
+  { id: 5, username: "162****1190", inviteCode: "YD-TRY-PRO5", inviter: "销售B", registeredAt: "2026/05/21 14:08", activated: "是", paid: "是" },
+  { id: 6, username: "133****2204", inviteCode: "YD-TRY-M4Q9", inviter: "销售B", registeredAt: "2026/06/10 08:55", activated: "否", paid: "否" }
+];
+
+/**
+ * 后台 · 代理总览 (经销代理列表)。
+ *
+ * 原型里只做单层代理 (没有二级 / 三级), 真实业务可能有层级和分润链。
+ *
+ * @type {Array<{ id: number, name: string, channelCode: string, newUsers: number, paidUsers: number, totalCommission: string, status: string }>}
+ */
+window.ADMIN_AGENT_ROWS = [
+  { id: 1, name: "广东外贸联盟", channelCode: "AGT-GD-001", newUsers: 86, paidUsers: 21, totalCommission: "¥6,420", status: "启用" },
+  { id: 2, name: "义乌跨境联合社", channelCode: "AGT-YW-008", newUsers: 64, paidUsers: 14, totalCommission: "¥4,180", status: "启用" },
+  { id: 3, name: "深圳出海会客厅", channelCode: "AGT-SZ-022", newUsers: 42, paidUsers: 9, totalCommission: "¥2,640", status: "启用" },
+  { id: 4, name: "义务展会渠道", channelCode: "AGT-YW-EXP", newUsers: 28, paidUsers: 4, totalCommission: "¥980", status: "试运行" },
+  { id: 5, name: "宁波港产联盟", channelCode: "AGT-NB-017", newUsers: 12, paidUsers: 1, totalCommission: "¥220", status: "停用" }
+];
 
 /**
  * 邀请码管理表格数据。

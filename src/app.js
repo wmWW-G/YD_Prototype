@@ -40,11 +40,13 @@
  *   userPreviewStartDate: string,
  *   userPreviewEndDate: string,
  *   adminDialog: null | string,
+ *   activeUserPreviewDetailId: string,
+ *   activeUserPreviewOperationId: string,
  *   adminMenuOpen: boolean,
  *   adminUserFilterOpen: boolean
  * }}
  */
-const USER_PREVIEW_DEFAULT_FIELD_IDS = ["logIndex", "usedAt", "userContact", "lastActiveAt", "activeDays", "calledFeature", "calledModel", "callCount", "inputToken", "outputToken", "totalToken", "creditBalance", "runStatus", "estimatedCost", "operationLog"];
+const USER_PREVIEW_DEFAULT_FIELD_IDS = ["logIndex", "usedAt", "userContact", "lastActiveAt", "activeDays", "calledFeature", "calledModel", "callCount", "inputToken", "outputToken", "totalToken", "creditBalance", "runStatus", "estimatedCost", "operationLog", "trialDetails"];
 
 /**
  * User Preview 报表需要横向冻结的字段。
@@ -99,9 +101,14 @@ const state = {
   userPreviewStartDate: "2026-06-13",
   userPreviewEndDate: "2026-06-13",
   adminDialog: null,
+  activeUserPreviewDetailId: "U-10001",
+  activeUserPreviewOperationId: "U-10001",
   adminMenuOpen: false,
   adminUserFilterOpen: true,
-  accountSpaceSwitcherOpen: false
+  accountSpaceSwitcherOpen: false,
+  activeBusinessTab: "dashboard",
+  businessRole: "admin",
+  businessTimePreset: "month"
 };
 
 /**
@@ -602,6 +609,20 @@ function renderAdminApp() {
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderAdminSidebar() {
+  const topLevelItems = ADMIN_NAV_ITEMS.filter((item) => !item.parent);
+  const groupOrder = [];
+  const groupMap = new Map();
+  ADMIN_NAV_ITEMS.forEach((item) => {
+    if (!item.parent) return;
+    if (!groupMap.has(item.parent)) {
+      groupOrder.push(item.parent);
+      groupMap.set(item.parent, []);
+    }
+    groupMap.get(item.parent).push(item.id);
+  });
+
+  const parentIcon = { "用户": "👥", "代理": "⚑", "系统管理": "⚙" };
+
   return `
     <aside class="admin-sidebar" aria-label="赢单管理系统后台菜单">
       <a class="admin-brand" href="#/admin/home" data-admin-route="admin-home">
@@ -609,17 +630,19 @@ function renderAdminSidebar() {
         <h2>赢单管理系统</h2>
       </a>
       <nav class="admin-menu" aria-label="后台导航">
-        ${renderAdminMenuItem("admin-home")}
-        <div class="admin-menu-group">
-          <button class="admin-menu-parent" type="button" data-admin-action="系统管理菜单已展开。">
-            <span class="admin-menu-icon" aria-hidden="true">⚙</span>
-            <span>系统管理</span>
-            <span class="admin-menu-caret" aria-hidden="true">⌃</span>
-          </button>
-          <div class="admin-menu-children">
-            ${["admin-knowledge", "admin-user", "admin-user-preview", "admin-invite", "admin-character", "admin-model"].map(renderAdminMenuItem).join("")}
+        ${topLevelItems.map((item) => renderAdminMenuItem(item.id)).join("")}
+        ${groupOrder.map((parent) => `
+          <div class="admin-menu-group">
+            <button class="admin-menu-parent" type="button" data-admin-action="${escapeHtml(parent)}菜单已展开。">
+              <span class="admin-menu-icon" aria-hidden="true">${escapeHtml(parentIcon[parent] || "•")}</span>
+              <span>${escapeHtml(parent)}</span>
+              <span class="admin-menu-caret" aria-hidden="true">⌃</span>
+            </button>
+            <div class="admin-menu-children">
+              ${groupMap.get(parent).map(renderAdminMenuItem).join("")}
+            </div>
           </div>
-        </div>
+        `).join("")}
       </nav>
     </aside>
   `;
@@ -681,9 +704,16 @@ function renderAdminTopbar() {
  */
 function renderAdminWorkspace() {
   if (state.activeMain === "admin-home") return renderAdminHome();
+  if (state.activeMain === "admin-business") return renderAdminBusiness();
   if (state.activeMain === "admin-knowledge") return renderAdminKnowledge();
-  if (state.activeMain === "admin-user") return renderAdminUsers();
-  if (state.activeMain === "admin-user-preview") return renderAdminUserPreview();
+  if (state.activeMain === "admin-user") return renderAdminUserPreview();
+  if (state.activeMain === "admin-user-pool") return renderAdminUserPool();
+  if (state.activeMain === "admin-paid-pool") return renderAdminPaidPool();
+  if (state.activeMain === "admin-user-sales") return renderAdminUserSales();
+  if (state.activeMain === "admin-user-active") return renderAdminActiveUsers();
+  if (state.activeMain === "admin-user-paid") return renderAdminPaidUsers();
+  if (state.activeMain === "admin-user-invited") return renderAdminInvitedUsers();
+  if (state.activeMain === "admin-agent") return renderAdminAgents();
   if (state.activeMain === "admin-invite") return renderAdminInviteCodes();
   if (state.activeMain === "admin-model") return renderAdminModels();
   return renderAdminCharacters();
@@ -746,90 +776,13 @@ function renderAdminKnowledge() {
 }
 
 /**
- * 用户管理页面。
+ * User Preview 页面 (同时承担「用户 > 用户总表」/admin/user 的渲染)。
  *
- * @returns {string} 用户管理 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderAdminUsers() {
-  return `
-    <article class="admin-card">
-      <header class="admin-card-head">
-        <h3>用户列表</h3>
-        <div class="admin-head-actions">
-          <button class="admin-outline-btn" type="button" data-admin-dialog="token-rank">查看Token排行</button>
-          <button class="admin-primary-btn" type="button" data-admin-dialog="user-add">新增用户</button>
-        </div>
-      </header>
-      <section class="admin-filter ${state.adminUserFilterOpen ? "open" : ""}" aria-label="注册时间筛选">
-        <label>
-          <span>注册时间：</span>
-          <input type="text" placeholder="开始日期" />
-        </label>
-        <span class="admin-filter-to">至</span>
-        <label>
-          <input type="text" placeholder="结束日期" />
-        </label>
-        <button class="admin-primary-btn small" type="button" data-admin-action="已按注册时间执行模拟查询。">查 询</button>
-        <button class="admin-ghost-btn small" type="button" data-admin-action="已重置筛选条件。">重 置</button>
-      </section>
-      <div class="admin-table-scroll">
-        <table class="admin-table user-table">
-          <thead>
-            <tr>
-              <th>序号</th>
-              <th>用户名</th>
-              <th>注册时间</th>
-              <th>账户信息</th>
-              <th>消息/Token统计</th>
-              <th>Token使用详情</th>
-              <th>用户状态</th>
-              <th>账户操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${ADMIN_USER_ROWS.map((row) => `
-              <tr>
-                <td>${row.id}</td>
-                <td>${escapeHtml(row.username)}</td>
-                <td>${escapeHtml(row.registeredAt)}</td>
-                <td>
-                  <div class="admin-cell-stack">
-                    <span>积分: <strong>${row.credits}</strong></span>
-                    <span>子账号: <strong>${escapeHtml(row.subAccounts)}</strong></span>
-                    <em>无可用积分</em>
-                  </div>
-                </td>
-                <td>
-                  <div class="admin-cell-stack">
-                    <span>消息总数: <strong>${row.messageCount}</strong></span>
-                    <span>Token总数: <strong>${row.tokenCount}</strong></span>
-                  </div>
-                </td>
-                <td><button class="admin-link" type="button" data-admin-action="Token详情是原型反馈。">查看详情</button></td>
-                <td>${renderAdminSwitch(row.enabled)}</td>
-                <td>
-                  <div class="admin-row-actions">
-                    <button class="admin-link" type="button" data-admin-dialog="points-add">加积分</button>
-                    <button class="admin-link" type="button" data-admin-dialog="sub-account">调整子账号</button>
-                  </div>
-                </td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </div>
-      ${renderAdminPagination(2130, 213, true)}
-    </article>
-  `;
-}
-
-/**
- * User Preview 页面。
- *
- * 这个页面刻意不复用 renderAdminUsers()：
- * - 用户要求不要修改现有「用户管理」。
- * - 后续所有用户管理新方案都可以在这个独立 Preview 里改，不影响旧页面对照。
+ * 为什么两个路由都走它:
+ * - 用户运营需要看到的所有字段都在 User Preview 里 (KPI、功能调用看板、用户字段流水)。
+ * - 「用户总表」就是用户运营的入口, 拆两套界面只会维护两份分歧。
+ * - 旧 renderAdminUsers() 已删除; renderUserPreviewOperationContext() 也已放开,
+ *   让两个路由的弹窗反馈一致。
  *
  * @returns {string} User Preview HTML。
  * @throws {Error} 本函数不主动抛异常。
@@ -901,6 +854,8 @@ function renderUserPreviewFunctionSummary() {
               <th>调用总次数</th>
               <th>使用人数</th>
               <th>人均使用时长/次数</th>
+              <th>模型分配</th>
+              <th>功能价值判断</th>
               <th>Token 总消耗</th>
               <th>占总消耗比例</th>
               <th>成本(估算)</th>
@@ -913,7 +868,14 @@ function renderUserPreviewFunctionSummary() {
                 <td><strong>${escapeHtml(row.feature)}</strong></td>
                 <td>${escapeHtml(row.calls)}</td>
                 <td>${escapeHtml(row.users)}</td>
-                <td>${escapeHtml(row.avgUse)}</td>
+                <td>
+                  <div class="admin-cell-stack compact">
+                    <span>${escapeHtml(row.avgDuration)}</span>
+                    <em>${escapeHtml(row.avgUse)}</em>
+                  </div>
+                </td>
+                <td>${escapeHtml(row.modelSplit)}</td>
+                <td>${renderUserPreviewValueSignal(row.valueSignal)}</td>
                 <td>${escapeHtml(row.token)}</td>
                 <td>${escapeHtml(row.tokenShare)}</td>
                 <td class="admin-money-cell">${escapeHtml(row.cost)}</td>
@@ -924,6 +886,18 @@ function renderUserPreviewFunctionSummary() {
       </div>
     </section>
   `;
+}
+
+/**
+ * 渲染功能价值判断标签。
+ *
+ * @param {string} signal - 功能价值判断，例如“刚需”“鸡肋”“需优化”。
+ * @returns {string} 标签 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewValueSignal(signal) {
+  const className = signal === "刚需" ? "must" : signal === "鸡肋" ? "weak" : signal === "需优化" ? "optimize" : "watch";
+  return `<span class="user-preview-value-signal ${className}">${escapeHtml(signal || "观察")}</span>`;
 }
 
 /**
@@ -1117,9 +1091,7 @@ function renderUserPreviewReportBuilder() {
           <tbody>
             ${ADMIN_USER_PREVIEW_USERS.map((user) => `
               <tr>
-                ${selectedFields.map((field) => `
-                  <td class="${getUserPreviewStickyClass(field.id)} ${field.id === "amount" || field.id === "estimatedCost" ? "admin-money-cell" : ""}">${escapeHtml(user[field.id] || "-")}</td>
-                `).join("")}
+                ${selectedFields.map((field) => renderUserPreviewUserCell(user, field)).join("")}
               </tr>
             `).join("")}
           </tbody>
@@ -1127,6 +1099,66 @@ function renderUserPreviewReportBuilder() {
       </div>
     </section>
   `;
+}
+
+/**
+ * 渲染 User Preview 用户报表里的单个单元格。
+ *
+ * @param {Record<string, string>} user - 当前行用户数据。
+ * @param {{ id: string, label: string, group: string }} field - 当前字段配置。
+ * @returns {string} 单元格 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewUserCell(user, field) {
+  const stickyClass = getUserPreviewStickyClass(field.id);
+  const moneyClass = field.id === "amount" || field.id === "estimatedCost" || field.id === "rechargeAmount" ? "admin-money-cell" : "";
+
+  if (field.id === "trialDetails") {
+    return `
+      <td class="${stickyClass}">
+        <button class="admin-link user-preview-detail-link" type="button" data-user-preview-detail="${escapeHtml(user.userId || "")}">
+          查看详情
+        </button>
+      </td>
+    `;
+  }
+
+  if (field.id === "accountStatus") {
+    return `
+      <td class="${stickyClass}">
+        ${renderUserPreviewAccountStatus(user.accountStatus || "启用")}
+      </td>
+    `;
+  }
+
+  if (field.id === "accountActions") {
+    return `
+      <td class="${stickyClass}">
+        <select class="user-preview-account-action-select" data-user-preview-account-action="${escapeHtml(user.userId || "")}" aria-label="${escapeHtml(user.userContact || user.username || "用户")}账户操作">
+          <option value="">操作</option>
+          ${["启用", "关闭", "加积分", "关积分", "账号禁用", "调整子账号"].map((action) => `
+            <option value="${escapeHtml(action)}">${escapeHtml(action)}</option>
+          `).join("")}
+        </select>
+      </td>
+    `;
+  }
+
+  return `
+    <td class="${stickyClass} ${moneyClass}">${escapeHtml(user[field.id] || "-")}</td>
+  `;
+}
+
+/**
+ * 渲染 User Preview 用户状态标签。
+ *
+ * @param {string} status - 用户状态。
+ * @returns {string} 状态标签 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewAccountStatus(status) {
+  const className = status === "启用" ? "on" : status === "关闭" ? "off" : "disabled";
+  return `<span class="user-preview-account-status ${className}">${escapeHtml(status)}</span>`;
 }
 
 /**
@@ -1326,11 +1358,875 @@ function refreshUserPreviewSelectedFieldsOnly() {
 }
 
 /**
+ * 渲染经营分析页 (角色化运营驾驶舱)。
+ *
+ * 为什么不在 User Preview 上改:
+ * - User Preview 是字段流水的自由报表, 用户已有使用习惯, 不能因为重构破坏。
+ * - 这里走完全独立的菜单, 走完全独立的数据 (ADMIN_BUSINESS_*),
+ *   未来要不要把 User Preview 收口到这里, 等线上验证经营分析效果再说。
+ *
+ * @returns {string} 经营分析页 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminBusiness() {
+  const tabs = getBusinessVisibleTabs();
+  if (tabs.length && !tabs.some((t) => t.id === state.activeBusinessTab)) {
+    state.activeBusinessTab = tabs[0].id;
+  }
+
+  return `
+    <article class="admin-card business-page">
+      <header class="admin-card-head business-card-head">
+        <div>
+          <h3>经营分析</h3>
+          <p class="admin-card-subtitle">以角色为中心的运营驾驶舱:今日大盘 + 功能 ROI。用户运营请去左侧"用户"分组。</p>
+        </div>
+        <div class="admin-head-actions business-head-actions">
+          ${renderBusinessRoleSwitcher()}
+          <button class="admin-outline-btn" type="button" data-admin-action="已模拟刷新经营分析数据。">刷新数据</button>
+        </div>
+      </header>
+
+      ${tabs.length ? renderBusinessTimeFilter() : ""}
+
+      ${tabs.length ? `
+        <nav class="business-tabs" role="tablist" aria-label="经营分析模块">
+          ${tabs.map((t) => `
+            <button class="${state.activeBusinessTab === t.id ? "active" : ""}" type="button" role="tab" data-business-tab="${escapeHtml(t.id)}">
+              <strong>${escapeHtml(t.label)}</strong>
+              <em>${escapeHtml(t.hint)}</em>
+            </button>
+          `).join("")}
+        </nav>
+      ` : `
+        <section class="business-empty-role">
+          <strong>当前角色 (客服) 不开放经营分析。</strong>
+          <p>客服日常操作请使用左侧"用户"分组下的活跃用户 / 付费用户 / 公海客户。</p>
+        </section>
+      `}
+
+      ${state.activeBusinessTab === "dashboard" && tabs.some((t) => t.id === "dashboard") ? renderBusinessDashboardTab() : ""}
+      ${state.activeBusinessTab === "feature" && tabs.some((t) => t.id === "feature") ? renderBusinessFeatureTab() : ""}
+    </article>
+  `;
+}
+
+/**
+ * 按当前角色返回可见的 Tab 列表。
+ *
+ * 为什么写成数据驱动:
+ * - 后续接 RBAC 时只需要换 roles 数组, 不必动渲染逻辑。
+ *
+ * @returns {Array<{ id: string, label: string, hint: string, roles: string[] }>} 可见 Tab。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getBusinessVisibleTabs() {
+  const all = [
+    { id: "dashboard", label: "经营看板", hint: "趋势 · 漏斗 · 渠道", roles: ["admin","ops"] },
+    { id: "feature", label: "功能洞察", hint: "ROI · 留存 · 象限", roles: ["admin","ops"] }
+  ];
+  return all.filter((t) => t.roles.includes(state.businessRole));
+}
+
+/**
+ * 渲染顶部角色切换器 (管理员 / 运营 / 客服)。
+ *
+ * @returns {string} 角色切换器 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderBusinessRoleSwitcher() {
+  const roles = [
+    { id: "admin", label: "管理员" },
+    { id: "ops", label: "运营" },
+    { id: "support", label: "客服" }
+  ];
+  return `
+    <div class="business-role-switcher" role="group" aria-label="当前角色">
+      <span class="business-role-label">当前视角</span>
+      ${roles.map((r) => `
+        <button class="${state.businessRole === r.id ? "active" : ""}" type="button" data-business-role="${escapeHtml(r.id)}">${escapeHtml(r.label)}</button>
+      `).join("")}
+    </div>
+  `;
+}
+
+/**
+ * 渲染经营分析的时间范围条。
+ *
+ * @returns {string} 时间条 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderBusinessTimeFilter() {
+  const presets = [
+    { id: "today", label: "今日" },
+    { id: "week", label: "近 7 日" },
+    { id: "month", label: "近 30 日" }
+  ];
+  return `
+    <section class="business-timebar" aria-label="时间范围">
+      <div class="business-time-presets" role="group" aria-label="快捷时间">
+        ${presets.map((p) => `
+          <button class="${state.businessTimePreset === p.id ? "active" : ""}" type="button" data-business-time-preset="${escapeHtml(p.id)}">${escapeHtml(p.label)}</button>
+        `).join("")}
+      </div>
+      <span class="business-time-hint">当前口径:<strong>${escapeHtml(getBusinessTimeLabel())}</strong></span>
+    </section>
+  `;
+}
+
+/**
+ * 经营分析时间范围展示文案。
+ *
+ * 原型里只复用 User Preview 已有的"今日 = 2026/06/13"假口径,
+ * 不联动 ADMIN_BUSINESS_TREND 截断。
+ *
+ * @returns {string} 时间文案。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getBusinessTimeLabel() {
+  if (state.businessTimePreset === "today") return "2026/06/13 (今日)";
+  if (state.businessTimePreset === "week") return "2026/06/07 - 2026/06/13";
+  return "2026/05/15 - 2026/06/13";
+}
+
+/**
+ * 渲染 Tab1 · 经营看板。
+ *
+ * @returns {string} 经营看板 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderBusinessDashboardTab() {
+  return `
+    <section class="business-dashboard" aria-label="经营看板">
+      <div class="business-headline">
+        ${ADMIN_BUSINESS_HEADLINE.map((item) => `
+          <article class="business-headline-card">
+            <span class="business-headline-label">${escapeHtml(item.metric)}</span>
+            <strong>${escapeHtml(item.value)}</strong>
+            <em class="business-delta ${escapeHtml(item.trend)}">${item.trend === "up" ? "▲" : "▼"} ${escapeHtml(item.delta)} <small>vs 昨日</small></em>
+          </article>
+        `).join("")}
+      </div>
+
+      <div class="business-sub-metrics">
+        ${ADMIN_BUSINESS_SUB_METRICS.map((item) => `
+          <article class="business-sub-card">
+            <span>${escapeHtml(item.metric)}</span>
+            <strong>${escapeHtml(item.value)}</strong>
+          </article>
+        `).join("")}
+      </div>
+
+      <section class="business-trend">
+        <header>
+          <h4>近 30 日增长趋势</h4>
+          <p>注册 / 付费 / 成交金额每日变化, 拐点直观可见。</p>
+        </header>
+        <div class="business-trend-charts">
+          ${renderBusinessTrendChart("注册数", ADMIN_BUSINESS_TREND.register, "#646cff", "")}
+          ${renderBusinessTrendChart("付费数", ADMIN_BUSINESS_TREND.paid, "#10b981", "")}
+          ${renderBusinessTrendChart("成交金额", ADMIN_BUSINESS_TREND.amount, "#f59e0b", "¥")}
+        </div>
+      </section>
+
+      <section class="business-funnel">
+        <header>
+          <h4>新用户转化漏斗</h4>
+          <p>注册 → 首用 → 回访 → 付费 → 续费, 哪一步最漏水。</p>
+        </header>
+        ${renderBusinessFunnelStages()}
+      </section>
+
+      <div class="business-grid-2col">
+        <section class="business-channel">
+          <header>
+            <h4>渠道效率对比</h4>
+            <p>看 LTV / CPA 比, 决定下一笔预算投哪。</p>
+          </header>
+          <div class="admin-table-scroll flat">
+            <table class="admin-table business-channel-table">
+              <thead>
+                <tr><th>渠道</th><th>注册数</th><th>激活率</th><th>付费率</th><th>CPA</th><th>LTV</th></tr>
+              </thead>
+              <tbody>
+                ${ADMIN_BUSINESS_CHANNELS.map((c) => `
+                  <tr>
+                    <td><span class="business-channel-tag ${escapeHtml(c.rating)}">${escapeHtml(c.channel)}</span></td>
+                    <td>${c.register}</td>
+                    <td>${escapeHtml(c.activateRate)}</td>
+                    <td>${escapeHtml(c.paidRate)}</td>
+                    <td>${escapeHtml(c.cpa)}</td>
+                    <td><strong>${escapeHtml(c.ltv)}</strong></td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="business-top-sales">
+          <header>
+            <h4>销售业绩 TOP 3</h4>
+            <p>邀请码带来的注册和付费贡献, 直接可截图发周报。</p>
+          </header>
+          <ul class="business-sales-list">
+            ${ADMIN_BUSINESS_TOP_SALES.map((s) => `
+              <li>
+                <span class="business-sales-rank">${s.rank}</span>
+                <div class="business-sales-meta">
+                  <strong>${escapeHtml(s.name)}</strong>
+                  <em>邀请 ${s.invited} · 付费 ${s.paid}</em>
+                </div>
+                <span class="business-sales-amount">${escapeHtml(s.amount)}</span>
+              </li>
+            `).join("")}
+          </ul>
+        </section>
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * 渲染单张趋势卡 (含 sparkline)。
+ *
+ * @param {string} label - 指标名。
+ * @param {number[]} data - 30 天数据序列。
+ * @param {string} color - 折线颜色。
+ * @param {string} prefix - 数值前缀, 例如 "¥"。
+ * @returns {string} 趋势卡 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderBusinessTrendChart(label, data, color, prefix) {
+  const last = data[data.length - 1];
+  const prev = data[data.length - 2] || 1;
+  const change = Math.round((last - prev) / prev * 100);
+  const trendClass = change >= 0 ? "up" : "down";
+  const arrow = change >= 0 ? "▲" : "▼";
+  return `
+    <article class="business-trend-card">
+      <header>
+        <span>${escapeHtml(label)}</span>
+        <div>
+          <strong>${prefix || ""}${last.toLocaleString()}</strong>
+          <em class="business-delta ${trendClass}">${arrow} ${Math.abs(change)}%</em>
+        </div>
+      </header>
+      ${renderBusinessSparkline(data, color)}
+    </article>
+  `;
+}
+
+/**
+ * 用 SVG 渲染一条迷你折线。
+ *
+ * 为什么自己拼 path:
+ * - 原型规则:不引入 chart 库, 不加构建步骤。
+ * - 一段 path + 一段 area 填充足够表达趋势, 不需要坐标轴 / tooltip。
+ *
+ * @param {number[]} values - 数据序列。
+ * @param {string} color - 折线颜色。
+ * @returns {string} SVG HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderBusinessSparkline(values, color) {
+  const w = 320;
+  const h = 60;
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = (max - min) || 1;
+  const step = w / (values.length - 1);
+  const pts = values.map((v, i) => {
+    const x = i * step;
+    const y = h - 6 - ((v - min) / range) * (h - 14);
+    return [x.toFixed(1), y.toFixed(1)];
+  });
+  const linePath = "M " + pts.map((p) => p.join(",")).join(" L ");
+  const areaPath = `M 0,${h} L ${pts.map((p) => p.join(",")).join(" L ")} L ${w},${h} Z`;
+  const last = pts[pts.length - 1];
+  return `
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="business-sparkline" aria-hidden="true">
+      <path d="${areaPath}" fill="${color}" opacity="0.12" />
+      <path d="${linePath}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <circle cx="${last[0]}" cy="${last[1]}" r="3" fill="${color}" />
+    </svg>
+  `;
+}
+
+/**
+ * 渲染转化漏斗的各阶段。
+ *
+ * @returns {string} 漏斗阶段 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderBusinessFunnelStages() {
+  const total = ADMIN_BUSINESS_FUNNEL[0].value || 1;
+  return `
+    <div class="business-funnel-stages">
+      ${ADMIN_BUSINESS_FUNNEL.map((stage) => {
+        const pct = Math.round(stage.value / total * 100);
+        return `
+          <div class="business-funnel-stage">
+            <div class="business-funnel-stage-head">
+              <strong>${escapeHtml(stage.stage)}</strong>
+              ${stage.conversion
+                ? `<span class="business-funnel-conv">↳ 上一步 ${escapeHtml(stage.conversion)}</span>`
+                : `<span class="business-funnel-hint">${escapeHtml(stage.hint || "")}</span>`}
+            </div>
+            <div class="business-funnel-bar">
+              <div class="business-funnel-bar-fill" style="width:${pct}%"></div>
+              <span>${stage.value} 人 · ${pct}%</span>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+/**
+ * 渲染 Tab2 · 功能洞察。
+ *
+ * @returns {string} 功能洞察 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderBusinessFeatureTab() {
+  return `
+    <section class="business-feature" aria-label="功能洞察">
+      <section class="business-quadrant">
+        <header>
+          <h4>功能价值象限</h4>
+          <p>用使用人数 × 留存贡献分类:高价值 / 明星潜力 / 需优化 / 鸡肋。一眼看出该砍 / 该投入哪个。</p>
+        </header>
+        <div class="business-quadrant-grid">
+          ${ADMIN_BUSINESS_QUADRANTS.map((q) => `
+            <article class="business-quadrant-cell ${escapeHtml(q.color)}">
+              <header>
+                <strong>${escapeHtml(q.label)}</strong>
+                <span>${escapeHtml(q.hint)}</span>
+              </header>
+              <ul>${q.features.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+
+      <section class="business-feature-table-wrap">
+        <header>
+          <h4>功能 ROI 明细</h4>
+          <p>比 User Preview 的调用看板多两列:7 日回访率 (留存) + 付费提升, 这才是判断功能价值的金标准。</p>
+        </header>
+        <div class="admin-table-scroll flat">
+          <table class="admin-table business-feature-table">
+            <thead>
+              <tr><th>功能</th><th>使用人数</th><th>7 日回访率</th><th>付费提升</th><th>成本(估算)</th><th>价值标签</th></tr>
+            </thead>
+            <tbody>
+              ${ADMIN_BUSINESS_FEATURE_INSIGHTS.map((row) => `
+                <tr>
+                  <td><strong>${escapeHtml(row.feature)}</strong></td>
+                  <td>${row.users}</td>
+                  <td>${escapeHtml(row.retention7)}</td>
+                  <td><span class="business-paid-lift ${row.paidLift.startsWith("-") ? "down" : "up"}">${escapeHtml(row.paidLift)}</span></td>
+                  <td class="admin-money-cell">${escapeHtml(row.cost)}</td>
+                  <td>${renderBusinessRoiTag(row.roi)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  `;
+}
+
+/**
+ * 渲染功能 ROI 价值标签。
+ *
+ * @param {string} roi - 标签文案 (高价值 / 明星 / 优化 / 观察 / 鸡肋)。
+ * @returns {string} 标签 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderBusinessRoiTag(roi) {
+  const cls = roi === "高价值" ? "must"
+    : roi === "明星" ? "star"
+    : roi === "鸡肋" ? "weak"
+    : roi === "优化" ? "optimize"
+    : "watch";
+  return `<span class="business-roi-tag ${cls}">${escapeHtml(roi)}</span>`;
+}
+
+/**
+ * 渲染一组顶部统计小卡片。
+ *
+ * 为什么单独抽这个 helper:
+ * - 7 个用户子页都有"顶部 3-4 个关键数字"的共同结构。
+ * - 不需要 KPI 折线/趋势,只要数字 + 文案 + 可选着色,因此比经营分析的 KPI 更轻量。
+ *
+ * @param {Array<{ label: string, value: string, tone?: "default"|"warn"|"good" }>} stats - 卡片数据。
+ * @returns {string} 卡片网格 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminPageStats(stats) {
+  return `
+    <section class="admin-page-stats" aria-label="分类统计">
+      ${stats.map((s) => `
+        <article class="admin-page-stat ${s.tone || "default"}">
+          <span>${escapeHtml(s.label)}</span>
+          <strong>${escapeHtml(s.value)}</strong>
+        </article>
+      `).join("")}
+    </section>
+  `;
+}
+
+/**
+ * 渲染一段通用筛选条 (注册时间 / 关键词等)。
+ *
+ * @param {{ keywordPlaceholder?: string, extraFields?: Array<{ label: string, placeholder: string }> }} opts - 配置。
+ * @returns {string} 筛选条 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminSegmentFilter(opts) {
+  const extra = (opts.extraFields || []).map((f) => `
+    <label>
+      <span>${escapeHtml(f.label)}</span>
+      <input type="text" placeholder="${escapeHtml(f.placeholder)}" />
+    </label>
+  `).join("");
+  return `
+    <section class="admin-filter open" aria-label="筛选条件">
+      <label>
+        <span>注册时间:</span>
+        <input type="text" placeholder="开始日期" />
+      </label>
+      <span class="admin-filter-to">至</span>
+      <label>
+        <input type="text" placeholder="结束日期" />
+      </label>
+      ${extra}
+      ${opts.keywordPlaceholder ? `
+        <label>
+          <input type="text" placeholder="${escapeHtml(opts.keywordPlaceholder)}" />
+        </label>
+      ` : ""}
+      <button class="admin-primary-btn small" type="button" data-admin-action="已按筛选条件执行模拟查询。">查 询</button>
+      <button class="admin-ghost-btn small" type="button" data-admin-action="已重置筛选条件。">重 置</button>
+    </section>
+  `;
+}
+
+/**
+ * 公海客户 (未分配销售的免费用户) 页面。
+ *
+ * @returns {string} 页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminUserPool() {
+  const stats = [
+    { label: "待分配用户", value: String(ADMIN_USER_POOL_ROWS.length), tone: "default" },
+    { label: "今日新增", value: "12", tone: "good" },
+    { label: "沉默 7+ 天", value: "3", tone: "warn" },
+    { label: "失败异常", value: "2", tone: "warn" }
+  ];
+  return `
+    <article class="admin-card">
+      <header class="admin-card-head">
+        <div>
+          <h3>公海客户</h3>
+          <p class="admin-card-subtitle">注册后尚未分配销售的免费用户,运营和销售可在此挑选跟进。</p>
+        </div>
+        <div class="admin-head-actions">
+          <button class="admin-outline-btn" type="button" data-admin-action="已模拟导出公海客户名单。">导出名单</button>
+          <button class="admin-primary-btn" type="button" data-admin-action="已模拟批量分配销售。">批量分配销售</button>
+        </div>
+      </header>
+      ${renderAdminPageStats(stats)}
+      ${renderAdminSegmentFilter({ keywordPlaceholder: "搜索手机号 / 来源" })}
+      <div class="admin-table-scroll">
+        <table class="admin-table">
+          <thead>
+            <tr><th>序号</th><th>用户</th><th>注册时间</th><th>注册来源</th><th>最近活跃</th><th>累计调用</th><th>状态</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            ${ADMIN_USER_POOL_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td>${escapeHtml(row.username)}</td>
+                <td>${escapeHtml(row.registeredAt)}</td>
+                <td>${escapeHtml(row.source)}</td>
+                <td>${escapeHtml(row.lastActiveAt)}</td>
+                <td>${row.calls}</td>
+                <td>${renderAdminTag(row.status)}</td>
+                <td>
+                  <div class="admin-row-actions">
+                    <button class="admin-link" type="button" data-admin-action="已分配销售归属 (原型反馈)。">分配销售</button>
+                    <button class="admin-link" type="button" data-admin-action="已标记备注 (原型反馈)。">标记</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${renderAdminPagination(ADMIN_USER_POOL_ROWS.length, 1, false)}
+    </article>
+  `;
+}
+
+/**
+ * 付费公海 (已付费但未分配销售) 页面。
+ *
+ * @returns {string} 页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminPaidPool() {
+  const stats = [
+    { label: "付费公海", value: String(ADMIN_PAID_POOL_ROWS.length), tone: "default" },
+    { label: "累计消费", value: "¥1,392", tone: "good" },
+    { label: "30 日内续费", value: "2", tone: "warn" },
+    { label: "团队版", value: "2", tone: "default" }
+  ];
+  return `
+    <article class="admin-card">
+      <header class="admin-card-head">
+        <div>
+          <h3>付费公海</h3>
+          <p class="admin-card-subtitle">已付费但还没绑定销售的用户,续费临近时务必转交销售跟进。</p>
+        </div>
+        <div class="admin-head-actions">
+          <button class="admin-outline-btn" type="button" data-admin-action="已模拟导出付费公海名单。">导出名单</button>
+          <button class="admin-primary-btn" type="button" data-admin-action="已模拟转交销售。">转交销售</button>
+        </div>
+      </header>
+      ${renderAdminPageStats(stats)}
+      ${renderAdminSegmentFilter({ keywordPlaceholder: "搜索手机号 / 套餐", extraFields: [{ label: "套餐:", placeholder: "全部套餐" }] })}
+      <div class="admin-table-scroll">
+        <table class="admin-table">
+          <thead>
+            <tr><th>序号</th><th>用户</th><th>套餐</th><th>累计消费</th><th>最近活跃</th><th>续费倒计时</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            ${ADMIN_PAID_POOL_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td>${escapeHtml(row.username)}</td>
+                <td>${escapeHtml(row.plan)}</td>
+                <td><strong>${escapeHtml(row.totalSpent)}</strong></td>
+                <td>${escapeHtml(row.lastActiveAt)}</td>
+                <td>${escapeHtml(row.renewalCountdown)}</td>
+                <td>
+                  <div class="admin-row-actions">
+                    <button class="admin-link" type="button" data-admin-action="已转交销售 (原型反馈)。">转交销售</button>
+                    <button class="admin-link" type="button" data-admin-action="已发送续费提醒 (原型反馈)。">续费提醒</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${renderAdminPagination(ADMIN_PAID_POOL_ROWS.length, 1, false)}
+    </article>
+  `;
+}
+
+/**
+ * 销售信息 (按销售维度统计业绩) 页面。
+ *
+ * @returns {string} 页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminUserSales() {
+  const totalAmount = ADMIN_SALES_ROWS.reduce((sum, r) => sum + Number(r.totalAmount.replace(/[¥,]/g, "")), 0);
+  const totalUsers = ADMIN_SALES_ROWS.reduce((sum, r) => sum + r.ownedUsers, 0);
+  const totalPaid = ADMIN_SALES_ROWS.reduce((sum, r) => sum + r.paidUsers, 0);
+  const stats = [
+    { label: "销售人数", value: String(ADMIN_SALES_ROWS.length), tone: "default" },
+    { label: "名下用户", value: String(totalUsers), tone: "default" },
+    { label: "付费用户", value: String(totalPaid), tone: "good" },
+    { label: "累计成交", value: `¥${totalAmount.toLocaleString()}`, tone: "good" }
+  ];
+  return `
+    <article class="admin-card">
+      <header class="admin-card-head">
+        <div>
+          <h3>销售信息</h3>
+          <p class="admin-card-subtitle">按销售维度统计业绩,直接拿来发周报或月度激励。</p>
+        </div>
+        <div class="admin-head-actions">
+          <button class="admin-outline-btn" type="button" data-admin-action="已模拟导出销售业绩表。">导出业绩表</button>
+          <button class="admin-primary-btn" type="button" data-admin-action="已模拟下发激励通知。">下发激励</button>
+        </div>
+      </header>
+      ${renderAdminPageStats(stats)}
+      <div class="admin-table-scroll">
+        <table class="admin-table">
+          <thead>
+            <tr><th>排名</th><th>销售姓名</th><th>名下用户</th><th>付费用户</th><th>累计成交</th><th>平均 LTV</th><th>付费转化率</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            ${ADMIN_SALES_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td><strong>${escapeHtml(row.name)}</strong></td>
+                <td>${row.ownedUsers}</td>
+                <td>${row.paidUsers}</td>
+                <td><strong>${escapeHtml(row.totalAmount)}</strong></td>
+                <td>${escapeHtml(row.avgLtv)}</td>
+                <td>${escapeHtml(row.conversion)}</td>
+                <td>
+                  <div class="admin-row-actions">
+                    <button class="admin-link" type="button" data-admin-action="已查看该销售名下用户 (原型反馈)。">查看用户</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${renderAdminPagination(ADMIN_SALES_ROWS.length, 1, false)}
+    </article>
+  `;
+}
+
+/**
+ * 活跃用户 (近 7 日有调用) 页面。
+ *
+ * @returns {string} 页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminActiveUsers() {
+  const totalCalls = ADMIN_ACTIVE_USER_ROWS.reduce((sum, r) => sum + r.weekCalls, 0);
+  const stats = [
+    { label: "近 7 日活跃", value: String(ADMIN_ACTIVE_USER_ROWS.length), tone: "default" },
+    { label: "7 日总调用", value: totalCalls.toLocaleString(), tone: "default" },
+    { label: "付费占比", value: `${Math.round(ADMIN_ACTIVE_USER_ROWS.filter((r) => r.plan !== "免费版").length / ADMIN_ACTIVE_USER_ROWS.length * 100)}%`, tone: "good" },
+    { label: "高频用户 (>20 次)", value: String(ADMIN_ACTIVE_USER_ROWS.filter((r) => r.weekCalls > 20).length), tone: "good" }
+  ];
+  return `
+    <article class="admin-card">
+      <header class="admin-card-head">
+        <div>
+          <h3>活跃用户</h3>
+          <p class="admin-card-subtitle">近 7 日有调用的用户,客服优先维护这部分用户体验。</p>
+        </div>
+        <div class="admin-head-actions">
+          <button class="admin-outline-btn" type="button" data-admin-action="已模拟导出活跃名单。">导出名单</button>
+          <button class="admin-primary-btn" type="button" data-admin-action="已发送活跃用户问卷 (原型反馈)。">发送问卷</button>
+        </div>
+      </header>
+      ${renderAdminPageStats(stats)}
+      ${renderAdminSegmentFilter({ keywordPlaceholder: "搜索手机号 / 功能", extraFields: [{ label: "套餐:", placeholder: "全部" }] })}
+      <div class="admin-table-scroll">
+        <table class="admin-table">
+          <thead>
+            <tr><th>序号</th><th>用户</th><th>最近活跃</th><th>7 日调用</th><th>主要功能</th><th>当前套餐</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            ${ADMIN_ACTIVE_USER_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td>${escapeHtml(row.username)}</td>
+                <td>${escapeHtml(row.lastActiveAt)}</td>
+                <td><strong>${row.weekCalls}</strong></td>
+                <td>${escapeHtml(row.topFeature)}</td>
+                <td>${renderAdminTag(row.plan)}</td>
+                <td>
+                  <div class="admin-row-actions">
+                    <button class="admin-link" type="button" data-admin-action="已查看该用户使用详情 (原型反馈)。">详情</button>
+                    <button class="admin-link" type="button" data-admin-action="已加 500 积分 (原型反馈)。">加积分</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${renderAdminPagination(ADMIN_ACTIVE_USER_ROWS.length, 1, false)}
+    </article>
+  `;
+}
+
+/**
+ * 付费用户 (当前付费会员) 页面。
+ *
+ * @returns {string} 页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminPaidUsers() {
+  const renewals = ADMIN_PAID_USER_ROWS.filter((r) => r.status === "续费提醒").length;
+  const stats = [
+    { label: "付费会员", value: String(ADMIN_PAID_USER_ROWS.length), tone: "good" },
+    { label: "团队版", value: String(ADMIN_PAID_USER_ROWS.filter((r) => r.plan.includes("团队")).length), tone: "default" },
+    { label: "30 日内到期", value: String(renewals), tone: "warn" },
+    { label: "今日新增付费", value: "9", tone: "good" }
+  ];
+  return `
+    <article class="admin-card">
+      <header class="admin-card-head">
+        <div>
+          <h3>付费用户</h3>
+          <p class="admin-card-subtitle">当前付费会员名单,续费临近的用户重点提醒。</p>
+        </div>
+        <div class="admin-head-actions">
+          <button class="admin-outline-btn" type="button" data-admin-action="已模拟导出付费用户名单。">导出名单</button>
+          <button class="admin-primary-btn" type="button" data-admin-action="已发送续费提醒 (原型反馈)。">续费提醒模板</button>
+        </div>
+      </header>
+      ${renderAdminPageStats(stats)}
+      ${renderAdminSegmentFilter({ keywordPlaceholder: "搜索手机号", extraFields: [{ label: "套餐:", placeholder: "全部" }] })}
+      <div class="admin-table-scroll">
+        <table class="admin-table">
+          <thead>
+            <tr><th>序号</th><th>用户</th><th>套餐</th><th>充值时间</th><th>到期日</th><th>续费倒计时</th><th>状态</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            ${ADMIN_PAID_USER_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td>${escapeHtml(row.username)}</td>
+                <td>${escapeHtml(row.plan)}</td>
+                <td>${escapeHtml(row.paidAt)}</td>
+                <td>${escapeHtml(row.expireAt)}</td>
+                <td>${escapeHtml(row.renewalCountdown)}</td>
+                <td>${renderAdminTag(row.status)}</td>
+                <td>
+                  <div class="admin-row-actions">
+                    <button class="admin-link" type="button" data-admin-action="已延长有效期 30 天 (原型反馈)。">延期</button>
+                    <button class="admin-link" type="button" data-admin-action="已发起退款审核 (原型反馈)。">退款</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${renderAdminPagination(ADMIN_PAID_USER_ROWS.length, 1, false)}
+    </article>
+  `;
+}
+
+/**
+ * 受邀用户 (通过邀请码注册) 页面。
+ *
+ * @returns {string} 页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminInvitedUsers() {
+  const activated = ADMIN_INVITED_USER_ROWS.filter((r) => r.activated === "是").length;
+  const paid = ADMIN_INVITED_USER_ROWS.filter((r) => r.paid === "是").length;
+  const stats = [
+    { label: "受邀注册", value: String(ADMIN_INVITED_USER_ROWS.length), tone: "default" },
+    { label: "激活率", value: `${Math.round(activated / ADMIN_INVITED_USER_ROWS.length * 100)}%`, tone: "good" },
+    { label: "付费率", value: `${Math.round(paid / ADMIN_INVITED_USER_ROWS.length * 100)}%`, tone: "good" },
+    { label: "未激活", value: String(ADMIN_INVITED_USER_ROWS.length - activated), tone: "warn" }
+  ];
+  return `
+    <article class="admin-card">
+      <header class="admin-card-head">
+        <div>
+          <h3>受邀用户</h3>
+          <p class="admin-card-subtitle">通过邀请码注册的用户,追踪每个邀请码的激活和付费表现。</p>
+        </div>
+        <div class="admin-head-actions">
+          <a class="admin-outline-btn" href="#/admin/invite-code" data-admin-route="admin-invite">查看邀请码批次</a>
+          <button class="admin-primary-btn" type="button" data-admin-action="已模拟导出受邀用户名单。">导出名单</button>
+        </div>
+      </header>
+      ${renderAdminPageStats(stats)}
+      ${renderAdminSegmentFilter({ keywordPlaceholder: "搜索邀请码 / 邀请人 / 手机号" })}
+      <div class="admin-table-scroll">
+        <table class="admin-table">
+          <thead>
+            <tr><th>序号</th><th>用户</th><th>邀请码</th><th>邀请人</th><th>注册时间</th><th>是否激活</th><th>是否付费</th></tr>
+          </thead>
+          <tbody>
+            ${ADMIN_INVITED_USER_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td>${escapeHtml(row.username)}</td>
+                <td><code>${escapeHtml(row.inviteCode)}</code></td>
+                <td>${escapeHtml(row.inviter)}</td>
+                <td>${escapeHtml(row.registeredAt)}</td>
+                <td>${renderAdminTag(row.activated)}</td>
+                <td>${renderAdminTag(row.paid)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${renderAdminPagination(ADMIN_INVITED_USER_ROWS.length, 1, false)}
+    </article>
+  `;
+}
+
+/**
+ * 代理总览 (经销代理列表) 页面。
+ *
+ * @returns {string} 页面 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminAgents() {
+  const totalNew = ADMIN_AGENT_ROWS.reduce((sum, r) => sum + r.newUsers, 0);
+  const totalPaid = ADMIN_AGENT_ROWS.reduce((sum, r) => sum + r.paidUsers, 0);
+  const totalCommission = ADMIN_AGENT_ROWS.reduce((sum, r) => sum + Number(r.totalCommission.replace(/[¥,]/g, "")), 0);
+  const stats = [
+    { label: "代理总数", value: String(ADMIN_AGENT_ROWS.length), tone: "default" },
+    { label: "拉新累计", value: String(totalNew), tone: "good" },
+    { label: "付费累计", value: String(totalPaid), tone: "good" },
+    { label: "累计分成", value: `¥${totalCommission.toLocaleString()}`, tone: "good" }
+  ];
+  return `
+    <article class="admin-card">
+      <header class="admin-card-head">
+        <div>
+          <h3>代理总览</h3>
+          <p class="admin-card-subtitle">渠道代理拉新、付费转化和分成结算的全量看板。</p>
+        </div>
+        <div class="admin-head-actions">
+          <button class="admin-outline-btn" type="button" data-admin-action="已模拟导出代理结算表。">导出结算表</button>
+          <button class="admin-primary-btn" type="button" data-admin-action="已打开新增代理表单 (原型反馈)。">新增代理</button>
+        </div>
+      </header>
+      ${renderAdminPageStats(stats)}
+      <div class="admin-table-scroll">
+        <table class="admin-table">
+          <thead>
+            <tr><th>序号</th><th>代理名</th><th>渠道码</th><th>拉新数</th><th>付费数</th><th>累计分成</th><th>状态</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            ${ADMIN_AGENT_ROWS.map((row) => `
+              <tr>
+                <td>${row.id}</td>
+                <td><strong>${escapeHtml(row.name)}</strong></td>
+                <td><code>${escapeHtml(row.channelCode)}</code></td>
+                <td>${row.newUsers}</td>
+                <td>${row.paidUsers}</td>
+                <td><strong>${escapeHtml(row.totalCommission)}</strong></td>
+                <td>${renderAdminTag(row.status)}</td>
+                <td>
+                  <div class="admin-row-actions">
+                    <button class="admin-link" type="button" data-admin-action="已查看代理拉新明细 (原型反馈)。">明细</button>
+                    <button class="admin-link" type="button" data-admin-action="已调整分成比例 (原型反馈)。">调整分成</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${renderAdminPagination(ADMIN_AGENT_ROWS.length, 1, false)}
+    </article>
+  `;
+}
+
+/**
  * 邀请码管理页面。
  *
- * 这个后台页面用于给销售同事生成试用福利码：
- * - 生成表单只做原型交互，不真正创建数据库记录。
- * - 表格展示字段边界：码、积分、批次、销售归属、状态、兑换人和有效期。
+ * 这个后台页面用于给销售同事生成试用福利码:
+ * - 生成表单只做原型交互, 不真正创建数据库记录。
+ * - 表格展示字段边界:码、积分、批次、销售归属、状态、兑换人和有效期。
  *
  * @returns {string} 邀请码管理页面 HTML。
  * @throws {Error} 本函数不主动抛异常。
@@ -1565,13 +2461,15 @@ function renderAdminDialog() {
     "user-add": renderAdminUserDialog,
     "token-rank": renderAdminTokenRankDialog,
     "points-add": renderAdminPointsDialog,
+    "points-close": renderAdminClosePointsDialog,
     "sub-account": renderAdminSubAccountDialog,
     "character-add": () => renderAdminCharacterDialog("新增AI人设"),
     "character-edit": () => renderAdminCharacterDialog("编辑AI人设"),
     "character-extend": renderAdminCharacterExtendDialog,
     "menu-manage": renderAdminMenuDialog,
     "model-edit": renderAdminModelDialog,
-    "user-preview-fields": renderUserPreviewFieldDialog
+    "user-preview-fields": renderUserPreviewFieldDialog,
+    "user-preview-detail": renderUserPreviewDetailDialog
   };
 
   const renderer = dialogMap[dialog];
@@ -1579,12 +2477,149 @@ function renderAdminDialog() {
 
   return `
     <div class="admin-dialog-backdrop" data-admin-close="true">
-      <section class="admin-dialog ${dialog === "menu-manage" || dialog === "user-preview-fields" ? "wide" : ""} ${dialog === "token-rank" ? "rank" : ""} ${dialog === "user-preview-fields" ? "field-config" : ""}" role="dialog" aria-modal="true">
+      <section class="admin-dialog ${dialog === "menu-manage" || dialog === "user-preview-fields" || dialog === "user-preview-detail" ? "wide" : ""} ${dialog === "token-rank" ? "rank" : ""} ${dialog === "user-preview-fields" ? "field-config" : ""} ${dialog === "user-preview-detail" ? "trial-detail" : ""}" role="dialog" aria-modal="true">
         <button class="admin-dialog-close" type="button" data-admin-close="true" aria-label="关闭">×</button>
         ${renderer()}
       </section>
     </div>
   `;
+}
+
+/**
+ * 渲染单个用户试用详情弹窗。
+ *
+ * @returns {string} 试用详情弹窗 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewDetailDialog() {
+  const user = ADMIN_USER_PREVIEW_USERS.find((item) => item.userId === state.activeUserPreviewDetailId) || ADMIN_USER_PREVIEW_USERS[0];
+  const detailRows = buildUserPreviewDetailRows(user);
+  const totalCalls = detailRows.reduce((sum, row) => sum + Number(row.callCount.replaceAll(",", "")), 0);
+  const totalInput = detailRows.reduce((sum, row) => sum + Number(row.inputToken.replaceAll(",", "")), 0);
+  const totalOutput = detailRows.reduce((sum, row) => sum + Number(row.outputToken.replaceAll(",", "")), 0);
+
+  return `
+    <header class="trial-detail-head">
+      <div>
+        <h3>单个用户使用详情</h3>
+        <p>${escapeHtml(user.userId || "-")} · ${escapeHtml(user.userContact || user.username || "-")}</p>
+      </div>
+      <span class="trial-detail-status">${escapeHtml(user.paidStatus || "免费版")}</span>
+    </header>
+
+    <section class="trial-detail-filterbar" aria-label="试用详情筛选">
+      <label>
+        <span>时间筛选</span>
+        <select>
+          <option>${escapeHtml(getUserPreviewTimeRangeLabel())}</option>
+          <option>今天</option>
+          <option>本周</option>
+          <option>本月</option>
+        </select>
+      </label>
+      <label>
+        <span>功能筛选</span>
+        <select>
+          <option>全部功能</option>
+          ${[...new Set(detailRows.map((row) => row.feature))].map((feature) => `<option>${escapeHtml(feature)}</option>`).join("")}
+        </select>
+      </label>
+      <button class="admin-outline-btn small" type="button" data-admin-action="已模拟按筛选条件查看该用户明细。">查看明细</button>
+    </section>
+
+    <section class="trial-detail-summary" aria-label="功能使用次数汇总">
+      <div>
+        <span>调用功能</span>
+        <strong>${escapeHtml(detailRows[0]?.feature || "-")}</strong>
+      </div>
+      <div>
+        <span>调用次数</span>
+        <strong>${totalCalls.toLocaleString()}</strong>
+      </div>
+      <div>
+        <span>输入 Token</span>
+        <strong>${totalInput.toLocaleString()}</strong>
+      </div>
+      <div>
+        <span>输出 Token</span>
+        <strong>${totalOutput.toLocaleString()}</strong>
+      </div>
+    </section>
+
+    <div class="admin-table-scroll trial-detail-scroll">
+      <table class="admin-table trial-detail-table">
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>用户ID/手机号</th>
+            <th>调用功能</th>
+            <th>调用模型</th>
+            <th>使用次数</th>
+            <th>输入 Token</th>
+            <th>输出 Token</th>
+            <th>消耗总计</th>
+            <th>状态</th>
+            <th>本次成本（估算）</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${detailRows.map((row) => `
+            <tr>
+              <td>${escapeHtml(row.time)}</td>
+              <td>${escapeHtml(row.user)}</td>
+              <td>${escapeHtml(row.feature)}</td>
+              <td>${escapeHtml(row.model)}</td>
+              <td>${escapeHtml(row.callCount)}</td>
+              <td>${escapeHtml(row.inputToken)}</td>
+              <td>${escapeHtml(row.outputToken)}</td>
+              <td>${escapeHtml(row.totalToken)}</td>
+              <td>${escapeHtml(row.status)}</td>
+              <td class="admin-money-cell">${escapeHtml(row.cost)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/**
+ * 生成单个用户试用详情的明细行。
+ *
+ * @param {Record<string, string>} user - 当前用户。
+ * @returns {Array<{ time: string, user: string, feature: string, model: string, callCount: string, inputToken: string, outputToken: string, totalToken: string, status: string, cost: string }>} 详情行。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function buildUserPreviewDetailRows(user) {
+  const baseTime = (user.usedAt || "2026/06/13 10:05").split(" ")[1] || "10:05";
+  const userLabel = `${user.userId || "-"} / ${user.userContact || user.username || "-"}`;
+
+  return [
+    {
+      time: `${baseTime}:01`,
+      user: userLabel,
+      feature: user.calledFeature || "问一下",
+      model: user.calledModel || "标准",
+      callCount: user.callCount || "1",
+      inputToken: user.inputToken || "200",
+      outputToken: user.outputToken || "500",
+      totalToken: user.totalToken || "700",
+      status: user.runStatus || "成功",
+      cost: user.estimatedCost || "¥0.01"
+    },
+    {
+      time: `${baseTime}:30`,
+      user: userLabel,
+      feature: user.lastFeature || user.topFeature || "询盘分析回复",
+      model: user.modelSplit?.includes("Plus") ? "Plus" : (user.calledModel || "标准"),
+      callCount: user.usageCount || user.callCount || "1",
+      inputToken: user.tokenUsed?.replace("K", ",000") || user.inputToken || "1,500",
+      outputToken: user.outputToken || "2,000",
+      totalToken: user.totalToken || "3,500",
+      status: user.runStatus || "成功",
+      cost: user.estimatedCost || "¥0.07"
+    }
+  ];
 }
 
 /**
@@ -1647,7 +2682,10 @@ function renderUserPreviewFieldOptionList() {
     return `
       <button class="user-preview-field-option ${isChecked ? "checked" : ""}" type="button" data-user-preview-field-option="${escapeHtml(field.id)}" aria-pressed="${isChecked ? "true" : "false"}">
         <span class="user-preview-field-check" aria-hidden="true"></span>
-        <span class="user-preview-field-name">${escapeHtml(field.label)}</span>
+        <span class="user-preview-field-name">
+          <strong>${escapeHtml(field.label)}</strong>
+          <em>${escapeHtml(field.group)}</em>
+        </span>
       </button>
     `;
   }).join("");
@@ -1773,9 +2811,28 @@ function renderAdminTokenRankDialog() {
 function renderAdminPointsDialog() {
   return `
     <h3>加积分</h3>
+    ${renderUserPreviewOperationContext()}
     <div class="admin-form-grid">
       ${renderAdminInput("增加积分", "请输入积分数量", true)}
       ${renderAdminInput("备注", "请输入操作备注", false)}
+    </div>
+    ${renderAdminDialogActions("确 定")}
+  `;
+}
+
+/**
+ * 关积分弹窗。
+ *
+ * @returns {string} 弹窗内容 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminClosePointsDialog() {
+  return `
+    <h3>关积分</h3>
+    ${renderUserPreviewOperationContext()}
+    <div class="admin-form-grid">
+      ${renderAdminInput("扣减积分", "请输入要扣减或关闭的积分数量", true)}
+      ${renderAdminInput("备注", "请输入关积分原因", false)}
     </div>
     ${renderAdminDialogActions("确 定")}
   `;
@@ -1790,11 +2847,42 @@ function renderAdminPointsDialog() {
 function renderAdminSubAccountDialog() {
   return `
     <h3>调整子账号</h3>
+    ${renderUserPreviewOperationContext()}
     <div class="admin-form-grid">
       ${renderAdminInput("子账号数量", "请输入子账号数量", true)}
       ${renderAdminInput("备注", "请输入操作备注", false)}
     </div>
     ${renderAdminDialogActions("确 定")}
+  `;
+}
+
+/**
+ * 渲染 User Preview 账户操作弹窗里的用户上下文。
+ *
+ * 为什么只在 User Preview 里显示：
+ * - 原有用户管理页也复用“加积分 / 调整子账号”弹窗。
+ * - 只有从 User Preview 宽表下拉进入时，才需要明确展示当前操作对象。
+ *
+ * @returns {string} 用户上下文 HTML；非 User Preview 场景返回空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewOperationContext() {
+  if (state.activeMain !== "admin-user") {
+    return "";
+  }
+
+  const user = ADMIN_USER_PREVIEW_USERS.find((item) => item.userId === state.activeUserPreviewOperationId);
+
+  if (!user) {
+    return "";
+  }
+
+  return `
+    <div class="user-preview-operation-context">
+      <span>当前用户</span>
+      <strong>${escapeHtml(user.userContact || user.username || user.userId || "-")}</strong>
+      <em>${escapeHtml(user.userId || "-")} · ${escapeHtml(user.paidStatus || "免费版")}</em>
+    </div>
   `;
 }
 
@@ -2092,7 +3180,14 @@ function hashForAdminMain(main) {
     "admin-home": "#/admin/home",
     "admin-knowledge": "#/admin/knowledge-base",
     "admin-user": "#/admin/user",
-    "admin-user-preview": "#/admin/user-preview",
+    "admin-business": "#/admin/business",
+    "admin-user-pool": "#/admin/user-pool",
+    "admin-paid-pool": "#/admin/paid-pool",
+    "admin-user-sales": "#/admin/sales",
+    "admin-user-active": "#/admin/active-user",
+    "admin-user-paid": "#/admin/paid-user",
+    "admin-user-invited": "#/admin/invited-user",
+    "admin-agent": "#/admin/agent",
     "admin-invite": "#/admin/invite-code",
     "admin-character": "#/admin/ai-character",
     "admin-model": "#/admin/ai-model"
@@ -4804,6 +5899,33 @@ function bindEvents() {
 
   bindUserPreviewReportControls();
 
+  document.querySelectorAll("[data-business-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const next = btn.getAttribute("data-business-tab");
+      if (!next) return;
+      state.activeBusinessTab = next;
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-business-role]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const role = btn.getAttribute("data-business-role");
+      if (role !== "admin" && role !== "ops" && role !== "support") return;
+      state.businessRole = role;
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-business-time-preset]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const preset = btn.getAttribute("data-business-time-preset");
+      if (preset !== "today" && preset !== "week" && preset !== "month") return;
+      state.businessTimePreset = preset;
+      renderApp();
+    });
+  });
+
   document.querySelectorAll("[data-account-space-toggle]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -5283,6 +6405,57 @@ function bindEvents() {
  * @throws {Error} 本函数不主动抛异常。
  */
 function bindUserPreviewReportControls() {
+  document.querySelectorAll("[data-user-preview-account-action]").forEach((select) => {
+    if (select.dataset.userPreviewAccountActionBound === "true") {
+      return;
+    }
+
+    select.dataset.userPreviewAccountActionBound = "true";
+    select.addEventListener("change", () => {
+      const action = select.value;
+      const userId = select.getAttribute("data-user-preview-account-action") || "U-10001";
+
+      if (!action) {
+        return;
+      }
+
+      state.activeUserPreviewOperationId = userId;
+      select.value = "";
+
+      if (action === "加积分") {
+        openAdminDialog("points-add", getAdminWorkspaceScrollSnapshot());
+        return;
+      }
+
+      if (action === "关积分") {
+        openAdminDialog("points-close", getAdminWorkspaceScrollSnapshot());
+        return;
+      }
+
+      if (action === "调整子账号") {
+        openAdminDialog("sub-account", getAdminWorkspaceScrollSnapshot());
+        return;
+      }
+
+      showToast(`${action}是原型反馈，不修改真实账号。`);
+    });
+  });
+
+  document.querySelectorAll("[data-user-preview-detail]").forEach((button) => {
+    if (button.dataset.userPreviewDetailBound === "true") {
+      return;
+    }
+
+    button.dataset.userPreviewDetailBound = "true";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      state.activeUserPreviewDetailId = button.getAttribute("data-user-preview-detail") || "U-10001";
+      openAdminDialog("user-preview-detail", getAdminWorkspaceScrollSnapshot());
+    });
+  });
+
   document.querySelectorAll("[data-user-preview-field-option]").forEach((button) => {
     if (button.dataset.userPreviewBound === "true") {
       return;
@@ -5872,7 +7045,16 @@ const ROUTES = [
   { hash: "/admin/home", main: "admin-home" },
   { hash: "/admin/knowledge-base", main: "admin-knowledge" },
   { hash: "/admin/user", main: "admin-user" },
-  { hash: "/admin/user-preview", main: "admin-user-preview" },
+  // 旧入口兼容：User Preview 已合并进「用户 > 用户总表」，老链接重定向到 admin-user。
+  { hash: "/admin/user-preview", main: "admin-user" },
+  { hash: "/admin/business", main: "admin-business" },
+  { hash: "/admin/user-pool", main: "admin-user-pool" },
+  { hash: "/admin/paid-pool", main: "admin-paid-pool" },
+  { hash: "/admin/sales", main: "admin-user-sales" },
+  { hash: "/admin/active-user", main: "admin-user-active" },
+  { hash: "/admin/paid-user", main: "admin-user-paid" },
+  { hash: "/admin/invited-user", main: "admin-user-invited" },
+  { hash: "/admin/agent", main: "admin-agent" },
   { hash: "/admin/invite-code", main: "admin-invite" },
   { hash: "/admin/ai-character", main: "admin-character" },
   { hash: "/admin/ai-model", main: "admin-model" },
