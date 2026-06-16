@@ -64,10 +64,6 @@ const state = {
   expandedGroups: new Set(["deal-advisor"]),
   activeSalesTab: "flow",
   activeStageId: "lead",
-  flowVariant: null,
-  flowChecklist: {},
-  flowNotes: {},
-  flowCompareStageId: "background",
   flowAi: { open: false, phase: "idle", followUp: "" },
   payCycle: "annual",
   payMethod: "wechat",
@@ -3471,7 +3467,7 @@ function renderAccountUsageView() {
 
   const topRecords = USAGE_RECORDS.slice(0, 5);
 
-  // 复用 C 变体的"消耗最多的场景"逻辑：按 scene 聚合，取 Top 5。
+  // 按 scene 聚合积分消耗，取 Top 5 展示最常用场景。
   const byScene = {};
   USAGE_RECORDS.forEach((r) => {
     byScene[r.scene] = (byScene[r.scene] || 0) + parseFloat(r.credits);
@@ -3551,7 +3547,7 @@ function renderAccountUsageView() {
 }
 
 /**
- * 渲染 A 变体的指标卡。
+ * 渲染用量明细指标卡。
  *
  * @param {string} label - 指标名。
  * @param {string} value - 主数值。
@@ -3988,16 +3984,13 @@ function payMethodLabel(id) {
 function renderFlowView() {
   const activeStage = getStageById(state.activeStageId);
   const activeIndex = TRADE_STAGES.findIndex((stage) => stage.id === activeStage.id);
-  const variant = state.flowVariant;
 
   return `
-    <div class="flow-view ${variant ? `flow-variant-${escapeHtml(variant)}` : "flow-variant-baseline"}">
-      ${variant === "a" ? renderFlowProgressBar(activeIndex) : `
-        <article class="intro-card">
-          <h3 class="intro-title"><span class="orange-bar"></span>成交流程</h3>
-          <p>让业务员知道外贸成交有哪些阶段、每个阶段要做什么动作、需要哪些资料表格，以及应该重点跟单里的哪个功能继续推进</p>
-        </article>
-      `}
+    <div class="flow-view flow-variant-flow">
+      <article class="intro-card">
+        <h3 class="intro-title"><span class="orange-bar"></span>成交流程</h3>
+        <p>让业务员知道外贸成交有哪些阶段、每个阶段要做什么动作、需要哪些资料表格，以及应该重点跟单里的哪个功能继续推进</p>
+      </article>
 
       <section class="process-board" aria-label="外贸成交阶段">
         <aside class="stage-list-panel">
@@ -4010,21 +4003,20 @@ function renderFlowView() {
           </header>
 
           <div class="stage-list">
-            ${TRADE_STAGES.map((stage, index) => renderStageButton(stage, index, variant)).join("")}
+            ${TRADE_STAGES.map((stage, index) => renderStageButton(stage, index)).join("")}
           </div>
         </aside>
 
-        <section class="stage-detail-panel ${variant ? `stage-detail-variant-${escapeHtml(variant)}` : ""}" aria-label="阶段详情">
+        <section class="stage-detail-panel" aria-label="阶段详情">
           <header class="stage-detail-head">
             <div class="stage-detail-head-text">
               <h3 class="stage-title">阶段${activeIndex + 1}：${escapeHtml(activeStage.title)}</h3>
               <p class="stage-subtitle">${escapeHtml(activeStage.desc)}</p>
-              ${variant === "c" ? renderFlowKpiRow(activeStage) : ""}
             </div>
-            ${variant === "b" ? renderFlowAskAiButton(activeStage) : ""}
+            ${renderFlowAskAiButton(activeStage)}
           </header>
 
-          ${variant === "b" ? renderFlowAiCard(activeStage) : ""}
+          ${renderFlowAiCard(activeStage)}
 
           <div class="top-info-grid">
             ${renderTopInfo("判断目标", activeStage.goal)}
@@ -4032,15 +4024,11 @@ function renderFlowView() {
             ${renderTopInfo("下一步动作", activeStage.next)}
           </div>
 
-          ${variant === "a" ? renderFlowChecklist(activeStage) : renderListBlock("这个阶段要做什么", activeStage.actions)}
+          ${renderListBlock("这个阶段要做什么", activeStage.actions)}
           ${renderListBlock("注意事项", activeStage.tips)}
-          ${variant === "c" ? renderFlowMistakes(activeStage) : ""}
-          ${variant === "b" ? renderFlowMaterialPreviews(activeStage) : renderMaterials(activeStage.materials)}
-          ${variant === "b" || variant === "d" ? renderFlowVideoCard(activeStage) : ""}
-          ${variant === "d" ? renderFlowNotes(activeStage) : ""}
-          ${variant === "b" ? renderFlowCustomerMiniList(activeStage) : renderFunctions(activeStage.functions)}
-          ${variant === "c" ? renderFlowPrevNext(activeIndex) : ""}
-          ${variant === "d" ? renderFlowCompareTray(activeStage) : ""}
+          ${renderFlowMaterialPreviews(activeStage)}
+          ${renderFlowVideoCard(activeStage)}
+          ${renderFlowCustomerMiniList(activeStage)}
         </section>
       </section>
     </div>
@@ -4048,93 +4036,7 @@ function renderFlowView() {
 }
 
 /**
- * 在每个阶段右上角加上勾选完成度（仅 A 变体使用）。
- *
- * @param {typeof TRADE_STAGES[number]} stage - 当前阶段。
- * @returns {{done: number, total: number}} 已勾选数 / 总动作数。
- * @throws {Error} 本函数不主动抛异常。
- */
-function getChecklistProgress(stage) {
-  const total = (stage.actions || []).length;
-  const checked = state.flowChecklist[stage.id] || [];
-  return { done: checked.filter((v) => v).length, total };
-}
-
-/**
- * 渲染顶部 12 阶段横向进度条（A 变体）。
- *
- * @param {number} activeIndex - 当前阶段下标。
- * @returns {string} 进度条 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderFlowProgressBar(activeIndex) {
-  return `
-    <article class="flow-progress" aria-label="阶段进度">
-      <header class="flow-progress-head">
-        <div>
-          <h3><span class="orange-bar"></span>阶段进度</h3>
-          <p>键盘 ← / → 可在阶段间切换；点节点直接跳到对应阶段</p>
-        </div>
-        <div class="flow-progress-counter">
-          <strong>${activeIndex + 1}</strong> / 12
-        </div>
-      </header>
-      <ol class="flow-progress-track">
-        ${TRADE_STAGES.map((stage, index) => {
-          const status = index < activeIndex ? "done" : index === activeIndex ? "current" : "upcoming";
-          const short = (window.FLOW_STAGE_SHORT || {})[stage.id] || stage.title.slice(0, 2);
-          return `
-            <li class="flow-progress-node ${status}">
-              <button type="button" data-stage="${escapeHtml(stage.id)}" title="${escapeHtml(stage.title)}">
-                <span class="flow-progress-dot" aria-hidden="true">${index + 1}</span>
-                <span class="flow-progress-label">${escapeHtml(short)}</span>
-              </button>
-              ${index < TRADE_STAGES.length - 1 ? `<span class="flow-progress-link" aria-hidden="true"></span>` : ""}
-            </li>
-          `;
-        }).join("")}
-      </ol>
-    </article>
-  `;
-}
-
-/**
- * 渲染可勾选 checklist（A 变体替换"这个阶段要做什么"）。
- *
- * @param {typeof TRADE_STAGES[number]} stage - 当前阶段。
- * @returns {string} checklist HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderFlowChecklist(stage) {
-  const checks = state.flowChecklist[stage.id] || [];
-  const { done, total } = getChecklistProgress(stage);
-
-  return `
-    <article class="detail-block flow-checklist">
-      <header class="flow-checklist-head">
-        <h4>这个阶段要做什么</h4>
-        <span class="flow-checklist-counter">${done} / ${total}</span>
-      </header>
-      <ul class="flow-checklist-list">
-        ${(stage.actions || []).map((action, index) => {
-          const checked = Boolean(checks[index]);
-          return `
-            <li class="${checked ? "checked" : ""}">
-              <button type="button" class="flow-checklist-check" data-checklist-stage="${escapeHtml(stage.id)}" data-checklist-index="${index}" aria-pressed="${checked}">
-                <span class="flow-checklist-box" aria-hidden="true">${checked ? "✓" : ""}</span>
-                <span>${escapeHtml(action)}</span>
-              </button>
-            </li>
-          `;
-        }).join("")}
-      </ul>
-      <p class="flow-checklist-tip">勾选状态保存在浏览器本地，刷新和切换阶段都保留。</p>
-    </article>
-  `;
-}
-
-/**
- * 渲染右上角"问 AI"按钮（B 变体）。
+ * 渲染右上角"问 AI"按钮。
  *
  * @param {typeof TRADE_STAGES[number]} stage - 当前阶段。
  * @returns {string} 按钮 HTML。
@@ -4187,7 +4089,7 @@ function buildFlowAiAnswer(stage) {
 }
 
 /**
- * 渲染 B 变体的 AI 顾问展开卡。
+ * 渲染 Flow 的 AI 顾问展开卡。
  *
  * 状态机：
  * - state.flowAi.open === false → 不渲染。
@@ -4364,7 +4266,7 @@ function renderAiTypingBubble() {
 }
 
 /**
- * 渲染"我在该阶段的客户"侧块（B 变体替换 functions）。
+ * 渲染"我在该阶段的客户"侧块。
  *
  * @param {typeof TRADE_STAGES[number]} stage - 当前阶段。
  * @returns {string} 客户列表 HTML。
@@ -4397,7 +4299,7 @@ function renderFlowCustomerMiniList(stage) {
 }
 
 /**
- * 渲染资料 / 表格 mini 预览卡（B 变体替换原 materials 按钮行）。
+ * 渲染资料 / 表格 mini 预览卡。
  *
  * @param {typeof TRADE_STAGES[number]} stage - 当前阶段。
  * @returns {string} 资料预览 HTML。
@@ -4427,81 +4329,7 @@ function renderFlowMaterialPreviews(stage) {
 }
 
 /**
- * 渲染 KPI / 标杆值 chip 行（C 变体）。
- *
- * @param {typeof TRADE_STAGES[number]} stage - 当前阶段。
- * @returns {string} chip 行 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderFlowKpiRow(stage) {
-  const kpis = stage.kpi || [];
-  if (!kpis.length) return "";
-  return `
-    <div class="flow-kpi-row" aria-label="阶段 KPI">
-      ${kpis.map((k) => `<span class="flow-kpi-chip">${escapeHtml(k)}</span>`).join("")}
-    </div>
-  `;
-}
-
-/**
- * 渲染"常见错误"反例列表（C 变体）。
- *
- * @param {typeof TRADE_STAGES[number]} stage - 当前阶段。
- * @returns {string} 错例 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderFlowMistakes(stage) {
-  const mistakes = stage.mistakes || [];
-  if (!mistakes.length) return "";
-  return `
-    <article class="detail-block flow-mistakes">
-      <h4>常见错误（千万别这样）</h4>
-      <ul class="flow-mistakes-list">
-        ${mistakes.map((m) => `<li><span class="flow-mistake-mark" aria-hidden="true">✕</span><span>${escapeHtml(m)}</span></li>`).join("")}
-      </ul>
-    </article>
-  `;
-}
-
-/**
- * 渲染上一阶段 / 下一阶段切换卡（C 变体）。
- *
- * @param {number} activeIndex - 当前阶段下标。
- * @returns {string} 上下阶段 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderFlowPrevNext(activeIndex) {
-  const prev = activeIndex > 0 ? TRADE_STAGES[activeIndex - 1] : null;
-  const next = activeIndex < TRADE_STAGES.length - 1 ? TRADE_STAGES[activeIndex + 1] : null;
-
-  return `
-    <nav class="flow-prev-next" aria-label="阶段串联">
-      ${prev ? `
-        <button class="flow-step-card prev" type="button" data-stage="${escapeHtml(prev.id)}">
-          <span class="flow-step-arrow" aria-hidden="true">←</span>
-          <span class="flow-step-meta">
-            <em>上一阶段</em>
-            <strong>${escapeHtml(prev.title)}</strong>
-            <small>${escapeHtml(prev.desc)}</small>
-          </span>
-        </button>
-      ` : `<span class="flow-step-card placeholder">已经是第一阶段</span>`}
-      ${next ? `
-        <button class="flow-step-card next" type="button" data-stage="${escapeHtml(next.id)}">
-          <span class="flow-step-meta">
-            <em>下一阶段</em>
-            <strong>${escapeHtml(next.title)}</strong>
-            <small>${escapeHtml(next.desc)}</small>
-          </span>
-          <span class="flow-step-arrow" aria-hidden="true">→</span>
-        </button>
-      ` : `<span class="flow-step-card placeholder">已经是最后一阶段</span>`}
-    </nav>
-  `;
-}
-
-/**
- * 渲染阶段教学视频卡（D 变体）。
+ * 渲染阶段教学视频卡。
  *
  * @param {typeof TRADE_STAGES[number]} stage - 当前阶段。
  * @returns {string} 视频卡 HTML。
@@ -4522,80 +4350,6 @@ function renderFlowVideoCard(stage) {
 }
 
 /**
- * 渲染个人笔记 textarea（D 变体）。
- *
- * @param {typeof TRADE_STAGES[number]} stage - 当前阶段。
- * @returns {string} 笔记区 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderFlowNotes(stage) {
-  const note = (state.flowNotes && state.flowNotes[stage.id]) || "";
-  return `
-    <article class="detail-block flow-notes">
-      <h4>我的私房笔记</h4>
-      <p class="flow-notes-tip">写下你自己跑这一步的经验、客户原话、雷区。仅保存在你这台浏览器。</p>
-      <textarea data-flow-notes-stage="${escapeHtml(stage.id)}" placeholder="例如：上次报价后客户压了 5%，我用免运费 + 提前 5 天交期换回来。">${escapeHtml(note)}</textarea>
-    </article>
-  `;
-}
-
-/**
- * 渲染双阶段对比抽屉（D 变体）。
- *
- * @param {typeof TRADE_STAGES[number]} stage - 当前阶段。
- * @returns {string} 对比区 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderFlowCompareTray(stage) {
-  const compareStage = getStageById(state.flowCompareStageId || TRADE_STAGES[0].id);
-
-  return `
-    <article class="detail-block flow-compare">
-      <header class="flow-compare-head">
-        <h4>阶段对比</h4>
-        <label>
-          <span>对比目标</span>
-          <select data-flow-compare>
-            ${TRADE_STAGES.map((s) => `
-              <option value="${escapeHtml(s.id)}" ${s.id === compareStage.id ? "selected" : ""}>${escapeHtml(s.title)}</option>
-            `).join("")}
-          </select>
-        </label>
-      </header>
-      <div class="flow-compare-grid">
-        ${renderFlowCompareColumn(stage, "当前阶段")}
-        ${renderFlowCompareColumn(compareStage, "对比阶段")}
-      </div>
-    </article>
-  `;
-}
-
-/**
- * 渲染对比表中的一列。
- *
- * @param {typeof TRADE_STAGES[number]} stage - 阶段数据。
- * @param {string} label - 列标签。
- * @returns {string} 列 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderFlowCompareColumn(stage, label) {
-  return `
-    <section class="flow-compare-col">
-      <header>
-        <em>${escapeHtml(label)}</em>
-        <strong>${escapeHtml(stage.title)}</strong>
-      </header>
-      <dl>
-        <div><dt>判断目标</dt><dd>${escapeHtml(stage.goal)}</dd></div>
-        <div><dt>关键产出</dt><dd>${escapeHtml(stage.output)}</dd></div>
-        <div><dt>下一步</dt><dd>${escapeHtml(stage.next)}</dd></div>
-        <div><dt>核心动作</dt><dd>${escapeHtml((stage.actions || []).join("；"))}</dd></div>
-      </dl>
-    </section>
-  `;
-}
-
-/**
  * 渲染一个阶段按钮。
  *
  * @param {typeof TRADE_STAGES[number]} stage - 阶段数据。
@@ -4603,10 +4357,9 @@ function renderFlowCompareColumn(stage, label) {
  * @returns {string} 阶段按钮 HTML。
  * @throws {Error} 本函数不主动抛异常。
  */
-function renderStageButton(stage, index, variant) {
+function renderStageButton(stage, index) {
   const number = String(index + 1).padStart(2, "0");
   const isActive = state.activeStageId === stage.id;
-  const progress = variant === "a" ? getChecklistProgress(stage) : null;
 
   return `
     <button class="stage-item ${isActive ? "active" : ""}" type="button" data-stage="${escapeHtml(stage.id)}">
@@ -4615,7 +4368,6 @@ function renderStageButton(stage, index, variant) {
         <strong class="stage-name">${escapeHtml(stage.title)}</strong>
         <span class="stage-brief">${escapeHtml(stage.desc)}</span>
       </span>
-      ${progress && progress.total ? `<span class="stage-progress-chip ${progress.done === progress.total ? "full" : ""}">${progress.done}/${progress.total}</span>` : ""}
     </button>
   `;
 }
@@ -6302,43 +6054,7 @@ function bindEvents() {
     });
   });
 
-  // 变体 A：勾选 checklist。
-  document.querySelectorAll("[data-checklist-stage]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const stageId = button.getAttribute("data-checklist-stage");
-      const idx = Number(button.getAttribute("data-checklist-index"));
-
-      if (!stageId || Number.isNaN(idx)) {
-        return;
-      }
-
-      const list = (state.flowChecklist[stageId] || []).slice();
-      list[idx] = !list[idx];
-      state.flowChecklist[stageId] = list;
-      persistFlowChecklist();
-      renderApp();
-    });
-  });
-
-  // 变体 D：私房笔记输入。
-  document.querySelectorAll("[data-flow-notes-stage]").forEach((textarea) => {
-    textarea.addEventListener("input", () => {
-      const stageId = textarea.getAttribute("data-flow-notes-stage");
-      if (!stageId) return;
-      state.flowNotes[stageId] = textarea.value;
-      persistFlowNotes();
-    });
-  });
-
-  // 变体 D：对比阶段选择。
-  document.querySelectorAll("[data-flow-compare]").forEach((select) => {
-    select.addEventListener("change", () => {
-      state.flowCompareStageId = select.value;
-      renderApp();
-    });
-  });
-
-  // 变体 B：原地展开 AI 顾问卡。
+  // 外贸流程：原地展开 AI 顾问卡。
   document.querySelectorAll("[data-flow-ask-ai-toggle]").forEach((button) => {
     button.addEventListener("click", () => {
       if (state.flowAi.open) {
@@ -6768,64 +6484,6 @@ function cancelFlowAiSimulation() {
 }
 
 /**
- * localStorage key 前缀。集中起来避免散落。
- */
-const STORAGE_KEYS = {
-  checklist: "reverse-yingdan-flow-checklist",
-  notes: "reverse-yingdan-flow-notes"
-};
-
-/**
- * 把当前 checklist 写回 localStorage。
- *
- * @returns {void}
- * @throws {Error} 本函数不主动抛异常；写入失败时静默忽略，避免影响渲染。
- */
-function persistFlowChecklist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEYS.checklist, JSON.stringify(state.flowChecklist));
-  } catch (err) {
-    /* ignore quota errors */
-  }
-}
-
-/**
- * 把当前笔记写回 localStorage。
- *
- * @returns {void}
- * @throws {Error} 本函数不主动抛异常。
- */
-function persistFlowNotes() {
-  try {
-    window.localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(state.flowNotes));
-  } catch (err) {
-    /* ignore quota errors */
-  }
-}
-
-/**
- * 启动时读取 checklist / notes，让用户上次的勾选和笔记不丢。
- *
- * @returns {void}
- * @throws {Error} 本函数不主动抛异常；解析失败时回退到空对象。
- */
-function hydrateFlowStorage() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.checklist);
-    if (raw) state.flowChecklist = JSON.parse(raw) || {};
-  } catch (err) {
-    state.flowChecklist = {};
-  }
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.notes);
-    if (raw) state.flowNotes = JSON.parse(raw) || {};
-  } catch (err) {
-    state.flowNotes = {};
-  }
-}
-
-/**
  * 搜索框展开或输入后重新聚焦。
  *
  * 为什么需要这个函数：
@@ -7059,11 +6717,7 @@ const ROUTES = [
   { hash: "/admin/ai-character", main: "admin-character" },
   { hash: "/admin/ai-model", main: "admin-model" },
   { hash: "/sales-prep", main: "sales-prep", tab: "flow" },
-  { hash: "/sales-prep/flow", main: "sales-prep", tab: "flow", flowVariant: null },
-  { hash: "/sales-prep/flow/a", main: "sales-prep", tab: "flow", flowVariant: "a" },
-  { hash: "/sales-prep/flow/b", main: "sales-prep", tab: "flow", flowVariant: "b" },
-  { hash: "/sales-prep/flow/c", main: "sales-prep", tab: "flow", flowVariant: "c" },
-  { hash: "/sales-prep/flow/d", main: "sales-prep", tab: "flow", flowVariant: "d" },
+  { hash: "/sales-prep/flow", main: "sales-prep", tab: "flow" },
   { hash: "/sales-prep/company", main: "sales-prep", tab: "company" },
   { hash: "/sales-prep/market", main: "sales-prep", tab: "market" },
   { hash: "/sales-prep/cases", main: "sales-prep", tab: "cases" },
@@ -7118,9 +6772,6 @@ function hashForState() {
 
   if (main === "sales-prep") {
     const tab = state.activeSalesTab || "flow";
-    if (tab === "flow" && state.flowVariant) {
-      return `#/sales-prep/flow/${state.flowVariant}`;
-    }
     return `#/sales-prep/${tab}`;
   }
 
@@ -7178,6 +6829,18 @@ function syncHashFromState() {
 function findCurrentRoute() {
   const raw = window.location.hash || "";
   const pure = (raw.startsWith("#") ? raw.slice(1) : raw).split("?")[0] || "/ask";
+  const deprecatedFlowRoutes = new Set(["/sales-prep/flow/a", "/sales-prep/flow/b", "/sales-prep/flow/c", "/sales-prep/flow/d"]);
+
+  if (deprecatedFlowRoutes.has(pure)) {
+    try {
+      window.history.replaceState(null, "", "#/sales-prep/flow");
+    } catch (err) {
+      window.location.hash = "#/sales-prep/flow";
+    }
+
+    return ROUTES.find((route) => route.hash === "/sales-prep/flow") || ROUTES[0];
+  }
+
   return ROUTES.find((route) => route.hash === pure) || ROUTES[0];
 }
 
@@ -7197,13 +6860,7 @@ function applyRoute() {
     state.activeSalesTab = route.tab;
   }
 
-  // flow 变体允许显式设为 null（基础版）或某个字母（增强版）。
-  if (Object.prototype.hasOwnProperty.call(route, "flowVariant")) {
-    state.flowVariant = route.flowVariant;
-  }
-
-
-  // 来自变体 B"问 AI"按钮的预填，进入 ask 页时消费一下。
+  // 来自外贸流程"问 AI"按钮的预填，进入 ask 页时消费一下。
   if (route.main === "ask") {
     consumePrefillPromptIfAny();
   }
@@ -7250,9 +6907,7 @@ window.addEventListener("hashchange", applyRoute);
 function init() {
   console.log("[reverse-yingdan] 初始化静态原型");
   installAutoRefreshWorker();
-  hydrateFlowStorage();
   consumePrefillPromptIfAny();
-  installFlowKeyboardShortcuts();
 
   if (window.location.hash) {
     applyRoute();
@@ -7262,7 +6917,7 @@ function init() {
 }
 
 /**
- * 如果上一屏是变体 B 的"问 AI"按钮，把它存的 prompt 取回来塞进 chatDraft。
+ * 如果上一屏是外贸流程的"问 AI"按钮，把它存的 prompt 取回来塞进 chatDraft。
  *
  * @returns {void}
  * @throws {Error} 本函数不主动抛异常；sessionStorage 不可用时静默回退。
@@ -7277,38 +6932,6 @@ function consumePrefillPromptIfAny() {
   } catch (err) {
     /* ignore */
   }
-}
-
-/**
- * 安装全局键盘快捷键：变体 A 下 ←/→ 切换上一/下一阶段。
- *
- * @returns {void}
- * @throws {Error} 本函数不主动抛异常。
- */
-function installFlowKeyboardShortcuts() {
-  document.addEventListener("keydown", (event) => {
-    if (state.flowVariant !== "a") return;
-    if (state.activeMain !== "sales-prep" || state.activeSalesTab !== "flow") return;
-
-    // 输入框聚焦时不抢键盘。
-    const target = event.target;
-    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
-      return;
-    }
-
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-
-    const idx = TRADE_STAGES.findIndex((s) => s.id === state.activeStageId);
-    const nextIdx = event.key === "ArrowRight"
-      ? Math.min(TRADE_STAGES.length - 1, idx + 1)
-      : Math.max(0, idx - 1);
-
-    if (nextIdx === idx) return;
-
-    state.activeStageId = TRADE_STAGES[nextIdx].id;
-    renderApp();
-    event.preventDefault();
-  });
 }
 
 /**

@@ -74,8 +74,8 @@ Python 后端：
 
 - `index.html`：当前唯一页面入口，只挂载 `#app`，并引用 `src/styles.css`、`src/data.js`、`src/app.js`。
 - `src/data.js`：静态业务数据，包括左侧导航、历史记录、销售准备标签、12 个外贸成交阶段、外贸流程客户映射、套餐、用量记录、公司资料模块、产品表、案例库、客户Kass 分组和阶段。
-- `src/app.js`：页面状态、hash 路由、整页渲染、事件绑定、toast、抽屉、弹层、模拟生成、外贸流程 A/B/C/D 变体、客户Kass、用量页和支付页。
-- `src/styles.css`：全部样式、响应式规则、动效、外贸流程变体、客户Kass、聊天输入、弹层、用量页和支付页样式。
+- `src/app.js`：页面状态、hash 路由、整页渲染、事件绑定、toast、抽屉、弹层、模拟生成、外贸流程 Flow、客户Kass、用量页和支付页。
+- `src/styles.css`：全部样式、响应式规则、动效、外贸流程 Flow、客户Kass、聊天输入、弹层、用量页和支付页样式。
 - `assets/icons/`：左侧导航和功能入口 SVG 图标。
 - `assets/generated/`：当前原型内使用的本地 SVG 视觉素材。
 
@@ -159,11 +159,7 @@ Python 后端：
 | `#/admin/invite-code` | 后台管理 > 邀请码管理 |
 | `#/admin/ai-character` | 后台管理 > AI 人设管理 |
 | `#/admin/ai-model` | 后台管理 > AI 模型管理 |
-| `#/sales-prep/flow` | 销售准备 > 外贸流程基础版 |
-| `#/sales-prep/flow/a` | 外贸流程 A 变体，阶段进度条、checklist、键盘左右切换 |
-| `#/sales-prep/flow/b` | 外贸流程 B 变体，问 AI、阶段客户、资料预览 |
-| `#/sales-prep/flow/c` | 外贸流程 C 变体，KPI、常见错误、上下阶段 |
-| `#/sales-prep/flow/d` | 外贸流程 D 变体，教学视频、私房笔记、阶段对比 |
+| `#/sales-prep/flow` | 销售准备 > 外贸流程 Flow，问 AI、阶段客户、资料预览和教学视频 |
 | `#/sales-prep/company` | 销售准备 > 了解公司 |
 | `#/sales-prep/market` | 销售准备 > 产品&市场 |
 | `#/sales-prep/cases` | 销售准备 > 案例知识库 |
@@ -206,11 +202,7 @@ Python 后端：
 - `expandedGroups`：左侧分组展开状态。
 - `activeSalesTab`：销售准备顶部标签。
 - `activeStageId`：外贸流程当前阶段。
-- `flowVariant`：外贸流程基础版或 A/B/C/D 变体。
-- `flowChecklist`：A 变体 checklist 勾选状态。
-- `flowNotes`：D 变体私房笔记。
-- `flowCompareStageId`：D 变体阶段对比目标。
-- `flowAi`：B 变体 AI 顾问展开、加载、回答和追问状态。
+- `flowAi`：外贸流程 Flow 的 AI 顾问展开、加载、回答和追问状态。
 - `payCycle` / `payMethod` / `payAgreed` / `payPhase`：升级支付原型状态。
 - `activeCompanyModule`：了解公司当前模块。
 - `selectedProductId`：产品&市场当前选中产品。
@@ -227,9 +219,7 @@ Python 后端：
 
 本地存储边界：
 
-- `localStorage.reverse-yingdan-flow-checklist`：只保存外贸流程 A 变体 checklist。
-- `localStorage.reverse-yingdan-flow-notes`：只保存外贸流程 D 变体私房笔记。
-- `sessionStorage.reverse-yingdan-prefill-ask`：只用于从外贸流程 B 变体的问 AI 动作跳回 `#/ask` 时预填问题。
+- `sessionStorage.reverse-yingdan-prefill-ask`：只用于从外贸流程 Flow 的问 AI 动作跳回 `#/ask` 时预填问题。
 - 不要把真实客户资料、真实聊天、真实账号信息或真实支付信息写入浏览器存储。
 - 账号邀请兑换、后台邀请码生成、后台导出报表、后台刷新数据、账号团队/企业切换都只做原型反馈，不写后端、不落本地存储。
 
@@ -298,9 +288,7 @@ Python 后端：
 - `技能Skill > 组合标题 > 标题+卖点+FAQ`
 - `销售准备 > 产品&市场 > 产品目录表`
 - `销售准备 > 产品&市场 > 产品营销海报库`
-- `销售准备 > 外贸流程 > A 变体 > Checklist`
-- `销售准备 > 外贸流程 > B 变体 > 问 AI 顾问`
-- `销售准备 > 外贸流程 > D 变体 > 私房笔记`
+- `销售准备 > 外贸流程 > 问 AI 顾问`
 - `客户Kass > A 分组 > 客户档案`
 - `账号/用量/升级 > 用量明细 > 最近记录`
 - `账号弹层 > 邀请兑换积分`
@@ -614,11 +602,11 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 - 左侧导航和主工作区是否清楚。
 - 按钮、输入框、下拉项是否可见。
 - 主要用户流程是否能走通。
-- 至少抽查 `#/ask`、`#/sales-prep/flow`、`#/sales-prep/flow/b`、`#/sales-prep/company`、`#/sales-prep/market`、`#/sales-prep/cases`、`#/customer-kass/A`、`#/account/usage`、`#/admin/user`、`#/admin/invite-code`。
+- 至少抽查 `#/ask`、`#/sales-prep/flow`、`#/sales-prep/company`、`#/sales-prep/market`、`#/sales-prep/cases`、`#/customer-kass/A`、`#/account/usage`、`#/admin/user`、`#/admin/invite-code`。
 - 如果改了支付页，额外检查 `#/upgrade/pay/pro`、`#/upgrade/pay/pro/checkout`、`#/upgrade/pay/pro/done`。
 - 如果改了后台 User Preview，额外检查时间范围按钮、功能调用总看板、用户字段报表默认字段、字段展开/收起、手机号列和时间字段格式。
 - 如果改了账号弹层，额外检查邀请兑换、团队/企业飞出层、用量明细跳转和退出登录的原型反馈。
-- 如果改了外贸流程 A/D 变体，注意本地 checklist、私房笔记会写入 localStorage，验证后如需干净状态可手动清除对应 key。
+- 如果改了外贸流程 Flow，重点检查阶段切换、问 AI 展开、资料预览卡和阶段客户入口。
 - 桌面和窄屏下文字是否重叠或溢出。
 - 不要点击发送、删除、保存账号设置等可能产生真实副作用的动作，除非用户明确确认。
 

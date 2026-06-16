@@ -357,7 +357,7 @@ window.TRADE_STAGES = [
  * 阶段 → 我自己 KASS 客户的反查表。
  *
  * 为什么单独建一份：
- * - 这是变体 B 给业务员展示"我在该阶段还有哪些客户"的入口。
+ * - 业务员在 Flow 里需要看到"我在该阶段还有哪些客户"。
  * - 数据可以和 `KASS_GROUPS` 分开，不污染线上 1:1 复刻的 A/B 分组页。
  * - 后续接真实接口时只需替换 stage → customers[] 的映射。
  *
@@ -404,11 +404,6 @@ window.FLOW_STAGE_CUSTOMERS = {
   ]
 };
 
-/**
- * 12 个阶段在变体 A 的进度条上需要展示的简称（不超过 4 个汉字）。
- *
- * @type {Record<string, string>}
- */
 /**
  * 升级套餐：当前展示 3 档。
  *
@@ -506,21 +501,6 @@ window.UPGRADE_PLANS = [
     ctaToast: "已模拟提交销售联系请求，正式版会打开企业表单。"
   }
 ];
-
-window.FLOW_STAGE_SHORT = {
-  lead: "线索",
-  background: "背调",
-  inquiry: "分级",
-  opportunity: "商机",
-  "first-reply": "首回",
-  "follow-up": "跟进",
-  trust: "链接",
-  check: "八问",
-  quote: "报价",
-  sample: "样品",
-  "bulk-order": "大货",
-  repurchase: "复购"
-};
 
 /**
  * 还没有完整逆向的顶部标签内容。

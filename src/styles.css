@@ -3548,206 +3548,7 @@ button:disabled {
   }
 }
 
-/* ===================== 外贸流程变体 A/B/C/D ===================== */
-
-/* ----- A · 进度条 + checklist ----- */
-
-.flow-progress {
-  padding: 16px 18px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #ffffff;
-}
-
-.flow-progress-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.flow-progress-head h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 4px;
-  font-size: 16px;
-}
-
-.flow-progress-head p {
-  margin: 0;
-  color: #8a7f76;
-  font-size: 12.5px;
-}
-
-.flow-progress-counter {
-  align-self: center;
-  color: #4a4039;
-  font-size: 14px;
-}
-
-.flow-progress-counter strong {
-  color: var(--accent);
-  font-size: 18px;
-  margin-right: 2px;
-}
-
-.flow-progress-track {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow-x: auto;
-}
-
-.flow-progress-node {
-  flex: 1 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
-
-.flow-progress-node button {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border: 0;
-  background: transparent;
-  color: #8a7f76;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.flow-progress-dot {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #f4ede5;
-  color: #6b6259;
-  font-size: 12px;
-  font-weight: 700;
-  border: 2px solid transparent;
-}
-
-.flow-progress-node.done .flow-progress-dot {
-  background: #f3c7a3;
-  color: #ffffff;
-}
-
-.flow-progress-node.current .flow-progress-dot {
-  background: var(--accent);
-  color: #ffffff;
-  border-color: #fff;
-  box-shadow: 0 0 0 3px rgba(255, 92, 0, 0.18);
-}
-
-.flow-progress-node.current button {
-  color: var(--accent);
-}
-
-.flow-progress-link {
-  flex: 1;
-  height: 2px;
-  align-self: center;
-  background: #f0e6dd;
-  border-radius: 99px;
-}
-
-.flow-progress-node.done + .flow-progress-node .flow-progress-link,
-.flow-progress-node.done .flow-progress-link {
-  background: #f3c7a3;
-}
-
-.flow-checklist-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.flow-checklist-counter {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: #fff1e2;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.flow-checklist-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.flow-checklist-check {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.18s, border-color 0.18s;
-}
-
-.flow-checklist-check:hover {
-  background: #fff8f3;
-  border-color: #f3c7a3;
-}
-
-.flow-checklist-list li.checked .flow-checklist-check {
-  color: #8a7f76;
-}
-
-.flow-checklist-list li.checked .flow-checklist-check span:last-child {
-  text-decoration: line-through;
-  text-decoration-color: rgba(138, 127, 118, 0.5);
-}
-
-.flow-checklist-box {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  border: 1.5px solid #d6c8bd;
-  border-radius: 5px;
-  background: #ffffff;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 700;
-  transition: background 0.18s, border-color 0.18s;
-}
-
-.flow-checklist-list li.checked .flow-checklist-box {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.flow-checklist-tip {
-  margin: 8px 0 0;
-  color: #8a7f76;
-  font-size: 12.5px;
-}
-
-/* ----- B · 问 AI + 客户 + 资料预览 ----- */
+/* ===================== 外贸流程 Flow ===================== */
 
 .stage-detail-head {
   display: flex;
@@ -3913,148 +3714,6 @@ button:disabled {
   font-weight: 800;
 }
 
-/* ----- C · KPI + 错例 + 上下阶段 ----- */
-
-.flow-kpi-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.flow-kpi-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: #f4ede5;
-  color: #4a4039;
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.flow-kpi-chip::before {
-  content: "★";
-  margin-right: 6px;
-  color: var(--accent);
-}
-
-.flow-mistakes {
-  border-color: #f4cbc1;
-  background: linear-gradient(180deg, #fff5f2, #ffffff);
-}
-
-.flow-mistakes h4 {
-  color: #b8341c;
-}
-
-.flow-mistakes-list {
-  list-style: none;
-  padding: 0;
-  margin: 6px 0 0;
-  display: grid;
-  gap: 6px;
-}
-
-.flow-mistakes-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  color: #6b3a2e;
-}
-
-.flow-mistake-mark {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  border-radius: 50%;
-  background: #f4cbc1;
-  color: #b8341c;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.flow-prev-next {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.flow-step-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 14px;
-  border: 1px solid #ead9cb;
-  border-radius: 10px;
-  background: #ffffff;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.18s, transform 0.18s, box-shadow 0.18s;
-}
-
-.flow-step-card.prev {
-  justify-content: flex-start;
-}
-
-.flow-step-card.next {
-  justify-content: flex-end;
-  text-align: right;
-}
-
-.flow-step-card.next .flow-step-meta {
-  text-align: right;
-}
-
-.flow-step-card:hover {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(255, 92, 0, 0.08);
-}
-
-.flow-step-card.placeholder {
-  display: grid;
-  place-items: center;
-  color: #b6ada6;
-  font-size: 13px;
-  border-style: dashed;
-  cursor: default;
-}
-
-.flow-step-arrow {
-  font-size: 22px;
-  color: var(--accent);
-}
-
-.flow-step-meta {
-  display: grid;
-  gap: 2px;
-}
-
-.flow-step-meta em {
-  font-style: normal;
-  color: #8a7f76;
-  font-size: 12px;
-}
-
-.flow-step-meta strong {
-  color: var(--text);
-  font-size: 14.5px;
-}
-
-.flow-step-meta small {
-  color: #8a7f76;
-  font-size: 12.5px;
-  line-height: 1.55;
-}
-
-/* ----- D · 教学视频 + 笔记 + 对比 ----- */
-
 .flow-video-card {
   display: flex;
   align-items: center;
@@ -4099,122 +3758,7 @@ button:disabled {
   font-size: 13px;
 }
 
-.flow-notes textarea {
-  width: 100%;
-  min-height: 110px;
-  resize: vertical;
-  padding: 12px 14px;
-  border: 1px solid #ead9cb;
-  border-radius: 8px;
-  background: #fffdfa;
-  color: var(--text);
-  font-size: 13.5px;
-  line-height: 1.65;
-  outline: 0;
-}
-
-.flow-notes textarea:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 92, 0, 0.1);
-}
-
-.flow-notes-tip {
-  margin: 6px 0 10px;
-  color: #8a7f76;
-  font-size: 12.5px;
-}
-
-.flow-compare-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-
-.flow-compare-head label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #6b6259;
-  font-size: 13px;
-}
-
-.flow-compare-head select {
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid #ead9cb;
-  border-radius: 8px;
-  background: #ffffff;
-  color: var(--text);
-  font-size: 13px;
-  outline: 0;
-}
-
-.flow-compare-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.flow-compare-col {
-  padding: 12px 14px;
-  border: 1px solid #ead9cb;
-  border-radius: 10px;
-  background: #fffdfa;
-}
-
-.flow-compare-col header {
-  margin-bottom: 8px;
-}
-
-.flow-compare-col header em {
-  display: block;
-  font-style: normal;
-  color: #8a7f76;
-  font-size: 12px;
-}
-
-.flow-compare-col header strong {
-  display: block;
-  color: var(--accent);
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.flow-compare-col dl {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-}
-
-.flow-compare-col dl div {
-  display: grid;
-  gap: 2px;
-}
-
-.flow-compare-col dt {
-  color: #8a7f76;
-  font-size: 12px;
-}
-
-.flow-compare-col dd {
-  margin: 0;
-  color: var(--text);
-  font-size: 13.5px;
-  line-height: 1.55;
-}
-
-@media (max-width: 920px) {
-  .flow-prev-next,
-  .flow-compare-grid {
-    grid-template-columns: 1fr;
-  }
-
-}
-
-/* ===================== B 变体 · 原地展开的 AI 顾问对话 ===================== */
+/* ===================== Flow · 原地展开的 AI 顾问对话 ===================== */
 
 .flow-ai-chat {
   position: relative;
@@ -6771,7 +6315,7 @@ button:disabled {
   color: var(--accent);
 }
 
-/* ===================== 变体 A · 仪表盘 ===================== */
+/* ===================== 用量明细 · 仪表盘布局 ===================== */
 
 .usage-a {
   display: grid;
@@ -7040,7 +6584,7 @@ button:disabled {
   .usage-a-rec-time { display: none; }
 }
 
-/* ===================== 变体 B · 时间轴 ===================== */
+/* ===================== 用量明细 · 时间轴布局 ===================== */
 
 .usage-b-header {
   display: flex;
@@ -7196,7 +6740,7 @@ button:disabled {
 .usage-b-rec-model { color: #6b6259; }
 .usage-b-rec-credits { text-align: right; color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-/* ===================== 变体 C · 拆解洞察 ===================== */
+/* ===================== 用量明细 · 拆解洞察布局 ===================== */
 
 .usage-c-hero {
   display: flex;
@@ -7397,7 +6941,7 @@ button:disabled {
   }
 }
 
-/* ===================== 变体 D · Bento 墙 ===================== */
+/* ===================== 用量明细 · Bento 墙布局 ===================== */
 
 .usage-d-head {
   display: flex;

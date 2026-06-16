@@ -171,11 +171,7 @@ reverse-yingdan/
 | `#/admin/invite-code` | 后台管理 > 邀请码管理 |
 | `#/admin/ai-character` | 后台管理 > AI 人设管理 |
 | `#/admin/ai-model` | 后台管理 > AI 模型管理 |
-| `#/sales-prep/flow` | 销售准备 > 外贸流程（基础版） |
-| `#/sales-prep/flow/a` | 外贸流程 · A 变体：阶段进度条 + 可勾选 checklist + 键盘 ← / → |
-| `#/sales-prep/flow/b` | 外贸流程 · B 变体：问 AI 按钮 + 本阶段客户 mini 列表 + 资料预览卡 |
-| `#/sales-prep/flow/c` | 外贸流程 · C 变体：KPI chip + 常见错误 + 上下阶段卡 |
-| `#/sales-prep/flow/d` | 外贸流程 · D 变体：教学视频 + 私房笔记 + 阶段对比 |
+| `#/sales-prep/flow` | 销售准备 > 外贸流程 Flow：问 AI 按钮 + 本阶段客户 mini 列表 + 资料预览卡 + 教学视频 |
 | `#/sales-prep/company` | 销售准备 > 了解公司 |
 | `#/sales-prep/market` | 销售准备 > 产品&市场 |
 | `#/sales-prep/cases` | 销售准备 > 案例知识库 |
