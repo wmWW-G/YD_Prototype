@@ -8186,6 +8186,52 @@ button:disabled {
   font-size: 14px;
 }
 
+.sub-account-add-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.7fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid #dbe4ff;
+  border-radius: 8px;
+  background: #f8fbff;
+  animation: sub-account-form-in 220ms ease-out both;
+}
+
+.sub-account-add-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.sub-account-add-form input {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #d9e1f2;
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: var(--admin-text);
+  font: inherit;
+  font-weight: 500;
+  outline: none;
+  background: #ffffff;
+}
+
+.sub-account-add-form input:focus {
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+}
+
+.sub-account-add-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 .sub-account-usage-table td:first-child {
   min-width: 126px;
 }
@@ -8232,6 +8278,28 @@ button:disabled {
     opacity: 1;
     transform: translateY(0);
     background: #ffffff;
+  }
+}
+
+@keyframes sub-account-form-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 760px) {
+  .sub-account-add-form {
+    grid-template-columns: 1fr;
+  }
+
+  .sub-account-add-actions {
+    justify-content: flex-start;
   }
 }
 

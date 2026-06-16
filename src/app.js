@@ -609,9 +609,10 @@ function bindAdminActionControls() {
 /**
  * 绑定子账号管理弹窗里的原型交互。
  *
- * 为什么只做 DOM 动画：
+ * 为什么用弹窗内的临时表单：
  * - 当前后台是静态原型，不写入真实数据。
- * - 点击“新增子账号”后插入一条临时行，能表达新增后的视觉反馈和管理入口。
+ * - 但“新增子账号”至少应该收集手机号和初始分配积分，避免看起来像空操作。
+ * - 确认后再插入临时行，能表达后台管理的真实操作节奏。
  *
  * @returns {void}
  * @throws {Error} 本函数不主动抛异常。
@@ -624,18 +625,70 @@ function bindAdminSubAccountControls() {
 
     button.dataset.subAccountAddBound = "true";
     button.addEventListener("click", () => {
-      const tbody = document.querySelector(".sub-account-usage-table tbody");
+      const panel = button.closest(".sub-account-usage-panel");
+      const existingForm = panel?.querySelector("[data-sub-account-add-form]");
+      const panelHeader = panel?.querySelector(":scope > header");
 
-      if (!tbody) {
+      if (!panel || !panelHeader) {
         showToast("新增子账号是原型反馈，不创建真实账号。");
         return;
       }
 
-      tbody.querySelector(".sub-account-added-row")?.remove();
-      tbody.insertAdjacentHTML("afterbegin", renderAdminSubAccountAddedRow());
-      bindAdminActionControls();
-      showToast("已模拟新增子账号，临时行已加入列表。");
+      if (existingForm) {
+        existingForm.querySelector("[data-sub-account-phone-input]")?.focus();
+        return;
+      }
+
+      panelHeader.insertAdjacentHTML("afterend", renderAdminSubAccountAddForm());
+      bindAdminSubAccountFormControls(panel);
+      panel.querySelector("[data-sub-account-phone-input]")?.focus();
     });
+  });
+}
+
+/**
+ * 绑定新增子账号表单里的确认和取消。
+ *
+ * 为什么确认时只插入临时行：
+ * - 当前后台仍是可操作原型，没有真实接口。
+ * - 运营评审时重点是看清“填什么、确认后会出现什么”，不需要真正写入后端。
+ *
+ * @param {Element} panel - 当前子账号管理面板，内部包含表格和新增表单。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function bindAdminSubAccountFormControls(panel) {
+  const form = panel.querySelector("[data-sub-account-add-form]");
+  const cancelButton = panel.querySelector("[data-sub-account-cancel]");
+  const confirmButton = panel.querySelector("[data-sub-account-confirm]");
+
+  cancelButton?.addEventListener("click", () => {
+    form?.remove();
+  });
+
+  confirmButton?.addEventListener("click", () => {
+    const phoneInput = panel.querySelector("[data-sub-account-phone-input]");
+    const creditInput = panel.querySelector("[data-sub-account-credit-input]");
+    const phone = String(phoneInput?.value || "").trim();
+    const allocatedCredit = parseAdminCreditInput(creditInput?.value);
+    const tbody = panel.querySelector(".sub-account-usage-table tbody");
+
+    if (!phone) {
+      showToast("请先输入子账号手机号。");
+      phoneInput?.focus();
+      return;
+    }
+
+    if (!tbody) {
+      showToast("新增子账号是原型反馈，不创建真实账号。");
+      return;
+    }
+
+    tbody.querySelector(".sub-account-added-row")?.remove();
+    tbody.insertAdjacentHTML("afterbegin", renderAdminSubAccountAddedRow(phone, allocatedCredit));
+    form?.remove();
+    bindAdminActionControls();
+    showToast("已模拟新增子账号，临时行已加入列表。");
   });
 }
 
@@ -3008,13 +3061,14 @@ function renderAdminSubAccountUsageTable(subAccounts) {
   if (!subAccounts.length) {
     return `
       <section class="sub-account-usage-panel" aria-label="子账号积分使用情况">
-        <header>
-          <strong>子账号积分使用情况</strong>
-          <button class="admin-primary-btn small" type="button" data-sub-account-add="true">新增子账号</button>
-        </header>
-        <div class="admin-empty-cell">当前主账号下暂无子账号。</div>
-      </section>
-    `;
+      <header>
+        <strong>子账号积分使用情况</strong>
+        <button class="admin-primary-btn small" type="button" data-sub-account-add="true">新增子账号</button>
+      </header>
+      ${renderAdminSubAccountEmptyTable()}
+      <div class="admin-empty-cell">当前主账号下暂无子账号。</div>
+    </section>
+  `;
   }
 
   return `
@@ -3064,22 +3118,83 @@ function renderAdminSubAccountUsageTable(subAccounts) {
 }
 
 /**
+ * 渲染空状态下也可承接新增子账号的表格。
+ *
+ * 为什么空状态也保留表格：
+ * - 新增表单确认后需要一个稳定的插入位置。
+ * - 这样有无历史子账号时，新增动画和管理动作都保持同一套交互。
+ *
+ * @returns {string} 空表格 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminSubAccountEmptyTable() {
+  return `
+    <div class="admin-table-scroll">
+      <table class="admin-table sub-account-usage-table">
+        <thead>
+          <tr>
+            <th>子账号</th>
+            <th>状态</th>
+            <th>分配积分</th>
+            <th>已用积分</th>
+            <th>剩余积分</th>
+            <th>最近活跃</th>
+            <th>管理动作</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  `;
+}
+
+/**
+ * 渲染新增子账号表单。
+ *
+ * @returns {string} 表单 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminSubAccountAddForm() {
+  return `
+    <section class="sub-account-add-form" data-sub-account-add-form="true" aria-label="新增子账号信息">
+      <label>
+        <span>子账号手机号</span>
+        <input type="tel" inputmode="tel" placeholder="请输入手机号" data-sub-account-phone-input="true" />
+      </label>
+      <label>
+        <span>初始分配积分</span>
+        <input type="number" min="0" step="100" placeholder="例如 1000" data-sub-account-credit-input="true" />
+      </label>
+      <div class="sub-account-add-actions">
+        <button class="admin-ghost-btn small" type="button" data-sub-account-cancel="true">取消</button>
+        <button class="admin-primary-btn small" type="button" data-sub-account-confirm="true">确认新增</button>
+      </div>
+    </section>
+  `;
+}
+
+/**
  * 渲染新增子账号的临时动画行。
  *
+ * @param {string} phone - 管理员输入的子账号手机号。
+ * @param {number} allocatedCredit - 管理员输入的初始分配积分。
  * @returns {string} 临时子账号行 HTML。
  * @throws {Error} 本函数不主动抛异常。
  */
-function renderAdminSubAccountAddedRow() {
+function renderAdminSubAccountAddedRow(phone, allocatedCredit) {
+  const safeCredit = Number.isFinite(allocatedCredit) ? Math.max(0, allocatedCredit) : 0;
+  const displayPhone = maskAdminPhone(phone);
+
   return `
     <tr class="sub-account-added-row">
       <td>
         <strong>新增子账号</strong>
-        <em>待绑定手机号</em>
+        <em>${escapeHtml(displayPhone)}</em>
       </td>
       <td>${renderUserPreviewAccountStatus("启用")}</td>
-      <td>0 分</td>
+      <td>${formatAdminCredit(safeCredit)}</td>
       <td class="admin-money-cell">0 分</td>
-      <td>0 分</td>
+      <td>${formatAdminCredit(safeCredit)}</td>
       <td>刚刚</td>
       <td>
         <div class="sub-account-row-actions">
@@ -3089,6 +3204,45 @@ function renderAdminSubAccountAddedRow() {
       </td>
     </tr>
   `;
+}
+
+/**
+ * 解析积分输入。
+ *
+ * 为什么要单独解析：
+ * - 用户可能输入逗号、空格或非数字内容。
+ * - 原型里只需要保留一个非负整数，避免表格里出现 NaN。
+ *
+ * @param {unknown} rawValue - 输入框原始值。
+ * @returns {number} 可用于展示的非负积分数。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function parseAdminCreditInput(rawValue) {
+  const normalized = String(rawValue || "").replace(/[^\d]/g, "");
+  const parsed = Number.parseInt(normalized, 10);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * 将手机号做展示脱敏。
+ *
+ * 为什么新增时也脱敏：
+ * - 原有子账号列表就是脱敏展示。
+ * - 保持一致可以避免原型里不小心暴露完整手机号。
+ *
+ * @param {string} phone - 管理员输入的手机号。
+ * @returns {string} 脱敏后的手机号；格式不符合时返回原输入。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function maskAdminPhone(phone) {
+  const trimmed = String(phone || "").trim();
+
+  if (/^\d{7,}$/.test(trimmed)) {
+    return trimmed.replace(/^(\d{3})\d+(\d{4})$/, "$1****$2");
+  }
+
+  return trimmed;
 }
 
 /**
