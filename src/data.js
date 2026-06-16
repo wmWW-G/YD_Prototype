@@ -741,17 +741,16 @@ window.KASS_FLOW_STAGES = [
  */
 window.ADMIN_NAV_ITEMS = [
   { id: "admin-home", label: "首页", icon: "▣" },
-  { id: "admin-business", label: "经营分析", icon: "◈" },
+  { id: "admin-business", label: "经营分析", icon: "◈", parent: "用户" },
   { id: "admin-user", label: "用户总表", icon: "♟", parent: "用户" },
   { id: "admin-user-pool", label: "公海客户", icon: "♟", parent: "用户" },
   { id: "admin-paid-pool", label: "付费公海", icon: "♟", parent: "用户" },
   { id: "admin-user-sales", label: "销售信息", icon: "♟", parent: "用户" },
   { id: "admin-user-active", label: "活跃用户", icon: "♟", parent: "用户" },
   { id: "admin-user-paid", label: "付费用户", icon: "♟", parent: "用户" },
-  { id: "admin-user-invited", label: "受邀用户", icon: "♟", parent: "用户" },
   { id: "admin-agent", label: "代理总览", icon: "♟", parent: "代理" },
   { id: "admin-knowledge", label: "知识库管理", icon: "☰", parent: "系统管理" },
-  { id: "admin-invite", label: "邀请码管理", icon: "◇", parent: "系统管理" },
+  { id: "admin-invite", label: "邀请码管理", icon: "◇", parent: "用户" },
   { id: "admin-character", label: "AI人设管理", icon: "♣", parent: "系统管理" },
   { id: "admin-model", label: "AI模型管理", icon: "♟", parent: "系统管理" }
 ];
@@ -860,8 +859,8 @@ window.ADMIN_USER_PREVIEW_FIELDS = [
   { id: "creditBalance", label: "剩余积分", group: "流水账" },
   { id: "runStatus", label: "成状态（成功/失败）", group: "流水账" },
   { id: "estimatedCost", label: "成本（估算）", group: "流水账" },
-  { id: "operationLog", label: "操作日志", group: "流水账" },
-  { id: "trialDetails", label: "试用详情", group: "流水账" },
+  { id: "operationLog", label: "操作", group: "流水账" },
+  { id: "trialDetails", label: "使用详情", group: "流水账" },
   { id: "userId", label: "用户ID", group: "基础" },
   { id: "username", label: "用户", group: "基础" },
   { id: "registeredAt", label: "注册时间", group: "基础" },
@@ -946,14 +945,14 @@ const ADMIN_USER_PREVIEW_RECHARGE_FIELDS = [
  * @type {Array<{ channelName: string, channelSourceId: string, inviteRegisterAccount: string, inviteRechargeAccount: string, accountStatus: string, accountActions: string }>}
  */
 const ADMIN_USER_PREVIEW_ACCOUNT_FIELDS = [
-  { channelName: "销售邀请", channelSourceId: "sales-b-m4q9", inviteRegisterAccount: "销售B", inviteRechargeAccount: "销售B", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
-  { channelName: "自然注册", channelSourceId: "organic-web", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
-  { channelName: "销售邀请", channelSourceId: "sales-a-8k2p", inviteRegisterAccount: "销售A", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
-  { channelName: "展会二维码", channelSourceId: "expo-qr-0613", inviteRegisterAccount: "销售A", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
-  { channelName: "自然注册", channelSourceId: "organic-web", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "关闭", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
-  { channelName: "搜索投放", channelSourceId: "sem-b2b-01", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
-  { channelName: "销售邀请", channelSourceId: "team-7n6c", inviteRegisterAccount: "销售主管", inviteRechargeAccount: "销售主管", accountStatus: "启用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" },
-  { channelName: "自然注册", channelSourceId: "organic-web", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "账号禁用", accountActions: "启用/关闭/加积分/关积分/账号禁用/调整子账号" }
+  { channelName: "销售邀请", channelSourceId: "sales-b-m4q9", inviteRegisterAccount: "销售B", inviteRechargeAccount: "销售B", accountStatus: "启用", accountActions: "启用/关闭/加积分/减积分/账号禁用/调整子账号" },
+  { channelName: "自然注册", channelSourceId: "organic-web", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/减积分/账号禁用/调整子账号" },
+  { channelName: "销售邀请", channelSourceId: "sales-a-8k2p", inviteRegisterAccount: "销售A", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/减积分/账号禁用/调整子账号" },
+  { channelName: "展会二维码", channelSourceId: "expo-qr-0613", inviteRegisterAccount: "销售A", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/减积分/账号禁用/调整子账号" },
+  { channelName: "自然注册", channelSourceId: "organic-web", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "关闭", accountActions: "启用/关闭/加积分/减积分/账号禁用/调整子账号" },
+  { channelName: "搜索投放", channelSourceId: "sem-b2b-01", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "启用", accountActions: "启用/关闭/加积分/减积分/账号禁用/调整子账号" },
+  { channelName: "销售邀请", channelSourceId: "team-7n6c", inviteRegisterAccount: "销售主管", inviteRechargeAccount: "销售主管", accountStatus: "启用", accountActions: "启用/关闭/加积分/减积分/账号禁用/调整子账号" },
+  { channelName: "自然注册", channelSourceId: "organic-web", inviteRegisterAccount: "-", inviteRechargeAccount: "-", accountStatus: "账号禁用", accountActions: "启用/关闭/加积分/减积分/账号禁用/调整子账号" }
 ];
 
 window.ADMIN_USER_PREVIEW_USERS.forEach((user, index) => {
@@ -963,6 +962,30 @@ window.ADMIN_USER_PREVIEW_USERS.forEach((user, index) => {
     ADMIN_USER_PREVIEW_ACCOUNT_FIELDS[index] || ADMIN_USER_PREVIEW_ACCOUNT_FIELDS[1]
   );
 });
+
+/**
+ * User Preview 子账号管理模拟数据。
+ *
+ * 为什么单独按主账号 ID 维护：
+ * - 子账号管理弹窗是从用户总表某一行进入的，需要展示该主账号名下的子账号。
+ * - 这里保留积分分配、已用、剩余和最近活跃，方便运营判断要不要调积分或停用。
+ * - 当前仍是静态原型数据，不代表真实账号或真实手机号。
+ *
+ * @type {Record<string, Array<{ id: string, name: string, phone: string, status: string, allocatedCredit: number, usedCredit: number, remainingCredit: number, lastActiveAt: string }>>}
+ */
+window.ADMIN_USER_PREVIEW_SUB_ACCOUNTS = {
+  "U-10001": [
+    { id: "SUB-10001-1", name: "外贸业务A", phone: "180****2011", status: "启用", allocatedCredit: 3000, usedCredit: 1260, remainingCredit: 1740, lastActiveAt: "2026/06/13 15:20" },
+    { id: "SUB-10001-2", name: "运营助理", phone: "180****2012", status: "启用", allocatedCredit: 1200, usedCredit: 460, remainingCredit: 740, lastActiveAt: "2026/06/13 11:42" },
+    { id: "SUB-10001-3", name: "跟单同事", phone: "180****2013", status: "停用", allocatedCredit: 800, usedCredit: 780, remainingCredit: 20, lastActiveAt: "2026/06/10 18:06" }
+  ],
+  "U-10007": [
+    { id: "SUB-10007-1", name: "销售一组", phone: "178****7101", status: "启用", allocatedCredit: 12000, usedCredit: 6800, remainingCredit: 5200, lastActiveAt: "2026/06/13 12:30" },
+    { id: "SUB-10007-2", name: "展会组", phone: "178****7102", status: "启用", allocatedCredit: 9000, usedCredit: 3520, remainingCredit: 5480, lastActiveAt: "2026/06/13 09:18" },
+    { id: "SUB-10007-3", name: "客服组", phone: "178****7103", status: "启用", allocatedCredit: 7000, usedCredit: 2160, remainingCredit: 4840, lastActiveAt: "2026/06/12 21:06" },
+    { id: "SUB-10007-4", name: "只读观察", phone: "178****7104", status: "停用", allocatedCredit: 1000, usedCredit: 120, remainingCredit: 880, lastActiveAt: "2026/06/08 16:40" }
+  ]
+};
 
 /**
  * 经营分析 - 三大核心数字。
@@ -1162,22 +1185,6 @@ window.ADMIN_PAID_USER_ROWS = [
   { id: 5, username: "186****8810", plan: "专业版月付", paidAt: "2026/06/01", expireAt: "2026/06/22", renewalCountdown: "9 天", status: "续费提醒" },
   { id: 6, username: "162****1190", plan: "专业版月付", paidAt: "2026/05/21", expireAt: "2026/07/09", renewalCountdown: "26 天", status: "正常" },
   { id: 7, username: "159****8077", plan: "团队版年付", paidAt: "2026/05/01", expireAt: "2027/05/01", renewalCountdown: "320 天", status: "正常" }
-];
-
-/**
- * 后台 · 受邀用户 (通过邀请码注册)。
- *
- * activated / paid 字段是中文文案 (是 / 否), 直接铺到表格不再额外转换。
- *
- * @type {Array<{ id: number, username: string, inviteCode: string, inviter: string, registeredAt: string, activated: string, paid: string }>}
- */
-window.ADMIN_INVITED_USER_ROWS = [
-  { id: 1, username: "180****9154", inviteCode: "YD-TRY-M4Q9", inviter: "销售B", registeredAt: "2026/06/08 01:27", activated: "是", paid: "是" },
-  { id: 2, username: "136****9392", inviteCode: "YD-TRY-8K2P", inviter: "销售A", registeredAt: "2026/06/13 09:51", activated: "是", paid: "否" },
-  { id: 3, username: "178****7070", inviteCode: "YD-TEAM-7N6C", inviter: "销售主管", registeredAt: "2026/06/13 09:49", activated: "是", paid: "是" },
-  { id: 4, username: "158****8358", inviteCode: "YD-EXPO-0613", inviter: "销售A", registeredAt: "2026/06/13 10:02", activated: "是", paid: "否" },
-  { id: 5, username: "162****1190", inviteCode: "YD-TRY-PRO5", inviter: "销售B", registeredAt: "2026/05/21 14:08", activated: "是", paid: "是" },
-  { id: 6, username: "133****2204", inviteCode: "YD-TRY-M4Q9", inviter: "销售B", registeredAt: "2026/06/10 08:55", activated: "否", paid: "否" }
 ];
 
 /**

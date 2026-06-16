@@ -1,4 +1,4 @@
-/* global NAV_GROUPS, HISTORY_ITEMS, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
+/* global NAV_GROUPS, HISTORY_ITEMS, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_USER_PREVIEW_SUB_ACCOUNTS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
 
 /**
  * 页面级状态对象。
@@ -437,6 +437,8 @@ function openAdminDialog(dialog, scrollSnapshot = null) {
   host.insertAdjacentHTML("beforeend", renderAdminDialog());
   restoreAdminWorkspaceScroll(snapshot);
   bindAdminDialogSurfaceEvents();
+  bindAdminActionControls();
+  bindAdminSubAccountControls();
   bindUserPreviewReportControls();
 }
 
@@ -560,14 +562,79 @@ function bindAdminDialogOpenControls() {
     button.dataset.adminDialogOpenBound = "true";
     button.addEventListener("mousedown", (event) => {
       event.preventDefault();
+      const operationUserId = button.getAttribute("data-user-preview-operation");
+      if (operationUserId) {
+        state.activeUserPreviewOperationId = operationUserId;
+      }
       adminWorkspaceScrollSnapshot = getAdminWorkspaceScrollSnapshot();
     });
 
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      const operationUserId = button.getAttribute("data-user-preview-operation");
+      if (operationUserId) {
+        state.activeUserPreviewOperationId = operationUserId;
+      }
       openAdminDialog(button.getAttribute("data-admin-dialog"), adminWorkspaceScrollSnapshot);
       adminWorkspaceScrollSnapshot = null;
+    });
+  });
+}
+
+/**
+ * 绑定后台原型反馈按钮。
+ *
+ * 为什么单独拆出来：
+ * - User Preview 字段报表会局部替换表格 HTML。
+ * - 局部替换后，新出现的启用/关闭等反馈按钮也需要重新绑定。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function bindAdminActionControls() {
+  document.querySelectorAll("[data-admin-action]").forEach((node) => {
+    if (node.dataset.adminActionBound === "true") {
+      return;
+    }
+
+    node.dataset.adminActionBound = "true";
+    node.addEventListener("click", () => {
+      const message = node.getAttribute("data-admin-action") || "后台操作已触发。";
+      showToast(message);
+    });
+  });
+}
+
+/**
+ * 绑定子账号管理弹窗里的原型交互。
+ *
+ * 为什么只做 DOM 动画：
+ * - 当前后台是静态原型，不写入真实数据。
+ * - 点击“新增子账号”后插入一条临时行，能表达新增后的视觉反馈和管理入口。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function bindAdminSubAccountControls() {
+  document.querySelectorAll("[data-sub-account-add]").forEach((button) => {
+    if (button.dataset.subAccountAddBound === "true") {
+      return;
+    }
+
+    button.dataset.subAccountAddBound = "true";
+    button.addEventListener("click", () => {
+      const tbody = document.querySelector(".sub-account-usage-table tbody");
+
+      if (!tbody) {
+        showToast("新增子账号是原型反馈，不创建真实账号。");
+        return;
+      }
+
+      tbody.querySelector(".sub-account-added-row")?.remove();
+      tbody.insertAdjacentHTML("afterbegin", renderAdminSubAccountAddedRow());
+      bindAdminActionControls();
+      showToast("已模拟新增子账号，临时行已加入列表。");
     });
   });
 }
@@ -708,7 +775,6 @@ function renderAdminWorkspace() {
   if (state.activeMain === "admin-user-sales") return renderAdminUserSales();
   if (state.activeMain === "admin-user-active") return renderAdminActiveUsers();
   if (state.activeMain === "admin-user-paid") return renderAdminPaidUsers();
-  if (state.activeMain === "admin-user-invited") return renderAdminInvitedUsers();
   if (state.activeMain === "admin-agent") return renderAdminAgents();
   if (state.activeMain === "admin-invite") return renderAdminInviteCodes();
   if (state.activeMain === "admin-model") return renderAdminModels();
@@ -1127,15 +1193,14 @@ function renderUserPreviewUserCell(user, field) {
     `;
   }
 
+  if (field.id === "operationLog") {
+    return renderUserPreviewOperationDropdown(user, stickyClass);
+  }
+
   if (field.id === "accountActions") {
     return `
       <td class="${stickyClass}">
-        <select class="user-preview-account-action-select" data-user-preview-account-action="${escapeHtml(user.userId || "")}" aria-label="${escapeHtml(user.userContact || user.username || "用户")}账户操作">
-          <option value="">操作</option>
-          ${["启用", "关闭", "加积分", "关积分", "账号禁用", "调整子账号"].map((action) => `
-            <option value="${escapeHtml(action)}">${escapeHtml(action)}</option>
-          `).join("")}
-        </select>
+        ${renderUserPreviewOperationSelect(user)}
       </td>
     `;
   }
@@ -1143,6 +1208,80 @@ function renderUserPreviewUserCell(user, field) {
   return `
     <td class="${stickyClass} ${moneyClass}">${escapeHtml(user[field.id] || "-")}</td>
   `;
+}
+
+/**
+ * 渲染 User Preview 宽表里的账号操作下拉。
+ *
+ * 为什么把原来的日志列改成下拉：
+ * - 产品运营在用户总表里需要直接处理账号，而不是只看日志入口。
+ * - 操作项继续通过弹窗模拟，不会真的启停账号或改积分，避免演示时产生副作用。
+ *
+ * @param {Record<string, string>} user - 当前行用户数据。
+ * @param {string} stickyClass - 当前字段需要继承的冻结列样式。
+ * @returns {string} 操作单元格 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewOperationDropdown(user, stickyClass) {
+  return `
+    <td class="${stickyClass}">
+      <div class="user-preview-operation-dropdown">
+        ${renderUserPreviewOperationSelect(user)}
+      </div>
+    </td>
+  `;
+}
+
+/**
+ * 渲染用户总表里复用的操作下拉。
+ *
+ * 为什么单独拆出来：
+ * - 默认“操作”列和可选的“账户操作”字段都应该是一套入口。
+ * - 统一 value 后，事件绑定可以稳定地映射到不同弹窗，不依赖中文文案判断。
+ *
+ * @param {Record<string, string>} user - 当前行用户数据。
+ * @returns {string} 下拉框 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderUserPreviewOperationSelect(user) {
+  const userId = user.userId || "";
+  const userLabel = user.userContact || user.username || userId || "用户";
+  const options = getUserPreviewOperationOptions(user);
+
+  return `
+    <select class="user-preview-account-action-select" data-user-preview-operation-select="${escapeHtml(userId)}" aria-label="${escapeHtml(userLabel)}账户操作">
+      <option value="">选择操作</option>
+      ${options.map((option) => `
+        <option value="${escapeHtml(option.value)}" data-user-preview-operation-action="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>
+      `).join("")}
+    </select>
+  `;
+}
+
+/**
+ * 生成用户总表的账号操作列表。
+ *
+ * 为什么根据状态生成第一项：
+ * - 启用中的账号最常见动作是关闭。
+ * - 已关闭或禁用的账号最常见动作是重新启用。
+ *
+ * @param {Record<string, string>} user - 当前行用户数据。
+ * @returns {Array<{ value: string, label: string }>} 下拉选项配置。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getUserPreviewOperationOptions(user) {
+  const isEnabled = (user.accountStatus || "启用") === "启用";
+  const statusOption = isEnabled
+    ? { value: "status-close", label: "关闭账号" }
+    : { value: "status-enable", label: "启用账号" };
+
+  return [
+    statusOption,
+    { value: "points-add", label: "加积分" },
+    { value: "points-close", label: "减积分" },
+    { value: "sub-account", label: "调整子账号" },
+    { value: "status-disable", label: "禁用账号" }
+  ];
 }
 
 /**
@@ -1247,6 +1386,7 @@ function refreshUserPreviewReport() {
 
   report.outerHTML = renderUserPreviewReportBuilder();
   bindAdminDialogOpenControls();
+  bindAdminActionControls();
   bindUserPreviewReportControls();
 
   if (workspace) {
@@ -2104,60 +2244,6 @@ function renderAdminPaidUsers() {
 }
 
 /**
- * 受邀用户 (通过邀请码注册) 页面。
- *
- * @returns {string} 页面 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderAdminInvitedUsers() {
-  const activated = ADMIN_INVITED_USER_ROWS.filter((r) => r.activated === "是").length;
-  const paid = ADMIN_INVITED_USER_ROWS.filter((r) => r.paid === "是").length;
-  const stats = [
-    { label: "受邀注册", value: String(ADMIN_INVITED_USER_ROWS.length), tone: "default" },
-    { label: "激活率", value: `${Math.round(activated / ADMIN_INVITED_USER_ROWS.length * 100)}%`, tone: "good" },
-    { label: "付费率", value: `${Math.round(paid / ADMIN_INVITED_USER_ROWS.length * 100)}%`, tone: "good" },
-    { label: "未激活", value: String(ADMIN_INVITED_USER_ROWS.length - activated), tone: "warn" }
-  ];
-  return `
-    <article class="admin-card">
-      <header class="admin-card-head">
-        <div>
-          <h3>受邀用户</h3>
-          <p class="admin-card-subtitle">通过邀请码注册的用户,追踪每个邀请码的激活和付费表现。</p>
-        </div>
-        <div class="admin-head-actions">
-          <a class="admin-outline-btn" href="#/admin/invite-code" data-admin-route="admin-invite">查看邀请码批次</a>
-          <button class="admin-primary-btn" type="button" data-admin-action="已模拟导出受邀用户名单。">导出名单</button>
-        </div>
-      </header>
-      ${renderAdminPageStats(stats)}
-      ${renderAdminSegmentFilter({ keywordPlaceholder: "搜索邀请码 / 邀请人 / 手机号" })}
-      <div class="admin-table-scroll">
-        <table class="admin-table">
-          <thead>
-            <tr><th>序号</th><th>用户</th><th>邀请码</th><th>邀请人</th><th>注册时间</th><th>是否激活</th><th>是否付费</th></tr>
-          </thead>
-          <tbody>
-            ${ADMIN_INVITED_USER_ROWS.map((row) => `
-              <tr>
-                <td>${row.id}</td>
-                <td>${escapeHtml(row.username)}</td>
-                <td><code>${escapeHtml(row.inviteCode)}</code></td>
-                <td>${escapeHtml(row.inviter)}</td>
-                <td>${escapeHtml(row.registeredAt)}</td>
-                <td>${renderAdminTag(row.activated)}</td>
-                <td>${renderAdminTag(row.paid)}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </div>
-      ${renderAdminPagination(ADMIN_INVITED_USER_ROWS.length, 1, false)}
-    </article>
-  `;
-}
-
-/**
  * 代理总览 (经销代理列表) 页面。
  *
  * @returns {string} 页面 HTML。
@@ -2459,6 +2545,9 @@ function renderAdminDialog() {
     "points-add": renderAdminPointsDialog,
     "points-close": renderAdminClosePointsDialog,
     "sub-account": renderAdminSubAccountDialog,
+    "status-enable": () => renderAdminAccountStatusDialog("启用账号", "启用后，该用户可以继续登录并使用账号额度。", "启用原因", "请输入启用原因"),
+    "status-close": () => renderAdminAccountStatusDialog("关闭账号", "关闭后，该用户暂时不可继续使用账号；后台可再次启用。", "关闭原因", "请输入关闭原因"),
+    "status-disable": () => renderAdminAccountStatusDialog("禁用账号", "禁用用于处理异常账号；建议备注触发原因和后续处理人。", "禁用原因", "请输入禁用原因"),
     "character-add": () => renderAdminCharacterDialog("新增AI人设"),
     "character-edit": () => renderAdminCharacterDialog("编辑AI人设"),
     "character-extend": renderAdminCharacterExtendDialog,
@@ -2482,9 +2571,9 @@ function renderAdminDialog() {
 }
 
 /**
- * 渲染单个用户试用详情弹窗。
+ * 渲染单个用户使用详情弹窗。
  *
- * @returns {string} 试用详情弹窗 HTML。
+ * @returns {string} 使用详情弹窗 HTML。
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderUserPreviewDetailDialog() {
@@ -2503,7 +2592,7 @@ function renderUserPreviewDetailDialog() {
       <span class="trial-detail-status">${escapeHtml(user.paidStatus || "免费版")}</span>
     </header>
 
-    <section class="trial-detail-filterbar" aria-label="试用详情筛选">
+    <section class="trial-detail-filterbar" aria-label="使用详情筛选">
       <label>
         <span>时间筛选</span>
         <select>
@@ -2539,6 +2628,25 @@ function renderUserPreviewDetailDialog() {
       <div>
         <span>输出 Token</span>
         <strong>${totalOutput.toLocaleString()}</strong>
+      </div>
+    </section>
+
+    <section class="trial-detail-summary" aria-label="用户来源和邀请信息">
+      <div>
+        <span>注册来源</span>
+        <strong>${escapeHtml(user.registerSource || "-")}</strong>
+      </div>
+      <div>
+        <span>邀请码</span>
+        <strong>${escapeHtml(user.inviteCode || "-")}</strong>
+      </div>
+      <div>
+        <span>所属销售</span>
+        <strong>${escapeHtml(user.salesOwner || "-")}</strong>
+      </div>
+      <div>
+        <span>兑换时间</span>
+        <strong>${escapeHtml(user.redeemedInviteAt || "-")}</strong>
       </div>
     </section>
 
@@ -2580,7 +2688,7 @@ function renderUserPreviewDetailDialog() {
 }
 
 /**
- * 生成单个用户试用详情的明细行。
+ * 生成单个用户使用详情的明细行。
  *
  * @param {Record<string, string>} user - 当前用户。
  * @returns {Array<{ time: string, user: string, feature: string, model: string, callCount: string, inputToken: string, outputToken: string, totalToken: string, status: string, cost: string }>} 详情行。
@@ -2817,18 +2925,18 @@ function renderAdminPointsDialog() {
 }
 
 /**
- * 关积分弹窗。
+ * 减积分弹窗。
  *
  * @returns {string} 弹窗内容 HTML。
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderAdminClosePointsDialog() {
   return `
-    <h3>关积分</h3>
+    <h3>减积分</h3>
     ${renderUserPreviewOperationContext()}
     <div class="admin-form-grid">
       ${renderAdminInput("扣减积分", "请输入要扣减或关闭的积分数量", true)}
-      ${renderAdminInput("备注", "请输入关积分原因", false)}
+      ${renderAdminInput("备注", "请输入减积分原因", false)}
     </div>
     ${renderAdminDialogActions("确 定")}
   `;
@@ -2841,12 +2949,170 @@ function renderAdminClosePointsDialog() {
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderAdminSubAccountDialog() {
+  const user = getActiveUserPreviewOperationUser();
+  const subAccounts = getActiveUserPreviewSubAccounts();
+
   return `
-    <h3>调整子账号</h3>
+    <h3>子账号管理</h3>
     ${renderUserPreviewOperationContext()}
+    <p class="admin-dialog-hint">用于查看现有子账号、各子账号积分使用情况，并对单个子账号执行停用、调积分等管理动作；当前仍是原型反馈，不会修改真实账号。</p>
+    ${renderAdminSubAccountSeatOverview(user, subAccounts)}
+    ${renderAdminSubAccountUsageTable(subAccounts)}
+    ${renderAdminDialogActions("确 定")}
+  `;
+}
+
+/**
+ * 渲染子账号管理弹窗里的当前席位概览。
+ *
+ * 为什么这里按子账号数据汇总：
+ * - 当前项目是静态原型，没有真实团队席位接口。
+ * - 但运营评审时需要看到“现有子账号 + 积分使用情况”的管理口径。
+ *
+ * @param {Record<string, string> | undefined} user - 当前操作用户。
+ * @param {Array<Record<string, string | number>>} subAccounts - 当前用户名下子账号。
+ * @returns {string} 席位概览 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminSubAccountSeatOverview(user, subAccounts) {
+  const paidStatus = user?.paidStatus || "免费版";
+  const activeCount = subAccounts.filter((item) => item.status === "启用").length;
+  const summary = getSubAccountCreditSummary(subAccounts);
+
+  return `
+    <section class="sub-account-seat-overview" aria-label="当前席位概览">
+      <header>
+        <span>现有子账号</span>
+        <strong>${escapeHtml(paidStatus)}</strong>
+      </header>
+      <div class="sub-account-seat-grid">
+        <div><span>主账号保留</span><strong>${escapeHtml(user?.userContact || user?.username || "-")}</strong></div>
+        <div><span>启用子账号</span><strong>${activeCount} / ${subAccounts.length} 个</strong></div>
+        <div><span>分配积分</span><strong>${formatAdminCredit(summary.allocated)}</strong></div>
+        <div><span>已用积分</span><strong>${formatAdminCredit(summary.used)}</strong></div>
+        <div><span>剩余积分</span><strong>${formatAdminCredit(summary.remaining)}</strong></div>
+        <div><span>最近活跃</span><strong>${escapeHtml(subAccounts[0]?.lastActiveAt || "-")}</strong></div>
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * 渲染子账号积分使用情况表。
+ *
+ * @param {Array<Record<string, string | number>>} subAccounts - 当前用户名下子账号。
+ * @returns {string} 子账号用量表 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminSubAccountUsageTable(subAccounts) {
+  if (!subAccounts.length) {
+    return `
+      <section class="sub-account-usage-panel" aria-label="子账号积分使用情况">
+        <header>
+          <strong>子账号积分使用情况</strong>
+          <button class="admin-primary-btn small" type="button" data-sub-account-add="true">新增子账号</button>
+        </header>
+        <div class="admin-empty-cell">当前主账号下暂无子账号。</div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="sub-account-usage-panel" aria-label="子账号积分使用情况">
+      <header>
+        <strong>子账号积分使用情况</strong>
+        <button class="admin-primary-btn small" type="button" data-sub-account-add="true">新增子账号</button>
+      </header>
+      <div class="admin-table-scroll">
+        <table class="admin-table sub-account-usage-table">
+          <thead>
+            <tr>
+              <th>子账号</th>
+              <th>状态</th>
+              <th>分配积分</th>
+              <th>已用积分</th>
+              <th>剩余积分</th>
+              <th>最近活跃</th>
+              <th>管理动作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${subAccounts.map((item) => `
+              <tr>
+                <td>
+                  <strong>${escapeHtml(item.name)}</strong>
+                  <em>${escapeHtml(item.phone)}</em>
+                </td>
+                <td>${renderUserPreviewAccountStatus(String(item.status || "启用"))}</td>
+                <td>${formatAdminCredit(item.allocatedCredit)}</td>
+                <td class="admin-money-cell">${formatAdminCredit(item.usedCredit)}</td>
+                <td>${formatAdminCredit(item.remainingCredit)}</td>
+                <td>${escapeHtml(item.lastActiveAt)}</td>
+                <td>
+                  <div class="sub-account-row-actions">
+                    <button class="admin-danger-link" type="button" data-admin-action="已模拟停用 ${escapeHtml(item.name)}。">停用</button>
+                    <button class="admin-success-link" type="button" data-admin-action="已打开 ${escapeHtml(item.name)} 的积分调整入口。">调积分</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * 渲染新增子账号的临时动画行。
+ *
+ * @returns {string} 临时子账号行 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminSubAccountAddedRow() {
+  return `
+    <tr class="sub-account-added-row">
+      <td>
+        <strong>新增子账号</strong>
+        <em>待绑定手机号</em>
+      </td>
+      <td>${renderUserPreviewAccountStatus("启用")}</td>
+      <td>0 分</td>
+      <td class="admin-money-cell">0 分</td>
+      <td>0 分</td>
+      <td>刚刚</td>
+      <td>
+        <div class="sub-account-row-actions">
+          <button class="admin-danger-link" type="button" data-admin-action="已模拟停用新增子账号。">停用</button>
+          <button class="admin-success-link" type="button" data-admin-action="已打开新增子账号的积分调整入口。">调积分</button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+/**
+ * 渲染账号状态操作弹窗。
+ *
+ * 为什么状态操作也做弹窗：
+ * - 启用、关闭、禁用都会影响用户能否继续使用账号。
+ * - 原型阶段先让运营看到“需要确认和备注”的后台动作形态。
+ *
+ * @param {string} title - 弹窗标题。
+ * @param {string} description - 状态操作说明。
+ * @param {string} reasonLabel - 原因输入框标题。
+ * @param {string} reasonPlaceholder - 原因输入框占位提示。
+ * @returns {string} 状态操作弹窗 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminAccountStatusDialog(title, description, reasonLabel, reasonPlaceholder) {
+  return `
+    <h3>${escapeHtml(title)}</h3>
+    ${renderUserPreviewOperationContext()}
+    <p class="admin-dialog-hint">${escapeHtml(description)}</p>
     <div class="admin-form-grid">
-      ${renderAdminInput("子账号数量", "请输入子账号数量", true)}
-      ${renderAdminInput("备注", "请输入操作备注", false)}
+      ${renderAdminInput(reasonLabel, reasonPlaceholder, true)}
+      ${renderAdminInput("备注", "请输入内部备注", false)}
     </div>
     ${renderAdminDialogActions("确 定")}
   `;
@@ -2867,7 +3133,7 @@ function renderUserPreviewOperationContext() {
     return "";
   }
 
-  const user = ADMIN_USER_PREVIEW_USERS.find((item) => item.userId === state.activeUserPreviewOperationId);
+  const user = getActiveUserPreviewOperationUser();
 
   if (!user) {
     return "";
@@ -2880,6 +3146,60 @@ function renderUserPreviewOperationContext() {
       <em>${escapeHtml(user.userId || "-")} · ${escapeHtml(user.paidStatus || "免费版")}</em>
     </div>
   `;
+}
+
+/**
+ * 读取当前正在操作的 User Preview 用户。
+ *
+ * @returns {Record<string, string> | undefined} 当前用户数据；找不到时返回 undefined。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getActiveUserPreviewOperationUser() {
+  return ADMIN_USER_PREVIEW_USERS.find((item) => item.userId === state.activeUserPreviewOperationId);
+}
+
+/**
+ * 读取当前主账号名下的子账号。
+ *
+ * @returns {Array<Record<string, string | number>>} 当前用户的子账号列表。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getActiveUserPreviewSubAccounts() {
+  const user = getActiveUserPreviewOperationUser();
+  const userId = user?.userId || "";
+  return ADMIN_USER_PREVIEW_SUB_ACCOUNTS[userId] || [];
+}
+
+/**
+ * 汇总子账号积分。
+ *
+ * 为什么单独汇总：
+ * - 弹窗顶部需要给运营一个快速判断：总共分了多少、用了多少、还剩多少。
+ * - 表格继续保留单个子账号明细，避免汇总数字失去来源。
+ *
+ * @param {Array<Record<string, string | number>>} subAccounts - 当前主账号名下子账号。
+ * @returns {{ allocated: number, used: number, remaining: number }} 积分汇总。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getSubAccountCreditSummary(subAccounts) {
+  return subAccounts.reduce((summary, item) => {
+    summary.allocated += Number(item.allocatedCredit || 0);
+    summary.used += Number(item.usedCredit || 0);
+    summary.remaining += Number(item.remainingCredit || 0);
+    return summary;
+  }, { allocated: 0, used: 0, remaining: 0 });
+}
+
+/**
+ * 格式化后台积分数字。
+ *
+ * @param {string | number | undefined} value - 积分数。
+ * @returns {string} 带千分位的积分文本。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function formatAdminCredit(value) {
+  const number = Number(value || 0);
+  return `${number.toLocaleString()} 分`;
 }
 
 /**
@@ -3048,6 +3368,39 @@ function renderAdminSelect(label, options, required) {
 }
 
 /**
+ * 渲染带说明文字的后台下拉框。
+ *
+ * @param {string} label - 字段名。
+ * @param {string[]} options - 下拉选项。
+ * @param {boolean} required - 是否必填。
+ * @param {string} hint - 字段下方说明文字。
+ * @returns {string} 表单字段 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminSelectField(label, options, required, hint) {
+  return `
+    <label class="admin-form-field">
+      <span>${required ? "<strong>*</strong> " : ""}${escapeHtml(label)}</span>
+      <select>
+        ${options.map((option) => `<option>${escapeHtml(option)}</option>`).join("")}
+      </select>
+      ${renderAdminFieldHint(hint)}
+    </label>
+  `;
+}
+
+/**
+ * 渲染后台表单字段说明。
+ *
+ * @param {string} hint - 字段说明文字。
+ * @returns {string} 字段说明 HTML；没有说明时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminFieldHint(hint) {
+  return hint ? `<em>${escapeHtml(hint)}</em>` : "";
+}
+
+/**
  * 渲染后台单选组。
  *
  * @param {string} label - 字段名。
@@ -3182,7 +3535,6 @@ function hashForAdminMain(main) {
     "admin-user-sales": "#/admin/sales",
     "admin-user-active": "#/admin/active-user",
     "admin-user-paid": "#/admin/paid-user",
-    "admin-user-invited": "#/admin/invited-user",
     "admin-agent": "#/admin/agent",
     "admin-invite": "#/admin/invite-code",
     "admin-character": "#/admin/ai-character",
@@ -5593,12 +5945,7 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll("[data-admin-action]").forEach((node) => {
-    node.addEventListener("click", () => {
-      const message = node.getAttribute("data-admin-action") || "后台操作已触发。";
-      showToast(message);
-    });
-  });
+  bindAdminActionControls();
 
   document.querySelectorAll("[data-admin-invite-generate]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -6121,15 +6468,15 @@ function bindEvents() {
  * @throws {Error} 本函数不主动抛异常。
  */
 function bindUserPreviewReportControls() {
-  document.querySelectorAll("[data-user-preview-account-action]").forEach((select) => {
-    if (select.dataset.userPreviewAccountActionBound === "true") {
+  document.querySelectorAll("[data-user-preview-operation-select]").forEach((select) => {
+    if (select.dataset.userPreviewOperationBound === "true") {
       return;
     }
 
-    select.dataset.userPreviewAccountActionBound = "true";
+    select.dataset.userPreviewOperationBound = "true";
     select.addEventListener("change", () => {
       const action = select.value;
-      const userId = select.getAttribute("data-user-preview-account-action") || "U-10001";
+      const userId = select.getAttribute("data-user-preview-operation-select") || "U-10001";
 
       if (!action) {
         return;
@@ -6137,23 +6484,7 @@ function bindUserPreviewReportControls() {
 
       state.activeUserPreviewOperationId = userId;
       select.value = "";
-
-      if (action === "加积分") {
-        openAdminDialog("points-add", getAdminWorkspaceScrollSnapshot());
-        return;
-      }
-
-      if (action === "关积分") {
-        openAdminDialog("points-close", getAdminWorkspaceScrollSnapshot());
-        return;
-      }
-
-      if (action === "调整子账号") {
-        openAdminDialog("sub-account", getAdminWorkspaceScrollSnapshot());
-        return;
-      }
-
-      showToast(`${action}是原型反馈，不修改真实账号。`);
+      openUserPreviewOperationDialog(action);
     });
   });
 
@@ -6302,6 +6633,36 @@ function bindUserPreviewReportControls() {
       refreshUserPreviewReport();
     });
   });
+}
+
+/**
+ * 根据用户总表操作下拉的 value 打开对应弹窗。
+ *
+ * 为什么使用 value 映射：
+ * - 下拉文案后续可能会继续调整，例如“关闭账号”改为“暂停账号”。
+ * - 稳定的 value 可以让交互逻辑不跟着中文文案一起改。
+ *
+ * @param {string} action - 操作下拉的稳定 value。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function openUserPreviewOperationDialog(action) {
+  const dialogMap = {
+    "status-enable": "status-enable",
+    "status-close": "status-close",
+    "status-disable": "status-disable",
+    "points-add": "points-add",
+    "points-close": "points-close",
+    "sub-account": "sub-account"
+  };
+  const dialog = dialogMap[action];
+
+  if (!dialog) {
+    showToast("该操作暂未配置弹窗。");
+    return;
+  }
+
+  openAdminDialog(dialog, getAdminWorkspaceScrollSnapshot());
 }
 
 /**
@@ -6711,7 +7072,6 @@ const ROUTES = [
   { hash: "/admin/sales", main: "admin-user-sales" },
   { hash: "/admin/active-user", main: "admin-user-active" },
   { hash: "/admin/paid-user", main: "admin-user-paid" },
-  { hash: "/admin/invited-user", main: "admin-user-invited" },
   { hash: "/admin/agent", main: "admin-agent" },
   { hash: "/admin/invite-code", main: "admin-invite" },
   { hash: "/admin/ai-character", main: "admin-character" },
