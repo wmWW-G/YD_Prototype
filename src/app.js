@@ -4534,7 +4534,6 @@ function renderFlowView() {
           ${renderListBlock("注意事项", activeStage.tips)}
           ${renderFlowMaterialPreviews(activeStage)}
           ${renderFlowVideoCard(activeStage)}
-          ${renderFlowCustomerMiniList(activeStage)}
         </section>
       </section>
     </div>
@@ -4768,39 +4767,6 @@ function renderAiTypingBubble() {
         <span class="typing-dot"></span>
       </div>
     </div>
-  `;
-}
-
-/**
- * 渲染"我在该阶段的客户"侧块。
- *
- * @param {typeof TRADE_STAGES[number]} stage - 当前阶段。
- * @returns {string} 客户列表 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderFlowCustomerMiniList(stage) {
-  const customers = (window.FLOW_STAGE_CUSTOMERS || {})[stage.id] || [];
-
-  return `
-    <article class="detail-block flow-customer-mini">
-      <header class="flow-customer-mini-head">
-        <h4>我在「${escapeHtml(stage.title)}」阶段的客户</h4>
-        <span class="flow-customer-mini-count">${customers.length} 个客户</span>
-      </header>
-      ${customers.length ? `
-        <ul class="flow-customer-mini-list">
-          ${customers.map((c) => `
-            <li>
-              <a class="flow-customer-mini-row" href="#/customer-kass/${escapeHtml(c.group)}">
-                <span class="flow-customer-mini-name">${escapeHtml(c.name)}</span>
-                <span class="flow-customer-mini-meta">${escapeHtml(c.country)} · ${escapeHtml(c.industry)}</span>
-                <span class="flow-customer-mini-group">Kass ${escapeHtml(c.group)} →</span>
-              </a>
-            </li>
-          `).join("")}
-        </ul>
-      ` : `<p class="flow-customer-mini-empty">这个阶段暂时没有你跟进中的客户。</p>`}
-    </article>
   `;
 }
 

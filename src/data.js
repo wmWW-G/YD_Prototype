@@ -354,57 +354,6 @@ window.TRADE_STAGES = [
 ];
 
 /**
- * 阶段 → 我自己 KASS 客户的反查表。
- *
- * 为什么单独建一份：
- * - 业务员在 Flow 里需要看到"我在该阶段还有哪些客户"。
- * - 数据可以和 `KASS_GROUPS` 分开，不污染线上 1:1 复刻的 A/B 分组页。
- * - 后续接真实接口时只需替换 stage → customers[] 的映射。
- *
- * @type {Record<string, Array<{ name: string, country: string, industry: string, group: "A" | "B" }>>}
- */
-window.FLOW_STAGE_CUSTOMERS = {
-  lead: [
-    { name: "Sunbright Energy", country: "Egypt", industry: "EPC", group: "A" },
-    { name: "Mid-East Solar Co.", country: "UAE", industry: "Distributor", group: "A" },
-    { name: "Latam Power Hub", country: "Mexico", industry: "Project", group: "B" }
-  ],
-  background: [
-    { name: "Bravo Trade LLC", country: "Saudi Arabia", industry: "Distributor", group: "B" }
-  ],
-  inquiry: [
-    { name: "Yellow Door Energy", country: "UAE", industry: "Solar", group: "A" },
-    { name: "Atlas Renewables", country: "Spain", industry: "EPC", group: "A" }
-  ],
-  opportunity: [
-    { name: "PT Surya Mandiri", country: "Indonesia", industry: "Brand", group: "A" }
-  ],
-  "first-reply": [
-    { name: "Verde Soluciones", country: "Chile", industry: "Distributor", group: "B" }
-  ],
-  "follow-up": [
-    { name: "Greenstone EPC", country: "Kenya", industry: "EPC", group: "A" },
-    { name: "Kappa Solar", country: "Greece", industry: "Retail", group: "A" }
-  ],
-  trust: [
-    { name: "Bayut Power", country: "UAE", industry: "Project", group: "A" }
-  ],
-  check: [
-    { name: "Vento Pacific", country: "Australia", industry: "Distributor", group: "B" }
-  ],
-  quote: [
-    { name: "Orion Solar S.A.", country: "Argentina", industry: "Brand", group: "A" }
-  ],
-  sample: [],
-  "bulk-order": [
-    { name: "Northern Lights AB", country: "Sweden", industry: "Retail", group: "A" }
-  ],
-  repurchase: [
-    { name: "Cairo Energy Group", country: "Egypt", industry: "EPC", group: "B" }
-  ]
-};
-
-/**
  * 升级套餐：当前展示 3 档。
  *
  * 字段说明：

@@ -170,7 +170,7 @@ reverse-yingdan/
 | `#/admin/invite-code` | 后台管理 > 邀请码管理 |
 | `#/admin/ai-character` | 后台管理 > AI 人设管理 |
 | `#/admin/ai-model` | 后台管理 > AI 模型管理 |
-| `#/sales-prep/flow` | 销售准备 > 外贸流程 Flow：问 AI 按钮 + 本阶段客户 mini 列表 + 资料预览卡 + 教学视频 |
+| `#/sales-prep/flow` | 销售准备 > 外贸流程 Flow：问 AI 按钮 + 资料预览卡 + 教学视频 |
 | `#/sales-prep/company` | 销售准备 > 了解公司 |
 | `#/sales-prep/market` | 销售准备 > 产品&市场 |
 | `#/sales-prep/cases` | 销售准备 > 案例知识库 |
