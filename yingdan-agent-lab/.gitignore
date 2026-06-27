@@ -1,0 +1,8 @@
+.env
+node_modules/
+npm-debug.log*
+.DS_Store
+agent-thread-prototype/.npm-cache/
+agent-thread-prototype/dist/
+workbench/artifacts/
+workbench/runs/

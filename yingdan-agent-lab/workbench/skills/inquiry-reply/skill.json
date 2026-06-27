@@ -1,0 +1,15 @@
+{
+  "id": "inquiry-reply",
+  "name": "询盘分析回复",
+  "allowedActions": [
+    "analyze_inquiry",
+    "draft_reply",
+    "suggest_next_steps",
+    "write_artifact",
+    "finish"
+  ],
+  "riskPolicy": {
+    "customer.write_memory": "ask",
+    "message.send_email": "deny"
+  }
+}

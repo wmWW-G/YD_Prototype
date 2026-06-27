@@ -1,0 +1,19 @@
+{
+  "name": "yingdan-agent-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.mjs",
+    "test": "node --test server/*.test.mjs",
+    "smoke:deepseek": "node server/smoke-deepseek.mjs",
+    "smoke:deepseek:env": "node server/smoke-deepseek-env-only.mjs",
+    "smoke:alibaba-inquiry-meeting": "node server/smoke-alibaba-inquiry-meeting.mjs",
+    "acceptance:alibaba-inquiry-meeting:real": "node server/acceptance-alibaba-inquiry-meeting-real.mjs",
+    "e2e:real": "node server/e2e-real.mjs",
+    "build:web": "npm --prefix agent-thread-prototype run build"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

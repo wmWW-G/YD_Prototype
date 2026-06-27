@@ -1,0 +1,190 @@
+# DEV_LOG
+
+## 2026-06-27
+
+- 将真实 `alibaba-inquiry-meeting` 执行链接入「新对话」前台入口：
+  - 新增 `server/skill-agent.mjs` 和 `server/skill-agent.test.mjs`，只识别 `执行Skill：alibaba-inquiry-meeting`，避免把赢单外贸顾问里的普通 chatbot 内容误当 Runtime 验收 Skill。
+  - `server/index.mjs` 新增 `POST /api/agent/message`，由前台新对话触发真实 `server/alibaba-real-runner.mjs`。
+  - `agent-thread-prototype/src/App.jsx` 新增新对话执行状态、进度条、错误态和 XLSX 产物卡片；`src/styles.css` 增加对应样式。
+  - 真实接口执行成功：`POST /api/agent/message` 返回 `ok=true`，周期 `2026-06-15 ~ 2026-06-21`，`38/38` 次只读采集，8 张 sheet，产物 `workbench/artifacts/alibaba-inquiry-meeting-real/alibaba-inquiry-meeting/询盘分析会_2026-06-15_2026-06-21.xlsx`。
+  - 对比目标 XLSX 后通过：8 个固定 sheet 全部存在，无 `数据质量检查`，无 `[object Object]`、裸 `text`、工具名、gateway、token、bridge 等泄漏；`unzip -t`、`openpyxl.load_workbook()` 和残留扫描通过。
+  - 用 `@浏览器` 在当前内置浏览器 `http://127.0.0.1:5176/` 点击「开始对话」完成前台验收，页面出现 `alibaba-inquiry-meeting Agent`、6 个进度节点、`校验通过` 和 XLSX 本地路径；用 `@chrome` 只读确认 Chrome 也有同一个本地原型标签但未重复触发真实采集。
+  - 已再次通过 `npm test` 和 `npm run build:web`。
+- 继续修正 `alibaba-inquiry-meeting` 为第一刀验收标准，并完成真实 real-bridge 执行链：
+  - 新增 `server/alibaba-real-runner.mjs`：按上一个完整自然周解析周期，读取外部 skill，发现 Alibaba 工具，调用只读数据源，生成主持材料 JSON，调用 XLSX builder，并写 append-only run log。
+  - 新增 `server/alibaba-real-runner.test.mjs`：先验证失败，再实现；覆盖周期解析、工具发现、只读调用、real-bridge manifest 和 payload 不泄露内部工具词。
+  - 新增 `server/acceptance-alibaba-inquiry-meeting-real.mjs` 和 `npm run acceptance:alibaba-inquiry-meeting:real`，与 `builder-only-fixture` smoke 明确分开。
+  - 刷新 Accio 本地网关 token 后，真实执行 `npm run acceptance:alibaba-inquiry-meeting:real` 成功：周期 `2026-06-15 ~ 2026-06-21`，`tool.called=38`，`tool.degraded=0`，产物为 `workbench/artifacts/alibaba-inquiry-meeting-real/alibaba-inquiry-meeting/询盘分析会_2026-06-15_2026-06-21.xlsx`。
+  - 产物验证通过：builderExitCode=0、`unzip -t` 通过、`openpyxl.load_workbook()` 通过、8 个固定 sheet 全部存在、无 `数据质量检查` sheet、无 `xl/tables/` 或 `xl/drawings/` 残留、无内部工具/网关/token 词泄露、无公式错误。
+  - 同步更新 `BUILD_SPEC.md`、`CONTEXT.md`、`AGENTS.md`、`RUNTIME_ARCHITECTURE.md`，把“还需新增真实验收命令”改为“已有 real-bridge 验收命令和真实产物证据”。
+- 根据用户纠正“现在这些 Skill 属于赢单外贸顾问 chatbot 内容,不是 Runtime 验收 Skill”,修正第一刀目标：
+  - `BUILD_SPEC.md` 已重写为修正版：第一刀验收改为能执行外部 Accio skill 包 `alibaba-inquiry-meeting`,并产出合格 XLSX。
+  - `CONTEXT.md`、`RUNTIME_ARCHITECTURE.md`、`AGENTS.md` 已同步区分“赢单 UI 里的技能Skill/业务入口”和“Runtime 可执行 Skill 包”。
+  - 旧 `workbench/skills/inquiry-reply/`、`server/e2e-real.mjs` 和前端询盘分析接入只保留为历史纵向 demo,不再作为第一刀完成标准。
+  - 新增 `server/alibaba-skill.mjs`、`server/alibaba-skill.test.mjs`、`server/smoke-alibaba-inquiry-meeting.mjs` 和 `npm run smoke:alibaba-inquiry-meeting`。
+  - 当前 smoke 只验证 builder-only fixture：读取真实 `alibaba-inquiry-meeting` skill 包,调用其 `scripts/build_inquiry_meeting_xlsx.py`,并在 `workbench/artifacts/alibaba-inquiry-meeting-smoke/` 产出 XLSX 和 manifest；它不是最终真实验收。
+  - 最终真实验收必须能发现并调用 Alibaba 只读工具,生成主持材料 JSON,调用 XLSX builder,通过 LibreOffice / unzip / openpyxl / 残留扫描,并返回合格 `.xlsx`。
+- 按 `BUILD_SPEC.md` 第一刀落地了可运行 Runtime（本轮由 Codex 实现）：
+  - 新增根 `package.json`、`.gitignore`、`server/runtime.mjs`、`server/index.mjs`、`server/smoke-deepseek.mjs`、`server/e2e-real.mjs` 和 `server/runtime.test.mjs`。
+  - 后端使用 Node/Express 跑在 `127.0.0.1:8787`，提供 `/api/health`、`/api/inquiry/analyze`、`/api/runs/:runId/confirm`、`/api/policy/check`。
+  - Runtime 会初始化 `workbench/`：`agents/inquiry-follow-up/`、`customers/global-sourcing-inc/`、`skills/inquiry-reply/`、`registry/policy.jsonl`、`runs/`、`artifacts/`。
+  - 询盘分析会读取 Agent、Skill、客户 `profile.md` 和 `memory.md`，调用 DeepSeek `deepseek-v4-flash`，写 append-only run log、reply artifact、waiting checkpoint，并在用户确认后追加客户 memory。
+  - 前端 `agent-thread-prototype/src/App.jsx` 已把客户 Kass 的询盘线程接到真实后端：可编辑询盘、点击「开始分析」、展示真实进度/结果、点击「确认保存」。
+  - `loadEnvFile()` 支持标准 `DEEPSEEK_API_KEY=...`，也兼容只有裸 DeepSeek key 的 `.env`；但本机当前 `.env` 裸 key 在 clean-env 下真实调用返回 401，需换有效 Key 才能只靠 `.env` 完成验收。
+  - 新增 `npm run smoke:deepseek:env`，专门只读取项目 `.env` 做 flash smoke，避免被 shell 环境里的有效 Key 掩盖；当前该命令仍返回 401，普通 `npm run smoke:deepseek` 依靠 shell 环境可通过。
+  - 已通过：`npm test`、`npm run smoke:deepseek`、`npm run e2e:real`、`npm run build:web`；另验证了 HTTP 分析接口、确认接口和 `message.send_email` policy deny。
+- 用户更换有效 DeepSeek Key 后，完成旧询盘 demo 的真实模型验证（该验收口径已被上面的 `alibaba-inquiry-meeting` 标准取代）：
+  - `npm run smoke:deepseek:env` 已只靠项目 `.env` 跑通 `deepseek-v4-flash`。
+  - clean env 下直接执行 `node server/e2e-real.mjs` 已跑通旧询盘 demo 端到端：生成 `run-20260627-190019-9r73`，状态 `completed`，包含五块结果、`run.waiting`、`run.resumed`、`memory.updated` 和英文 reply artifact。
+  - 复跑 `npm test`、`npm run build:web`、后端 `/api/health`、HTTP `message.send_email` policy deny、`.env` git ignore、密钥泄露扫描均通过。
+- 让文档能真正交给 Codex Goal 模式跑，补“做 → 验 → 修”闭环（与 Claude 一起）：
+  - 修 `BUILD_SPEC.md` 两处悬空引用（还在让 Codex“以 TODO.md 为准 / 先读 TODO.md”，而 TODO 已删）。
+  - 第 11 节从单一“用户肉眼验收”扩成 **11.A Codex 自验自修循环**（M1–M7：每个里程碑怎么自验、不过怎么自修、何时停下来交还用户）+ **11.B 用户最终抽查**；守则加“做一块验一块修一块”铁律。
+  - 对本轮全部文档改动做系统自检：无悬空引用、节号引用都对、4 个核心概念（底座 / 试金石 / 四件套 / 受控的 C）在 5 份文档口径统一，全过。
+- 文档审计与清理（与 Claude 一起，本次未改 Runtime 代码）：
+  - 删除 `PLAN.md`、`TODO.md`、`RUNTIME_IMPROVEMENT.md`：旧大计划与过程稿，与 RUNTIME/CONTEXT 重叠或已合并，尺度停在“6 入口大工作台”，与当时收窄的旧询盘 demo 口径打架。
+  - 重写 `AGENTS.md`：换掉被否的旧技术路线（Tauri / Python FastAPI / LangGraph / 向量库 / Python 优先），改为第一刀 React/Vite + Node/Express + 文件优先 + DeepSeek V4；补入最新框架（底座 / Skill 可插拔 / 试金石 / 智能感四件套 / 受控的 C / 作战台定位）。
+  - 重写 `CONTEXT.md`：定位更新为外贸业务员 AI 作战台 + 三层 + 四件套；删掉过时的 Electron / SQLite 验收项；验证方式改为按 `BUILD_SPEC.md` 第一刀肉眼验收。
+  - 更新 `RUNTIME_ARCHITECTURE.md`：加最新框架与“智能感四件套”（§3.1）；决策模式从“设计 A 模型自主”改为“受控的 C”（§9.0）；阿里 bridge 的真实 DID 脱敏（改为从环境变量读，不写进文档）。
+  - 核心文档收敛为 5 份：`AGENTS.md` / `CONTEXT.md` / `DEV_LOG.md` / `RUNTIME_ARCHITECTURE.md` / `BUILD_SPEC.md`。
+- 根据用户反馈“Schema / JSON 不懂，就学 Accio Work”，统一第一版文档口径：
+  - 学 Accio Work 的文件优先、运行时组装、memory、policy 和 append-only trace。
+  - 不要求业务用户理解或手写 JSON / Schema；`skill.json`、`input.schema.json`、`output.schema.json` 都是系统内部契约，由预设模板和开发者维护。
+  - 用户侧只展示 Skill 表单、业务进度、结果和确认动作。
+  - 第一刀 Runtime 不再写成单程 completed/failed，改为保留最小 `waiting/resume/checkpoint`，只覆盖“保存到客户Kass / 写入客户 memory 前确认”这一种场景。
+  - 更复杂的工具授权、预算确认、bridge 未就绪和长任务恢复放到第二刀。
+  - 将核心循环里的动作空间统一为 `currentSkill.allowedActions + finish`，避免回到普通 Agent 直接挑全局工具的设计。
+- 纳入 Claude 新增的 `BUILD_SPEC.md`，并把它从“唯一执行依据”改为“第一刀执行规格”：
+  - 总架构仍以 `RUNTIME_ARCHITECTURE.md` 和 `CONTEXT.md` 为准。
+  - 第一刀前端沿用 React/Vite 本地网页，不另起纯 HTML 路线。
+  - 第一刀后端可先用 Node/Express 本地服务，但不锁死未来 Python/FastAPI sidecar。
+  - 执行流程从固定脚本改为最小 Runtime loop，保留 `runtime.tick`、`policy.checked`、`run.waiting`、`run.resumed` 和最小 checkpoint。
+  - 明确不接真实 Accio / Alibaba bridge，只借鉴 Accio-like 文件运行时形态。
+- 根据用户对产品形态的新判断，补充 Runtime / Agent / Skill 边界设计：
+  - 普通任务 Agent 保持通用，不直接加载所有外部工具。
+  - 背调、找线索、找联系人、查邮箱、开发信、阿里诊断等能力优先通过预设 Skill 实现。
+  - Snov.io、ContactOut、Apify、阿里 bridge、CRM、邮件系统等 API / MCP / CLI 能力作为 Skill 的底层工具链出现。
+  - Runtime 每次只展开当前 Skill 的动作空间和必要工具摘要，避免把全量 tool schema 放进 Agent 上下文导致过重。
+  - Tool Proxy 统一返回结构化 observation，包括 `status`、`confidence`、`riskLevel`、`writePolicy` 和是否需要用户确认。
+- 同步更新 `RUNTIME_ARCHITECTURE.md`、`PLAN.md`、`CONTEXT.md` 和 `TODO.md`。
+- 本次只更新设计文档，没有新增 Runtime 代码。
+
+## 2026-06-26
+
+- 创建 `yingdan-agent-lab/`，作为赢单本地 Agent 应用的模拟和设计目录。
+- 新增 `AGENTS.md`，记录后续助手进入本目录时的工作规则、技术方向、工具设计原则和安全边界。
+- 新增 `CONTEXT.md`，同步本轮聊天形成的核心上下文：
+  - 当前赢单更像外贸场景化 chatbot。
+  - 目标是转向类似 Accio 的本地 while-true Agent。
+  - 中国公司不优先走 OpenAI 路线。
+  - 未来需要兼容多模型。
+  - 稳定操作本地文件时，本地应用比纯网页更合适。
+  - 推荐方向是 Tauri/Electron + Python FastAPI sidecar + LangGraph + Model Router + SQLite + MCP。
+- 根据用户最新反馈，重写 `PLAN.md` 和 `CONTEXT.md`：
+  - 第一版方向改为 Electron 桌面端。
+  - 现有 chatbot 类能力继续调用赢单现有后端接口。
+  - 桌面端重点做用户自建 Agent、赢单预设 Skill、阿里国际站 bridge 和浏览器插件联动。
+  - 客户Kass 暂时只作为轻量上下文，不做过度设计。
+  - 本次只更新文档，没有新增实现代码。
+- 新增 `TODO.md`，把第一版要完成的事项拆成可验收清单：
+  - 每项都记录要完成什么、怎么测试、什么算不通过、不通过怎么改、什么算合格。
+  - 覆盖技术 Spike、桌面壳、后端入口、Agent/Skill、阿里 bridge、浏览器插件、客户轻量上下文、安全红线和内部试用门槛。
+  - 本次仍然只更新文档，没有新增实现代码。
+- 新增 `agent-thread-prototype/`，按用户选定的第 3 版 ImageGen 方向制作赢单 Agent 执行线程原型：
+  - 使用 Product Design starter 创建 React/Vite 原型。
+  - 视觉方向参考 Accio Work 的桌面工作台结构，替换为赢单黑橙品牌。
+  - 页面包含左侧导航、中间询盘分析执行线程、可见 Agent 步骤、写入客户上下文确认、分析结果预览、底部继续追问输入区和右侧客户轻量上下文。
+  - 增加交互：确认保存、切换右侧上下文/Tool calls、展开工具记录、追问输入反馈、导出草稿反馈。
+  - 已执行 `npm run build`，并用 Chrome headless 保存 `design-qa-implementation-clean.png` 做视觉检查。
+- 按浏览器批注收敛 `agent-thread-prototype/` 的用户界面：
+  - 左侧 `新任务` 改为 `新对话`。
+  - 将 `赢单Skill`、`阿里国际站`、`浏览器插件` 合并为 `外接生态`，不再单独露出浏览器插件入口。
+  - 中间 `Agent 执行线程` 改为轻量 `处理进度`，只保留用户需要确认的保存动作。
+  - 右侧移除 `Tool calls`，改为参考国际站风格的客户卡片，并在客户事实下方展示 AI 摘要和建议动作。
+  - 已重新执行 `npm run build`，并覆盖保存最新 `design-qa-implementation-clean.png`。
+- 完善 `agent-thread-prototype/` 的主工作台信息架构：
+  - `新对话` 做成可选择客户上下文、推荐 Agent、输入任务和快捷任务的启动页。
+  - `我的Agent` 做成 Agent 管理页，包含新建 Agent 卡片、预设 Agent 卡片、Skill 标签和运行次数。
+  - `外接生态` 做成统一连接入口，承载赢单 Skill 库、阿里国际站 Bridge、浏览器采集入口和 MCP/外部工具。
+  - `客户Kass` 做成客户等级 + 客户列表 + 客户详情三栏结构。
+  - `任务记录` 从左侧一级导航移除，并入客户详情内的 `任务记录` Tab。
+  - 客户详情包含 `对话线程`、`详情档案`、`事项`、`任务记录`，表达“基于某个客户上下文聊天”的产品方向。
+  - 已再次执行 `npm run build`，并用 Chrome headless 覆盖最新视觉截图。
+- 按浏览器批注调整客户Kass层级：
+  - 将 `A 重点推进`、`B 培养跟进`、`C 观察激活` 从主工作区移到左侧 `客户Kass` 子菜单。
+  - 主工作区从三栏改成两栏，只保留当前等级下的客户列表和客户详情。
+  - 已执行 `npm run build`，并重新覆盖 `design-qa-implementation-clean.png`。
+- 按浏览器批注简化 `新对话` 页面：
+  - 移除顶部工作区标题栏、右侧客户上下文选择卡、右侧推荐 Agent 卡。
+  - 删除快捷任务按钮区，参考 Accio Work 的简洁新任务页。
+  - 将页面改为居中的 `赢单助手` 标识 + 放大的单一输入框 + 底部工具栏。
+  - 默认入口改为 `新对话`，打开原型后直接看到简洁输入页。
+  - 已执行 `npm run build`，并重新覆盖 `design-qa-implementation-clean.png`。
+- 按浏览器批注接入现有赢单顾问能力：
+  - 新增左侧一级入口 `赢单外贸顾问`，不用 `Chatbot` 作为产品命名。
+  - 起初将旧赢单侧栏里的 `问一下`、`销售准备`、`成交顾问` 和 `技能Skill` 全部放进 `赢单外贸顾问` 的子菜单；后续 `技能Skill` 已按用户反馈拆成左侧一级入口。
+  - 右侧工作区增加对应的轻量对话入口，保留大输入框、引用资料、客户上下文和发送动作。
+- 修复左侧带子菜单入口的展开收起交互：
+  - `赢单外贸顾问` 和 `客户Kass` 再次点击当前入口时可以收起子菜单。
+  - 子菜单展开状态和右侧工作区选中状态分开维护，收起菜单不会丢失当前页面。
+  - 为带子菜单入口增加箭头提示。
+- 按用户反馈重做 `外接生态` 页面：
+  - 将外接生态从“统一连接流程页”改成插件/MCP 市场。
+  - 增加顶部分类、搜索框和创建插件入口。
+  - 按本地插件、电商与市场、获客与营销、通用工具 MCP 分组展示插件。
+  - 示例插件包括国际站、小满 CRM MCP、Shopify、WordPress、Apollo.io、Ahrefs、Instantly、Gmail、飞书 MCP 和自定义 MCP。
+- 按用户反馈继续调整信息架构：
+  - 左侧新增一级入口 `技能Skill`。
+  - 将 Skill 从 `赢单外贸顾问` 子菜单里独立出来，右侧新增 Skill 库页面。
+  - Skill 库展示市场调研、新客开发信、客诉处理、客户激活、关系维护、海外电销、视频会议、地推陌拜、来访接待、标题组合、展会成交等预设 Skill。
+  - `外接生态` 参考 Codex 插件页改为居中插件中心：顶部轻量 Tab、搜索框、已安装插件图标横排、分类插件列表。
+- 按当前界面方向更新 `TODO.md`：
+  - 将待办清单对齐为 `新对话`、`赢单外贸顾问`、`我的Agent`、`技能Skill`、`外接生态`、`客户Kass` 六个一级入口。
+  - 明确 `技能Skill` 是独立 Skill 库，`外接生态` 是 Codex 风格插件/MCP 中心，浏览器插件、国际站、小满和自定义 MCP 归入外接生态。
+  - 增加前台轻量状态与后台 trace 分层要求，普通用户界面不默认展示底层 Tool calls。
+  - 保留客户Kass 轻量上下文边界，任务记录作为客户详情子级，不提前做完整 CRM。
+  - 补齐各阶段的测试方式、不通过标准、修正方式和合格标准。
+- 按用户最新反馈调整 `TODO.md` 的开发顺序：
+  - 明确第一阶段不是先做 Electron，而是先在 `agent-thread-prototype/` 本地网页里把全部入口、流程、字段、状态和验收路径跑顺。
+  - 将阶段 0 改为“本地网页闭环和边界确认”，将阶段 1 改为“本地网页六个工作区”。
+  - 浏览器插件、阿里 bridge、外接生态、客户Kass 和端到端主流程都先以本地网页工作台为验收对象。
+  - 新增“进入 Electron 前总门槛”，只有本地网页闭环、接口、插件联动、Skill 执行和客户上下文数据结构稳定后，才开始 Electron 主进程、打包和安装包工作。
+- 修正 `TODO.md` 里对模型接口的前提假设：
+  - 明确当前没有提供 LLM API Key、Model Router 或正式模型接口。
+  - 本地网页阶段不能把“真实 AI 调用成功”作为前置验收。
+  - 在没有模型接口前，只做统一模型入口、未配置状态、演示模式、mock / 固定样例输出和产品流程闭环。
+  - 询盘分析 Skill、五条种子询盘和端到端主流程都拆成“演示结构验收”和“真实模型质量验收”两层。
+  - 禁止前端要求用户填写 LLM API Key，也禁止把演示结果伪装成真实模型生成。
+- 按用户指定的 DeepSeek 模型更新 `TODO.md`、`PLAN.md` 和 `CONTEXT.md`：
+  - 第一批模型定为 `deepseek-v4-pro` 和 `deepseek-v4-flash`。
+  - 统一记录 DeepSeek 官方 `base_url=https://api.deepseek.com`。
+  - 模型请求默认开启 `thinking`，并将 `reasoning_effort` 设为 `max`。
+  - `DEEPSEEK_API_KEY` 只允许从后端、环境变量或安全代理读取，不能写进前端、文档、日志或仓库。
+  - 没有 `DEEPSEEK_API_KEY` 时继续走模型未配置 / 演示模式；有 Key 后通过统一模型入口做 smoke call。
+- 按多轮 Runtime 方案讨论结果新增和同步架构文档：
+  - 新增 `RUNTIME_ARCHITECTURE.md`，将第一版方向固化为 Web-first 外贸成交工作台 + 最小 Accio-like Agent Runtime。
+  - 将旧的“简单 Step Runner”表述升级为 `Winco Agent Runtime v0`，保留 Runtime API、Run Orchestrator、Skill Registry、Context Packer、Model Gateway、Permission Gate、Tool / Bridge Gateway、Trace / Audit Store 和 Artifact Manager。
+  - 更新 `TODO.md`、`PLAN.md` 和 `CONTEXT.md`，让后续开发验收不再退化成普通聊天接口，也不提前进入完整平台工程或 Electron 壳。
+- 对照 `ReverseAccio` 逆向资料评审 `RUNTIME_ARCHITECTURE.md`，新增独立文档 `RUNTIME_IMPROVEMENT.md`：
+  - 核对 Accio 真身（agent=目录、`agent-core/*.md` 运行时组装、`policy.jsonl` 行级权限、`MEMORY.md`+`diary` 记忆、append-only `*.messages.jsonl`），指出原 9 盒子设计偏向通用后端分层。
+  - 给出 6 点改进：砍 per-agent 全局 ID 改用 slug、agent 组装目录（persona/playbook/memory）、memory 设为一等公民、工具收敛为一个 proxy+registry、L0–L6 落成 `policy.jsonl` 行规则、trace 改 append-only jsonl 删 14 张表。
+  - 记录数据模型不一致（RUNTIME 14 对象 vs PLAN 9 对象、`run_steps` vs `agent_steps`）待统一，并给出最小闭环落地优先级。
+  - 阿里 bridge 决策定稿：内部验证版调用工具时默认带 `ACCIO_AGENT_ID`（Accio `server.js` 内置默认值，从环境变量读、不写进文档/代码/日志），无需改码；权限唯一关卡在阿里 Phoenix 后端 entitlement；产品化版本走阿里开放平台官方 API 后置。
+  - 本次只新增 `RUNTIME_IMPROVEMENT.md` 与本条日志，未改动 `RUNTIME_ARCHITECTURE.md` 原文。
+- 采纳 `RUNTIME_IMPROVEMENT.md` 的核心建议并合并进主架构文档：
+  - 重写 `RUNTIME_ARCHITECTURE.md`，将 Runtime v0 定为“文件优先 + 运行时组装”：`agents/<slug>/persona.md`、`playbook.md`、`memory.md`，客户 `memory.md` + `diary/`，`registry/tools.json`，`registry/policy.jsonl`，`runs/<run_id>.jsonl`。
+  - 更新 `TODO.md`，把 Runtime 验收改为 agent 目录、customer memory、policy 规则、append-only run log、Artifact Writer 和阿里 bridge 内部验证规则。
+  - 更新 `PLAN.md` 和 `CONTEXT.md`，删除 `agent_steps/run_steps` 表结构口径，改为引用 `RUNTIME_ARCHITECTURE.md` 的文件优先方案；SQLite 后置为索引层。
+- 按最新 Runtime 评审补齐接缝边界：
+  - `policy.jsonl` 定为唯一硬执行来源，`persona.md` 里的红线只做提醒。
+  - 固定 Agent Assembler 组装顺序：persona、playbook、tools、agent memory、客户 profile/memory、diary summary、Skill、当前输入。
+  - 明确 `playbook.md` 管通用打法和口吻，Skill 管具体任务的输入输出契约。
+  - 补充客户 memory 控量策略：`memory.md` 保留长期有效信息，`diary/` 追加历史，运行时只读 `diary-summary.md` 和最近 N 条 diary。
+  - 将 `run_id` 示例改为 `run-YYYYMMDD-HHMMSS-<random>`，避免每日序号并发撞号。
+  - 更新 `TODO.md`、`PLAN.md` 和 `CONTEXT.md`，把这些边界同步成验收标准。
+- 按 Runtime loop 评审继续修正架构文档：
+  - 将 `RUNTIME_ARCHITECTURE.md` 第 9 节从 1 到 14 的直线执行链改为状态机式 Runtime loop。
+  - 新增 `queued`、`running`、`waiting`、`resuming`、`completed`、`failed`、`cancelled` 状态。
+  - 新增 `run.waiting`、`run.resumed`、`run.checkpointed` 事件和 `runs/<run_id>.checkpoint.json` 快照文件。
+  - 明确高风险动作返回 `ask` 时必须暂停并交还前台，用户确认后通过 `resume_run` 从 `resume_from` 继续。
+  - 同步更新 `TODO.md`、`PLAN.md` 和 `CONTEXT.md`，把 waiting/resume/checkpoint 纳入验收。

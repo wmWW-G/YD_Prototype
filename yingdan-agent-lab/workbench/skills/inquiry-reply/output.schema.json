@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "required": [
+    "intention",
+    "missingInfo",
+    "risks",
+    "replyDraft",
+    "nextSteps"
+  ],
+  "properties": {
+    "intention": {
+      "type": "object"
+    },
+    "missingInfo": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "replyDraft": {
+      "type": "string"
+    },
+    "nextSteps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

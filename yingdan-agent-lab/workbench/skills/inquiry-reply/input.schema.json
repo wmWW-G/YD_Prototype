@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "required": [
+    "customerSlug",
+    "inquiryText"
+  ],
+  "properties": {
+    "customerSlug": {
+      "type": "string"
+    },
+    "inquiryText": {
+      "type": "string"
+    }
+  }
+}
