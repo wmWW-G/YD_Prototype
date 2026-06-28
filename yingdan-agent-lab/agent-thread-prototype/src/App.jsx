@@ -1183,8 +1183,8 @@ function NewConversationView({
         <div className="agent-message-list" aria-label="Agent 对话消息">
           {!hasMessages ? (
             <div className="thread-empty-state">
-              <strong>执行Skill：alibaba-inquiry-meeting</strong>
-              <span>发出后会创建 Session，生成 XLSX，并把执行过程折叠在线程里。</span>
+              <strong>帮我开上周询盘分析会</strong>
+              <span>Agent 会识别目标、匹配 Skill、制定计划，并把 action / observation 折叠进活动流。</span>
             </div>
           ) : null}
 
@@ -1208,7 +1208,7 @@ function NewConversationView({
                   <strong>alibaba-inquiry-meeting Agent</strong>
                   <span>执行中</span>
                 </div>
-                <p>正在执行 Skill、采集只读数据并生成询盘分析会 XLSX。</p>
+                <p>正在理解目标、匹配 Skill、采集只读数据并生成询盘分析会 XLSX。</p>
                 <ExecutionProcess steps={progressItems} />
               </div>
             </div>
@@ -1225,7 +1225,7 @@ function NewConversationView({
         <form className="agent-thread-composer" aria-label="继续追问" onSubmit={handleSubmit}>
           <textarea
             className="thread-prompt"
-            placeholder={sessionId ? '继续追问这个 Session...' : '输入：执行Skill：alibaba-inquiry-meeting'}
+            placeholder={sessionId ? '继续追问这个 Session...' : '输入：帮我开上周询盘分析会'}
             ref={inputRef}
             defaultValue={draft}
             onChange={(event) => onDraftChange(event.target.value)}
@@ -1273,6 +1273,8 @@ function NewConversationView({
  */
 function AgentThreadMessage({ isProcessExpanded, message, onPrototypeAction, onToggleProcess }) {
   const isUser = message.role === 'user';
+  const timeline = message.activity || message.process;
+  const timelineLabel = message.activity ? '活动流' : '执行过程';
 
   return (
     <article className={`agent-message ${isUser ? 'user' : 'assistant'} ${message.tone || ''}`}>
@@ -1288,13 +1290,14 @@ function AgentThreadMessage({ isProcessExpanded, message, onPrototypeAction, onT
           <p key={`${message.id}-${line}`}>{line}</p>
         ))}
 
-        {message.process ? (
+        {timeline ? (
           <div className="message-process">
             <button type="button" onClick={() => onToggleProcess(message.id)}>
               {isProcessExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-              执行过程
+              {timelineLabel}
             </button>
-            {isProcessExpanded ? <ExecutionProcess steps={message.process.steps || []} /> : null}
+            {isProcessExpanded && message.activity ? <ActivityStream items={message.activity.items || []} /> : null}
+            {isProcessExpanded && !message.activity ? <ExecutionProcess steps={message.process.steps || []} /> : null}
           </div>
         ) : null}
 
@@ -1313,6 +1316,34 @@ function AgentThreadMessage({ isProcessExpanded, message, onPrototypeAction, onT
         ) : null}
       </div>
     </article>
+  );
+}
+
+/**
+ * ActivityStream 渲染目标驱动 Agent 的 action / observation 活动流。
+ *
+ * 参数：
+ * - items：活动项数组，每项包含 kind、title、detail 和 status。
+ *
+ * 返回值：React 活动流节点。
+ * 可能抛出的异常：不主动抛异常。
+ */
+function ActivityStream({ items }) {
+  return (
+    <div className="activity-stream">
+      {items.map((item) => (
+        <div className={`activity-item ${item.kind} ${item.status || ''}`} key={`${item.kind}-${item.title}`}>
+          <span className="activity-rail" aria-hidden="true">
+            {item.status === 'complete' ? <Check size={11} /> : null}
+          </span>
+          <div>
+            <span className="activity-kind">{formatActivityKind(item.kind)}</span>
+            <strong>{item.title}</strong>
+            <p>{item.detail}</p>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1341,6 +1372,26 @@ function ExecutionProcess({ steps }) {
       ))}
     </div>
   );
+}
+
+/**
+ * formatActivityKind 把后端活动类型转换成用户可扫读的短标签。
+ *
+ * 参数：
+ * - kind：活动类型，如 goal、action、observation。
+ *
+ * 返回值：中文短标签。
+ * 可能抛出的异常：无。
+ */
+function formatActivityKind(kind) {
+  const labels = {
+    action: 'ACTION',
+    goal: 'GOAL',
+    observation: 'OBS',
+    plan: 'PLAN',
+    thought: 'THINK',
+  };
+  return labels[kind] || 'STEP';
 }
 
 /**

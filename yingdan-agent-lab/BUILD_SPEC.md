@@ -329,11 +329,11 @@ npm run acceptance:alibaba-inquiry-meeting:real
 前台真实验收入口：
 
 ```text
-「新对话」输入：执行Skill：alibaba-inquiry-meeting
+「新对话」输入：帮我开上周询盘分析会
 -> POST /api/agent/message
--> server/skill-agent.mjs 识别命令
+-> server/skill-agent.mjs 识别自然语言目标并匹配 alibaba-inquiry-meeting
 -> server/alibaba-real-runner.mjs 执行真实只读采集和 XLSX builder
--> 前台创建 Agent 对话线程,显示 Session ID、Agent 回复、可展开执行过程和 XLSX 路径
+-> 前台创建 Agent 对话线程,显示 Session ID、Agent 回复、可展开活动流和 XLSX 路径
 -> 同一个 Session 继续追问时只追加回答,不重新跑只读采集
 ```
 
@@ -343,16 +343,17 @@ npm run acceptance:alibaba-inquiry-meeting:real
 
 用户不用看代码，最终只看这些：
 
-1. 在「新对话」输入 `执行Skill：alibaba-inquiry-meeting`。
+1. 在「新对话」输入 `帮我开上周询盘分析会`。
 2. 页面从空白输入态变成 Agent 对话线程,能看到一个 `agent-session-...` Session ID。
-3. Agent 回复里有「执行过程」按钮,展开后能看到：读取 skill、确定周期、采集只读数据、生成管理复盘、生成 XLSX、校验通过。
-4. 最终返回一个 `.xlsx` 路径。
-5. 在同一个输入框继续追问,页面沿用同一个 Session ID,只追加回答,不重新采集 Alibaba 只读数据。
-6. 打开 XLSX 后有 8 张固定 sheet。
-7. 里面是老板/销售主管能直接看的会后复盘，不是会前提纲，不是聊天回答。
-8. 没有工具名、JSON、token、bridge、内部报错。
-9. 没有自动发消息、改配置、发品、上传或扣费。
-10. 如果数据缺失，缺口写清楚，不能编造漂亮数据。
+3. Agent 回复里写明已自动匹配 `alibaba-inquiry-meeting`。
+4. Agent 回复里有「活动流」按钮,展开后能看到：收到目标、匹配任务、执行计划、action、observation 和 artifact.ready。
+5. 最终返回一个 `.xlsx` 路径。
+6. 在同一个输入框继续追问,页面沿用同一个 Session ID,只追加回答,不重新采集 Alibaba 只读数据。
+7. 打开 XLSX 后有 8 张固定 sheet。
+8. 里面是老板/销售主管能直接看的会后复盘，不是会前提纲，不是聊天回答。
+9. 没有工具名、JSON、token、bridge、内部报错。
+10. 没有自动发消息、改配置、发品、上传或扣费。
+11. 如果数据缺失，缺口写清楚，不能编造漂亮数据。
 
 ---
 
@@ -382,4 +383,4 @@ alibaba-inquiry-meeting。
 
 能跑通这个 skill，才说明赢单开始具备“像 Accio 一样执行任务并交付结果”的底座能力。只生成五段询盘建议，不算验收通过。
 
-自然语言触发如“帮我开上周询盘分析会”是下一步意图识别能力;当前第一刀验收不靠猜意图,只用明确命令 `执行Skill：alibaba-inquiry-meeting`。
+自然语言触发 `帮我开上周询盘分析会` 已是当前第一刀前台验收入口；明确命令 `执行Skill：alibaba-inquiry-meeting` 只作为兼容入口保留。

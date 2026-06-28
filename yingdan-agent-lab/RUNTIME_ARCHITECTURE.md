@@ -75,13 +75,13 @@ Runtime 验收 Skill = 可执行外部任务包,例如 alibaba-inquiry-meeting�
 -> 返回 XLSX 路径
 ```
 
-当前第一刀前台触发语是明确命令:
+当前第一刀前台触发语是自然语言目标:
 
 ```text
-执行Skill：alibaba-inquiry-meeting
+帮我开上周询盘分析会
 ```
 
-自然语言“帮我开上周询盘分析会”列为后续意图识别扩展,不作为当前硬验收入口。
+明确命令 `执行Skill：alibaba-inquiry-meeting` 作为兼容入口保留,但不再是唯一硬验收入口。
 
 这个闭环必须证明三件事：
 
@@ -1111,10 +1111,12 @@ subagent / 多 Agent 编排
 ### 产品验收
 
 ```text
-用户在「新对话」输入“执行Skill：alibaba-inquiry-meeting”
--> Runtime 识别 alibaba-inquiry-meeting
+用户在「新对话」输入“帮我开上周询盘分析会”
+-> Runtime 识别自然语言目标
+-> 自动匹配 alibaba-inquiry-meeting
 -> 创建 Agent 对话线程并显示 agent-session-... Session ID
--> 看到 Agent 回复、可展开执行过程和业务化进度
+-> 看到 Agent 回复、可展开活动流和业务化进度
+-> 活动流包含 goal / plan / action / observation
 -> 得到 XLSX 路径和产物卡
 -> 在同一个 Session 继续追问,不重新采集只读数据
 -> 打开工作簿看到 8 张固定 sheet

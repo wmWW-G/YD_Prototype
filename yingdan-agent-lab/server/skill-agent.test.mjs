@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   buildAlibabaSkillAgentResponse,
   buildAgentFollowupResponse,
+  detectAgentGoal,
   detectSkillCommand,
   runNewConversationAgent,
 } from './skill-agent.mjs';
@@ -16,6 +17,17 @@ test('detectSkillCommand recognizes the New Conversation skill execution phrase'
     skillId: 'alibaba-inquiry-meeting',
     mode: 'real-bridge',
   });
+});
+
+test('detectAgentGoal maps a natural inquiry meeting goal to alibaba-inquiry-meeting', () => {
+  const goal = detectAgentGoal('帮我开上周询盘分析会');
+
+  assert.equal(goal.matched, true);
+  assert.equal(goal.goalType, 'inquiry-meeting');
+  assert.equal(goal.skillId, 'alibaba-inquiry-meeting');
+  assert.equal(goal.periodHint, 'previous_full_week');
+  assert.equal(goal.trigger, 'natural_goal');
+  assert.match(goal.reason, /询盘分析会/);
 });
 
 test('buildAlibabaSkillAgentResponse exposes business progress and XLSX artifact for the frontend agent', () => {
@@ -88,6 +100,38 @@ test('runNewConversationAgent returns a session thread with expandable execution
     ['读取Skill', '确定周期', '采集只读数据', '生成主持材料', '生成XLSX', '校验通过'],
   );
   assert.equal(response.messages[1].artifact.outputPath, '/tmp/询盘分析会_2026-06-15_2026-06-21.xlsx');
+});
+
+test('runNewConversationAgent plans and executes a natural language goal with an action observation activity stream', async () => {
+  const response = await runNewConversationAgent({
+    text: '帮我开上周询盘分析会',
+    runner: async () => ({
+      ok: true,
+      mode: 'real-bridge',
+      runId: 'alibaba-meeting-20260628-111500-natr',
+      period: { start: '2026-06-15', end: '2026-06-21', label: '上周完整自然周' },
+      outputPath: '/tmp/询盘分析会_2026-06-15_2026-06-21.xlsx',
+      manifestPath: '/tmp/manifest.json',
+      runLogPath: '/tmp/alibaba-meeting-20260628-111500-natr.jsonl',
+      workbookName: '询盘分析会_2026-06-15_2026-06-21.xlsx',
+      validation: { mode: 'real-bridge', builderExitCode: 0, workbookExists: true, workbookBytes: 24734 },
+      toolSummary: { attempted: 38, succeeded: 38, missing: 0, requiredSucceeded: 36 },
+    }),
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.goal.matched, true);
+  assert.equal(response.goal.skillId, 'alibaba-inquiry-meeting');
+  assert.equal(response.plan.steps.length >= 4, true);
+  assert.equal(response.messages.length, 2);
+  assert.match(response.messages[1].content, /自动匹配 alibaba-inquiry-meeting/);
+  assert.ok(response.messages[1].activity);
+  assert.deepEqual(
+    response.messages[1].activity.items.map((item) => item.kind),
+    ['goal', 'thought', 'plan', 'action', 'observation', 'action', 'observation', 'action', 'observation'],
+  );
+  assert.match(response.messages[1].activity.items.at(-1).detail, /询盘分析会_2026-06-15_2026-06-21.xlsx/);
 });
 
 test('buildAgentFollowupResponse keeps the same session without rerunning the skill', () => {

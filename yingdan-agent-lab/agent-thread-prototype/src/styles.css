@@ -870,6 +870,80 @@ button {
   border-radius: 8px;
 }
 
+.activity-stream {
+  display: grid;
+  gap: 0;
+  padding: 8px 10px;
+  background: #fbfaf8;
+  border: 1px solid #eee9e1;
+  border-radius: 8px;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  position: relative;
+  padding: 8px 0;
+}
+
+.activity-item + .activity-item {
+  border-top: 1px solid #efebe4;
+}
+
+.activity-rail {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  color: #fff;
+  background: #24272c;
+  border-radius: 999px;
+}
+
+.activity-item.action .activity-rail {
+  background: #ff6b18;
+}
+
+.activity-item.observation .activity-rail {
+  background: #2d6a4f;
+}
+
+.activity-item.plan .activity-rail {
+  background: #5b6472;
+}
+
+.activity-item.thought .activity-rail,
+.activity-item.goal .activity-rail {
+  color: #2f343c;
+  background: #ffe3cf;
+}
+
+.activity-kind {
+  display: inline-flex;
+  margin-bottom: 3px;
+  color: #8b9098;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.activity-item strong {
+  display: block;
+  color: #272b31;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.activity-item p {
+  margin-top: 3px;
+  color: #5d626b;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .thread-artifact-card {
   margin-top: 4px;
 }
