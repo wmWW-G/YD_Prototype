@@ -4,8 +4,9 @@
 
 - 将新对话从固定 Skill 命令升级到第一步目标驱动 Agent：
   - `server/skill-agent.mjs` 新增 `detectAgentGoal()`，可把 `帮我开上周询盘分析会` 识别为询盘分析会目标,自动匹配 `alibaba-inquiry-meeting`。
+  - 新增 `runGoalAgentLoop()` 有界循环：`goal.classify → skill.match → plan.create → skill.execute → artifact.verify → finish`，每步记录 observation 和 nextAction。
   - 后端响应新增 `kind=goal-run`、`goal`、`plan` 和 `activity`，活动流包含 goal、thought、plan、action、observation，展示“为什么选这个 Skill / 执行了什么 / 观察到什么 / 下一步怎么走”。
-  - 前台 `agent-thread-prototype/src/App.jsx` 新增「活动流」渲染；自然语言目标路径优先展示活动流，固定 Skill 命令仍兼容旧「执行过程」。
+  - 前台 `agent-thread-prototype/src/App.jsx` 新增「活动流」渲染；自然语言目标路径优先展示活动流，固定 Skill 命令仍兼容旧「执行过程」；活动流节点会显示 observation 和 next。
   - 新对话空态和输入占位从 `执行Skill：alibaba-inquiry-meeting` 改为 `帮我开上周询盘分析会`。
   - 已用内置浏览器在 `http://127.0.0.1:5176/` 验证：输入 `帮我开上周询盘分析会` 后自动匹配 `alibaba-inquiry-meeting`，生成 Session、活动流和 XLSX 产物；展开「活动流」可看到 action / observation。
   - 已用 bundled Python 对生成的 XLSX 做文件级复核：zip 可读、`openpyxl.load_workbook()` 可打开、8 个固定 sheet 顺序正确、无 `xl/tables/` / `xl/drawings/` / `tableParts` 残留。

@@ -332,6 +332,7 @@ npm run acceptance:alibaba-inquiry-meeting:real
 「新对话」输入：帮我开上周询盘分析会
 -> POST /api/agent/message
 -> server/skill-agent.mjs 识别自然语言目标并匹配 alibaba-inquiry-meeting
+-> goal-agent loop 逐步执行 goal.classify / skill.match / plan.create / skill.execute / artifact.verify / finish
 -> server/alibaba-real-runner.mjs 执行真实只读采集和 XLSX builder
 -> 前台创建 Agent 对话线程,显示 Session ID、Agent 回复、可展开活动流和 XLSX 路径
 -> 同一个 Session 继续追问时只追加回答,不重新跑只读采集
@@ -346,7 +347,7 @@ npm run acceptance:alibaba-inquiry-meeting:real
 1. 在「新对话」输入 `帮我开上周询盘分析会`。
 2. 页面从空白输入态变成 Agent 对话线程,能看到一个 `agent-session-...` Session ID。
 3. Agent 回复里写明已自动匹配 `alibaba-inquiry-meeting`。
-4. Agent 回复里有「活动流」按钮,展开后能看到：收到目标、匹配任务、执行计划、action、observation 和 artifact.ready。
+4. Agent 回复里有「活动流」按钮,展开后能看到：收到目标、匹配任务、执行计划、action、observation、nextAction 和 artifact.ready。
 5. 最终返回一个 `.xlsx` 路径。
 6. 在同一个输入框继续追问,页面沿用同一个 Session ID,只追加回答,不重新采集 Alibaba 只读数据。
 7. 打开 XLSX 后有 8 张固定 sheet。

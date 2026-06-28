@@ -944,6 +944,27 @@ button {
   line-height: 1.55;
 }
 
+.activity-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.activity-meta-row span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  color: #676c75;
+  background: #fff;
+  border: 1px solid #e6e1da;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
 .thread-artifact-card {
   margin-top: 4px;
 }

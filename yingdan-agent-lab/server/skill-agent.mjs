@@ -106,12 +106,27 @@ export async function runNewConversationAgent(options = {}) {
   }
 
   const runner = options.runner || runAlibabaInquiryMeetingReal;
-  const plan = goal.matched ? buildGoalPlan(goal) : null;
+  if (goal.matched) {
+    const loop = await runGoalAgentLoop({
+      projectRoot: options.projectRoot,
+      runner,
+      text: options.text,
+    });
+
+    return buildAlibabaSkillAgentResponse({
+      goal: loop.goal,
+      kind: 'goal-run',
+      loop,
+      plan: loop.plan,
+      result: loop.result,
+      rowSummary: options.rowSummary,
+      sessionId: options.sessionId,
+      userText: options.text,
+    });
+  }
+
   const result = await runner({ projectRoot: options.projectRoot });
   return buildAlibabaSkillAgentResponse({
-    goal: goal.matched ? goal : null,
-    kind: goal.matched ? 'goal-run' : 'skill-run',
-    plan,
     result,
     rowSummary: options.rowSummary,
     sessionId: options.sessionId,
@@ -138,6 +153,7 @@ export function buildAlibabaSkillAgentResponse(input = {}) {
   const rowSummary = input.rowSummary || {};
   const goal = input.goal || null;
   const plan = input.plan || null;
+  const loop = input.loop || null;
   const period = result.period || {};
   const toolSummary = result.toolSummary || {};
   const sheetCount = rowSummary.sheetCount || 8;
@@ -181,7 +197,7 @@ export function buildAlibabaSkillAgentResponse(input = {}) {
     artifact,
   };
   if (goal?.matched) {
-    assistantMessage.activity = buildActivityStream({ artifact, goal, period, plan, result, toolSummary });
+    assistantMessage.activity = buildActivityStream({ artifact, goal, loop, period, plan, result, toolSummary });
   }
 
   return {
@@ -189,6 +205,7 @@ export function buildAlibabaSkillAgentResponse(input = {}) {
     kind,
     sessionId,
     goal,
+    loop,
     plan,
     skillId: 'alibaba-inquiry-meeting',
     status: 'completed',
@@ -208,6 +225,186 @@ export function buildAlibabaSkillAgentResponse(input = {}) {
       assistantMessage,
     ],
   };
+}
+
+/**
+ * runGoalAgentLoop 执行目标驱动 Agent 的最小有界循环。
+ *
+ * 作用：
+ * - 把自然语言目标拆成连续 action，而不是一次性调用固定 runner。
+ * - 每个 action 都产生 observation，再由 observation 决定下一步 nextAction。
+ * - 当前第一刀只有一个可执行 Skill，但 loop 结构已经为后续多 Skill / 多策略分支留好位置。
+ *
+ * 参数：
+ * - input.text：用户自然语言目标。
+ * - input.projectRoot：项目根目录。
+ * - input.runner：真正执行 `alibaba-inquiry-meeting` 的 runner。
+ * - input.maxSteps：可选最大步数，默认 8，避免无界循环。
+ *
+ * 返回值：loop 对象，包含 status、steps、goal、plan、result。
+ * 可能抛出的异常：runner 执行失败时向上抛出，由 HTTP 层转错误响应。
+ */
+async function runGoalAgentLoop(input = {}) {
+  const maxSteps = input.maxSteps || 8;
+  const state = {
+    artifactReady: false,
+    goal: null,
+    plan: null,
+    projectRoot: input.projectRoot,
+    result: null,
+    runner: input.runner,
+    skillId: '',
+    text: input.text,
+  };
+  const steps = [];
+  let action = 'goal.classify';
+
+  for (let index = 1; index <= maxSteps; index += 1) {
+    const outcome = await executeGoalAction(action, state);
+    const nextAction = chooseNextGoalAction(action, outcome, state);
+
+    steps.push({
+      action,
+      detail: outcome.detail,
+      index,
+      nextAction,
+      nextActionReason: outcome.nextActionReason,
+      observation: outcome.observation,
+      status: outcome.status,
+      title: outcome.title,
+    });
+
+    if (nextAction === 'none') {
+      break;
+    }
+
+    action = nextAction;
+  }
+
+  return {
+    maxSteps,
+    status: state.artifactReady ? 'completed' : 'failed',
+    goal: state.goal,
+    plan: state.plan,
+    result: state.result,
+    steps,
+  };
+}
+
+/**
+ * executeGoalAction 执行目标驱动 loop 的一个 action。
+ *
+ * 参数：
+ * - action：当前动作名。
+ * - state：loop 可变状态对象。
+ *
+ * 返回值：本 action 的执行摘要和 observation。
+ * 可能抛出的异常：`skill.execute` 调用 runner 失败时向上抛出。
+ */
+async function executeGoalAction(action, state) {
+  if (action === 'goal.classify') {
+    state.goal = detectAgentGoal(state.text);
+    return {
+      title: '收到目标',
+      detail: state.goal.reason || '未识别到可执行目标。',
+      observation: state.goal.matched ? 'goal.matched' : 'goal.unsupported',
+      status: state.goal.matched ? 'complete' : 'error',
+      nextActionReason: state.goal.matched ? '已识别询盘分析会目标，进入 Skill 匹配。' : '当前目标暂未命中可执行 Skill。',
+    };
+  }
+
+  if (action === 'skill.match') {
+    state.skillId = state.goal?.skillId || '';
+    return {
+      title: '匹配任务',
+      detail: `选择 ${state.skillId || '未匹配'} 作为执行 Skill。`,
+      observation: state.skillId ? 'skill.matched' : 'skill.missing',
+      status: state.skillId ? 'complete' : 'error',
+      nextActionReason: state.skillId ? 'Skill 已匹配，开始制定执行计划。' : '没有可执行 Skill，停止。',
+    };
+  }
+
+  if (action === 'plan.create') {
+    state.plan = buildGoalPlan(state.goal);
+    return {
+      title: state.plan.title,
+      detail: state.plan.steps.map((item) => item.label).join(' → '),
+      observation: 'plan.ready',
+      status: 'complete',
+      nextActionReason: '计划已生成，进入真实 Skill 执行。',
+    };
+  }
+
+  if (action === 'skill.execute') {
+    state.result = await state.runner({ projectRoot: state.projectRoot });
+    const toolSummary = state.result?.toolSummary || {};
+    const succeeded = toolSummary.succeeded ?? 0;
+    const attempted = toolSummary.attempted ?? 0;
+    const hasPartialData = succeeded > 0 && succeeded < attempted;
+    return {
+      title: 'action: skill.execute',
+      detail: '读取外部 Skill，调用 Alibaba 只读采集，生成主持材料并执行 XLSX builder。',
+      observation: hasPartialData ? 'skill.executed_with_degradation' : 'skill.executed',
+      status: succeeded > 0 ? 'complete' : 'warning',
+      nextActionReason: hasPartialData
+        ? '采集存在降级，继续校验产物并保留数据缺口。'
+        : '采集和 builder 返回可用结果，继续校验产物。',
+    };
+  }
+
+  if (action === 'artifact.verify') {
+    const validation = state.result?.validation || {};
+    state.artifactReady = Boolean(state.result?.outputPath && state.result?.workbookName && validation.workbookExists !== false);
+    return {
+      title: 'observation: artifact.verify',
+      detail: state.artifactReady
+        ? `已生成 ${state.result.workbookName}，准备完成。`
+        : '没有拿到可交付 XLSX，停止并等待人工排查。',
+      observation: state.artifactReady ? 'artifact.ready' : 'artifact.missing',
+      status: state.artifactReady ? 'complete' : 'error',
+      nextActionReason: state.artifactReady ? '产物可交付，结束本轮目标。' : '产物不可交付，停止。',
+    };
+  }
+
+  return {
+    title: 'finish',
+    detail: state.result?.workbookName ? `已完成 ${state.result.workbookName}。` : '本轮目标已结束。',
+    observation: state.artifactReady ? 'run.completed' : 'run.failed',
+    status: state.artifactReady ? 'complete' : 'error',
+    nextActionReason: '无后续动作。',
+  };
+}
+
+/**
+ * chooseNextGoalAction 根据 observation 决定下一步 action。
+ *
+ * 参数：
+ * - action：当前动作名。
+ * - outcome：executeGoalAction 返回的 observation。
+ * - state：loop 当前状态。
+ *
+ * 返回值：下一步 action；`none` 表示 loop 结束。
+ * 可能抛出的异常：无。
+ */
+function chooseNextGoalAction(action, outcome, state) {
+  if (outcome.status === 'error' && action !== 'finish') {
+    return 'finish';
+  }
+
+  const nextByAction = {
+    'goal.classify': 'skill.match',
+    'skill.match': 'plan.create',
+    'plan.create': 'skill.execute',
+    'skill.execute': 'artifact.verify',
+    'artifact.verify': 'finish',
+    finish: 'none',
+  };
+
+  const nextAction = nextByAction[action] || 'none';
+  if (action === 'artifact.verify' && !state.artifactReady) {
+    return 'finish';
+  }
+  return nextAction;
 }
 
 /**
@@ -242,7 +439,7 @@ function buildGoalPlan(goal) {
  *
  * 作用：
  * - 前台不只看到“进度条”，还能看到 Agent 为什么选这个 Skill、执行了什么 action、拿到了什么 observation。
- * - observation 会影响下一步描述，例如只读采集成功后继续生成 XLSX；未来可把这里升级成真实逐步 loop。
+ * - 数据来自 `runGoalAgentLoop()` 的真实步骤；不是执行结束后拼出来的静态说明。
  *
  * 参数：
  * - input.goal：目标识别结果。
@@ -256,77 +453,48 @@ function buildGoalPlan(goal) {
  * 可能抛出的异常：无。
  */
 function buildActivityStream(input = {}) {
-  const goal = input.goal || {};
-  const plan = input.plan || {};
-  const period = input.period || {};
-  const toolSummary = input.toolSummary || {};
+  const loop = input.loop || {};
   const artifact = input.artifact || {};
-  const succeeded = toolSummary.succeeded ?? 0;
-  const attempted = toolSummary.attempted ?? 0;
-  const collectDecision = succeeded > 0
-    ? '只读采集返回可用数据，继续生成主持材料和 XLSX。'
-    : '只读采集没有返回可用数据，按缺失数据策略生成有限复盘。';
+  const loopItems = (loop.steps || []).map((step) => ({
+    kind: activityKindForAction(step.action),
+    title: step.title,
+    detail: step.action === 'finish' && artifact.workbookName ? `已生成 ${artifact.workbookName}。` : step.detail,
+    nextAction: step.nextAction,
+    observation: step.observation,
+    status: step.status,
+  }));
 
   return {
     title: '目标驱动活动流',
     expanded: false,
-    items: [
-      {
-        kind: 'goal',
-        title: '收到目标',
-        detail: goal.reason || '收到用户自然语言目标。',
-        status: 'complete',
-      },
-      {
-        kind: 'thought',
-        title: '匹配任务',
-        detail: `根据“询盘 + 分析会/复盘会”意图，选择 ${goal.skillId || 'alibaba-inquiry-meeting'}。`,
-        status: 'complete',
-      },
-      {
-        kind: 'plan',
-        title: plan.title || '执行计划',
-        detail: (plan.steps || []).map((item) => item.label).join(' → '),
-        status: 'complete',
-      },
-      {
-        kind: 'action',
-        title: 'action: skill.load',
-        detail: '读取 alibaba-inquiry-meeting 的 SKILL.md、openai.yaml、evals 和 builder。',
-        status: 'complete',
-      },
-      {
-        kind: 'observation',
-        title: 'observation: skill.ready',
-        detail: 'Skill 可执行，继续解析周期和采集策略。',
-        status: 'complete',
-      },
-      {
-        kind: 'action',
-        title: 'action: period.resolve',
-        detail: '把“上周”解析为完整自然周。',
-        status: 'complete',
-      },
-      {
-        kind: 'observation',
-        title: 'observation: period.resolved',
-        detail: `${period.start || '未返回'} ~ ${period.end || '未返回'}。`,
-        status: 'complete',
-      },
-      {
-        kind: 'action',
-        title: 'action: run_skill',
-        detail: '调用 Alibaba 只读采集、生成主持材料 JSON，并执行 XLSX builder。',
-        status: 'complete',
-      },
-      {
-        kind: 'observation',
-        title: 'observation: artifact.ready',
-        detail: `${collectDecision} 已生成 ${artifact.workbookName || '询盘分析会.xlsx'}。`,
-        status: 'complete',
-      },
-    ],
+    source: 'goal-agent-loop',
+    items: loopItems,
   };
+}
+
+/**
+ * activityKindForAction 把 loop action 转成前台活动类型。
+ *
+ * 参数：
+ * - action：loop action 名称。
+ *
+ * 返回值：activity kind。
+ * 可能抛出的异常：无。
+ */
+function activityKindForAction(action) {
+  if (action === 'goal.classify') {
+    return 'goal';
+  }
+  if (action === 'skill.match') {
+    return 'thought';
+  }
+  if (action === 'plan.create') {
+    return 'plan';
+  }
+  if (action === 'artifact.verify' || action === 'finish') {
+    return 'observation';
+  }
+  return 'action';
 }
 
 /**

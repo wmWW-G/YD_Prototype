@@ -1116,7 +1116,8 @@ subagent / 多 Agent 编排
 -> 自动匹配 alibaba-inquiry-meeting
 -> 创建 Agent 对话线程并显示 agent-session-... Session ID
 -> 看到 Agent 回复、可展开活动流和业务化进度
--> 活动流包含 goal / plan / action / observation
+-> 活动流包含 goal / plan / action / observation / nextAction
+-> 后端 loop 真实执行 goal.classify / skill.match / plan.create / skill.execute / artifact.verify / finish
 -> 得到 XLSX 路径和产物卡
 -> 在同一个 Session 继续追问,不重新采集只读数据
 -> 打开工作簿看到 8 张固定 sheet

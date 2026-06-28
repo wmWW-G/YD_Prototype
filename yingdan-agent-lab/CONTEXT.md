@@ -120,7 +120,8 @@ Electron 桌面壳、SQLite 索引层、Python 工具进程(PDF/XLSX/OCR)、
   - 前台验收:「新对话」输入 `帮我开上周询盘分析会`,调用 `POST /api/agent/message`,自动匹配 `alibaba-inquiry-meeting`,生成一个带 Session ID 的 Agent 对话线程。
 - 前台不是一次性任务执行面板:
   - 首次执行会生成用户消息、Agent 消息、Session ID、折叠的活动流和 XLSX 产物卡。
-  - 点击「活动流」后能看到目标识别、Skill 匹配、计划、action、observation 和产物生成节点。
+  - 点击「活动流」后能看到目标识别、Skill 匹配、计划、action、observation、nextAction 和产物生成节点。
+  - 后端会按 `goal.classify → skill.match → plan.create → skill.execute → artifact.verify → finish` 执行有界 loop,不是执行后拼一段静态说明。
   - 同一个 Session 继续追问时只追加 Agent 回复,不重新采集 Alibaba 只读数据。
 - builder-only smoke 只用于证明外部 XLSX builder 可用,不算最终验收。
 
@@ -209,6 +210,7 @@ npm run acceptance:alibaba-inquiry-meeting:real
 页面应显示 Agent 对话线程、Session ID、alibaba-inquiry-meeting Agent 回复、XLSX 文件名和本地路径
 自然语言目标路径下,Agent 回复应写明“自动匹配 alibaba-inquiry-meeting”
 点击 Agent 消息里的「活动流」应展开 goal / plan / action / observation 节点
+活动流每一步应显示 observation 和 next,证明 Agent 根据观察结果决定下一步
 继续输入追问后,页面应沿用同一个 Session ID,并提示不会重新采集 Alibaba 只读数据
 ```
 
@@ -234,6 +236,7 @@ workbench/runs/<run_id>.jsonl
 输入“帮我开上周询盘分析会”
 → Runtime 识别自然语言目标
 → 自动匹配并执行 alibaba-inquiry-meeting
+→ 按有界 loop 执行 goal.classify / skill.match / plan.create / skill.execute / artifact.verify / finish
 → 发现并调用 Alibaba 只读工具
 → 生成主持材料 JSON
 → 调用 skill 自带 XLSX builder

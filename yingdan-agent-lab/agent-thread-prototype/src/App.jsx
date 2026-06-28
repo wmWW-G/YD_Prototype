@@ -1340,6 +1340,12 @@ function ActivityStream({ items }) {
             <span className="activity-kind">{formatActivityKind(item.kind)}</span>
             <strong>{item.title}</strong>
             <p>{item.detail}</p>
+            {item.observation || item.nextAction ? (
+              <div className="activity-meta-row">
+                {item.observation ? <span>observation: {item.observation}</span> : null}
+                {item.nextAction ? <span>next: {item.nextAction}</span> : null}
+              </div>
+            ) : null}
           </div>
         </div>
       ))}
