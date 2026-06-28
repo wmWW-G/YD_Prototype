@@ -2,6 +2,12 @@
 
 ## 2026-06-28
 
+- 修复新对话执行过程“像是没读 Skill 文档就开始执行”的问题：
+  - 固定命令 `执行Skill：alibaba-inquiry-meeting` 不再绕过目标驱动 loop；现在也会经过 `goal.classify → skill.match → skill.read → plan.create → skill.execute → artifact.verify → finish`。
+  - 新增 `skill.read` action，真实调用 `inspectAlibabaInquiryMeetingSkill()` 读取外部 Skill 包的 `SKILL.md`、`agents/openai.yaml`、`evals/evals.json` 和 `scripts/build_inquiry_meeting_xlsx.py`。
+  - 前台等待态不再提前渲染“读取Skill / 采集只读数据 / 生成XLSX”等乐观占位，只显示“等待 Runtime 返回真实活动流”。
+  - 固定命令和自然语言目标完成后，展开「活动流」都能看到 `observation: skill.docs_loaded` 以及已读取的 Skill 文件清单。
+
 - 将新对话从固定 Skill 命令升级到第一步目标驱动 Agent：
   - `server/skill-agent.mjs` 新增 `detectAgentGoal()`，可把 `帮我开上周询盘分析会` 识别为询盘分析会目标,自动匹配 `alibaba-inquiry-meeting`。
   - 新增 `runGoalAgentLoop()` 有界循环：`goal.classify → skill.match → plan.create → skill.execute → artifact.verify → finish`，每步记录 observation 和 nextAction。

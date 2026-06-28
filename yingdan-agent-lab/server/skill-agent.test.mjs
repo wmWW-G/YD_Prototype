@@ -91,6 +91,12 @@ test('runNewConversationAgent returns a session thread with expandable execution
 
   assert.equal(response.ok, true);
   assert.equal(response.sessionId, 'session-user-provided');
+  assert.equal(response.loop.steps.some((item) => item.action === 'skill.read'), true);
+  assert.equal(response.messages[1].activity.items.some((item) => item.observation === 'skill.docs_loaded'), true);
+  assert.match(
+    response.messages[1].activity.items.find((item) => item.observation === 'skill.docs_loaded').detail,
+    /SKILL\.md/,
+  );
   assert.equal(response.messages.length, 2);
   assert.equal(response.messages[0].role, 'user');
   assert.equal(response.messages[1].role, 'assistant');
@@ -127,17 +133,19 @@ test('runNewConversationAgent plans and executes a natural language goal with an
   assert.equal(response.loop.maxSteps >= response.loop.steps.length, true);
   assert.deepEqual(
     response.loop.steps.map((item) => item.action),
-    ['goal.classify', 'skill.match', 'plan.create', 'skill.execute', 'artifact.verify', 'finish'],
+    ['goal.classify', 'skill.match', 'skill.read', 'plan.create', 'skill.execute', 'artifact.verify', 'finish'],
   );
   assert.deepEqual(
     response.loop.steps.map((item) => item.nextAction),
-    ['skill.match', 'plan.create', 'skill.execute', 'artifact.verify', 'finish', 'none'],
+    ['skill.match', 'skill.read', 'plan.create', 'skill.execute', 'artifact.verify', 'finish', 'none'],
   );
+  assert.equal(response.loop.steps.some((item) => item.observation === 'skill.docs_loaded'), true);
   assert.equal(response.plan.steps.length >= 4, true);
   assert.equal(response.messages.length, 2);
   assert.match(response.messages[1].content, /自动匹配 alibaba-inquiry-meeting/);
   assert.ok(response.messages[1].activity);
   assert.equal(response.messages[1].activity.source, 'goal-agent-loop');
+  assert.equal(response.messages[1].activity.items.some((item) => item.observation === 'skill.docs_loaded'), true);
   assert.equal(response.messages[1].activity.items.some((item) => item.nextAction === 'artifact.verify'), true);
   assert.match(response.messages[1].activity.items.at(-1).detail, /询盘分析会_2026-06-15_2026-06-21.xlsx/);
 });

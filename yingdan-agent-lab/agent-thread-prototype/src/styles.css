@@ -965,6 +965,47 @@ button {
   letter-spacing: 0;
 }
 
+.trace-waiting-card {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 6px;
+  padding: 11px;
+  background: #fbfaf8;
+  border: 1px solid #eee9e1;
+  border-radius: 8px;
+}
+
+.trace-waiting-card > span {
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  border: 2px solid #ffd5bd;
+  border-top-color: #ff5c00;
+  border-radius: 999px;
+  animation: spin 0.9s linear infinite;
+}
+
+.trace-waiting-card strong {
+  display: block;
+  color: #292d34;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.trace-waiting-card p {
+  margin-top: 3px;
+  color: #6c727d;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .thread-artifact-card {
   margin-top: 4px;
 }

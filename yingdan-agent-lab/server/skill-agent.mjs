@@ -1,4 +1,5 @@
 import { runAlibabaInquiryMeetingReal } from './alibaba-real-runner.mjs';
+import { inspectAlibabaInquiryMeetingSkill } from './alibaba-skill.mjs';
 
 /**
  * detectSkillCommand 识别新对话里的 Skill 执行指令。
@@ -71,6 +72,36 @@ export function detectAgentGoal(text) {
 }
 
 /**
+ * buildGoalFromSkillCommand 把明确 Skill 指令转成和自然语言目标一致的内部 goal。
+ *
+ * 作用：
+ * - 固定命令也必须走同一套读取 Skill 文档、制定计划、执行 action 的 loop。
+ * - 避免 `执行Skill：...` 绕过前台活动流，直接变成固定执行器。
+ *
+ * 参数：
+ * - command：detectSkillCommand 返回的命令识别结果。
+ *
+ * 返回值：可被 goal-agent loop 消费的 goal 对象。
+ * 可能抛出的异常：无。
+ */
+function buildGoalFromSkillCommand(command) {
+  if (!command?.matched) {
+    return null;
+  }
+
+  return {
+    matched: true,
+    goalType: 'inquiry-meeting',
+    skillId: command.skillId,
+    mode: command.mode,
+    periodHint: 'previous_full_week',
+    trigger: 'skill_command',
+    confidence: 1,
+    reason: '用户明确要求执行 alibaba-inquiry-meeting，需要先读取 Skill 文档再执行。',
+  };
+}
+
+/**
  * runNewConversationAgent 执行新对话 Agent 的一轮 Skill 命令。
  *
  * 作用：
@@ -106,8 +137,10 @@ export async function runNewConversationAgent(options = {}) {
   }
 
   const runner = options.runner || runAlibabaInquiryMeetingReal;
-  if (goal.matched) {
+  if (command.matched || goal.matched) {
     const loop = await runGoalAgentLoop({
+      command: command.matched ? command : null,
+      inspectSkill: options.inspectSkill,
       projectRoot: options.projectRoot,
       runner,
       text: options.text,
@@ -115,7 +148,7 @@ export async function runNewConversationAgent(options = {}) {
 
     return buildAlibabaSkillAgentResponse({
       goal: loop.goal,
-      kind: 'goal-run',
+      kind: command.matched ? 'skill-run' : 'goal-run',
       loop,
       plan: loop.plan,
       result: loop.result,
@@ -179,7 +212,8 @@ export function buildAlibabaSkillAgentResponse(input = {}) {
     rows: rowSummary.rows || {},
   };
   const summary = [
-    goal?.matched ? `已理解目标，并自动匹配 alibaba-inquiry-meeting。` : '',
+    goal?.matched && goal.trigger === 'natural_goal' ? `已理解目标，并自动匹配 alibaba-inquiry-meeting。` : '',
+    goal?.matched && goal.trigger === 'skill_command' ? `已收到 Skill 执行指令，并先读取 alibaba-inquiry-meeting 文档。` : '',
     `已完成 ${period.start || '未返回'} ~ ${period.end || '未返回'} 的询盘分析会。`,
     `本次执行 ${toolSummary.succeeded ?? 0}/${toolSummary.attempted ?? 0} 次只读采集。`,
     `工作簿包含 ${sheetCount} 张 sheet，大小 ${formatBytes(workbookBytes)}。`,
@@ -254,6 +288,9 @@ async function runGoalAgentLoop(input = {}) {
     result: null,
     runner: input.runner,
     skillId: '',
+    skillInfo: null,
+    command: input.command || null,
+    inspectSkill: input.inspectSkill || inspectAlibabaInquiryMeetingSkill,
     text: input.text,
   };
   const steps = [];
@@ -303,7 +340,7 @@ async function runGoalAgentLoop(input = {}) {
  */
 async function executeGoalAction(action, state) {
   if (action === 'goal.classify') {
-    state.goal = detectAgentGoal(state.text);
+    state.goal = state.command?.matched ? buildGoalFromSkillCommand(state.command) : detectAgentGoal(state.text);
     return {
       title: '收到目标',
       detail: state.goal.reason || '未识别到可执行目标。',
@@ -321,6 +358,20 @@ async function executeGoalAction(action, state) {
       observation: state.skillId ? 'skill.matched' : 'skill.missing',
       status: state.skillId ? 'complete' : 'error',
       nextActionReason: state.skillId ? 'Skill 已匹配，开始制定执行计划。' : '没有可执行 Skill，停止。',
+    };
+  }
+
+  if (action === 'skill.read') {
+    state.skillInfo = await state.inspectSkill();
+    const requiredFiles = ['SKILL.md', 'agents/openai.yaml', 'evals/evals.json', 'scripts/build_inquiry_meeting_xlsx.py'];
+    return {
+      title: '读取 Skill 文档',
+      detail: `已读取 ${requiredFiles.join(' / ')}；displayName=${state.skillInfo.displayName}；eval=${state.skillInfo.evalCount}。`,
+      observation: 'skill.docs_loaded',
+      status: state.skillInfo.hasBuilderScript ? 'complete' : 'error',
+      nextActionReason: state.skillInfo.hasBuilderScript
+        ? 'Skill 文档和 builder 已确认，开始制定执行计划。'
+        : 'Skill builder 缺失，停止执行。',
     };
   }
 
@@ -393,7 +444,8 @@ function chooseNextGoalAction(action, outcome, state) {
 
   const nextByAction = {
     'goal.classify': 'skill.match',
-    'skill.match': 'plan.create',
+    'skill.match': 'skill.read',
+    'skill.read': 'plan.create',
     'plan.create': 'skill.execute',
     'skill.execute': 'artifact.verify',
     'artifact.verify': 'finish',

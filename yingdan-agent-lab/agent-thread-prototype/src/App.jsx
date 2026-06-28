@@ -1144,14 +1144,6 @@ function NewConversationView({
   onToggleProcess,
 }) {
   const isRunning = agentStatus === 'running';
-  const progressItems = isRunning
-    ? [
-        { label: '读取Skill', detail: '正在加载 alibaba-inquiry-meeting', status: 'pending' },
-        { label: '确定周期', detail: '准备上周完整自然周', status: 'pending' },
-        { label: '采集只读数据', detail: '等待 Accio/Alibaba 返回', status: 'pending' },
-        { label: '生成XLSX', detail: '采集完成后生成工作簿', status: 'pending' },
-      ]
-    : [];
   const hasMessages = messages.length > 0;
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -1208,8 +1200,14 @@ function NewConversationView({
                   <strong>alibaba-inquiry-meeting Agent</strong>
                   <span>执行中</span>
                 </div>
-                <p>正在理解目标、匹配 Skill、采集只读数据并生成询盘分析会 XLSX。</p>
-                <ExecutionProcess steps={progressItems} />
+                <p>请求已发送给 Runtime，正在等待后端返回真实活动流。</p>
+                <div className="trace-waiting-card">
+                  <span aria-hidden="true" />
+                  <div>
+                    <strong>尚未展示执行步骤</strong>
+                    <p>等后端确认已读取 Skill 文档、产生 observation 和 nextAction 后，再写入活动流。</p>
+                  </div>
+                </div>
               </div>
             </div>
           ) : null}
