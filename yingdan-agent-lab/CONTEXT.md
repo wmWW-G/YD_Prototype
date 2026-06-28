@@ -15,7 +15,8 @@
 ```text
 先在本地网页跑顺「第一刀」,再谈扩展和 Electron。
 第一刀验收 = 能执行真实外部 Accio skill 包 alibaba-inquiry-meeting,并产出合格 XLSX。
-当前本地已新增 real-bridge 验收命令,并把它接进「新对话」入口。
+当前本地已新增 real-bridge 验收命令,并把它接进「新对话」Agent 对话线程。
+前台线程必须展示 Session ID、用户/Agent 消息、可展开执行过程和同 Session 继续追问。
 DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真实工具数据。
 ```
 
@@ -116,7 +117,11 @@ Electron 桌面壳、SQLite 索引层、Python 工具进程(PDF/XLSX/OCR)、
 - 当前最终验收锚点是 `alibaba-inquiry-meeting`:读取外部 skill 包、发现并调用只读 Alibaba 工具、生成主持材料 JSON、调用 XLSX builder、写 artifact 和 manifest。
 - 当前真实执行入口分两层:
   - 命令行验收: `server/alibaba-real-runner.mjs` 和 `npm run acceptance:alibaba-inquiry-meeting:real`。
-  - 前台验收:「新对话」输入 `执行Skill：alibaba-inquiry-meeting`,调用 `POST /api/agent/message`。
+  - 前台验收:「新对话」输入 `执行Skill：alibaba-inquiry-meeting`,调用 `POST /api/agent/message`,生成一个带 Session ID 的 Agent 对话线程。
+- 前台不是一次性任务执行面板:
+  - 首次执行会生成用户消息、Agent 消息、Session ID、折叠的执行过程和 XLSX 产物卡。
+  - 点击「执行过程」后能看到读取 Skill、确定周期、采集只读数据、生成 XLSX、校验通过等节点。
+  - 同一个 Session 继续追问时只追加 Agent 回复,不重新采集 Alibaba 只读数据。
 - builder-only smoke 只用于证明外部 XLSX builder 可用,不算最终验收。
 
 ## 当前模型选择（已对官方核实）
@@ -161,7 +166,7 @@ BUILD_SPEC.md          第一刀执行规格(alibaba-inquiry-meeting 验收,给 
 agent-thread-prototype/ React/Vite UI 原型,含 6 入口多视图
 server/alibaba-skill.mjs 外部 alibaba-inquiry-meeting skill 包识别和 XLSX builder 调用适配
 server/alibaba-real-runner.mjs 真实 Accio/Alibaba 只读工具采集、主持材料 JSON 和 real-bridge 验收执行器
-server/skill-agent.mjs 新对话 Skill 指令识别和前台进度/产物响应封装
+server/skill-agent.mjs 新对话 Skill 指令识别、Session 线程消息、前台进度/产物响应和同 Session 追问封装
 server/index.mjs 本地 Runtime API,含 POST /api/agent/message
 server/acceptance-alibaba-inquiry-meeting-real.mjs 真实验收命令入口
 ```
@@ -200,7 +205,9 @@ npm run acceptance:alibaba-inquiry-meeting:real
 打开 http://127.0.0.1:5176/
 在「新对话」输入: 执行Skill：alibaba-inquiry-meeting
 点击「开始对话」
-页面应显示 alibaba-inquiry-meeting Agent、6 个进度节点、XLSX 文件名和本地路径
+页面应显示 Agent 对话线程、Session ID、alibaba-inquiry-meeting Agent 回复、XLSX 文件名和本地路径
+点击 Agent 消息里的「执行过程」应展开 6 个进度节点
+继续输入追问后,页面应沿用同一个 Session ID,并提示不会重新采集 Alibaba 只读数据
 ```
 
 当前已跑通的真实产物:
@@ -229,6 +236,7 @@ workbench/runs/<run_id>.jsonl
 → 调用 skill 自带 XLSX builder
 → 通过固定 XLSX 安全流程
 → 返回合格 .xlsx 路径,且 run log / artifact / manifest 可追溯
+→ 前台保留同一个 Session,后续追问基于本次产物继续回答
 ```
 
 自然语言如“帮我开上周询盘分析会”可以作为后续意图识别扩展;当前第一刀硬验收以 `执行Skill：alibaba-inquiry-meeting` 为准。

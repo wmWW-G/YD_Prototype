@@ -1,5 +1,16 @@
 # DEV_LOG
 
+## 2026-06-28
+
+- 将「新对话」从一次性任务执行面板改成 Agent 对话线程：
+  - 前台 `agent-thread-prototype/src/App.jsx` 新增 Session ID、用户/Agent 消息列表、可展开执行过程、XLSX 产物卡和底部继续追问输入。
+  - 首次输入 `执行Skill：alibaba-inquiry-meeting` 会创建 `agent-session-...`，追加用户消息和 Agent 回复；执行过程默认折叠，点击「执行过程」可展开读取 Skill、确定周期、采集只读数据、生成 XLSX、校验通过等节点。
+  - 同一个 Session 继续追问时只追加 Agent 回复，不重新采集 Alibaba 只读数据；后端会明确提示“不会重新采集 Alibaba 只读数据”。
+  - `server/skill-agent.mjs` 增加 Session 响应结构、线程消息封装和 follow-up 响应；`server/index.mjs` 将 `sessionId` 和上次 artifact/period context 传入 Runtime。
+  - `server/skill-agent.test.mjs` 增加线程化测试，覆盖 Session、执行过程、产物卡和同 Session 追问。
+  - 调整线程页样式，固定 100vh 布局，避免底部输入区和按钮在浏览器窗口内被挤出；toast 移到右上角，避免遮挡继续追问按钮。
+  - 同步更新 `CONTEXT.md`、`BUILD_SPEC.md` 和 `RUNTIME_ARCHITECTURE.md`，把前台验收标准改为“Session 线程 + 可展开执行过程 + 可继续追问”。
+
 ## 2026-06-27
 
 - 将真实 `alibaba-inquiry-meeting` 执行链接入「新对话」前台入口：

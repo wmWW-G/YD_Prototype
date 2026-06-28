@@ -78,6 +78,8 @@ app.post('/api/agent/message', async (request, response) => {
   try {
     const result = await runNewConversationAgent({
       text: request.body?.message || '',
+      sessionId: request.body?.sessionId || '',
+      context: request.body?.context || {},
       projectRoot,
     });
 

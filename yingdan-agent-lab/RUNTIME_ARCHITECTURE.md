@@ -192,6 +192,8 @@ React/Vite Web 工作台
 
 - 第一阶段产品入口。
 - 负责新对话、赢单外贸顾问、我的Agent、技能Skill、外接生态、客户Kass。
+- 「新对话」必须是 Agent 对话线程,不是一次性任务执行面板。
+- 线程里展示 Session ID、用户/Agent 消息、可展开执行过程、产物卡和继续追问输入。
 - 只展示业务状态，不展示完整底层日志。
 
 `Runtime API`
@@ -1111,8 +1113,10 @@ subagent / 多 Agent 编排
 ```text
 用户在「新对话」输入“执行Skill：alibaba-inquiry-meeting”
 -> Runtime 识别 alibaba-inquiry-meeting
--> 看到业务化进度
--> 得到 XLSX 路径
+-> 创建 Agent 对话线程并显示 agent-session-... Session ID
+-> 看到 Agent 回复、可展开执行过程和业务化进度
+-> 得到 XLSX 路径和产物卡
+-> 在同一个 Session 继续追问,不重新采集只读数据
 -> 打开工作簿看到 8 张固定 sheet
 -> 管理层能直接看到风险、责任人、整改动作和下次复查方式
 ```

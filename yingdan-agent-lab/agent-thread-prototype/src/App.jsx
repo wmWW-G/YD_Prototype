@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bot,
   Check,
@@ -462,6 +462,10 @@ export function App() {
   const [skillAgentStatus, setSkillAgentStatus] = useState('idle');
   const [skillAgentResult, setSkillAgentResult] = useState(null);
   const [skillAgentError, setSkillAgentError] = useState('');
+  const [agentSessionId, setAgentSessionId] = useState('');
+  const [agentThreadMessages, setAgentThreadMessages] = useState([]);
+  const [expandedProcessMessageId, setExpandedProcessMessageId] = useState('');
+  const newConversationInputRef = useRef(null);
   const [inquiryText, setInquiryText] = useState('');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisRunId, setAnalysisRunId] = useState('');
@@ -731,20 +735,33 @@ export function App() {
    * 可能抛出的异常：函数内部捕获网络和接口异常，并转成页面错误提示。
    */
   async function handleRunNewConversationAgent() {
-    if (!newConversationDraft.trim()) {
-      setToast('先输入要执行的 Skill');
+    const currentDraft = (newConversationInputRef.current?.value || newConversationDraft).trim();
+
+    if (!currentDraft) {
+      setToast(agentSessionId ? '先输入要继续追问的内容' : '先输入要执行的 Skill');
       return;
     }
 
+    const userMessage = buildLocalThreadMessage('user', currentDraft);
+
     setSkillAgentStatus('running');
     setSkillAgentError('');
-    setSkillAgentResult(null);
+    setAgentThreadMessages((currentMessages) => [...currentMessages, userMessage]);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/agent/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: newConversationDraft }),
+        body: JSON.stringify({
+          message: currentDraft,
+          sessionId: agentSessionId || undefined,
+          context: skillAgentResult
+            ? {
+                artifact: skillAgentResult.artifact,
+                period: skillAgentResult.period,
+              }
+            : undefined,
+        }),
       });
       const payload = await response.json();
 
@@ -752,18 +769,46 @@ export function App() {
         const message = payload.message || payload.error || 'Agent 执行失败';
         setSkillAgentStatus('error');
         setSkillAgentError(message);
+        setAgentThreadMessages((currentMessages) => [...currentMessages, buildLocalThreadMessage('assistant', message, { tone: 'error' })]);
         setToast(message);
         return;
       }
 
-      setSkillAgentResult(payload);
+      const assistantMessages = (payload.messages || []).filter((message) => message.role === 'assistant');
+      setAgentSessionId(payload.sessionId || agentSessionId);
+      if (payload.kind === 'skill-run') {
+        setSkillAgentResult(payload);
+      }
+      setAgentThreadMessages((currentMessages) => [...currentMessages, ...assistantMessages]);
+      setExpandedProcessMessageId('');
       setSkillAgentStatus('completed');
-      setToast('alibaba-inquiry-meeting 已执行完成');
+      setNewConversationDraft('');
+      if (newConversationInputRef.current) {
+        newConversationInputRef.current.value = '';
+      }
+      setToast(payload.kind === 'followup' ? '已追加到当前 Session' : 'alibaba-inquiry-meeting 已执行完成');
     } catch (error) {
       setSkillAgentStatus('error');
       setSkillAgentError(`本地后端未启动或请求失败：${error.message}`);
+      setAgentThreadMessages((currentMessages) => [
+        ...currentMessages,
+        buildLocalThreadMessage('assistant', `本地后端未启动或请求失败：${error.message}`, { tone: 'error' }),
+      ]);
       setToast(`本地后端未启动或请求失败：${error.message}`);
     }
+  }
+
+  /**
+   * 展开或收起新对话线程中的执行过程。
+   *
+   * 参数：
+   * - messageId：包含执行过程的助手消息 ID。
+   *
+   * 返回值：无。
+   * 可能抛出的异常：不主动抛异常。
+   */
+  function handleToggleAgentProcess(messageId) {
+    setExpandedProcessMessageId((currentMessageId) => (currentMessageId === messageId ? '' : messageId));
   }
 
   /**
@@ -789,14 +834,18 @@ export function App() {
   function renderWorkspace() {
     if (activeNav === '新对话') {
       return (
-        <NewConversationView
+          <NewConversationView
           agentError={skillAgentError}
-          agentResult={skillAgentResult}
           agentStatus={skillAgentStatus}
           draft={newConversationDraft}
+          expandedProcessMessageId={expandedProcessMessageId}
+          inputRef={newConversationInputRef}
+          messages={agentThreadMessages}
+          sessionId={agentSessionId}
           onDraftChange={setNewConversationDraft}
           onRunAgent={handleRunNewConversationAgent}
           onPrototypeAction={handlePrototypeAction}
+          onToggleProcess={handleToggleAgentProcess}
         />
       );
     }
@@ -862,6 +911,31 @@ export function App() {
       {toast ? <Toast message={toast} onClose={() => setToast('')} /> : null}
     </main>
   );
+}
+
+/**
+ * buildLocalThreadMessage 创建前端本地线程消息。
+ *
+ * 作用：
+ * - 用户发送后先把消息放进线程，减少等待感。
+ * - 网络错误也可以作为助手消息进入同一条 Session 视图。
+ *
+ * 参数：
+ * - role：消息角色，user 或 assistant。
+ * - content：消息正文。
+ * - options.tone：可选语气标记，例如 error。
+ *
+ * 返回值：线程消息对象。
+ * 可能抛出的异常：无。
+ */
+function buildLocalThreadMessage(role, content, options = {}) {
+  return {
+    id: `${role}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    role,
+    content,
+    createdAt: new Date().toISOString(),
+    tone: options.tone || '',
+  };
 }
 
 /**
@@ -1042,17 +1116,33 @@ function WorkspaceHeader({ title, subtitle, chips = [], action }) {
  *
  * 参数：
  * - agentError：Agent 执行错误文案，字符串。
- * - agentResult：Agent 执行结果对象。
  * - agentStatus：Agent 状态，idle/running/completed/error。
  * - draft：新对话输入框内容。
+ * - expandedProcessMessageId：当前展开执行过程的消息 ID。
+ * - inputRef：输入框 DOM 引用，用于发送时兜底读取当前值。
+ * - messages：当前 Session 的线程消息。
+ * - sessionId：当前 Agent Session ID。
  * - onDraftChange：更新新对话输入内容的回调函数。
  * - onRunAgent：执行 Agent 的回调函数。
  * - onPrototypeAction：原型反馈回调函数。
+ * - onToggleProcess：展开或收起执行过程的回调函数。
  *
  * 返回值：React 新对话页面。
  * 可能抛出的异常：不主动抛异常。
  */
-function NewConversationView({ agentError, agentResult, agentStatus, draft, onDraftChange, onRunAgent, onPrototypeAction }) {
+function NewConversationView({
+  agentError,
+  agentStatus,
+  draft,
+  expandedProcessMessageId,
+  inputRef,
+  messages,
+  sessionId,
+  onDraftChange,
+  onRunAgent,
+  onPrototypeAction,
+  onToggleProcess,
+}) {
   const isRunning = agentStatus === 'running';
   const progressItems = isRunning
     ? [
@@ -1061,29 +1151,90 @@ function NewConversationView({ agentError, agentResult, agentStatus, draft, onDr
         { label: '采集只读数据', detail: '等待 Accio/Alibaba 返回', status: 'pending' },
         { label: '生成XLSX', detail: '采集完成后生成工作簿', status: 'pending' },
       ]
-    : agentResult?.progress || [];
+    : [];
+  const hasMessages = messages.length > 0;
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    onRunAgent();
+  };
 
   return (
-    <div className="new-chat-simple">
-      <section className="new-chat-center" aria-label="新对话">
-        <div className="assistant-lockup">
-          <img src="/assets/yingdan-mark.svg" alt="赢单" />
+    <div className="agent-thread-page">
+      <section className="agent-thread-shell" aria-label="新对话 Agent 线程">
+        <header className="agent-thread-header">
+          <div className="assistant-thread-title">
+            <img src="/assets/yingdan-mark.svg" alt="赢单" />
+            <div>
+              <span>赢单助手</span>
+              <h1>Agent 对话线程</h1>
+            </div>
+          </div>
           <div>
-            <h1>赢单助手</h1>
-            <button type="button" onClick={() => onPrototypeAction('原型反馈：正式版会打开 Agent 切换菜单')}>
+            <span className={sessionId ? 'session-chip active' : 'session-chip'}>
+              Session ID: {sessionId || '未建立'}
+            </span>
+            <button className="thread-agent-switch" type="button" onClick={() => onPrototypeAction('原型反馈：正式版会打开 Agent 切换菜单')}>
               <Sparkles size={15} />
               切换Agent
             </button>
           </div>
-          <p>处理外贸客户、询盘和成交任务</p>
+        </header>
+
+        <div className="agent-message-list" aria-label="Agent 对话消息">
+          {!hasMessages ? (
+            <div className="thread-empty-state">
+              <strong>执行Skill：alibaba-inquiry-meeting</strong>
+              <span>发出后会创建 Session，生成 XLSX，并把执行过程折叠在线程里。</span>
+            </div>
+          ) : null}
+
+          {messages.map((message) => (
+            <AgentThreadMessage
+              isProcessExpanded={expandedProcessMessageId === message.id}
+              key={message.id}
+              message={message}
+              onPrototypeAction={onPrototypeAction}
+              onToggleProcess={onToggleProcess}
+            />
+          ))}
+
+          {isRunning ? (
+            <div className="agent-message assistant pending">
+              <div className="message-avatar">
+                <Bot size={16} />
+              </div>
+              <div className="message-bubble">
+                <div className="message-meta">
+                  <strong>alibaba-inquiry-meeting Agent</strong>
+                  <span>执行中</span>
+                </div>
+                <p>正在执行 Skill、采集只读数据并生成询盘分析会 XLSX。</p>
+                <ExecutionProcess steps={progressItems} />
+              </div>
+            </div>
+          ) : null}
+
+          {agentError && !isRunning ? (
+            <div className="confirmation-row compact error">
+              <CircleAlert size={16} />
+              <span>{agentError}</span>
+            </div>
+          ) : null}
         </div>
 
-        <section className="new-chat-composer">
+        <form className="agent-thread-composer" aria-label="继续追问" onSubmit={handleSubmit}>
           <textarea
-            className="large-prompt"
-            placeholder="输入问题...（@ 引用客户 / 资料）"
-            value={draft}
+            className="thread-prompt"
+            placeholder={sessionId ? '继续追问这个 Session...' : '输入：执行Skill：alibaba-inquiry-meeting'}
+            ref={inputRef}
+            defaultValue={draft}
             onChange={(event) => onDraftChange(event.target.value)}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                event.preventDefault();
+                onRunAgent();
+              }
+            }}
           />
 
           <div className="composer-toolbar inline-toolbar">
@@ -1097,23 +1248,116 @@ function NewConversationView({ agentError, agentResult, agentStatus, draft, onDr
                 选择Skill
               </button>
             </div>
-            <button type="button" className="send-button" disabled={isRunning} onClick={onRunAgent}>
+            <button type="submit" className="send-button" disabled={isRunning}>
               <Send size={16} />
-              {isRunning ? '执行中' : '开始对话'}
+              {isRunning ? '执行中' : sessionId ? '继续追问' : '开始对话'}
             </button>
           </div>
-        </section>
-
-        <SkillAgentRunPanel
-          agentError={agentError}
-          agentResult={agentResult}
-          agentStatus={agentStatus}
-          progressItems={progressItems}
-          onPrototypeAction={onPrototypeAction}
-        />
+        </form>
       </section>
     </div>
   );
+}
+
+/**
+ * AgentThreadMessage 渲染新对话线程里的一条消息。
+ *
+ * 参数：
+ * - isProcessExpanded：当前消息执行过程是否展开。
+ * - message：线程消息对象。
+ * - onPrototypeAction：原型反馈回调函数。
+ * - onToggleProcess：展开或收起执行过程的回调函数。
+ *
+ * 返回值：React 消息节点。
+ * 可能抛出的异常：不主动抛异常。
+ */
+function AgentThreadMessage({ isProcessExpanded, message, onPrototypeAction, onToggleProcess }) {
+  const isUser = message.role === 'user';
+
+  return (
+    <article className={`agent-message ${isUser ? 'user' : 'assistant'} ${message.tone || ''}`}>
+      <div className="message-avatar">
+        {isUser ? <UserRound size={16} /> : <Bot size={16} />}
+      </div>
+      <div className="message-bubble">
+        <div className="message-meta">
+          <strong>{isUser ? '你' : '赢单 Agent'}</strong>
+          <span>{formatMessageTime(message.createdAt)}</span>
+        </div>
+        {message.content.split('\n').filter(Boolean).map((line) => (
+          <p key={`${message.id}-${line}`}>{line}</p>
+        ))}
+
+        {message.process ? (
+          <div className="message-process">
+            <button type="button" onClick={() => onToggleProcess(message.id)}>
+              {isProcessExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+              执行过程
+            </button>
+            {isProcessExpanded ? <ExecutionProcess steps={message.process.steps || []} /> : null}
+          </div>
+        ) : null}
+
+        {message.artifact ? (
+          <div className="skill-artifact-card thread-artifact-card">
+            <FileText size={18} />
+            <div>
+              <strong>{message.artifact.workbookName}</strong>
+              <span>{message.artifact.outputPath}</span>
+            </div>
+            <button type="button" onClick={() => onPrototypeAction('已定位到本地 XLSX 产物路径')}>
+              <Download size={15} />
+              产物
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+/**
+ * ExecutionProcess 渲染可复用的执行过程列表。
+ *
+ * 参数：
+ * - steps：执行步骤数组。
+ *
+ * 返回值：React 过程节点。
+ * 可能抛出的异常：不主动抛异常。
+ */
+function ExecutionProcess({ steps }) {
+  return (
+    <div className="progress-strip skill-progress-strip">
+      {steps.map((item) => (
+        <div className={`progress-step ${item.status}`} key={item.label}>
+          <span className="progress-dot" aria-hidden="true">
+            {item.status === 'complete' ? <Check size={12} /> : null}
+          </span>
+          <div>
+            <strong>{item.label}</strong>
+            <span>{item.detail}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * formatMessageTime 把 ISO 时间转成短时间。
+ *
+ * 参数：
+ * - value：ISO 时间字符串。
+ *
+ * 返回值：HH:mm 文本。
+ * 可能抛出的异常：无。
+ */
+function formatMessageTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 }
 
 /**

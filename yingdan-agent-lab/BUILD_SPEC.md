@@ -333,7 +333,8 @@ npm run acceptance:alibaba-inquiry-meeting:real
 -> POST /api/agent/message
 -> server/skill-agent.mjs 识别命令
 -> server/alibaba-real-runner.mjs 执行真实只读采集和 XLSX builder
--> 前台显示业务进度、摘要和 XLSX 路径
+-> 前台创建 Agent 对话线程,显示 Session ID、Agent 回复、可展开执行过程和 XLSX 路径
+-> 同一个 Session 继续追问时只追加回答,不重新跑只读采集
 ```
 
 ---
@@ -343,13 +344,15 @@ npm run acceptance:alibaba-inquiry-meeting:real
 用户不用看代码，最终只看这些：
 
 1. 在「新对话」输入 `执行Skill：alibaba-inquiry-meeting`。
-2. 前台能看到业务进度：读取 skill、确定周期、采集只读数据、生成管理复盘、生成 XLSX、校验通过。
-3. 最终返回一个 `.xlsx` 路径。
-4. 打开 XLSX 后有 8 张固定 sheet。
-5. 里面是老板/销售主管能直接看的会后复盘，不是会前提纲，不是聊天回答。
-6. 没有工具名、JSON、token、bridge、内部报错。
-7. 没有自动发消息、改配置、发品、上传或扣费。
-8. 如果数据缺失，缺口写清楚，不能编造漂亮数据。
+2. 页面从空白输入态变成 Agent 对话线程,能看到一个 `agent-session-...` Session ID。
+3. Agent 回复里有「执行过程」按钮,展开后能看到：读取 skill、确定周期、采集只读数据、生成管理复盘、生成 XLSX、校验通过。
+4. 最终返回一个 `.xlsx` 路径。
+5. 在同一个输入框继续追问,页面沿用同一个 Session ID,只追加回答,不重新采集 Alibaba 只读数据。
+6. 打开 XLSX 后有 8 张固定 sheet。
+7. 里面是老板/销售主管能直接看的会后复盘，不是会前提纲，不是聊天回答。
+8. 没有工具名、JSON、token、bridge、内部报错。
+9. 没有自动发消息、改配置、发品、上传或扣费。
+10. 如果数据缺失，缺口写清楚，不能编造漂亮数据。
 
 ---
 
