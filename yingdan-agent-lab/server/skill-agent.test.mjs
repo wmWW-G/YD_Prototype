@@ -3952,6 +3952,56 @@ test('buildAgentFollowupResponse revises the current markdown artifact for same-
   }
 });
 
+test('runNewConversationAgent treats rewrite wording as current artifact follow-up before matching a new skill', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-followup-router-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '开发信草稿.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(
+      artifactPath,
+      [
+        '# 开发信草稿',
+        '',
+        'Hi Mike,',
+        '',
+        'We can provide solar garden lights for your retail channels.',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const artifact = {
+      type: 'markdown',
+      name: '开发信草稿.md',
+      outputPath: artifactPath,
+    };
+    const response = await runNewConversationAgent({
+      projectRoot,
+      sessionId: 'agent-session-20260630-rewrite-followup',
+      text: '重写一下开发信，更直接一点',
+      context: { artifact },
+      session: { context: { artifact } },
+      registry: createEmailRegistry(),
+      skillRuntime: {
+        async runGoal() {
+          throw new Error('runtime should not start a new email skill for rewrite follow-up');
+        },
+      },
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'followup');
+    assert.equal(response.artifact.outputPath, artifactPath);
+    assert.match(response.messages[0].content, /已按补充要求更新/);
+    assert.match(updated, /本次补充优化/);
+    assert.match(updated, /重写一下开发信，更直接一点/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('buildAgentFollowupResponse revises the current xlsx artifact for same-task follow-up', async () => {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-followup-xlsx-'));
   const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');

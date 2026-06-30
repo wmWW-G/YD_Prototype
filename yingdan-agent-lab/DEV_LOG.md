@@ -680,3 +680,7 @@
   - sub agent 只读评估指出 P1:最终消息优先渲染 `本次操作记录`,但 `activity.items[].phase` 没过 sanitizer 和 UI;已修复 `sanitizeActivityItem()`、`ActivityStream` 和相关源码测试。
   - 同步处理两个 P2:可恢复错误 waiting 也补 `识别 / 执行 / 执行` phase;`ExecutionProcess` 的 React key 改成 label + phase + index,避免非连续同名步骤冲突。
   - 已执行 `node --test server/agent-message-stream.test.mjs server/agent-thread-progress.test.mjs server/frontend-copy.test.mjs server/skill-agent.test.mjs`,132 个测试通过;最终执行 `npm test`,206 个测试通过,并执行 `npm run build:web` 通过。
+- 补强同任务续改的自然表达识别：
+  - 新增红灯测试 `runNewConversationAgent treats rewrite wording as current artifact follow-up before matching a new skill`,复现已有 `开发信草稿.md` 时用户说 `重写一下开发信，更直接一点` 会被误判为缺上下文的新开发信任务。
+  - `server/skill-agent.mjs` 扩展当前产物续改意图,支持 `重写`、`重新写`、`再来一版`、`另写一版`、`换种说法` 等表达;仍保留 `重新开始 / 新任务 / 换客户` 的上下文清理逻辑。
+  - 已执行 `node --test server/skill-agent.test.mjs`,89 个测试通过。
