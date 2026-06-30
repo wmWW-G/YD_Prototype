@@ -1,5 +1,228 @@
 # DEV_LOG
 
+## 2026-06-30
+
+- 继续收紧「新对话」的缺资料 gate:
+  - 复现问题:`客户要报价，帮我做报价单` 会进入报价单等待态,但漏问 `产品资料`,因为后端把 `报价/价格` 这类任务意图词也算成了产品上下文。
+  - 已修复:报价单现在使用更严格的 `quoteProduct` 信号;只有真的出现产品、规格、型号或具体品类时才算产品资料。单独出现 `报价/价格` 只代表报价任务意图,不能冒充产品。
+  - 新增回归测试 `runNewConversationAgent asks for product details before generating a quotation sheet`,确保缺产品、数量、单价、币种和贸易条款时先等待补充,不生成空泛 XLSX。
+
+- 继续增强「新对话」的自然口语理解:
+  - 复现问题:`买家嫌贵，产品是家具，帮我想下一步怎么谈` 会被识别为客户推进任务,但误判缺少当前卡点;`对方嫌贵，产品是家具，下一步怎么推进` 甚至会落到泛泛 `needs-input / 本次外贸任务`。
+  - 已修复:`嫌贵 / 太贵 / 贵了 / 价格太高` 现在算具体客户异议;`对方` 也会作为客户/买家的口语代称进入客户推进路由。
+  - 新增回归测试覆盖 `买家嫌贵` 和 `对方嫌贵` 两种业务员常用说法,确保它们直接生成 `客户推进分析.md`,不再要求用户改写成“客户说价格太高”。
+
+- 继续修正「新对话」的上下文续接边界:
+  - 复现问题:同一线程里先生成 `开发信草稿.md`,再输入 `重新开始，帮我分析客户怎么推进`,后端会误把上一轮 `德国采购商 / 太阳能路灯 / MOQ和交期` 带入新任务,直接生成 `客户推进分析.md`。
+  - 已修复:自然语言里的 `重新开始 / 从头开始 / 新任务 / 不要沿用上一个任务` 会切断旧线程事实;如果新任务自身缺客户资料或当前卡点,返回 `needs-input / waiting`,而不是复用旧客户。
+  - 新增回归测试 `runNewConversationAgent does not carry prior facts when the user explicitly restarts the task`,并确认它先红后绿。
+  - Cicero sub agent 只读复核指出 P1/P2:重开只覆盖已完成路径,waiting 态 pendingTask 和 confirmation 态 pendingConfirmation 仍可能吃掉请求;`不要重新开始` 也会被误判成重开。
+  - 已修复:重开判断前置到 pendingTask / pendingConfirmation / follow-up 分支之前,命中后清掉旧 pending task、旧确认卡、旧 artifact、客户 slug 和 period;`不要重新开始 / 先别从头开始` 这类否定重开话术继续沿用当前任务。
+  - 新增回归测试覆盖 waiting 态重开不合并旧 pending task、confirmation 态重开不继续旧确认、否定重开仍沿用上一轮真实用户事实。
+
+- 继续打磨「新对话」确认等待态的自然语言手感：
+  - 修复同线程跨任务失忆问题:用户先生成 `开发信草稿.md`,上一轮已提供 `德国采购商 / 太阳能路灯 / MOQ和交期`;随后说 `再做一个客户下一步推进计划` 时,后端会把最近真实用户消息里的业务事实带入新匹配的 `客户推进分析`,不再重新追问客户和卡点。
+  - 安全边界:同线程事实复用只读取最近用户消息,不把 Agent 生成内容、runId、路径、tool 信息或内部恢复文本当业务依据;复用后仍缺资料时继续返回 `needs-input`。
+  - 补上换客户保护:用户明确说 `另一个客户 / 新客户 / 换个买家` 时,后端不会复用上一位客户的德国采购商、太阳能路灯、MOQ/交期等资料,而是重新追问新客户资料和当前卡点,避免“接着做”变成张冠李戴。
+  - 修复缺资料等待态里补充句带外发动作时丢原任务的问题: `客户问MOQ和交期，帮我回一下` → `产品太阳能路灯，发给客户` 现在先进入外发确认;确认 `先生成草稿` 后仍沿用原始询盘问题生成 `询盘回复草稿.md`,不会只拿补充句改路由成开发信。
+  - 修复缺资料等待态里补充句带保存动作时丢原任务的问题: `客户问MOQ和交期，帮我回一下` → `产品太阳能路灯，保存一下` 现在会先沿用原始询盘问题生成 `询盘回复草稿.md`,再进入 `写入客户档案前需要确认`;保存前不会写入客户档案,也不会把线程改成一条全新的保存请求。
+  - 真实 API 复验通过:`客户问MOQ和交期，帮我回一下` 返回 `needs-input / 询盘回复草稿 / 产品资料或报价边界`;同 session 输入 `产品太阳能路灯，保存一下` 返回 `confirmation-required / 询盘回复草稿.md / 写入客户档案前需要确认`。
+  - 收紧即时公开 payload:`/api/agent/message` 和 stream result 不再把 Runtime 续接时拼出的内部 user message 返回给前台,避免用户看到 `产出类型: ...；补充资料: ...` 这种系统恢复文本;刷新恢复仍由 session store 返回真实用户消息。
+  - 真实 SSE 复验通过:`客户问MOQ和交期，帮我回一下` → `产品太阳能路灯，保存一下` 的最终 stream result 只包含 assistant message,返回 `询盘回复草稿.md` 和 `写入客户档案前需要确认`,公开 payload 未出现 `产出类型`、`补充资料`、`customer_write` 或 skill id。
+  - 收紧“先生成产物再保存确认”的流式状态:该分支会缓冲 Runtime 事件,公开 SSE 过滤 `run.completed`,最后以 `核对权限 / 等待确认` 收束;前台不会先显示“完成”再显示“等待确认”。
+  - 真实 SSE 复验通过:同一条 `客户问MOQ和交期...` → `产品太阳能路灯，保存一下` 的第二轮 progress 为 `识别任务 / 确认任务类型 / 核对资料 / 拆解任务 / 核对权限 / 生成材料 / 整理发现 / 检查结果 / 核对权限 / 等待确认`,未出现 `完成` 夹在确认前。
+  - 收紧最终线程回看记录:同一轮先生成 `询盘回复草稿.md`、再因 `保存一下` 进入确认等待时,最终 `progress` 和助手消息里的「本次操作记录」都会以 `检查结果 / 核对权限 / 等待确认` 收尾,不只在 SSE 运行中短暂展示第二次权限核对。
+  - Singer sub agent 只读复核指出 P1:前台实际优先渲染 `message.activity`,只改 `process.steps` 仍可能在回看里显示旧 `完成`。已修复:该分支同步重建 `activity.items`,并给前台活动流 key 加 index,支持同一时间线里两次出现 `核对权限`。
+  - 前台实时进度合并抽成 `agentThreadProgress.js`:连续同名步骤只更新最后一步,非连续同名步骤保留为新阶段。这样 `识别任务 running → complete` 不重复刷屏,但生成材料后再次出现的 `核对权限` 会保留在 `检查结果` 后面,不会被挪到前面的旧权限检查位置。
+  - 真实 SSE + 前台合并函数复验通过:同一轮原始 progress 中连续两个 `识别任务` 合并为一个;后续 `核对权限` 保留为第二个权限检查阶段,最终前台顺序为 `识别任务 / 确认任务类型 / 核对资料 / 拆解任务 / 核对权限 / 生成材料 / 整理发现 / 检查结果 / 核对权限 / 等待确认`。
+  - 用户在外发确认卡后输入 `可以，先生成草稿` 现在会被视为自然确认,继续同一 session 生成可检查草稿,不用必须逐字输入按钮文案。
+  - 用户输入 `先不要生成草稿` 现在会被视为取消当前外发确认,不会因为句子里包含 `生成草稿` 就误执行 runtime。
+  - Kant sub agent 只读复核指出两个 P2:内容调整可能被误取消,以及 `确认 + 补充资料` 同一句会丢补充。已修复: `不要写成草稿格式，正式一点` 现在只记录为 supplement 并继续等待确认;`可以，产品是太阳能路灯，先生成草稿` 会把产品资料并入恢复后的询盘回复任务。
+  - 确认识别仍保留安全边界:只接受带 `可以/好的/确认/ok` 等确认前缀且包含当前确认动作的自然说法;`好像先生成草稿更合适` 这种试探语不会触发执行。自然取消需要否定词命中当前动作关键词,避免把 `不要太正式` 或 `不要写成草稿格式` 这类内容调整误当取消。
+  - 真实 API 验收通过:`客户发来询盘，帮我回一封邮件发给客户，产品太阳能路灯` → `可以，先生成草稿` 返回 `confirmation-accepted / 询盘回复草稿.md`;`把这封开发信发给客户` → `先不要生成草稿` 返回 `confirmation-cancelled`;`不要写成草稿格式，正式一点` 和 `好像先生成草稿更合适` 都继续停在确认卡;缺产品的询盘回复在确认句里补 `产品是太阳能路灯` 后可直接生成 `询盘回复草稿.md`。
+  - 已执行红绿验证:`node --test server/skill-agent.test.mjs --test-name-pattern "natural external-send|natural negative|wording edits|tentative wording|inline details"`、`node --test server/skill-agent.test.mjs --test-name-pattern "preserves a waiting inquiry task"`、`node --test server/skill-agent.test.mjs --test-name-pattern "generates a waiting task artifact"`、`node --test server/skill-agent.test.mjs --test-name-pattern "save|export|pending confirmation|waiting task|external|risky"`、`node --test server/skill-agent.test.mjs --test-name-pattern "generates a waiting task artifact|stops and asks before risky external actions|stops and asks before natural paid actions"`、`node --test server/agent-message-stream.test.mjs --test-name-pattern "internal resumed user text|confirmation machine types|structured missing|session internals"` 和 `node --test server/agent-thread-progress.test.mjs server/frontend-copy.test.mjs --test-name-pattern "progress merging|latest same-label|follows the latest thread activity"`;最终执行 `npm test`（141 个测试通过）和 `npm run build:web` 通过。
+
+- 继续把「新对话」产物从模板感往真实业务材料推进：
+  - 真实 API 复验通过:`客户发来询盘，帮我回一封邮件，产品太阳能路灯，问MOQ和交期` 会识别为 `询盘回复草稿`,同 session 产物预览可打开 Markdown 正文。
+  - 真实 API 复验通过:`客户是德国采购商，有个询盘，帮我做客户分析` 先进入 `needs-input / waiting`,补 `他问MOQ和交期，产品是太阳能灯，想下周先拿样品` 后继续同一 session 生成 `客户推进分析.md`。
+  - 真实 API 复验通过:`客户说价格太高，帮我想下一步怎么谈，产品太阳能路灯` 会直接进入 `goal-run / 客户推进分析`,生成 `客户推进分析.md`,产物正文保留价格异议和 `太阳能路灯`,不会再追问“客户名称或客户类型”后停住。
+  - 真实 API 复验通过:`帮我写一封邮件发给德国客户，产品太阳能路灯，问MOQ和交期` 会先进入 `confirmation-required / 外发前需要你确认`;同 session 确认 `先生成草稿` 后才生成 `开发信草稿.md`。`先不要发` 的报价邮件请求仍直接生成草稿,不会被误拦。
+  - 收紧询盘回复缺资料 gate:`客户问MOQ和交期，帮我回一下` 不再直接生成泛泛回复,会进入 `needs-input / 询盘回复草稿`,只追问 `产品资料或报价边界`;补 `产品太阳能路灯` 后才生成 `询盘回复草稿.md`。
+  - 修复 sub agent 发现的 P1:外发确认后的询盘回复请求不能被改路由成开发信。`客户发来询盘，帮我回一封邮件发给客户，产品太阳能路灯` 先停在外发确认;确认 `先生成草稿` 后现在生成 `询盘回复草稿.md`,不会变成 `开发信草稿.md`。
+  - 补齐导出自然说法:`下载文件` / `下载` / `导出` 现在按导出意图处理;没有产物时提示先生成或选择要导出的文件,已有产物时先进入 `导出文件前需要确认`,不会被当成普通追问续改。
+  - 补齐保存自然说法:`保存一下` / `保存下` / `保存当前` / `保存起来` 现在按写入客户档案确认处理;没有产物时提示先生成客户分析、跟进计划或邮件草稿,已有产物时先进入 `写入客户档案前需要确认`,不会被当成普通追问续改。
+  - 修复 sub agent 发现的 P1:混合保存/导出口语不能被 `保存一下` 抢走。`保存一下到桌面`、`保存当前文件到桌面`、`保存一下并下载文件` 现在走 `导出文件前需要确认`;`保存当前文件` 仍走 `写入客户档案前需要确认`。
+  - 修复 sub agent 二次复核发现的 P2:Runtime policy 等待确认时如果同轮已经带有业务产物,现在会继续保留 `artifact` 和 `context.artifact`;取消确认后也不会丢当前产物上下文。
+  - 强化确认等待态的同任务感:前台 `composerContextLabel` 在等待保存、导出、外发或扣费确认时也会显示 `正在接着：<产物名>` 或 `当前任务：<任务名>`,不再因为确认卡出现就把当前产物提示藏掉。
+  - 修正新对话标题稳定性:已有业务任务标题时,后续保存、导出、外发或扣费确认不会把线程标题改成确认动作标题。比如 `客户推进分析` 里触发 `写入客户档案前需要确认`,顶部仍保持 `客户推进分析`;只有第一句话就是风险动作且没有业务标题时,确认标题才作为兜底。
+  - 收紧付费风险识别:`收费接口`、`付费接口`、`花钱也可以`、`消耗额度/积分/点数` 会进入 `付费能力需要你确认`;但外贸客户的采购意向不再被误判为平台扣费,例如 `客户说想购买500套太阳能灯` 会继续生成 `客户推进分析.md`。
+  - 补齐付费确认后的续跑:用户确认 `确认继续` 后,后端会用原始请求和确认期间补充信息继续匹配业务任务。资料足够时继续生成产物,资料不足时回到缺资料等待,不会只回复“已确认”就结束线程。
+  - 新增 `quotation-sheet` adapter 和 `workbench/skills/quotation-sheet/skill.json`:报价单任务会生成真实 `报价单.xlsx`,包含 `报价单` 和 `待确认项` 两个 sheet,并复用 Runtime XLSX 校验。
+  - 真实 API 复验通过:`客户问报价，产品太阳能路灯，数量500套，帮我做一份报价单` 先进入 `needs-input / 报价单`,只追问 `单价或报价区间`、`币种和贸易条款`;同 session 补 `单价20美元，FOB深圳` 后生成 `报价单.xlsx`。
+  - 补齐报价单口语路由:`做报价`、`生成报价`、`报价给德国客户`、`客户问报价` 不再依赖用户说出完整 `报价单` 三个字,会匹配 `quotation-sheet`;`报价邮件` 仍匹配 `cold-email-draft`,外发类 `把报价发给德国客户` 仍先停在确认卡。
+  - 真实 API 复验通过:`客户问报价，产品太阳能路灯，数量500套，单价20美元，FOB深圳，帮我做报价`、`...帮我报价给德国客户`、`帮我生成报价...` 都返回 `报价单.xlsx`;`帮我写报价邮件...` 返回 `开发信草稿.md`;`把报价发给德国客户...` 返回 `外发前需要你确认`。
+  - 真实 XLSX 复核通过:最新报价单 artifact 可用 openpyxl 打开,包含 `太阳能路灯`、`500套`、`20美元`、`FOB深圳`;预览接口返回 2 个工作表的行列摘要。
+  - 修正报价单 XLSX 续改后的前台命名:同 session 输入 `加一列有效期30天` 后,公开 `taskTitle` 和 artifact 名显示为 `报价单-已续改-*.xlsx`,不再泄漏 `quotation-sheet` 或 `skill-runtime` 这类内部文件名。
+  - `business-draft` adapter 新增轻量产品和样品时间抽取,会把 `产品太阳能路灯`、`下周先拿样品` 这类信息写进邮件正文、依据和客户分析,不只藏在任务来源里。
+  - 新增回归测试覆盖询盘回复产物必须包含产品、英文产品名、样品计划和客户关注点。
+  - 新增回归测试覆盖询盘回复缺产品 gate:单独的 `MOQ/交期` 只能算客户问题,不能算产品资料。
+  - 新增回归测试覆盖外发确认后的原始意图保持:询盘回复邮件确认后仍走 `inquiry-reply-draft`,不被 `邮件/草稿` 改写成开发信。
+  - 新增回归测试覆盖 `下载文件`:无产物时返回导出缺产物提示,有产物时返回导出确认卡。
+  - 新增回归测试覆盖 `保存一下`:无产物时返回保存缺产物提示,有产物时返回写入客户档案确认卡。
+  - 新增回归测试覆盖保存/导出混合边界:`保存一下到桌面`、`保存当前文件到桌面`、`保存一下并下载文件` 必须导出,`保存当前文件` 和 `保存当前` 不能误导出。
+  - 新增回归测试覆盖 Runtime policy 携带 artifact 的等待确认:确认卡出现、用户取消后,当前 `客户推进分析.md` 仍保留在上下文里。
+  - 更新回归测试覆盖确认等待态 composer:状态仍是 `等待确认`,placeholder 仍提示补充确认信息,但输入区上下文继续显示 `正在接着：开发信草稿.md`。
+  - 新增 `agentThreadTitle` 纯函数和回归测试,覆盖已有业务标题遇到确认不改名、首句风险确认使用确认标题、新业务任务可以覆盖旧标题。
+  - 新增回归测试覆盖付费风险自然说法和误伤保护:`用收费接口查客户,花钱也可以` 必须停在确认;`客户说想购买500套太阳能灯` 不能停在付费确认。
+  - 新增回归测试覆盖付费确认续跑:`客户是德国采购商...调用收费接口也可以...做下一步推进计划` 先停在付费确认;`确认继续` 后继续生成 `客户推进分析.md`。
+  - 真实 API 复验通过:`用收费接口查一下客户，花钱也可以` 返回 `confirmation-required / 付费能力需要你确认`;`客户说想购买500套太阳能灯，帮我做下一步推进计划` 返回 `goal-run / 客户推进分析 / 客户推进分析.md`。
+  - 真实 API 复验通过:`客户是德国采购商，询盘问MOQ和交期，产品太阳能灯，用收费接口也可以，做下一步推进计划` → `确认继续` 后返回 `confirmation-accepted / 客户推进分析 / 客户推进分析.md`,并显示 `识别任务 / 核对资料 / 拆解任务 / 生成材料 / 检查结果`。
+  - 新增回归测试覆盖报价单缺资料 gate 和完整报价单 XLSX 生成:缺单价/条款不会执行 Runtime,资料完整时必须产出可校验工作簿。
+  - 新增回归测试覆盖报价单口语路由和相近意图保护:`做报价 / 生成报价 / 报价给客户` 必须生成 XLSX,`报价邮件` 不能被报价单抢走。
+  - 新增回归测试覆盖报价单 XLSX 续改展示名:磁盘文件名可以是内部运行文件,但公开消息和 artifact.name 必须是业务友好名称。
+  - 新增回归测试锁定真实口语路由:`客户说价格太高，帮我想下一步怎么谈，产品太阳能路灯` 必须匹配 `customer-followup-plan`,避免后续 registry 调整把具体价格异议退回“没听懂”。
+  - 新增回归测试锁定外发风险短语:`发给德国客户`、`发送给某个采购商` 这类带客户描述的说法也必须停在外发确认,不能绕过确认直接执行 Runtime。
+  - sub agent 只读评审指出一个 P1:`客户 + 产品` 会绕过客户推进分析缺资料 gate。已修复:客户分析必须有具体询盘/聊天/当前卡点信号,`客户是德国采购商，产品是太阳能灯，帮我做客户分析` 会继续追问而不是直接生成。
+  - 同步收掉两个 P2:公开 confirmation payload 不再返回 `external_send/paid_call/runtime_policy` 这类机器枚举;产品名抽取增加业务截断,避免 `产品太阳能路灯 想下周先拿样品` 被写成完整产品名。
+  - 修正“跟进”意图误路由:`帮我跟进这个德国客户,他问MOQ和交期,产品太阳能灯` 现在归到 `客户推进分析`,而 `写个 follow up 给德国客户...` 和 `准备一封跟进开发信...` 仍归到开发信草稿。
+
+## 2026-06-29
+
+- 设计并收敛 `DealOps Runtime Loop v2`：
+  - 先给出 v1 runtime loop,再派 3 个 subagent 分别从 Accio Work 对标、工程落地风险和外贸业务前台体验做只读评估。
+  - 采纳评估结论:补齐 Agent Assembler 固定组装顺序、Skill/Tool Registry 验证链、Evidence Ledger 强制结构、Policy Engine 四层决策、Typed Evaluator/Quality Gate 和通用 resume/checkpoint 边界。
+  - 重写 `RUNTIME_ARCHITECTURE.md` 第 9 节,将目标形态升级为 DealOps Runtime Loop v2:内部用 run/phase/action/evidence/policy/checkpoint,前台只说客户、依据、缺口、风险、下一步和待确认。
+  - 同步更新 `CONTEXT.md` 和 `BUILD_SPEC.md`,把第一刀定位成当前骨架,下一步优先补 `status + phase`、policy ask、resume_from、evidence ledger 和 typed evaluator,不再把 Session ID、action/observation 或 skill slug 当作用户侧验收语言。
+  - 根据用户进一步收窄范围,明确第一阶段只把「新对话」做成外贸版 Codex / Claude Code 的任务入口,不要求六个一级入口同时升级成完整 Agent Runtime。
+  - 开始把「新对话」前台体验往 Codex / Claude Code 式任务线程收敛:
+    - 顶部从 `通用 Agent` 改成 `外贸任务`,隐藏 `Session ID`,把 `选择Skill` 改成业务化的 `深度处理`。
+    - 空态增加常用任务示例,用户可以直接点击或输入业务目标。
+    - 等待态改成“识别目标 / 核对资料 / 生成材料 / 检查结果”语言,不再说“等待真实活动流 / 读取 Skill”。
+    - 后端未匹配到可执行任务时,不再返回技术错误,而是在同一线程里追问客户名称、询盘原文、产品资料、目标市场、价格底线或材料类型。
+    - 成功执行的公开主进度补齐 `识别任务`:普通 result 和助手消息 process 现在显示 `识别任务 / 核对资料 / 拆解任务 / 生成材料 / 检查结果`,不再只从 `核对资料` 开始。
+    - 后端执行异常或 `ok:false` 结果不再通过 stream `error` 直接把前台带入技术错误态;`/api/agent/message` 和 `/api/agent/message/stream` 会返回可继续的 `needs-input / waiting` 线程消息,过程为 `识别任务 / 处理卡住 / 等待补充`,并尽量保存 session。
+    - 前台新对话新增 waiting 状态判断:`needs-input`、`needs-input-followup` 和 `confirmation-required` 不再被设成 `completed`;线程 chip 显示 `等待补充`,发送按钮显示 `继续补充`。
+    - pending task 续跑改成累积 supplements:用户分多句补客户、询盘、产品和下一步目标时,后端会把全部补充合并进同一次任务,不会只记最后一句。
+    - 已匹配到业务草稿但缺关键上下文时也会先追问:例如 `写一封开发信` 返回 `needs-input / waiting`,要求补客户、产品和目标市场,不会生成空泛草稿。
+    - 缺资料路径也补上过程感:响应和 SSE 都会显示 `识别任务 / 核对资料 / 等待补充`,最终助手消息可展开查看判断过程。
+    - `活动流` 改成 `本次操作记录`,展开后显示业务步骤和“发现 / 下一步”,产物按钮改成 `查看文件`。
+    - 新增轻量风险确认:用户要求外发、写入客户档案、导出文件或付费调用时,新对话先进入 waiting 并显示确认卡;确认后继续同一次任务,取消时不执行风险动作。
+    - 修正空线程导出/保存边界:如果当前 session 没有 artifact,`导出文件` 和 `保存到客户档案` 先返回 `needs-input`,提示先生成或选择业务产物,不会弹确认卡假装可执行。
+    - 风险确认路径也补上过程感:确认卡响应和 SSE 都显示 `识别任务 / 核对权限 / 等待确认`,避免“收到任务后突然弹确认”。
+    - 修正外发确认后的缺资料边界:`先生成草稿` 只代表不外发、继续准备草稿;如果原始请求只有“发给客户”这种泛称,仍返回 `needs-input`,不会绕过 gate 生成空泛开发信。
+    - 修正 pending confirmation 补资料绕过问题:外发、付费或 runtime policy 等高风险确认期间,用户补客户/产品/询盘只记录进 supplements,确认卡继续等待;确认后用原始请求 + supplements 生成草稿或续跑。
+    - 保留导出/保存确认的改稿语义:用户在导出/保存确认卡后说“继续优化”,会取消本次确认并进入 follow-up,不会误执行导出或写入客户档案。
+    - 修正自然语言路由的相近意图混淆:`询盘分析会` 不再因为包含“询盘”被归一化成回复草稿;`客户发来价格和交期问题,帮我回一下` 会匹配 `询盘回复草稿`。
+    - 继续去掉前台流程配置感:SSE 进度不再显示 `匹配处理方式`,展开的「本次操作记录」也不再把 `skill.match` 翻译成处理方式,统一改成 `确认任务类型` 这类业务动作,避免流式进度重复显示“识别任务”。
+    - 新对话空态文案从“不用选流程 / 不用填配置”的说明书口吻,改成“今天想推进哪件外贸成交任务？”这类业务任务口吻;新增前台文案测试防止机制说明回流到任务台。
+    - 新对话 composer 默认改为空,不再预填 `帮我开上周询盘分析会`;示例任务只保留在示例按钮和 placeholder,让第一屏更像 Codex / Claude Code 的自主输入线程。
+    - 新对话网络异常也改成业务语言:线程消息和 toast 不再显示 `本地后端未启动` 或底层 `error.message`,只提示任务进度暂时没连上、未生成材料、可稍后重试或继续补充资料。
+    - 新对话 SSE `error` 事件也改成业务语言:前端不再展示 `streamError.message` / `streamError.error` 或 `Agent 执行失败`,只提示任务中途卡住、未生成材料、可补充资料后继续或稍后重试。
+    - 新对话前端可恢复异常不再进入终止错误态:SSE `error` 和网络异常都会把线程状态保持为 `waiting`,清空红色 `agentError` 横条,把说明放进同一条 Agent 线程,发送按钮继续显示 `继续补充`。
+    - 新对话前端可恢复异常现在会生成 `agent-session-local-*` 兜底 ID,并把原始任务写入 `context.pendingTask`;即使后端还没返回 sessionId 就断开,用户下一句补充资料也能按同一任务续跑。
+    - 新对话产物预览失败也改成业务语言:不再展示 `payload.error` 或底层异常,只提示文件暂时无法预览、原文件未改动、可稍后重试或重新生成材料。
+    - 新增缺资料续接:未匹配到可执行任务时会保留 pending task,用户补一句资料后会提示已并入同一次任务,不会当成全新任务或技术错误。
+    - HTTP/SSE 验收通过:`写一封开发信` 不返回 artifact,progress 为 `收到任务 → 识别任务 → 核对资料 → 等待补充`;同 session 补 `客户是德国采购商，产品是太阳能路灯，重点问MOQ和交期` 后返回 `开发信草稿.md`;直接带足资料的开发信请求也会正常执行。
+    - HTTP/SSE 验收通过:`把这封开发信发给客户` 的流式进度为 `收到任务 → 识别任务 → 核对权限 → 等待确认`,最终 confirmation message 带可展开过程。
+    - HTTP 验收通过:`把这封开发信发给客户` → `先生成草稿` 返回 `needs-input` 且无 artifact;`把这封开发信发给客户，客户是德国采购商，产品是太阳能路灯，重点问MOQ和交期` → `先生成草稿` 返回 `开发信草稿.md`。
+    - HTTP 验收通过:空线程 `导出文件` / `保存到客户档案` 均返回 `needs-input` 且无 artifact / pendingConfirmation。
+    - HTTP 验收通过:`写一封开发信给德国采购商，产品是太阳能路灯，重点问MOQ和交期` 返回 `开发信草稿.md`,公开 progress 和助手 message process 都从 `识别任务` 开始。
+    - HTTP/SSE 验收通过:临时损坏 session 触发后端异常时,`/api/agent/message/stream` 返回 `progress + result`,结果为 `needs-input / waiting`,progress 为 `识别任务 / 处理卡住 / 等待补充`,不泄露原始 JSON 解析错误。
+    - HTTP + 前台状态函数验收通过:`写一封开发信` 和 `把这封开发信发给客户` 映射为 UI `waiting`;带足资料的开发信映射为 UI `completed` 并返回 `开发信草稿.md`。
+    - HTTP 多轮补充验收通过:`帮我处理一下` → `客户是德国采购商` → `他们问MOQ和交期` 保持同一 session waiting,session 内部保存两个 supplements;继续输入 `做下一步推进计划` 后返回 `客户推进分析.md`。
+    - HTTP 风险确认补资料验收通过:`把这封开发信发给客户` → 补 `客户是德国采购商，产品是太阳能路灯，重点问MOQ和交期` 仍返回 `confirmation-required / waiting`,后端 session 保存 external_send supplements;再确认 `先生成草稿` 返回 `开发信草稿.md`。
+    - HTTP 路由验收通过:`客户发来价格和交期问题,帮我回一下,产品太阳能路灯` 返回 `goal-run / 询盘回复草稿`,公开进度为 `识别任务 / 核对资料 / 拆解任务 / 生成材料 / 检查结果`;同 session 产物预览可打开 `询盘回复草稿.md`。
+    - HTTP/SSE 进度验收通过:`写个 follow up 给德国客户,问 MOQ 和交期,产品太阳能路灯` 的公开 progress 为 `收到任务 / 识别任务 / 确认任务类型 / 核对资料 / 拆解任务 / 核对权限 / 生成材料 / 整理发现 / 检查结果 / 完成`,公开流不含 `处理方式` 或 `cold-email-draft`。
+    - 新增 SSE progress 展示去重:`createConsecutiveProgressDeduper()` 会去掉连续重复且展示内容一致的 progress,避免多个内部 policy 检查让前台连续刷两次 `核对权限`;真实 HTTP/SSE 复验中 `核对权限` 已只出现一次。
+    - 新增操作记录终止占位净化:`sanitizeAgentResultForFrontend()` 会去掉 activity `nextAction` 里的 `none / finish / done / null / undefined`,避免前台出现 `下一步：none`。
+    - 前台源码验收通过:新对话 `handleRunNewConversationAgent` 的网络异常分支不含 `本地后端`、`请求失败` 或 `error.message`,只返回业务化线程消息。
+    - 前台源码验收通过:新对话 SSE `error` 和网络异常分支都会设置 `waiting`,不会设置 `error`、`setSkillAgentError(message)` 或 `tone: 'error'`,避免可恢复中断变成终止错误态。
+    - HTTP/SSE 续接验收通过:用前端兜底 `agent-session-local-*` + `context.pendingTask.originalText=写一封开发信` 发补充资料,后端保持同一 sessionId 并生成 `开发信草稿.md`。
+    - 前台源码验收通过:新对话初始 `newConversationDraft` 为空,不会把示例任务预填进输入框。
+    - HTTP 产物预览验收通过:`写个 follow up 给德国客户,问 MOQ 和交期,产品太阳能路灯` 返回 `开发信草稿.md`;同 session 预览 Markdown 成功,公开 result/preview 不含 `outputPath` 或 `error.message`。
+    - XLSX 产物预览增强:`readAgentArtifactPreview()` 会用 openpyxl 读取真实工作簿,返回 sheet 数、sheet 名、行数和列数;`查看文件` 不再只提示“表格文件已生成”。
+    - 前台 XLSX 预览新增 `WorkbookArtifactPreview`,在 agent thread 里把 workbook 摘要渲染成工作表列表,逐行显示 sheet 名、行数和列数。
+    - 缺资料等待态增强:后端 `needs-input` 消息新增 `needsInput.items`,前台 `MissingInputChecklist` 会把缺客户、产品、目标市场等资料渲染成线程内清单,不再只藏在普通段落里。
+    - 公开 `context.pendingTask` 现在只保留任务名、原始诉求和缺失项,用于前台继续补充同一任务;不会暴露 `skillId`、runId、真实路径或工具名。
+    - 取消确认不再清空当前任务:用户在导出/保存/外发/付费确认卡上取消时,只移除 `pendingConfirmation`,保留当前 artifact 和任务上下文;下一句“继续优化”仍能续改同一份产物。
+    - 前台确认卡只允许最新待确认消息可点击;旧确认卡会显示“这一步已处理或已被后续消息取代”,避免用户在历史消息里重复触发风险动作。
+    - 新对话线程新增自动跟随最新进展:消息、流式 progress 或产物预览更新时,前台通过底部锚点滚到当前任务位置,不用用户手动找最新状态。
+    - 新对话 `引用资料` 不再是空按钮:现在可选择 `.txt/.md/.csv` 文本资料,前端读取后追加到当前输入框,作为同一次自然语言任务上下文发送。
+    - 真实 XLSX 预览验收通过:`帮我开上周询盘分析会` 返回 `询盘分析会_2026-06-22_2026-06-28.xlsx`;同 session 预览返回 8 个 sheet,首个 sheet `本次会议总览` 为 15 行 × 8 列,公开 preview 无 `outputPath` 或内部 skill slug。
+    - HTTP/SSE 成功路径复验通过:同一开发信任务仍返回 `goal-run / 开发信草稿.md`,公开流不含 `streamError`、`Agent 执行失败` 或 `cold-email-draft`。
+    - 已执行 `npm test`（87 个测试通过）和 `npm run build:web`。
+
+- 补齐「新对话」确认后的客户档案写入链路：
+  - 新增 `server/agent-customer-memory.mjs` 和 `server/agent-customer-memory.test.mjs`,确认写入后只保存当前 session 绑定产物摘要到 `workbench/customers/<customerSlug>/memory.md`,并追加 `diary/agent-saves.jsonl`。
+  - `server/skill-agent.mjs` 的 `customer_write` 确认分支会返回 `confirmation-accepted`,保留 artifact、customerSlug 和 lastCustomerSave,同时清掉 `pendingConfirmation`。
+  - 修复确认保存后旧 `pendingConfirmation` 残留的问题;否则用户后续说「继续优化」会被误判成再次确认保存。
+  - API 验收通过:`客户是德国采购商，询盘问MOQ和交期，做下一步推进计划` → `保存到客户档案` → `确认写入` 会增长 customer memory;再发 `继续优化一下下一步动作` 返回 followup,不会重复写 memory。
+  - 已重启本地 `yingdan-agent-lab-api` 后端到新代码,`GET /api/health` 正常返回。
+
+- 回应 subagent 对 Runtime loop 的 P0/P1 评审,先把 policy ask 下沉到通用 Runtime：
+  - `server/skill-runner.mjs` 遇到 `checkPolicy()` 返回 `ask` 时,现在会写 `<runId>.checkpoint.json`、追加 `run.checkpointed` 和 `run.waiting`,并返回 `loop.status=waiting`,不会继续执行 adapter。
+  - 新增 `resumeGoal({ runId })`,用户确认后会追加 `run.resumed`,把已确认的 policy action 视为本轮允许,并用同一个 runId 继续生成产物;完成后 checkpoint 状态改为 `completed`。
+  - `server/skill-agent.mjs` 会把 Runtime 层 waiting 转成新对话确认卡,确认后调用 `resumeGoal()` 而不是只回“已确认”。
+  - `server/agent-session-store.mjs` 读取旧 session 时会忽略已完成确认里的过期 `pendingConfirmation`,防止历史线程恢复后误触发重复确认。
+  - 已新增并通过相关测试:`createSkillRuntime checkpoints policy ask and resumes from the same run after confirmation`、`runNewConversationAgent surfaces Runtime policy ask and resumes the checkpoint after confirmation`。
+  - 新对话前台去掉顶部 `处理方式` 和输入区 `深度处理` 按钮,避免用户误以为还需要配置流程;保留自然语言交代任务和引用资料入口。
+
+- 补齐「边做边显示进度」的第一版流式链路：
+  - `server/skill-runner.mjs` 新增 `onEvent` 回调,每次写入 run log 时同步把同一份 Runtime 事件发给上层,避免前台进度变成假进度。
+  - 新增 `server/agent-message-stream.mjs`,把 `goal.received`、`skill.loaded`、`action.executed` 等内部事件翻译成 `识别任务`、`核对资料`、`生成材料`、`检查结果` 等业务进度,不把 raw action / policy 名称展示给用户。
+  - `server/index.mjs` 新增 `POST /api/agent/message/stream`,用 SSE 先发 progress,最后发 result;普通 `POST /api/agent/message` 继续保留。
+  - `agent-thread-prototype/src/App.jsx` 改为读取流式接口,运行中的 Agent 气泡会随着 progress 事件更新步骤列表,最终 result 到达后再追加正式 Agent 回复和产物卡。
+  - API 验收通过:对 `/api/agent/message/stream` 发送 `写个 follow up 给德国客户，问 MOQ 和交期`,响应按顺序返回 收到任务、识别任务、确认任务类型、核对资料、拆解任务、核对权限、生成材料、整理发现、检查结果、完成,最后返回 `开发信草稿.md` result。
+
+- 补齐「补一句话后继续改当前产物」和前台 payload 净化：
+  - 新增 `server/agent-artifact-revision.mjs` 和测试,只允许同一 session 绑定且位于 `workbench/artifacts/` 下的 Markdown/Text 产物被安全续改。
+  - `buildAgentFollowupResponse()` 在 Markdown 产物场景下会把用户补充追加到原文件,并返回更新后的 artifact/context,不再只是总结上一轮。
+  - 前端 follow-up 收到 artifact 时会刷新 `skillAgentResult`,所以后续查看文件打开的是同一份已修改产物。
+  - `server/agent-message-stream.mjs` 新增 `sanitizeAgentResultForFrontend()`,普通 JSON 接口和 SSE result 都会去掉 `goal/loop/plan/skillId/runId/mode` 等内部字段;前台只拿 `taskTitle/progress/messages/artifact/context`。
+  - API 验收通过:`写个 follow up 给德国客户，问 MOQ 和交期` → 同 session 输入 `语气更礼貌一点，加一句可以寄样品` → 预览 `开发信草稿.md` 包含 `本次补充优化`、用户补充、sample 句和外发确认提醒。
+  - 流式接口验收通过:progress 包含 识别任务、核对资料、拆解任务、生成材料、检查结果;最终 result 不再包含 raw loop 顶层字段或 `goal.classify/action.execute/artifact.verify` 等内部名。
+  - 已执行 `npm test`（51 个测试通过）和 `npm run build:web`。
+  - sub-agent 只读评估指出两个 P1:恢复接口仍返回 raw session / 路径含 `skill-runtime`,以及 `继续优化` 可能被误当成导出或保存确认。
+  - 已补 `sanitizeAgentSessionForFrontend()`: `GET /api/agent/session/:sessionId` 只返回前台恢复需要的消息、业务产物摘要和状态,不返回 `pendingConfirmation`、真实路径、`goal/loop/plan/runId/skillId/mode`。
+  - 产物预览接口不再返回 `outputPath`;前台文件卡和预览面板只显示文件名、类型、大小和内容摘要。
+  - 确认词收窄为明确动作:导出必须 `确认导出`,写客户档案必须 `确认写入`,外发风险只会 `先生成草稿`,付费/Runtime checkpoint 才接受 `确认继续`;`继续优化` 会进入 follow-up,不会导出或写 memory。
+  - 真实 HTTP 验收通过:公开 result/session/preview/SSE result 均无 `outputPath/manifestPath/runId/skillId/goal.classify/action.execute/artifact.verify/skill-runtime`;`导出文件` 后输入 `继续优化一下` 不生成 exports 文件;`保存到客户档案` 后输入 `继续优化一下下一步动作` 不改 customer memory。
+  - 已执行 `npm test`（54 个测试通过）和 `npm run build:web`。
+  - 继续补齐 XLSX 续改:`reviseXlsxArtifactForFollowup()` 会基于当前 session 绑定的 XLSX 生成 `已续改` 修订版,保留原工作表并新增 `本次追问` sheet,原文件不覆盖。
+  - XLSX 修订版生成后复用 `validateXlsxArtifact()`,必须通过 `unzip -t`、`openpyxl.load_workbook()`、必需 sheet、禁止 sheet 和残留扫描。
+  - `buildAgentFollowupResponse()` 已接入 XLSX 续改;用户对询盘分析会表格补一句“按负责人补一列下周动作”时,线程返回修订版 XLSX artifact。
+  - HTTP fixture 验收通过:同 session 追问返回 `followup`,公开 response/session/preview 无内部路径和 runtime 名;后端 session 指向新的 `询盘分析会-已续改-*.xlsx`,修订版包含 `本次追问` sheet 和用户补充。
+  - 已执行 `npm test`（56 个测试通过）和 `npm run build:web`。
+  - 修复 follow-up 续改缺少过程感的问题:`buildAgentFollowupResponse()` 现在也会向 SSE 推送业务化 progress,覆盖 `识别任务 / 核对资料 / 拆解任务 / 生成材料 / 检查结果 / 完成`。
+  - 真实 SSE 验收通过:同 session XLSX 追问续改返回 progress 序列 `收到任务 → 识别任务 → 核对资料 → 拆解任务 → 生成材料 → 检查结果 → 完成`,最终 result 为修订版 XLSX,公开流无内部路径或 runtime 名。
+  - 已执行 `npm test`（57 个测试通过）和 `npm run build:web`。
+
+- 将 `alibaba-inquiry-meeting` 专线 Runtime 抽成最小通用 Skill Runtime：
+  - 新增 `server/skill-registry.mjs`，合并读取 `workbench/registry/skills.json` 和 `workbench/skills/<skill>/skill.json`，目标识别不再写死在 `skill-agent.mjs`。
+  - 新增 `server/skill-runner.mjs`，统一执行 `goal.received → skill.matched → skill.loaded → plan.created → policy.checked → action.executed → observation.recorded → artifact.verified → run.completed`，并写 append-only run log。
+  - 新增 `server/skill-adapters/alibaba-inquiry-meeting.mjs`，把已跑通的 Alibaba real-bridge 链路包装成第一个 adapter，保留 `server/alibaba-real-runner.mjs` 的真实执行能力。
+  - 新增 `workbench/registry/skills.json` 注册 `alibaba-inquiry-meeting` 的自然语言匹配、policy、计划和 8 个必需 sheet。
+  - 新增 `workbench/skills/supplier-brief/skill.json` 作为第二个轻量 Skill，使用 `mock-artifact` adapter 验证“不改主 Runtime 也能注册、匹配、执行、记录日志”。
+- 上提产物校验到 Runtime 层：
+  - 新增 `server/artifact-validator.mjs` 和 `server/artifact-validator.test.mjs`。
+  - XLSX 复核包含 `unzip -t`、`openpyxl.load_workbook()`、必需 sheet、禁止 sheet、`xl/tables/`、`xl/drawings/`、tableParts 和 drawing relationships 残留扫描。
+  - `server/skill-runner.mjs` 对 `artifact.type=xlsx` 自动调用 Runtime 级强校验。
+  - `server/alibaba-skill.mjs` 调用外部 XLSX builder 时为每次执行分配独立临时 `HOME`，避免并发测试时 LibreOffice headless 抢同一个用户配置导致不产出 `.xlsx`。
+- 更新新对话前台和追问行为：
+  - `server/skill-agent.mjs` 改为调用通用 Skill Runtime；同 Session 追问会读取上一轮 manifest / run log 摘要，不再只返回固定提示。
+  - `agent-thread-prototype/src/App.jsx` 默认输入改为 `帮我开上周询盘分析会`；`goal-run` 也会保存上一轮 artifact/period 作为追问上下文。
+  - 活动流显示中文“目标 / 判断 / 计划 / 执行 / 观察”，并把 `MCP` 等技术词改为用户可理解的“连接器”。
+- 按用户给的 Accio 对话截图调整通用 Agent UI：
+  - `新对话` 页面从外层大卡片和消息卡片改成白底居中的对话文档流。
+  - 用户消息右对齐并使用轻灰气泡；Agent 回复去掉独立卡片，按正文/报告流在主列展开。
+  - 执行过程、活动流和产物入口改为内联信息，不再形成右侧独立卡片观感。
+  - 底部输入区改为浮动 composer，发送按钮改成纯图标圆按钮。
+  - 在 `agent-thread-prototype/AGENTS.md` 记录该长期 UI 约束，避免后续回退。
+- 验证：
+  - `npm test` 通过，22 个测试全绿。
+  - `npm run build:web` 通过。
+  - 使用 Playwright 拦截假 Agent 响应验证桌面和移动端截图，确认通用 Agent 不再呈现右侧独立卡片。
+
 ## 2026-06-28
 
 - 修复新对话执行过程“像是没读 Skill 文档就开始执行”的问题：
@@ -214,3 +437,98 @@
   - 新增 `run.waiting`、`run.resumed`、`run.checkpointed` 事件和 `runs/<run_id>.checkpoint.json` 快照文件。
   - 明确高风险动作返回 `ask` 时必须暂停并交还前台，用户确认后通过 `resume_run` 从 `resume_from` 继续。
   - 同步更新 `TODO.md`、`PLAN.md` 和 `CONTEXT.md`，把 waiting/resume/checkpoint 纳入验收。
+- 按用户要求把 `新对话` 先做成 Codex / Claude Code 式外贸任务入口：
+  - 新对话入口改为“交代一个外贸任务”，隐藏 Session ID、schema、tool call 等技术概念，顶部只显示 `准备接任务 / 本次任务可继续`。
+  - 后端 `runNewConversationAgent()` 改为 registry 驱动：用户一句自然语言目标可匹配询盘分析会、开发信草稿、客户推进分析和询盘回复草稿。
+  - 未命中任务时不再报技术错误，改为追问客户、询盘、产品、目标市场、价格底线和产物格式等业务资料。
+  - 外发、付费、写入客户档案、导出文件等高风险动作会先暂停确认；外发确认后会继续生成可检查草稿，不会只回复一句“已确认”。
+  - 新增 `business-draft` adapter 和 `cold-email-draft`、`customer-followup-plan`、`inquiry-reply-draft` 三个本地 Skill，产出 Markdown 业务文件。
+  - 开发信草稿会提取德国、MOQ、交期等业务信号，写入英文邮件正文、依据和缺口清单。
+  - 新对话线程加入轻量本地恢复，刷新页面后保留本次任务、确认状态和产物上下文。
+  - 文件卡片改为显示“已生成，可查看草稿内容”，不再把绝对路径作为主信息。
+  - 已执行 `npm test`（27 个测试通过）和 `npm run build:web`。
+- 继续补齐 `新对话` 的后端线程恢复和补充续跑：
+  - 新增 `server/agent-session-store.mjs`，把新对话 session、消息、待确认状态、产物上下文写入 `workbench/agent-sessions/<sessionId>.json`。
+  - `POST /api/agent/message` 会先按 `sessionId` 读取后端保存的 context，再与前端 context 合并；响应成功后自动写回 session 文件。
+  - 新增 `GET /api/agent/session/:sessionId`，前端刷新后可用 sessionId 从后端恢复消息、产物、待确认状态和展开项。
+  - 前端 `agent-thread-prototype` 恢复时优先读取后端 session，localStorage 只作为记住 sessionId 和兜底 UI 状态。
+  - pending task 状态下，用户补一句话后会把“原始任务 + 新补充”重新匹配；如果足够明确，会直接生成业务产物，不再只是继续追问。
+  - `skill-registry` 从“第一个命中即返回”改成按置信度和原文强意图词打分，避免“客户下一步推进计划”被误路由到开发信。
+  - API 验收通过：先发 `帮我处理一下这个情况` 返回 `needs-input`，再只传同一个 `sessionId` 补 `客户是德国采购商，询盘问MOQ和交期，做下一步推进计划`，返回 `customer-followup-plan` 和 `客户推进分析.md`。
+  - 已执行 `npm test`（31 个测试通过）和 `npm run build:web`。
+- 补齐新对话产物预览体验：
+  - 新增 `server/agent-artifact-preview.mjs`，只允许读取当前 session 绑定且位于 `workbench/artifacts/` 下的产物文件。
+  - 新增 `GET /api/agent/session/:sessionId/artifact`，Markdown 产物返回正文内容，XLSX 产物先返回可读摘要。
+  - 前端 `查看文件` 按钮改为真实预览，不再只弹 toast；Markdown 草稿、客户分析和跟进计划会在当前 agent thread 中展开。
+  - 新增 `ArtifactPreviewPanel` 和 Markdown 轻量渲染，支持加载中、错误、长文本截断和移动端布局。
+  - API 验收通过：生成 `开发信草稿.md` 后，预览接口返回 `Subject: MOQ and lead time...` 和 `German buyers...` 正文。
+  - 已执行 `npm test`（34 个测试通过）和 `npm run build:web`。
+- 实装确认后的真实导出动作：
+  - 新增 `server/agent-artifact-export.mjs`，只允许导出当前 session 绑定、来源位于 `workbench/artifacts/` 或 `workbench/exports/` 的产物文件。
+  - 用户说 `导出文件` 时先返回 `confirmation-required / export_file`，不会立刻复制文件。
+  - 用户确认后把产物复制到 `workbench/exports/<sessionId>/`，并把导出后的 artifact 写回 session context。
+  - 前端文件卡会把导出产物显示为 `已导出，可查看文件内容`，导出文件仍可通过产物预览接口打开。
+  - API 验收通过：`写个 follow up 给德国客户，问 MOQ 和交期` → `导出文件` → `确认导出`，最终导出 `开发信草稿.md` 到 `workbench/exports`，预览内容仍包含 `Subject: MOQ and lead time...`。
+  - 已执行 `npm test`（37 个测试通过）和 `npm run build:web`。
+- 继续增强新对话 agent thread 的任务上下文感：
+  - 前端新增 `agentThreadTaskTitle`，新对话顶部标题会显示后端识别出的业务任务名，例如 `开发信草稿`、`客户推进分析` 或 `询盘分析会`，不再一直泛称 `外贸任务`。
+  - 浏览器本地恢复、后端 session 保存和 `GET /api/agent/session/:sessionId` 恢复 payload 都会保留净化后的 `taskTitle`。
+  - `needs-input` 和 `needs-input-followup` 响应也会带业务任务标题，缺资料等待态刷新后仍知道自己在等哪件事。
+  - 真实 API 验证通过：`写个 follow up 给德国客户，问 MOQ 和交期` 返回 `responseTaskTitle=开发信草稿`，再读取 `GET /api/agent/session/:sessionId` 返回 `restoredTaskTitle=开发信草稿`，产物名仍为 `开发信草稿.md`。
+  - 已执行 `node --test server/frontend-copy.test.mjs`、`node --test server/agent-session-store.test.mjs`、`node --test server/agent-message-stream.test.mjs`、`npm test`（88 个测试通过）和 `npm run build:web`。
+- 补齐新对话里的“开新任务”入口：
+  - 当前线程已有 session、消息或任务标题时，顶部显示 `新任务` 按钮；执行中禁用，避免中途误清空。
+  - 点击后清空前台 session、messages、context、artifact preview、task title、draft、status 和错误态，并直接聚焦输入框。
+  - 旧后端 session 文件不会删除，保留为原型排查证据；前台 localStorage 会被清理，下一句自然语言会作为全新外贸任务处理。
+  - 修复任务完成后的 toast 遮挡 header 操作问题：toast 本体不再拦截点击，并下移到任务标题栏下方；关闭按钮仍可点击。
+  - Playwright 页面验证通过：生成 `开发信草稿` 后出现 `新任务`，点击后标题回到 `外贸任务`、消息数为 0、输入框为空、空态恢复。
+  - 已执行 `node --test server/frontend-copy.test.mjs`、`npm test`（90 个测试通过）和 `npm run build:web`。
+- 补齐首轮风险确认的线程标题：
+  - 如果用户第一句就是 `发邮件给客户`、`调用付费能力` 这类风险动作,且当前没有已有任务标题,新对话顶部会显示确认卡标题,例如 `外发前需要你确认`。
+  - 风险确认等待态的顶部状态会显示 `等待确认`,不再误写成 `等待补充`。
+  - 如果当前已有 `开发信草稿`、`客户推进分析` 等业务任务标题,风险确认标题不会覆盖原任务标题。
+  - Playwright 页面验证通过：首句 `帮我把这封开发信发给客户` 后,标题为 `外发前需要你确认`,状态为 `等待确认`,确认卡按钮为 `取消这一步 / 先生成草稿`。
+  - 已执行 `node --test server/frontend-copy.test.mjs`、`node --test server/skill-agent.test.mjs`、`npm test`（92 个测试通过）和 `npm run build:web`。
+- 修正新对话 SSE 的首个可见进度：
+  - `POST /api/agent/message/stream` 第一条 progress 现在直接显示 `识别任务`,不再先显示通知式的 `收到任务`。
+  - 新增 `createInitialAgentStreamProgress()` 统一生成首个业务化进度,后续 Runtime `goal.received` 会更新同一个步骤为完成态。
+  - 真实 SSE 验证通过:`写个 follow up 给德国客户，问 MOQ 和交期，产品太阳能路灯` 的前几条 progress 为 `识别任务(running) → 识别任务(complete) → 确认任务类型 → 核对资料 → 拆解任务 → 核对权限 → 生成材料`。
+  - 已执行 `node --test server/agent-message-stream.test.mjs`、`node --test server/skill-agent.test.mjs`、`npm test`（93 个测试通过）和 `npm run build:web`。
+- 修正新对话确认等待态的输入区语义：
+  - 待确认状态不再复用缺资料态的 `继续补充`;最新确认卡可操作时,输入框提示 `补充确认信息`,底部按钮显示 `补充说明`。
+  - 这让外发、付费、保存、导出这类风险动作更像 Codex / Claude Code 的暂停确认点:用户可以点确认按钮,也可以先补充说明,但不会误以为系统在追问缺失资料。
+  - 已执行红绿验证:`node --test server/frontend-copy.test.mjs` 先因缺少确认态 composer 规则失败,实现后 19 个测试通过。
+- 根据 sub agent 评估继续加固确认等待态：
+  - sub agent 结论为无 P0/P1,但指出 `frontend-copy` 主要靠源码字符串断言,对行为回归不够硬。
+  - 新增 `agent-thread-prototype/src/agentThreadComposerState.js`,把新对话顶部 chip、输入框 placeholder 和发送按钮文案收敛到纯函数 `getNewConversationComposerState()`。
+  - 新增 `server/agent-thread-composer-state.test.mjs`,用 fixture 覆盖可操作确认、缺资料等待、旧确认卡失效和已完成后回到追问模式;`server/frontend-copy.test.mjs` 只检查组件使用该 helper。
+  - 二次 sub agent 复核确认 P2/P3 已解决,无新的 P0/P1/P2;随后将消息卡片是否可点击确认也改为复用 `hasActionableConfirmation`。
+  - 已执行 `node --test server/agent-thread-composer-state.test.mjs server/frontend-copy.test.mjs`,23 个测试通过;最终执行 `npm test`,98 个测试通过,并执行 `npm run build:web` 通过。
+  - Chrome 页面验收通过:首句 `帮我把这封开发信发给客户` 后,标题为 `外发前需要你确认`,状态为 `等待确认`,输入框提示 `补充确认信息...`,发送按钮为 `补充说明`,确认卡按钮为 `取消这一步 / 先生成草稿`。
+- 强化新对话“补一句话后接着做”的输入区上下文：
+  - `getNewConversationComposerState()` 新增 `composerContextLabel`,有当前产物时显示 `正在接着：<产物名>`,有任务标题时显示 `当前任务：<任务名>`。
+  - 完成产物后 placeholder 改成 `继续修改 <产物名>，或补一句新的要求...`,让用户知道下一句话会续改同一份材料,不是重新开始普通聊天。
+  - 图标发送按钮补 `aria-label/title`,可访问语义仍随 `继续追问 / 继续补充 / 补充说明` 状态变化。
+  - 新增/更新测试覆盖产物续改、任务续接和长标题截断;已执行 `node --test server/agent-thread-composer-state.test.mjs server/frontend-copy.test.mjs`,24 个测试通过。
+  - sub agent 只读评估确认无 P0/P1/P2,认为该改动确实增强 Codex / Claude Code 式 thread 心智;随后按建议补 fixture,当 `waiting + currentArtifact + latest confirmation` 同时存在时,确认态仍优先显示 `等待确认` 和 `补充确认信息`,同时保留当前产物上下文 chip,并给 composer context chip 增加 `title` 与移动端抗挤压样式。
+- 补齐同任务追问完成后的可回看过程：
+  - `buildAgentFollowupResponse()` 现在会在最终 `followup` 响应里返回 `progress`,并给助手消息加 `process` 和 `activity`。
+  - 用户完成一份 Markdown/XLSX 产物后再补一句话,最终线程不再只有一段结果文本;可展开看到 `识别任务 / 核对资料 / 拆解任务 / 生成材料 / 检查结果`。
+  - 新增测试断言 Markdown 和 XLSX 续改响应都带同任务追问进度和 `本次操作记录`;已执行 `node --test server/skill-agent.test.mjs server/agent-message-stream.test.mjs`,39 个测试通过。
+  - 已执行 `npm test`,99 个测试通过;已执行 `npm run build:web` 通过。
+  - 重启后端后用 Chrome 验证:先生成 `开发信草稿.md`,再输入 `语气更礼貌一点，加一句可以寄样品`,最新 follow-up 消息包含 `本次操作记录 / 识别任务 / 生成材料 / 检查结果`,输入区仍显示 `正在接着：开发信草稿.md`。
+  - sub agent 只读评估指出两个 P2:无修订产物时仍标 completed,以及 follow-up 文案可能露出 `前端 / 日志 / 脚本 / run log / manifest` 等内部词。
+  - 已修复:无可续改产物时返回 `needs-input-followup / waiting`,不再发送 `run.completed`;最终文案改为业务口吻,并保留缺资料卡。
+  - 二次 sub agent 复核只剩一个 P2:`本次操作记录` 里残留 `session`;已改成 `当前线程`,并给 activity 增加内部词负向断言。
+  - 新增负向测试:禁止 follow-up 最终消息和 activity 出现内部词,并覆盖 PDF 等不支持续改产物的 waiting 路径;已执行 `node --test server/skill-agent.test.mjs server/agent-message-stream.test.mjs`,40 个测试通过。
+- 继续收紧新对话的扣费确认体验：
+  - 用户直接说 `调用付费数据帮我找客户，扣费也可以` 时,后端仍返回 `confirmation-required / paid_call / waiting`,不会提前进入 Runtime 或调用付费能力。
+  - 前台运行中提示补齐 `导出、保存、外发、扣费` 都会停下来确认,避免用户把扣费动作误解成已默认授权。
+  - 付费确认后的回复改成业务口吻:先整理不扣费的部分;如果后面真的要产生费用,会再让用户看清楚并确认。
+  - sub agent 评估指出运行中气泡的风险提示在 progress 出现后会消失;已把该提示移到 progress 分支外,保证流式进度展示时仍持续可见。
+- 收紧客户分析缺资料 gate：
+  - `客户是德国采购商，帮我做客户分析`、`这个买家怎么推进` 这类泛泛输入不再直接生成客户推进材料,而是进入 `needs-input / waiting`,追问询盘、聊天记录或当前卡点。
+  - `帮我判断这个客户优先级` 现在能识别为 `客户推进分析`,但同样先追问客户类型和当前卡点,避免凭空判断优先级。
+  - 用户补一句 `他问MOQ和交期，产品是太阳能灯` 后,后端用原始任务 + 补充资料继续同一 session,再生成 `客户推进分析.md`。
+  - sub agent 复核指出两个 P1:`有个询盘/有需求` 这类空壳词仍会放行,以及 `询盘 + 回一封邮件` 被开发信抢路由。已修复:客户推进分析现在要求具体卡点/产品信号,询盘回复意图不再被“邮件=开发信”归一化误伤。
+  - 新增回归测试覆盖空壳询盘、空壳需求、客户优先级补资料续跑,以及 `客户发来询盘，帮我回一封邮件，产品太阳能路灯` 路由到 `inquiry-reply-draft`。

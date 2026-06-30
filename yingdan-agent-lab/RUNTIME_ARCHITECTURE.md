@@ -136,6 +136,9 @@ MCP
 Trace
 Prompt
 Token
+Session ID
+profile / memory
+Skill slug
 Model Router
 Function calling
 policy scope
@@ -173,6 +176,9 @@ artifacts/<run_id>/
 ```text
 React/Vite Web 工作台
   -> Runtime API
+  -> Skill Registry
+  -> Skill Runner
+  -> Skill Adapter
   -> Agent Assembler
   -> Context + Memory Loader
   -> Model Gateway
@@ -186,14 +192,49 @@ React/Vite Web 工作台
 
 `Policy Engine` 是贯穿式关卡，不是第 6 步跑一次就结束。每次调用模型、调用工具、写客户 memory、导出文件、外发消息或触发 bridge 前，都必须先过 policy。
 
+### 5.1 通用 Skill Runtime（2026-06-29 已落地）
+
+当前已把 `alibaba-inquiry-meeting` 专线抽成最小通用 Runtime:
+
+```text
+Skill Registry
+  workbench/registry/skills.json
+  workbench/skills/<skill>/skill.json
+
+Skill Runner
+  goal.received
+  skill.matched
+  skill.loaded
+  plan.created
+  policy.checked
+  action.executed
+  observation.recorded
+  artifact.verified
+  run.completed
+
+Skill Adapter
+  alibaba-inquiry-meeting adapter
+  mock-artifact adapter
+```
+
+关键边界:
+
+- `skill-agent.mjs` 不再写死 `alibaba-inquiry-meeting`;它只负责新对话任务线程、前台响应和追问。
+- 新增 Skill 优先写 `workbench/skills/<skill>/skill.json` 或注册到 `workbench/registry/skills.json`。
+- 具体 Skill 的特殊执行逻辑放 adapter,不要塞回 `skill-agent.mjs`。
+- Alibaba real-bridge 仍由 `server/alibaba-real-runner.mjs` 负责,但通过 `server/skill-adapters/alibaba-inquiry-meeting.mjs` 接入通用 Runner。
+- Runtime 层统一跑 policy 和产物校验;XLSX 必须重新检查 zip、openpyxl、必需 sheet、禁止 sheet、table/drawing 残留。
+
+第二个轻量 Skill `supplier-brief` 已用 `mock-artifact` adapter 接入,用于证明 registry + runner 能接新 Skill,而不是继续写专线。
+
 ### 模块说明
 
 `React/Vite Web 工作台`
 
 - 第一阶段产品入口。
 - 负责新对话、赢单外贸顾问、我的Agent、技能Skill、外接生态、客户Kass。
-- 「新对话」必须是 Agent 对话线程,不是一次性任务执行面板。
-- 线程里展示 Session ID、用户/Agent 消息、可展开执行过程、产物卡和继续追问输入。
+- 「新对话」必须是 Agent 任务线程,不是一次性任务执行面板。
+- 线程里展示用户/Agent 消息、可展开「本次操作记录」、产物卡和继续追问输入;内部 Session ID 默认不展示。
 - 只展示业务状态，不展示完整底层日志。
 
 `Runtime API`
@@ -201,6 +242,25 @@ React/Vite Web 工作台
 - Web 前台只调用这一层。
 - 负责创建任务、继续任务、取消任务、确认高风险动作、读取任务结果。
 - 第一版可以先是本地 API / mock API，后续再接真实服务。
+
+`Skill Registry`
+
+- 负责读取可执行 Skill 清单。
+- 当前来源是 `workbench/registry/skills.json` 和 `workbench/skills/<skill>/skill.json`。
+- 目标匹配、命令别名、policy 动作、产物类型和业务计划都优先放在 registry,不要写死在新对话入口。
+
+`Skill Runner`
+
+- 负责统一执行 Skill Runtime loop。
+- 当前固定链路是 `goal.received -> skill.matched -> skill.loaded -> plan.created -> policy.checked -> action.executed -> observation.recorded -> artifact.verified -> run.completed`。
+- 每轮都会写 append-only run log,供前台操作记录和同任务追问读取。
+
+`Skill Adapter`
+
+- 负责不同 Skill 的特殊执行方式。
+- `alibaba-inquiry-meeting` adapter 复用已跑通的 real-bridge 执行器。
+- `mock-artifact` adapter 用于轻量本地 Skill,验证新增 Skill 可以只靠文件注册接入。
+- adapter 只做具体执行,policy 和产物最终校验仍由 Runner 统一处理。
 
 `Agent Assembler`
 
@@ -503,140 +563,410 @@ diary-summary.md
 
 这比“最近一次 AI 摘要”更有价值，因为它能支撑长期成交推进。
 
-## 9. Runtime 核心循环
+## 9. DealOps Runtime Loop v2
 
-第一版 Runtime 做**有界循环**：模型在一个很小的动作空间里决定下一步，但每次 run 有步数和成本上限，不做无上限自主循环，也不做复杂多 Agent。
+本节是赢单 Runtime 的完整目标形态。它不是照搬 Accio Work 的通用 Agent 平台，而是把 Accio 的文件化、运行时组装、policy、trace 和 session/task 思想，改造成外贸成交场景的 **DealOps Runtime**。
 
-它必须是真正的 Runtime loop，而不是直线流程。
+当前阶段的产品落点只在「新对话」。也就是说,先把「新对话」做成外贸版 Codex / Claude Code:用户交代一个业务目标,系统自己拆任务、查资料、调用工具、生成产物、检查结果,遇到风险再停下来问。其他入口可以继续是普通业务页面、资料页或功能入口,不要因为本节的完整 Runtime 设计而立刻扩散成全站重构。
 
-### 9.0 决策模式：受控的 C（不是放开自主）
-
-自主程度只到「**受控的 C**」——能连续走多步、用多个动作，但被牢牢框住：
-
-- 每一轮把 agent / customer / skill context 和历史交给模型，模型从**当前 Skill 的 `allowedActions + finish`** 里选下一步，执行后结果回灌（ReAct）。动作空间很小，所以前台看起来就是稳定的几步业务进度。
-- 模型用 function calling / tool-use 输出结构化 `{action, arguments}`，不接受自由文本当动作；非法或越权动作被驳回并回灌，让模型换路。
-- 只读动作自动执行；**付费、写入、外发动作一律卡 policy 确认**；有 `MAX_STEPS`、`MAX_COST` 和连续 deny 上限，撞上限安全落 `run.failed`。
-- `playbook.md`（§7）写进 prompt 作为**强引导**，让行为接近固定步骤，但保留遇到异常应变的最小自主。
-- **绝不做 D**（定期监控、后台定时任务）。
-
-> 关键：**自主高 ≠ 智能高**（智能来自 §3.1 的四件套）。第一刀用"受控的 C"把行为压到接近固定流程、好控好验；等跑稳再逐步放开动作空间和上限。`agents/<slug>/tools.json` 只是能力上限，不是模型直接挑工具的清单。
-
-### 9.1 run 状态
-
-一次 run 至少有这些状态：
+显著优于 Accio Work 的判断标准不是“更像框架”，而是：
 
 ```text
-queued
-running
-waiting
-resuming
-completed
-failed
-cancelled
+Accio Work 更强: 通用 agent / prompt assembly / tool registry / session-task / gateway / policy。
+赢单必须更强: 客户和商机对象 / 依据和缺口 / 交付物质量门 / 外贸推进动作 / 记忆确认 / 用户可读进度。
 ```
 
-`waiting` 需要带原因，并区分「等用户」和「等系统自愈」：
+所以 Runtime v2 同时有两套语言：
+
+- 内部语言：`run`、`phase`、`action`、`observation`、`evidence`、`policy`、`checkpoint`、`artifact`。
+- 前台语言：客户、询盘、产品资料、历史跟进、依据、缺口、风险、下一步、待确认、交付物。
+
+前台永远不默认展示 `Runtime`、`Tool call`、`MCP`、`Trace`、`Prompt`、`Token`、`policy scope`、`Session ID`、`profile/memory`、`alibaba-inquiry-meeting` 这些词。它们必须翻译为“本次任务”“正在核对资料来源”“客户档案/历史跟进”“询盘复盘会材料”等业务语言。
+
+### 9.0 核心对象
+
+v2 的核心不是对话，而是一次可追溯的成交任务：
 
 ```text
-等用户（交还 UI 等人）:
-  waiting.user_input
-  waiting.user_confirmation
-  waiting.tool_auth
-  waiting.bridge_ready
-
-系统自愈（不交还 UI，自动退避重试）:
-  retrying.model
+Run              一次任务执行,可暂停、恢复、失败、完成
+Goal             用户的自然语言业务目标
+BusinessObject   客户、商机、询盘、产品、会议、跟进行动
+Skill            可执行任务包,定义动作空间、产物契约和质量门
+Plan             当前 Skill 下的有界步骤,第一刀仍可由 registry plan 驱动
+Action           运行时动作,例如读取 Skill、只读采集、生成主持材料、写 XLSX
+Observation      工具或内部动作的归一化结果
+EvidenceItem     支撑判断的依据,绑定来源、可信度、覆盖度、缺口和新鲜度
+Artifact         交付物,例如 XLSX、回复草稿、背调报告、会议材料
+QualityGate      类型化校验器,决定产物能否交付
+PolicyDecision   allow / ask / deny / degrade
+MemoryCandidate  任务结束后候选写入客户档案或 diary 的摘要
+Checkpoint       可恢复快照,不是审计事实
 ```
 
-### 9.2 最小 Runtime loop
+最关键的区别：Accio 的 session/task 更偏通用执行记录；赢单的 run 必须围绕客户、询盘、依据、缺口、交付物和下一步动作组织。
+
+### 9.1 状态和 phase
+
+状态不要爆炸。工程上用少量 `status`，再用 `phase` 表达当前位置：
 
 ```text
-create_run
+status:
+  running
+  waiting
+  resuming
+  completed
+  failed
+  cancelled
+
+phase:
+  preflight
+  assembling_context
+  planning
+  executing
+  validating
+  committing
+```
+
+`waiting` 必须带业务原因：
+
+```text
+waiting.user_input          还缺关键信息
+waiting.user_confirmation   等用户确认保存、导出、外发或扣费
+waiting.tool_auth           等用户连接资料来源
+waiting.budget              等用户确认付费调用
+waiting.external_service    资料来源或 bridge 暂时不可用
+```
+
+系统自愈不交还 UI，仍写事件：
+
+```text
+retrying.model
+retrying.tool
+```
+
+终止状态必须写清 `reason`，不能只写 failed：
+
+```text
+step_or_cost_limit
+too_many_denied
+quality_gate_failed
+evidence_missing
+tool_unavailable
+user_cancelled
+```
+
+### 9.2 Agent Assembler 协议
+
+v2 不能只说“组装上下文”，必须固定顺序，避免每次运行随缘：
+
+```text
+1. system safety and product rules
+2. agent persona
+3. agent playbook
+4. current Skill contract
+5. allowedActions and tool summaries
+6. policy summary
+7. customer profile
+8. customer memory
+9. diary-summary and recent diary entries
+10. current run checkpoint summary
+11. current user input and attachments
+12. evidence budget and output contract
+```
+
+约束：
+
+- 只展开当前 Skill 需要的动作空间和工具摘要，不把所有工具 schema 塞进 prompt。
+- `memory.md`、`diary-summary.md` 和最近 N 条 diary 要压缩后进入上下文，不能无限读历史。
+- promptMode 必须明确：`fast_diagnosis`、`deep_analysis`、`artifact_builder`、`critic_review` 等，前台翻译成“快速分析 / 深度分析”。
+- Context 过长时先压缩 diary 和 observation，再降级非关键资料，不能丢 policy 和 Skill contract。
+- 每次组装写 `context.assembled`，记录输入来源摘要，不写敏感原文。
+
+### 9.3 Skill / Tool Registry 验证链
+
+每个 action 执行前都要过四层：
+
+```text
+registration -> capability -> policy -> execution
+```
+
+含义：
+
+- `registration`：Skill 和 Tool 必须在 registry 注册，不能让模型编一个动作。
+- `capability`：当前 agent / skill / customer 是否允许看到这个能力。
+- `policy`：这次具体 action 是 allow、ask、deny 还是 degrade。
+- `execution`：由 adapter 或 Tool Proxy 执行，并归一化成 observation。
+
+Skill registry 至少要补这些内部字段：
+
+```json
+{
+  "allowedActions": [],
+  "businessObjects": ["customer", "inquiry", "artifact"],
+  "evidenceRequirements": [],
+  "qualityGates": [],
+  "artifactContract": {},
+  "sideEffects": {
+    "read": [],
+    "write": [],
+    "external": []
+  }
+}
+```
+
+Tool observation 必须统一，不能让每个 adapter 自说自话：
+
+```json
+{
+  "action": "alibaba.read_inquiry_metrics",
+  "status": "completed",
+  "source": "alibaba_read_only",
+  "confidence": 0.88,
+  "coverage": "2026-06-15..2026-06-21",
+  "freshness": "same_week",
+  "summary": "已读取本周询盘质量指标。",
+  "gaps": [],
+  "dataRef": "artifacts/run-xxx/raw/inquiry_metrics.json"
+}
+```
+
+### 9.4 Evidence Ledger
+
+Evidence Ledger 是内部结构，前台叫“依据 / 缺口 / 下一步”。它不是可选的日志，而是进入 `validating` 的门槛。
+
+最小结构：
+
+```json
+{
+  "evidenceId": "ev-001",
+  "businessObject": "inquiry",
+  "sourceType": "inquiry_text",
+  "sourceLabel": "询盘原文",
+  "sourceRef": "artifacts/run-xxx/raw/inquiry-42.json",
+  "claim": "客户明确询问 MOQ、FOB 和 lead time，意向等级偏高。",
+  "confidence": 0.84,
+  "coverage": "single_inquiry",
+  "freshness": "current_run",
+  "gaps": ["缺目标交期", "缺包装要求"],
+  "risk": "报价前不能直接承诺交期"
+}
+```
+
+强制规则：
+
+- 每个关键判断必须引用至少一个 `evidenceId`。
+- 每个 artifact 的关键区块必须引用 `evidenceId`，例如 XLSX 重点询盘、共性问题、整改动作。
+- 每个 next action 必须说明来自哪些 evidence 或 gap。
+- 没有证据的判断只能标为“待确认”，不能写成确定结论。
+- 证据覆盖不足时不能进入 `run.completed`，只能 `waiting.user_input`、`degrade` 或 `failed(evidence_missing)`。
+
+前台展示时只显示：
+
+```text
+依据：来自询盘原文 / 客户档案 / 产品资料 / 历史跟进
+缺口：缺价格底线、目标交期、包装要求、认证要求、付款条件
+风险：资料不足导致判断不稳、客户诚意不足、条款风险
+下一步：今天要问什么、发什么、让谁确认什么
+```
+
+### 9.5 Policy Engine
+
+Policy 不只管工具调用，也管模型、资料、写入、导出、外发和扣费。统一输出：
+
+```text
+allow    直接执行,前台不打扰用户
+ask      暂停,说明确认什么、影响哪里、能否撤回
+deny     拒绝,给出安全替代路径
+degrade  降级执行,例如只生成草稿、不写入、不外发
+```
+
+policy 层级：
+
+```text
+global policy
+agent policy
+skill policy
+customer / workspace policy
+run override from user confirmation
+```
+
+前台文案规则：
+
+```text
+ask  -> 这一步会影响客户资料/费用/外发内容，需要你确认。
+deny -> 这一步暂时不能做。可以先生成草稿给你检查。
+waiting.user_input -> 还缺 2 个关键信息，补完我再继续。
+waiting.tool_auth -> 需要先连接资料来源。
+waiting.external_service -> 资料来源暂时不可用，稍后可继续本次任务。
+```
+
+### 9.6 Typed Evaluator 和 Quality Gate
+
+`Critic Loop` 不是泛泛“再看一眼”，而是类型化 evaluator：
+
+```text
+XLSX evaluator
+  文件结构、安全残留、必需 sheet、禁止内部词、证据覆盖、业务字段完整度
+
+Email evaluator
+  语气、语言、事实依据、是否承诺过度、是否包含敏感信息、是否需要人工确认
+
+Customer report evaluator
+  公司/联系人/采购意向/风险/下一步是否都有 evidence
+
+Meeting material evaluator
+  会后复盘是否有责任人、整改动作、复查指标,是否可直接给老板看
+```
+
+Evaluator 输出固定为：
+
+```json
+{
+  "status": "pass",
+  "score": 0.91,
+  "blockingIssues": [],
+  "repairableIssues": [],
+  "nextRuntimeDecision": "commit"
+}
+```
+
+可选 decision：
+
+```text
+commit
+repair_once
+replan
+wait_for_user
+fail
+```
+
+每类产物要限制自动修复次数，避免 evaluator 和 builder 来回空转。
+
+### 9.7 完整 loop
+
+目标形态：
+
+```text
+create_run(goal, customer?, skill?)
 append run.started
-save checkpoint
-append run.checkpointed
-step = 0; denied_count = 0
+status=running; phase=preflight
 
-while run.status not in [completed, failed, cancelled]:
-  if step >= MAX_STEPS or cost >= MAX_COST:
-    append run.failed(reason="step_or_cost_limit")
-    break
-  step += 1
+preflight:
+  resolve goal and business objects
+  check skill registration and tool availability
+  check auth / entitlement / budget / idempotency
+  append run.preflighted
+  checkpoint
 
-  load latest checkpoint
-  load agent / customer / current skill context
-  next_action = ask model to decide      # 受控的 C：模型决定下一步
-  append runtime.tick
+assemble_context:
+  assemble by fixed order
+  append context.assembled
+  checkpoint
 
-  if next_action == finish:
-    break
+planning:
+  create bounded plan from registry plan or model
+  plan only uses currentSkill.allowedActions + finish
+  append plan.created
+  checkpoint
 
-  if next_action not in currentSkill.allowedActions:
-    append action.rejected(reason="invalid_or_unauthorized")
-    feed rejection back to model          # 回灌，让模型换路，不直接 fail
-    continue
+executing:
+  for each step until finish / waiting / failed:
+    enforce MAX_STEPS, MAX_COST, MAX_DENIED
+    choose or read next_action
+    append runtime.tick
 
-  if next_action requires policy:
-    policy_result = check policy
-    append policy.checked
-
-    if policy_result == deny:
-      append action.denied
-      feed denial back to model           # 回灌，模型改走别的路
-      denied_count += 1
-      if denied_count >= MAX_DENIED:
-        append run.failed(reason="too_many_denied")
-        break
-      save checkpoint; append run.checkpointed
+    verify registration and capability
+    if invalid:
+      append action.rejected
+      feed rejection back to planner
       continue
 
-    if policy_result == ask:
+    check policy
+    append policy.checked
+
+    if policy == deny:
+      append action.denied
+      feed denial back to planner
+      if denied_count >= MAX_DENIED: fail
+      checkpoint
+      continue
+
+    if policy == ask:
       append permission.requested
-      append run.waiting
-      save checkpoint(status=waiting, resume_from=next_action)
-      append run.checkpointed
+      append run.waiting(reason, resume_from)
+      checkpoint(status=waiting)
       return control to UI
 
-  execute next_action through Tool Proxy or internal Skill action
-  observe result, feed back to model       # ReAct：结果回灌进下一轮
-  append model/tool/artifact/memory event
-  save checkpoint
-  append run.checkpointed
+    if policy == degrade:
+      rewrite action to safe alternative
+      append action.degraded
 
-  if next_action needs more user input:
-    append run.waiting
-    save checkpoint(status=waiting, resume_from=next_action)
-    append run.checkpointed
-    return control to UI
+    execute action through adapter / Tool Proxy
+    normalize observation
+    append action.executed
+    append observation.recorded
+    update evidence ledger
+    append evidence.added
+    checkpoint
 
-append run.completed or run.failed
+    if observation requires user input or tool auth:
+      append run.waiting(reason, resume_from)
+      checkpoint(status=waiting)
+      return control to UI
+
+validating:
+  run typed evaluator and quality gates
+  append critic.reviewed
+  append artifact.validated or artifact.rejected
+  if repairable and repair_count < limit: go executing
+  if needs user: waiting
+  if blocking: failed
+
+committing:
+  create memory candidates and diary entry
+  ask policy before writing durable customer memory
+  append memory.candidate_created
+  append memory.updated only after confirmation or allow policy
+  append run.completed
 ```
 
-上限和驳回是受控的 C 的安全底座，不能省：
+### 9.8 Resume
 
-- `MAX_STEPS`（建议 8~10）、`MAX_COST`：撞上限立即 `run.failed`，防模型不收敛。
-- 非法 / 越权动作、被 `deny` 的动作都**回灌**给模型让它换路，而不是裸 `continue` 重试同一个。
-- `MAX_DENIED`：连续被拒到阈值直接 `run.failed`，防模型换马甲反复试禁区。
-
-### 9.3 恢复流程
+恢复不是重跑整条 adapter，而是从 checkpoint 继续：
 
 ```text
 resume_run(run_id, resume_token, user_decision_or_input)
--> load checkpoint
--> validate resume_token
+-> load runs/<run_id>.jsonl as fact source
+-> load checkpoint as cache
+-> validate resume_token_hash
 -> append run.resumed
--> inject user decision/input into checkpoint
+-> inject decision/input into pending action
 -> set status=resuming
--> continue Runtime loop from resume_from
+-> continue from resume_from
 ```
 
-`runs/<run_id>.jsonl` 是事实来源，必须 append-only。
+约束：
 
-`runs/<run_id>.checkpoint.json` 是可重建的运行快照，用来快速恢复，不是审计事实。它可以被覆盖，但任何覆盖都必须对应一条 `run.checkpointed` 事件。
+- `runs/<run_id>.jsonl` 是事实来源，必须 append-only。
+- `runs/<run_id>.checkpoint.json` 是可覆盖缓存，每次覆盖都要写 `run.checkpointed`。
+- checkpoint 必须记录已完成 phase、已完成 action、pending action、evidence ledger 摘要、artifact refs 和 memory candidates。
+- resume 后不得重复执行已完成的外部 action，尤其是付费、写入、导出、外发类动作。
 
-受控的 C 下，checkpoint 必须能重建「喂给模型的完整对话历史 + 各轮 observation」，否则 resume 后模型不知道自己推进到哪。它仍可从 `runs/<run_id>.jsonl` 重放得到，所以第一版可先把它当性能缓存，不做也能靠 jsonl 重建。
+### 9.9 第一刀落地顺序
 
-这个 loop 的重点不是炫技，而是让任务真的能被暂停、追溯、复盘和继续。
+完整 v2 不能一口气重写。当前已有 `skill-runner.mjs`、`runtime.mjs`、`alibaba-real-runner.mjs` 和 `artifact-validator.mjs`，正确做法是把真实 loop 补进骨架：
+
+```text
+1. 让 skill-runner 支持 status + phase、checkpoint、policy ask、resume_from。
+2. 把 runtime.mjs 的 confirmRun 思路抽象成通用 resumeRun。
+3. 把 alibaba adapter 拆成 discover_tools / collect_observations / build_artifact / validate_artifact 四个 phase。
+4. 给 alibaba real runner 输出最小 evidenceLedger,先覆盖 coverage、priority_inquiries、common_issues、corrective_actions。
+5. 给 XLSX 和 host-material 加 typed evaluator,不先追求全类型产物。
+6. 前台活动流改成业务化进度: 识别任务 / 核对资料 / 生成材料 / 检查结果 / 等待确认。
+7. 最后再做 SQLite 索引、完整 DAG、复杂多 Agent 和后台长期任务。
+```
+
+第一刀可以继续用 registry plan 驱动，不急着让模型完全自主选 action。能暂停、能恢复、能写证据、能挡风险、能校验交付物，就已经比普通 Accio 式黑盒工具执行更适合外贸成交。
 
 ## 10. Skill 最小定义
 
@@ -1053,15 +1383,17 @@ agent_slug = inquiry-meeting-host
    没有 DEEPSEEK_API_KEY 时返回未配置或 demo,不能冒充真实判断
 
 4. 一个有界 ReAct 循环：
-   模型决定 next_action（受控的 C），只能选 currentSkill.allowedActions + finish
-   每轮把结果回灌模型，直到 finish、waiting、failed 或撞上限
-   第一刀动作围绕：读取 Skill、工具发现、只读采集、生成 JSON、执行 XLSX builder、校验产物
+   第一刀可以继续由 registry plan 驱动,不急着放开模型自主选所有动作
+   每个 phase 后写 checkpoint,policy ask 时进入 waiting
+   resume 后从 resume_from 继续,不重复执行已完成外部动作
+   第一刀 phase 围绕：读取 Skill、工具发现、只读采集、生成 JSON、执行 XLSX builder、校验产物
 
 5. 一个任务日志：
    runs/<run_id>.jsonl
-   保存 run.started、skill.loaded、tool.discovery、tool.called、diagnosis.generated、artifact.written、artifact.validated、run.completed/run.failed
+   保存 run.started、skill.loaded、policy.checked、action.executed、observation.recorded、evidence.added、artifact.validated、run.waiting/run.resumed、run.completed/run.failed
 
-6. 一个 XLSX artifact：
+6. 一个 evidence ledger + XLSX artifact：
+   artifacts/<run_id>/evidence-ledger.json
    artifacts/<run_id>/inquiry-meeting-payload.json
    artifacts/<run_id>/询盘分析会_<start>_<end>.xlsx
    artifacts/<run_id>/manifest.json
@@ -1072,7 +1404,8 @@ agent_slug = inquiry-meeting-host
 - `run_id` 用 `run-YYYYMMDD-HHMMSS-<random>`，不要用每日序号。
 - 模型调用、工具调用、保存和导出前都先走 `policy.jsonl`；只读采集可 allow,外发/修改/发品/上传/扣费必须 deny。
 - 循环必须有 `MAX_STEPS`（建议 8~10）、`MAX_COST` 和连续 deny 上限，撞上限安全落 `run.failed`，绝不无上限跑。
-- `checkpoint.json` 第一刀只保证能恢复“等待用户确认导出或工具授权”这类节点，不先支持复杂长任务恢复。
+- `checkpoint.json` 第一刀只保证能恢复“等待用户确认导出或工具授权”这类节点,但必须做到 resume 后不重跑已完成的 adapter phase。
+- 关键判断和关键 sheet 行至少有 `evidenceId`、来源、可信度、覆盖度、缺口和新鲜度;缺证据不能当确定结论交付。
 
 第一刀通过后，才能继续扩。
 
@@ -1113,15 +1446,16 @@ subagent / 多 Agent 编排
 ```text
 用户在「新对话」输入“帮我开上周询盘分析会”
 -> Runtime 识别自然语言目标
--> 自动匹配 alibaba-inquiry-meeting
--> 创建 Agent 对话线程并显示 agent-session-... Session ID
--> 看到 Agent 回复、可展开活动流和业务化进度
--> 活动流包含 goal / plan / action / observation / nextAction
--> 后端 loop 真实执行 goal.classify / skill.match / plan.create / skill.execute / artifact.verify / finish
--> 得到 XLSX 路径和产物卡
--> 在同一个 Session 继续追问,不重新采集只读数据
+-> 内部自动匹配询盘复盘会材料 Skill
+-> 创建本次询盘复盘任务,默认不展示内部 Session ID
+-> 看到 Agent 回复、可展开“本次操作记录”和业务化进度
+-> 活动流使用业务词: 识别任务 / 核对资料 / 生成材料 / 检查结果 / 等待确认
+-> 后端 loop 真实执行 preflight / assemble_context / plan / execute / validate / commit
+-> 得到“询盘复盘会材料”产物卡和 XLSX 路径
+-> 在同一次任务里继续追问,不重新采集只读数据
 -> 打开工作簿看到 8 张固定 sheet
 -> 管理层能直接看到风险、责任人、整改动作和下次复查方式
+-> 关键结论旁边能看到依据、缺口和下一步
 ```
 
 XLSX 必须包含：
@@ -1166,6 +1500,8 @@ Tool Proxy 能发现并调用 alibaba-inquiry-meeting 需要的 Alibaba 只读�
 Run Logger 能写入 runs/<run_id>.jsonl
 Run Logger 能写入 run.waiting、run.resumed、run.checkpointed 事件
 Checkpoint 能保存 resume_from，并能从 runs/<run_id>.jsonl 重建
+Evidence Ledger 能为关键判断和关键 sheet 行保存 source、confidence、coverage、gap、freshness
+Typed Evaluator 能拒绝证据不足、内部词泄漏或 XLSX 结构不合格的产物
 Artifact Writer 能生成并保存主持材料 JSON、XLSX 和 manifest
 XLSX Builder 能通过 LibreOffice 重存、清包、unzip -t、openpyxl.load_workbook 和残留扫描
 ```

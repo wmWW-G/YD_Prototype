@@ -20,6 +20,13 @@ import {
   UsersRound,
   X,
 } from 'lucide-react';
+import {
+  agentThreadStatusFromPayload,
+  agentThreadStatusFromRestoredSession,
+} from './agentThreadStatus.js';
+import { mergeStreamingProgressItem } from './agentThreadProgress.js';
+import { deriveAgentThreadTaskTitle } from './agentThreadTitle.js';
+import { getNewConversationComposerState } from './agentThreadComposerState.js';
 
 const navItems = [
   { label: '新对话', icon: PenLine },
@@ -31,6 +38,7 @@ const navItems = [
 ];
 
 const collapsibleNavLabels = ['赢单外贸顾问', '客户Kass'];
+const AGENT_THREAD_STORAGE_KEY = 'yingdan-agent-thread-state-v1';
 
 const skillItems = [
   { id: 'market-research', label: '市场调研', desc: '分析目标市场、客户类型和切入机会', category: '获客准备', usage: 86 },
@@ -120,7 +128,7 @@ const ecosystemPluginGroups = [
         tone: 'orange',
       },
       {
-        name: '小满 CRM MCP',
+        name: '小满 CRM 连接器',
         provider: '小满科技',
         desc: '连接客户、联系人、跟进记录和业务阶段',
         status: '待授权',
@@ -149,7 +157,7 @@ const ecosystemPluginGroups = [
         tone: 'orange',
       },
       {
-        name: 'Shopify MCP',
+        name: 'Shopify 连接器',
         provider: 'Shopify',
         desc: '商品、订单、客户和独立站运营数据',
         status: '可添加',
@@ -157,7 +165,7 @@ const ecosystemPluginGroups = [
         tone: 'green',
       },
       {
-        name: 'SHOPLINE MCP',
+        name: 'SHOPLINE 连接器',
         provider: 'SHOPLINE',
         desc: '独立站商品、订单和营销活动连接',
         status: '可添加',
@@ -165,7 +173,7 @@ const ecosystemPluginGroups = [
         tone: 'dark',
       },
       {
-        name: 'WordPress MCP',
+        name: 'WordPress 连接器',
         provider: 'WordPress',
         desc: '官网页面、博客内容和询盘表单管理',
         status: '可添加',
@@ -173,7 +181,7 @@ const ecosystemPluginGroups = [
         tone: 'gray',
       },
       {
-        name: 'Google Trends MCP',
+        name: 'Google Trends 连接器',
         provider: 'Google',
         desc: '搜索趋势、国家热度和关键词变化',
         status: '可添加',
@@ -186,7 +194,7 @@ const ecosystemPluginGroups = [
     title: '获客与营销',
     plugins: [
       {
-        name: 'Apollo.io MCP',
+        name: 'Apollo.io 连接器',
         provider: 'Apollo.io',
         desc: 'B2B 公司调研、联系人线索和销售触达',
         status: '可添加',
@@ -194,7 +202,7 @@ const ecosystemPluginGroups = [
         tone: 'yellow',
       },
       {
-        name: 'Ahrefs MCP',
+        name: 'Ahrefs 连接器',
         provider: 'Ahrefs',
         desc: 'SEO 关键词、竞品网站和内容机会',
         status: '可添加',
@@ -202,7 +210,7 @@ const ecosystemPluginGroups = [
         tone: 'orange',
       },
       {
-        name: 'Instantly MCP',
+        name: 'Instantly 连接器',
         provider: 'Instantly',
         desc: '冷邮件外联、序列任务和回复状态',
         status: '可添加',
@@ -210,7 +218,7 @@ const ecosystemPluginGroups = [
         tone: 'blue',
       },
       {
-        name: 'Mailchimp MCP',
+        name: 'Mailchimp 连接器',
         provider: 'Mailchimp',
         desc: '邮件订阅、营销活动和客户分组',
         status: '可添加',
@@ -218,7 +226,7 @@ const ecosystemPluginGroups = [
         tone: 'dark',
       },
       {
-        name: 'Klaviyo MCP',
+        name: 'Klaviyo 连接器',
         provider: 'Klaviyo',
         desc: '独立站邮件营销和客户自动化触达',
         status: '可添加',
@@ -226,7 +234,7 @@ const ecosystemPluginGroups = [
         tone: 'gray',
       },
       {
-        name: 'Semrush MCP',
+        name: 'Semrush 连接器',
         provider: 'Semrush',
         desc: '竞品流量、广告关键词和市场搜索洞察',
         status: '可添加',
@@ -236,10 +244,10 @@ const ecosystemPluginGroups = [
     ],
   },
   {
-    title: '通用工具 MCP',
+    title: '通用工具连接器',
     plugins: [
       {
-        name: 'Gmail MCP',
+        name: 'Gmail 连接器',
         provider: 'Google Mail',
         desc: '读取邮件线程、生成回复草稿和跟进提醒',
         status: '可添加',
@@ -247,7 +255,7 @@ const ecosystemPluginGroups = [
         tone: 'red',
       },
       {
-        name: 'Google Drive MCP',
+        name: 'Google Drive 连接器',
         provider: 'Google Drive',
         desc: '读取报价单、产品资料、合同和案例文件',
         status: '可添加',
@@ -255,7 +263,7 @@ const ecosystemPluginGroups = [
         tone: 'green',
       },
       {
-        name: 'Notion MCP',
+        name: 'Notion 连接器',
         provider: 'Notion',
         desc: '同步团队知识库、SOP 和客户记录',
         status: '可添加',
@@ -263,7 +271,7 @@ const ecosystemPluginGroups = [
         tone: 'dark',
       },
       {
-        name: 'Slack MCP',
+        name: 'Slack 连接器',
         provider: 'Slack',
         desc: '团队消息、客户事项和内部协作提醒',
         status: '可添加',
@@ -271,7 +279,7 @@ const ecosystemPluginGroups = [
         tone: 'purple',
       },
       {
-        name: '飞书 MCP',
+        name: '飞书连接器',
         provider: 'Lark / 飞书',
         desc: '云文档、多维表格、审批和任务协同',
         status: '可添加',
@@ -279,7 +287,7 @@ const ecosystemPluginGroups = [
         tone: 'blue',
       },
       {
-        name: '自定义 MCP',
+        name: '自定义连接器',
         provider: '本地配置',
         desc: '连接企业内部系统、ERP、BI 或私有 API',
         status: '创建',
@@ -439,6 +447,56 @@ const initialProgress = [
 const API_BASE_URL = 'http://127.0.0.1:8787';
 
 /**
+ * loadAgentThreadState 从浏览器本地存储恢复新对话线程。
+ *
+ * 作用：
+ * - 让用户刷新页面后仍能看到刚才的任务、待确认状态和产物上下文。
+ * - 这只是原型阶段的轻量恢复；正式版应迁移到后端会话和权限控制。
+ *
+ * 参数：无。
+ * 返回值：线程状态对象；没有可恢复内容时返回空对象。
+ * 可能抛出的异常：函数内部吞掉存储读取和 JSON 解析异常，避免影响页面启动。
+ */
+function loadAgentThreadState() {
+  try {
+    const raw = window.localStorage.getItem(AGENT_THREAD_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * saveAgentThreadState 把新对话线程保存到浏览器本地存储。
+ *
+ * 作用：
+ * - 保存的是原型会话状态，不写真实客户资料到后端。
+ * - 当线程为空时清理旧存储，避免用户下次打开看到过期任务。
+ *
+ * 参数：
+ * - state：需要保存的线程状态对象。
+ *
+ * 返回值：无。
+ * 可能抛出的异常：函数内部吞掉存储写入异常，例如隐私模式或存储额度不足。
+ */
+function saveAgentThreadState(state = {}) {
+  try {
+    const hasThread = state.sessionId || (state.messages || []).length > 0 || Object.keys(state.context || {}).length > 0;
+    if (!hasThread) {
+      window.localStorage.removeItem(AGENT_THREAD_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(AGENT_THREAD_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // 原型恢复失败不应阻断主流程；用户仍可继续当前页面操作。
+  }
+}
+
+/**
  * App 是赢单 Agent 工作台原型的入口组件。
  *
  * 作用：
@@ -450,6 +508,7 @@ const API_BASE_URL = 'http://127.0.0.1:8787';
  * 可能抛出的异常：正常渲染不主动抛异常；如果浏览器不支持现代 React 运行环境，构建工具会提前报错。
  */
 export function App() {
+  const restoredAgentThread = useMemo(() => loadAgentThreadState(), []);
   const [activeNav, setActiveNav] = useState('新对话');
   const [expandedNav, setExpandedNav] = useState('');
   const [activeAdvisorId, setActiveAdvisorId] = useState('ask');
@@ -458,13 +517,17 @@ export function App() {
   const [activeKassTab, setActiveKassTab] = useState('thread');
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [draft, setDraft] = useState('');
-  const [newConversationDraft, setNewConversationDraft] = useState('执行Skill：alibaba-inquiry-meeting');
-  const [skillAgentStatus, setSkillAgentStatus] = useState('idle');
-  const [skillAgentResult, setSkillAgentResult] = useState(null);
+  const [newConversationDraft, setNewConversationDraft] = useState(restoredAgentThread.draft || '');
+  const [skillAgentStatus, setSkillAgentStatus] = useState(agentThreadStatusFromRestoredSession(restoredAgentThread));
+  const [skillAgentResult, setSkillAgentResult] = useState(restoredAgentThread.skillAgentResult || null);
   const [skillAgentError, setSkillAgentError] = useState('');
-  const [agentSessionId, setAgentSessionId] = useState('');
-  const [agentThreadMessages, setAgentThreadMessages] = useState([]);
-  const [expandedProcessMessageId, setExpandedProcessMessageId] = useState('');
+  const [agentSessionId, setAgentSessionId] = useState(restoredAgentThread.sessionId || '');
+  const [agentTaskContext, setAgentTaskContext] = useState(restoredAgentThread.context || {});
+  const [agentThreadTaskTitle, setAgentThreadTaskTitle] = useState(deriveAgentThreadTaskTitle(restoredAgentThread));
+  const [agentThreadMessages, setAgentThreadMessages] = useState(restoredAgentThread.messages || []);
+  const [expandedProcessMessageId, setExpandedProcessMessageId] = useState(restoredAgentThread.expandedProcessMessageId || '');
+  const [streamingProgressItems, setStreamingProgressItems] = useState([]);
+  const [artifactPreview, setArtifactPreview] = useState({ open: false, status: 'idle', artifact: null, content: '', error: '' });
   const newConversationInputRef = useRef(null);
   const [inquiryText, setInquiryText] = useState('');
   const [analysisResult, setAnalysisResult] = useState(null);
@@ -481,6 +544,65 @@ export function App() {
   const selectedCustomer = useMemo(() => {
     return activeLevel.customers.find((customer) => customer.id === activeCustomerId) || activeLevel.customers[0];
   }, [activeCustomerId, activeLevel]);
+
+  useEffect(() => {
+    saveAgentThreadState({
+      context: agentTaskContext,
+      draft: newConversationDraft,
+      expandedProcessMessageId,
+      messages: agentThreadMessages,
+      sessionId: agentSessionId,
+      skillAgentResult,
+      status: skillAgentStatus,
+      taskTitle: agentThreadTaskTitle,
+    });
+  }, [agentSessionId, agentTaskContext, agentThreadMessages, agentThreadTaskTitle, expandedProcessMessageId, newConversationDraft, skillAgentResult, skillAgentStatus]);
+
+  useEffect(() => {
+    if (!restoredAgentThread.sessionId) {
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    /**
+     * restoreAgentThreadFromServer 用后端 session 文件刷新新对话线程。
+     *
+     * 作用：
+     * - localStorage 只负责记住最后一个 sessionId 和兜底 UI 状态。
+     * - 真正的 pending confirmation、artifact 和消息记录优先以后端保存的 session 为准。
+     *
+     * 参数：无。
+     * 返回值：Promise<void>。
+     * 可能抛出的异常：函数内部捕获网络异常，恢复失败时继续使用本地兜底状态。
+     */
+    async function restoreAgentThreadFromServer() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/agent/session/${encodeURIComponent(restoredAgentThread.sessionId)}`);
+        const payload = await response.json();
+        if (!isMounted || !response.ok || payload.ok === false || !payload.session) {
+          return;
+        }
+
+        const session = payload.session;
+        setAgentSessionId(session.sessionId || restoredAgentThread.sessionId);
+        setAgentTaskContext(session.context || {});
+        setAgentThreadMessages(session.messages || []);
+        setExpandedProcessMessageId(session.expandedProcessMessageId || '');
+        setSkillAgentResult(session.skillAgentResult || null);
+        setSkillAgentStatus(agentThreadStatusFromRestoredSession(session));
+        setAgentThreadTaskTitle(deriveAgentThreadTaskTitle(session));
+      } catch {
+        // 后端恢复失败时保留本地兜底状态；用户仍可继续手动发送。
+      }
+    }
+
+    restoreAgentThreadFromServer();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [restoredAgentThread.sessionId]);
 
   const progressItems = useMemo(() => {
     if (analysisStatus === 'running') {
@@ -723,78 +845,188 @@ export function App() {
   }
 
   /**
-   * 从新对话入口执行 Skill Agent。
+   * 开始一条全新的外贸任务线程。
    *
    * 作用：
-   * - 识别用户输入的 `执行Skill：alibaba-inquiry-meeting`。
-   * - 调用本地后端 `/api/agent/message`，由后端执行真实 Accio/Alibaba 只读采集和 XLSX builder。
-   * - 把结果展示成新对话里的 Agent 进度和产物卡片。
+   * - 当用户已经有一条可继续的任务时，仍然可以像 Codex / Claude Code 一样明确开新任务。
+   * - 清空旧 session、消息、上下文、产物预览和任务标题，避免新需求被误当成旧任务追问。
+   * - 不删除后端历史 session 文件；这里只重置当前前台工作区，便于原型阶段保留排查证据。
    *
    * 参数：无。
+   * 返回值：无。
+   * 可能抛出的异常：不主动抛异常。
+   */
+  function handleStartNewConversationTask() {
+    setNewConversationDraft('');
+    setSkillAgentStatus('idle');
+    setSkillAgentResult(null);
+    setSkillAgentError('');
+    setAgentSessionId('');
+    setAgentTaskContext({});
+    setAgentThreadTaskTitle('');
+    setAgentThreadMessages([]);
+    setExpandedProcessMessageId('');
+    setStreamingProgressItems([]);
+    setArtifactPreview({ open: false, status: 'idle', artifact: null, content: '', error: '' });
+    saveAgentThreadState({});
+
+    if (newConversationInputRef.current) {
+      newConversationInputRef.current.value = '';
+      newConversationInputRef.current.focus();
+    }
+    setToast('已开始新的外贸任务');
+  }
+
+  /**
+   * ensureRecoverableAgentSessionId 确保可恢复异常也有一个本地任务线程 ID。
+   *
+   * 作用：
+   * - 如果后端还没来得及返回 sessionId 就中断,前端仍然需要保留“这是同一件事”。
+   * - 下次用户补一句话时,这个 sessionId 会和 pendingTask 一起发给后端。
+   *
+   * 参数：无。
+   * 返回值：当前或新生成的本地 sessionId。
+   * 可能抛出的异常：无。
+   */
+  function ensureRecoverableAgentSessionId() {
+    if (agentSessionId) {
+      return agentSessionId;
+    }
+    const recoverableSessionId = createLocalAgentSessionId();
+    setAgentSessionId(recoverableSessionId);
+    return recoverableSessionId;
+  }
+
+  /**
+   * 从新对话入口执行外贸任务 Agent。
+   *
+   * 作用：
+   * - 接收用户用自然语言交代的外贸目标，例如开询盘分析会、写开发信或分析客户推进。
+   * - 调用本地后端 `/api/agent/message`，由后端识别任务、拆解步骤并生成业务产物。
+   * - 把结果展示成新对话里的任务线程、进度和文件卡片。
+   *
+   * 参数：
+   * - overrideText：确认按钮传入的补充指令，字符串；为空时读取输入框内容。
+   *
    * 返回值：Promise<void>。
    * 可能抛出的异常：函数内部捕获网络和接口异常，并转成页面错误提示。
    */
-  async function handleRunNewConversationAgent() {
-    const currentDraft = (newConversationInputRef.current?.value || newConversationDraft).trim();
+  async function handleRunNewConversationAgent(overrideText = '') {
+    const currentDraft = (overrideText || newConversationInputRef.current?.value || newConversationDraft).trim();
 
     if (!currentDraft) {
-      setToast(agentSessionId ? '先输入要继续追问的内容' : '先输入要执行的 Skill');
+      setToast(agentSessionId ? '先输入要继续补充的内容' : '先输入要交代的外贸任务');
       return;
     }
 
     const userMessage = buildLocalThreadMessage('user', currentDraft);
+    let finalPayload = null;
+    let streamError = null;
 
     setSkillAgentStatus('running');
     setSkillAgentError('');
+    setStreamingProgressItems([]);
     setAgentThreadMessages((currentMessages) => [...currentMessages, userMessage]);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/agent/message`, {
+      const response = await fetch(`${API_BASE_URL}/api/agent/message/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: currentDraft,
           sessionId: agentSessionId || undefined,
-          context: skillAgentResult
-            ? {
-                artifact: skillAgentResult.artifact,
-                period: skillAgentResult.period,
-              }
-            : undefined,
+          context: {
+            ...agentTaskContext,
+            ...(skillAgentResult
+              ? {
+                  artifact: skillAgentResult.artifact,
+                  period: skillAgentResult.period,
+                }
+              : {}),
+          },
         }),
       });
-      const payload = await response.json();
 
-      if (!response.ok || payload.ok === false) {
-        const message = payload.message || payload.error || 'Agent 执行失败';
-        setSkillAgentStatus('error');
-        setSkillAgentError(message);
-        setAgentThreadMessages((currentMessages) => [...currentMessages, buildLocalThreadMessage('assistant', message, { tone: 'error' })]);
-        setToast(message);
+      if (!response.ok) {
+        throw new Error('任务进度流连接失败');
+      }
+
+      await readAgentEventStream(response, ({ event, data }) => {
+        if (event === 'progress') {
+          setStreamingProgressItems((items) => mergeStreamingProgressItem(items, data));
+          return;
+        }
+        if (event === 'result') {
+          finalPayload = data;
+          return;
+        }
+        if (event === 'error') {
+          streamError = data;
+        }
+      });
+
+      if (streamError) {
+        const message = '这次任务中途卡住了。我没有生成业务材料，可以补充更多资料后继续，或稍后重试。';
+        ensureRecoverableAgentSessionId();
+        const recoverableContext = buildRecoverablePendingTaskContext(currentDraft);
+        setSkillAgentStatus('waiting');
+        setSkillAgentError('');
+        setAgentTaskContext((currentContext) => ({
+          ...currentContext,
+          pendingTask: currentContext.pendingTask || recoverableContext.pendingTask,
+        }));
+        setAgentThreadTaskTitle((currentTitle) => currentTitle || '本次外贸任务');
+        setAgentThreadMessages((currentMessages) => [...currentMessages, buildLocalThreadMessage('assistant', message, { tone: 'warning' })]);
+        setToast('等待补充后继续');
         return;
       }
 
+      if (!finalPayload) {
+        throw new Error('任务结束时没有收到结果');
+      }
+
+      const payload = finalPayload;
       const assistantMessages = (payload.messages || []).filter((message) => message.role === 'assistant');
       setAgentSessionId(payload.sessionId || agentSessionId);
-      if (payload.kind === 'skill-run') {
+      setAgentTaskContext(payload.context || (payload.artifact ? { artifact: payload.artifact, period: payload.period } : agentTaskContext));
+      if (payload.artifact) {
         setSkillAgentResult(payload);
       }
+      const nextTaskTitle = deriveAgentThreadTaskTitle(payload, agentThreadTaskTitle);
+      setAgentThreadTaskTitle(nextTaskTitle || '');
       setAgentThreadMessages((currentMessages) => [...currentMessages, ...assistantMessages]);
-      setExpandedProcessMessageId('');
-      setSkillAgentStatus('completed');
+      setExpandedProcessMessageId(assistantMessages.find((message) => message.activity || message.process)?.id || '');
+      setSkillAgentStatus(agentThreadStatusFromPayload(payload));
       setNewConversationDraft('');
       if (newConversationInputRef.current) {
         newConversationInputRef.current.value = '';
       }
-      setToast(payload.kind === 'followup' ? '已追加到当前 Session' : 'alibaba-inquiry-meeting 已执行完成');
+      const nextToast = payload.kind === 'confirmation-required'
+        ? '等待你确认后继续'
+        : payload.kind === 'needs-input' || payload.kind === 'needs-input-followup'
+          ? '还需要补充业务资料'
+          : payload.kind === 'followup'
+            ? '已接着这次任务继续处理'
+            : '这次任务已完成';
+      setToast(nextToast);
     } catch (error) {
-      setSkillAgentStatus('error');
-      setSkillAgentError(`本地后端未启动或请求失败：${error.message}`);
+      const message = '任务进度暂时没有连上。我没有生成业务材料，可以稍后重试，或继续补充客户、询盘和产品资料。';
+      ensureRecoverableAgentSessionId();
+      const recoverableContext = buildRecoverablePendingTaskContext(currentDraft);
+      setSkillAgentStatus('waiting');
+      setSkillAgentError('');
+      setAgentTaskContext((currentContext) => ({
+        ...currentContext,
+        pendingTask: currentContext.pendingTask || recoverableContext.pendingTask,
+      }));
+      setAgentThreadTaskTitle((currentTitle) => currentTitle || '本次外贸任务');
       setAgentThreadMessages((currentMessages) => [
         ...currentMessages,
-        buildLocalThreadMessage('assistant', `本地后端未启动或请求失败：${error.message}`, { tone: 'error' }),
+        buildLocalThreadMessage('assistant', message, { tone: 'warning' }),
       ]);
-      setToast(`本地后端未启动或请求失败：${error.message}`);
+      setToast('等待补充后继续');
+    } finally {
+      setStreamingProgressItems([]);
     }
   }
 
@@ -825,6 +1057,64 @@ export function App() {
   }
 
   /**
+   * handlePreviewAgentArtifact 打开当前新对话产物预览。
+   *
+   * 作用：
+   * - 点击线程里的“查看文件”时,从后端按 sessionId 读取真实产物内容。
+   * - 预览接口只返回当前任务绑定的产物,前端不直接读取任意本地路径。
+   *
+   * 参数：
+   * - artifact：消息卡片上的产物摘要对象。
+   *
+   * 返回值：Promise<void>。
+   * 可能抛出的异常：函数内部捕获网络和接口异常，并展示为预览错误。
+   */
+  async function handlePreviewAgentArtifact(artifact = {}) {
+    if (!agentSessionId) {
+      setToast('这次任务还没有可预览的文件');
+      return;
+    }
+
+    const previewErrorMessage = '这个文件暂时无法预览。我没有改动原文件，可以稍后重试，或让我重新生成一份材料。';
+    setArtifactPreview({ open: true, status: 'loading', artifact, content: '', error: '' });
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/agent/session/${encodeURIComponent(agentSessionId)}/artifact`);
+      const payload = await response.json();
+      if (!response.ok || payload.ok === false) {
+        setArtifactPreview({ open: true, status: 'error', artifact, content: '', error: previewErrorMessage });
+        setToast('文件暂时无法预览');
+        return;
+      }
+
+      setArtifactPreview({
+        open: true,
+        status: 'ready',
+        artifact: {
+          ...artifact,
+          ...payload,
+        },
+        content: payload.content || '',
+        error: '',
+      });
+    } catch (error) {
+      setArtifactPreview({ open: true, status: 'error', artifact, content: '', error: previewErrorMessage });
+      setToast('文件暂时无法预览');
+    }
+  }
+
+  /**
+   * handleCloseArtifactPreview 关闭产物预览面板。
+   *
+   * 参数：无。
+   * 返回值：无。
+   * 可能抛出的异常：无。
+   */
+  function handleCloseArtifactPreview() {
+    setArtifactPreview((currentPreview) => ({ ...currentPreview, open: false }));
+  }
+
+  /**
    * 按当前主导航渲染工作区。
    *
    * 参数：无。
@@ -837,15 +1127,23 @@ export function App() {
           <NewConversationView
           agentError={skillAgentError}
           agentStatus={skillAgentStatus}
+          currentArtifact={skillAgentResult?.artifact || agentTaskContext?.artifact || null}
           draft={newConversationDraft}
           expandedProcessMessageId={expandedProcessMessageId}
           inputRef={newConversationInputRef}
           messages={agentThreadMessages}
           sessionId={agentSessionId}
+          streamingProgressItems={streamingProgressItems}
+          taskTitle={agentThreadTaskTitle}
           onDraftChange={setNewConversationDraft}
+          onConfirmAction={handleRunNewConversationAgent}
+          onCloseArtifactPreview={handleCloseArtifactPreview}
+          onPreviewArtifact={handlePreviewAgentArtifact}
           onRunAgent={handleRunNewConversationAgent}
+          onStartNewTask={handleStartNewConversationTask}
           onPrototypeAction={handlePrototypeAction}
           onToggleProcess={handleToggleAgentProcess}
+          artifactPreview={artifactPreview}
         />
       );
     }
@@ -918,12 +1216,12 @@ export function App() {
  *
  * 作用：
  * - 用户发送后先把消息放进线程，减少等待感。
- * - 网络错误也可以作为助手消息进入同一条 Session 视图。
+ * - 可恢复的异常也可以作为助手消息进入同一条 Session 视图。
  *
  * 参数：
  * - role：消息角色，user 或 assistant。
  * - content：消息正文。
- * - options.tone：可选语气标记，例如 error。
+ * - options.tone：可选语气标记，例如 warning 或 error。
  *
  * 返回值：线程消息对象。
  * 可能抛出的异常：无。
@@ -935,6 +1233,192 @@ function buildLocalThreadMessage(role, content, options = {}) {
     content,
     createdAt: new Date().toISOString(),
     tone: options.tone || '',
+  };
+}
+
+/**
+ * createLocalAgentSessionId 生成前端兜底的新对话任务线程 ID。
+ *
+ * 作用：
+ * - 在后端还没返回 sessionId 就发生网络中断时,让前端仍能把下一句补充归到同一任务。
+ * - ID 格式保持 `agent-session-*`,便于后端 session store 接受并在后续成功请求中保存。
+ *
+ * 参数：无。
+ * 返回值：安全的本地 sessionId 字符串。
+ * 可能抛出的异常：无。
+ */
+function createLocalAgentSessionId() {
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return `agent-session-local-${stamp}-${suffix}`;
+}
+
+/**
+ * buildRecoverablePendingTaskContext 为前端可恢复异常构造待补充任务上下文。
+ *
+ * 作用：
+ * - 记录用户原始任务,避免下一句补充被后端当成全新任务。
+ * - 只保存业务补充所需的轻量信息,不保存 raw error 或底层技术细节。
+ *
+ * 参数：
+ * - originalText：发生中断时用户输入的原始外贸任务。
+ *
+ * 返回值：包含 pendingTask 的 context 片段。
+ * 可能抛出的异常：无。
+ */
+function buildRecoverablePendingTaskContext(originalText = '') {
+  return {
+    pendingTask: {
+      missing: ['更多业务资料或更明确的产物要求'],
+      originalText,
+      reason: 'frontend_recoverable_error',
+    },
+  };
+}
+
+/**
+ * readReferenceFileText 读取用户主动选择的文本资料。
+ *
+ * 作用：
+ * - 让“引用资料”真正把客户资料、询盘或产品说明带入当前任务输入。
+ * - 第一阶段只读取文本类资料,避免在前端伪装 PDF/XLSX 解析能力。
+ *
+ * 参数：
+ * - file：浏览器 File 对象。
+ *
+ * 返回值：Promise<object>,包含文件名和截断后的文本内容。
+ * 可能抛出的异常：浏览器读取文件失败时会抛出,调用方负责展示业务化提示。
+ */
+async function readReferenceFileText(file) {
+  const rawText = await file.text();
+  return {
+    name: file.name || '未命名资料',
+    text: trimReferenceText(rawText),
+  };
+}
+
+/**
+ * buildReferenceDraftBlock 把多份引用资料拼成输入框里的业务上下文。
+ *
+ * 作用：
+ * - 用户点击开始处理时,这些资料会随同自然语言任务一起发给后端。
+ * - 文本格式保持人可读,不要求用户理解 schema 或 JSON。
+ *
+ * 参数：
+ * - references：资料数组,每项包含 name 和 text。
+ *
+ * 返回值：可追加到输入框的字符串。
+ * 可能抛出的异常：无。
+ */
+function buildReferenceDraftBlock(references = []) {
+  const blocks = references
+    .filter((reference) => reference?.text)
+    .map((reference) => `【${reference.name}】\n${reference.text}`);
+  return ['引用资料：', ...blocks].join('\n\n');
+}
+
+/**
+ * trimReferenceText 限制单份引用资料长度。
+ *
+ * 作用：
+ * - 防止用户误选超长文件导致输入框和本地请求过大。
+ * - 保留开头业务信息,并用自然语言提示内容已截断。
+ *
+ * 参数：
+ * - text：原始文件文本。
+ *
+ * 返回值：截断后的文本。
+ * 可能抛出的异常：无。
+ */
+function trimReferenceText(text = '') {
+  const normalized = String(text || '').trim();
+  const limit = 6000;
+  if (normalized.length <= limit) {
+    return normalized;
+  }
+  return `${normalized.slice(0, limit)}\n\n[资料较长,这里只引用前 ${limit} 个字符。]`;
+}
+
+/**
+ * readAgentEventStream 读取后端 SSE 任务流。
+ *
+ * 作用：
+ * - 让新对话能在任务执行中逐步收到 progress / result / error。
+ * - 前端不理解 Runtime、tool call 或 schema,只处理后端已经翻译好的业务事件。
+ *
+ * 参数：
+ * - response：fetch 返回的 Response 对象。
+ * - onEvent：每读到一个事件时调用,参数为 {event, data}。
+ *
+ * 返回值：Promise<void>。
+ * 可能抛出的异常：浏览器不支持流读取、JSON 解析失败或网络中断时抛出。
+ */
+async function readAgentEventStream(response, onEvent) {
+  if (!response.body) {
+    throw new Error('当前浏览器不支持任务进度流');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    buffer = await drainSseBuffer(buffer, onEvent);
+
+    if (done) {
+      break;
+    }
+  }
+
+  if (buffer.trim()) {
+    await emitSseBlock(buffer, onEvent);
+  }
+}
+
+async function drainSseBuffer(buffer, onEvent) {
+  let nextBuffer = buffer;
+  let boundary = nextBuffer.indexOf('\n\n');
+
+  while (boundary >= 0) {
+    const block = nextBuffer.slice(0, boundary);
+    nextBuffer = nextBuffer.slice(boundary + 2);
+    await emitSseBlock(block, onEvent);
+    boundary = nextBuffer.indexOf('\n\n');
+  }
+
+  return nextBuffer;
+}
+
+async function emitSseBlock(block, onEvent) {
+  const parsed = parseSseBlock(block);
+  if (parsed) {
+    await onEvent(parsed);
+  }
+}
+
+function parseSseBlock(block) {
+  const lines = String(block || '').split('\n');
+  let event = 'message';
+  const dataLines = [];
+
+  for (const line of lines) {
+    if (line.startsWith('event:')) {
+      event = line.replace(/^event:\s*/, '').trim();
+    }
+    if (line.startsWith('data:')) {
+      dataLines.push(line.replace(/^data:\s*/, ''));
+    }
+  }
+
+  if (!dataLines.length) {
+    return null;
+  }
+
+  return {
+    data: JSON.parse(dataLines.join('\n')),
+    event,
   };
 }
 
@@ -1116,14 +1600,22 @@ function WorkspaceHeader({ title, subtitle, chips = [], action }) {
  *
  * 参数：
  * - agentError：Agent 执行错误文案，字符串。
- * - agentStatus：Agent 状态，idle/running/completed/error。
+ * - agentStatus：Agent 状态，idle/running/waiting/completed/error。
+ * - artifactPreview：当前产物预览面板状态。
+ * - currentArtifact：当前 session 绑定的产物摘要，用于提示用户正在续改哪份材料。
  * - draft：新对话输入框内容。
  * - expandedProcessMessageId：当前展开执行过程的消息 ID。
  * - inputRef：输入框 DOM 引用，用于发送时兜底读取当前值。
- * - messages：当前 Session 的线程消息。
- * - sessionId：当前 Agent Session ID。
+ * - messages：当前任务线程里的消息。
+ * - sessionId：内部任务会话 ID，只用于续跑，不直接展示给业务用户。
+ * - streamingProgressItems：后端流式返回的实时业务进度。
+ * - taskTitle：当前线程识别出的业务任务名，只展示用户能理解的外贸任务标题。
  * - onDraftChange：更新新对话输入内容的回调函数。
+ * - onCloseArtifactPreview：关闭产物预览的回调函数。
+ * - onConfirmAction：确认或取消待确认动作的回调函数。
+ * - onPreviewArtifact：打开产物预览的回调函数。
  * - onRunAgent：执行 Agent 的回调函数。
+ * - onStartNewTask：清空当前线程并开始全新任务的回调函数。
  * - onPrototypeAction：原型反馈回调函数。
  * - onToggleProcess：展开或收起执行过程的回调函数。
  *
@@ -1133,22 +1625,95 @@ function WorkspaceHeader({ title, subtitle, chips = [], action }) {
 function NewConversationView({
   agentError,
   agentStatus,
+  artifactPreview,
+  currentArtifact,
   draft,
   expandedProcessMessageId,
   inputRef,
   messages,
   sessionId,
+  streamingProgressItems,
+  taskTitle,
   onDraftChange,
+  onCloseArtifactPreview,
+  onConfirmAction,
+  onPreviewArtifact,
   onRunAgent,
+  onStartNewTask,
   onPrototypeAction,
   onToggleProcess,
 }) {
-  const isRunning = agentStatus === 'running';
-  const hasMessages = messages.length > 0;
+  const {
+    canStartFreshTask,
+    composerContextLabel,
+    composerPlaceholder,
+    hasActionableConfirmation,
+    hasMessages,
+    isRunning,
+    isWaiting,
+    latestMessageId,
+    sendButtonLabel,
+    statusChipLabel,
+  } = getNewConversationComposerState({
+    agentStatus,
+    currentArtifact,
+    messages,
+    sessionId,
+    taskTitle,
+  });
+  const referenceInputRef = useRef(null);
+  const threadEndRef = useRef(null);
+  const [referenceImportStatus, setReferenceImportStatus] = useState('');
+  const examples = [
+    '帮我开上周询盘分析会',
+    '帮我分析这个客户下一步怎么推进',
+    '帮我准备一封跟进开发信',
+  ];
   const handleSubmit = (event) => {
     event.preventDefault();
     onRunAgent();
   };
+  const handleUseExample = (example) => {
+    onDraftChange(example);
+    if (inputRef.current) {
+      inputRef.current.value = example;
+      inputRef.current.focus();
+    }
+  };
+  const handleReferenceMaterialClick = () => {
+    referenceInputRef.current?.click();
+  };
+  const handleReferenceFilesChange = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!files.length) {
+      return;
+    }
+
+    try {
+      const references = await Promise.all(files.map(readReferenceFileText));
+      const referenceBlock = buildReferenceDraftBlock(references);
+      const nextDraft = [draft.trim(), referenceBlock].filter(Boolean).join('\n\n');
+      onDraftChange(nextDraft);
+      if (inputRef.current) {
+        inputRef.current.value = nextDraft;
+        inputRef.current.focus();
+      }
+      setReferenceImportStatus(`已引用 ${references.length} 份资料，会和这次任务一起处理。`);
+    } catch {
+      setReferenceImportStatus('资料读取失败，请直接粘贴到输入框。');
+    }
+  };
+
+  useEffect(() => {
+    if (!hasMessages && !isRunning && !artifactPreview?.open) {
+      return;
+    }
+    threadEndRef.current?.scrollIntoView({
+      behavior: isRunning ? 'smooth' : 'auto',
+      block: 'end',
+    });
+  }, [artifactPreview?.open, hasMessages, isRunning, messages.length, streamingProgressItems.length]);
 
   return (
     <div className="agent-thread-page">
@@ -1157,35 +1722,46 @@ function NewConversationView({
           <div className="assistant-thread-title">
             <img src="/assets/yingdan-mark.svg" alt="赢单" />
             <div>
-              <span>赢单助手</span>
-              <h1>Agent 对话线程</h1>
+              <span>赢单任务台</span>
+              <h1>{taskTitle || '外贸任务'}</h1>
             </div>
           </div>
-          <div>
-            <span className={sessionId ? 'session-chip active' : 'session-chip'}>
-              Session ID: {sessionId || '未建立'}
+          <div className="agent-thread-actions">
+            {canStartFreshTask ? (
+              <button type="button" className="thread-new-task-button" onClick={onStartNewTask} disabled={isRunning} aria-label="开始新任务">
+                <Plus size={14} />
+                新任务
+              </button>
+            ) : null}
+            <span className={['session-chip', sessionId ? 'active' : '', isWaiting ? 'waiting' : ''].filter(Boolean).join(' ')}>
+              {statusChipLabel}
             </span>
-            <button className="thread-agent-switch" type="button" onClick={() => onPrototypeAction('原型反馈：正式版会打开 Agent 切换菜单')}>
-              <Sparkles size={15} />
-              切换Agent
-            </button>
           </div>
         </header>
 
         <div className="agent-message-list" aria-label="Agent 对话消息">
           {!hasMessages ? (
             <div className="thread-empty-state">
-              <strong>帮我开上周询盘分析会</strong>
-              <span>Agent 会识别目标、匹配 Skill、制定计划，并把 action / observation 折叠进活动流。</span>
+              <strong>今天想推进哪件外贸成交任务？</strong>
+              <span>客户、询盘、产品和目标都可以直接交给我。</span>
+              <div className="thread-example-row" aria-label="常用任务示例">
+                {examples.map((example) => (
+                  <button type="button" key={example} onClick={() => handleUseExample(example)}>
+                    {example}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
 
           {messages.map((message) => (
             <AgentThreadMessage
+              isConfirmationActionable={Boolean(hasActionableConfirmation && message.id === latestMessageId)}
               isProcessExpanded={expandedProcessMessageId === message.id}
               key={message.id}
               message={message}
-              onPrototypeAction={onPrototypeAction}
+              onConfirmAction={onConfirmAction}
+              onPreviewArtifact={onPreviewArtifact}
               onToggleProcess={onToggleProcess}
             />
           ))}
@@ -1197,17 +1773,22 @@ function NewConversationView({
               </div>
               <div className="message-bubble">
                 <div className="message-meta">
-                  <strong>alibaba-inquiry-meeting Agent</strong>
+                  <strong>赢单 Agent</strong>
                   <span>执行中</span>
                 </div>
-                <p>请求已发送给 Runtime，正在等待后端返回真实活动流。</p>
-                <div className="trace-waiting-card">
-                  <span aria-hidden="true" />
-                  <div>
-                    <strong>尚未展示执行步骤</strong>
-                    <p>等后端确认已读取 Skill 文档、产生 observation 和 nextAction 后，再写入活动流。</p>
+                <p>我开始处理这次任务了，会先识别目标，再核对资料并生成材料。</p>
+                <p className="agent-safety-note">如果缺关键资料或涉及导出、保存、外发、扣费，我会停下来问你确认。</p>
+                {streamingProgressItems.length ? (
+                  <ExecutionProcess steps={streamingProgressItems} />
+                ) : (
+                  <div className="trace-waiting-card">
+                    <span aria-hidden="true" />
+                    <div>
+                      <strong>正在连接任务进度</strong>
+                      <p>正在等待第一步进度。</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           ) : null}
@@ -1218,14 +1799,22 @@ function NewConversationView({
               <span>{agentError}</span>
             </div>
           ) : null}
+
+          {artifactPreview?.open ? (
+            <ArtifactPreviewPanel
+              preview={artifactPreview}
+              onClose={onCloseArtifactPreview}
+            />
+          ) : null}
+          <div className="thread-scroll-anchor" ref={threadEndRef} aria-hidden="true" />
         </div>
 
         <form className="agent-thread-composer" aria-label="继续追问" onSubmit={handleSubmit}>
           <textarea
             className="thread-prompt"
-            placeholder={sessionId ? '继续追问这个 Session...' : '输入：帮我开上周询盘分析会'}
+            placeholder={composerPlaceholder}
             ref={inputRef}
-            defaultValue={draft}
+            value={draft}
             onChange={(event) => onDraftChange(event.target.value)}
             onKeyDown={(event) => {
               if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
@@ -1237,18 +1826,24 @@ function NewConversationView({
 
           <div className="composer-toolbar inline-toolbar">
             <div className="composer-actions">
-              <button type="button">
+              {composerContextLabel ? <span className="composer-context-chip" title={composerContextLabel}>{composerContextLabel}</span> : null}
+              <button type="button" onClick={handleReferenceMaterialClick} disabled={isRunning}>
                 <Paperclip size={16} />
                 引用资料
               </button>
-              <button type="button">
-                <Sparkles size={16} />
-                选择Skill
-              </button>
+              <input
+                accept=".txt,.md,.csv,text/plain,text/markdown,text/csv"
+                className="reference-file-input"
+                multiple
+                onChange={handleReferenceFilesChange}
+                ref={referenceInputRef}
+                type="file"
+              />
+              {referenceImportStatus ? <span className="reference-import-status">{referenceImportStatus}</span> : null}
             </div>
-            <button type="submit" className="send-button" disabled={isRunning}>
+            <button type="submit" className="send-button" disabled={isRunning} aria-label={sendButtonLabel} title={sendButtonLabel}>
               <Send size={16} />
-              {isRunning ? '执行中' : sessionId ? '继续追问' : '开始对话'}
+              {sendButtonLabel}
             </button>
           </div>
         </form>
@@ -1261,18 +1856,20 @@ function NewConversationView({
  * AgentThreadMessage 渲染新对话线程里的一条消息。
  *
  * 参数：
+ * - isConfirmationActionable：这条消息里的确认卡是否仍是当前待处理动作。
  * - isProcessExpanded：当前消息执行过程是否展开。
  * - message：线程消息对象。
- * - onPrototypeAction：原型反馈回调函数。
+ * - onConfirmAction：确认卡片按钮回调函数。
+ * - onPreviewArtifact：打开产物预览的回调函数。
  * - onToggleProcess：展开或收起执行过程的回调函数。
  *
  * 返回值：React 消息节点。
  * 可能抛出的异常：不主动抛异常。
  */
-function AgentThreadMessage({ isProcessExpanded, message, onPrototypeAction, onToggleProcess }) {
+function AgentThreadMessage({ isConfirmationActionable, isProcessExpanded, message, onConfirmAction, onPreviewArtifact, onToggleProcess }) {
   const isUser = message.role === 'user';
   const timeline = message.activity || message.process;
-  const timelineLabel = message.activity ? '活动流' : '执行过程';
+  const timelineLabel = message.activity ? '本次操作记录' : '执行过程';
 
   return (
     <article className={`agent-message ${isUser ? 'user' : 'assistant'} ${message.tone || ''}`}>
@@ -1299,16 +1896,41 @@ function AgentThreadMessage({ isProcessExpanded, message, onPrototypeAction, onT
           </div>
         ) : null}
 
+        {message.needsInput ? (
+          <MissingInputChecklist needsInput={message.needsInput} />
+        ) : null}
+
+        {message.confirmation ? (
+          <div className="confirmation-card inline-confirmation-card">
+            <div>
+              <strong>{message.confirmation.title}</strong>
+              <span>{message.confirmation.body}</span>
+            </div>
+            {isConfirmationActionable ? (
+              <div className="confirmation-card-actions">
+                <button type="button" className="secondary" onClick={() => onConfirmAction(message.confirmation.cancelLabel || '取消这一步')}>
+                  {message.confirmation.cancelLabel || '取消'}
+                </button>
+                <button type="button" onClick={() => onConfirmAction(message.confirmation.confirmLabel || '确认继续')}>
+                  {message.confirmation.confirmLabel || '确认继续'}
+                </button>
+              </div>
+            ) : (
+              <div className="confirmation-card-resolved">这一步已处理或已被后续消息取代。</div>
+            )}
+          </div>
+        ) : null}
+
         {message.artifact ? (
           <div className="skill-artifact-card thread-artifact-card">
             <FileText size={18} />
             <div>
-              <strong>{message.artifact.workbookName}</strong>
-              <span>{message.artifact.outputPath}</span>
+              <strong>{message.artifact.name || message.artifact.workbookName}</strong>
+              <span>{artifactStatusText(message.artifact)}</span>
             </div>
-            <button type="button" onClick={() => onPrototypeAction('已定位到本地 XLSX 产物路径')}>
+            <button type="button" onClick={() => onPreviewArtifact(message.artifact)}>
               <Download size={15} />
-              产物
+              查看文件
             </button>
           </div>
         ) : null}
@@ -1318,7 +1940,232 @@ function AgentThreadMessage({ isProcessExpanded, message, onPrototypeAction, onT
 }
 
 /**
- * ActivityStream 渲染目标驱动 Agent 的 action / observation 活动流。
+ * MissingInputChecklist 渲染 Agent 等待用户补资料时的清单。
+ *
+ * 作用：
+ * - 把后端返回的 needsInput.items 展示成可扫读列表。
+ * - 让用户知道下一句该补什么,而不是从普通段落里猜。
+ *
+ * 参数：
+ * - needsInput：缺资料卡片对象,包含 title、items 和 hint。
+ *
+ * 返回值：React 缺资料清单节点。
+ * 可能抛出的异常：不主动抛异常。
+ */
+function MissingInputChecklist({ needsInput = {} }) {
+  const items = Array.isArray(needsInput.items) ? needsInput.items.filter(Boolean) : [];
+  if (!items.length) {
+    return null;
+  }
+
+  return (
+    <section className="missing-input-checklist" aria-label="缺少资料">
+      <header>
+        <ListChecks size={16} />
+        <div>
+          <strong>{needsInput.title || '缺少资料'}</strong>
+          <span>{needsInput.hint || '直接补一句话即可,我会接着这次任务继续。'}</span>
+        </div>
+      </header>
+      <ul>
+        {items.map((item) => (
+          <li key={item}>
+            <Check size={14} />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * artifactStatusText 把产物对象转成业务用户能看懂的状态文案。
+ *
+ * 参数：
+ * - artifact：后端返回的产物信息，可能是 Markdown、XLSX 或其他文件。
+ *
+ * 返回值：文件卡片的副标题文案。
+ * 可能抛出的异常：无。
+ */
+function artifactStatusText(artifact = {}) {
+  if (artifact.exportedFrom) {
+    return '已导出，可查看文件内容';
+  }
+  if (artifact.type === 'markdown') {
+    return '已生成，可查看草稿内容';
+  }
+  if (artifact.type === 'xlsx' || artifact.workbookName) {
+    return '已生成，可查看表格文件';
+  }
+  return '已生成，可查看本地文件';
+}
+
+/**
+ * ArtifactPreviewPanel 渲染当前任务产物的内联预览。
+ *
+ * 作用：
+ * - 让用户在 agent thread 里直接检查邮件草稿、客户分析和跟进计划。
+ * - 对暂不支持内联渲染的文件,展示明确的文件摘要和状态。
+ *
+ * 参数：
+ * - preview：预览状态对象,包含 status、artifact、content 和 error。
+ * - onClose：关闭预览面板的回调函数。
+ *
+ * 返回值：React 预览面板。
+ * 可能抛出的异常：不主动抛异常。
+ */
+function ArtifactPreviewPanel({ preview, onClose }) {
+  const artifact = preview.artifact || {};
+  const title = artifact.name || '任务产物';
+  const meta = [artifact.type ? artifact.type.toUpperCase() : '', formatBytes(artifact.sizeBytes)]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <section className="artifact-preview-panel" aria-label="产物预览">
+      <header>
+        <div>
+          <span>产物预览</span>
+          <strong>{title}</strong>
+          {meta ? <small>{meta}</small> : null}
+        </div>
+        <button type="button" onClick={onClose} aria-label="关闭产物预览">
+          <X size={16} />
+        </button>
+      </header>
+
+      {preview.status === 'loading' ? (
+        <div className="artifact-preview-state">正在打开文件...</div>
+      ) : null}
+
+      {preview.status === 'error' ? (
+        <div className="artifact-preview-state error">{preview.error || '文件预览失败'}</div>
+      ) : null}
+
+      {preview.status === 'ready' && artifact.previewNote ? (
+        <div className="artifact-preview-state">{artifact.previewNote}</div>
+      ) : null}
+
+      {preview.status === 'ready' && artifact.workbook?.sheets?.length ? (
+        <WorkbookArtifactPreview workbook={artifact.workbook} />
+      ) : null}
+
+      {preview.status === 'ready' && preview.content ? (
+        <MarkdownArtifactPreview content={preview.content} />
+      ) : null}
+
+      {preview.status === 'ready' && artifact.truncated ? (
+        <div className="artifact-preview-state">内容较长，当前只展示前半部分。</div>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * WorkbookArtifactPreview 渲染 XLSX 工作簿的可扫读摘要。
+ *
+ * 作用：
+ * - 让用户不用打开本地文件,也能确认 XLSX 真实包含哪些工作表。
+ * - 展示每个工作表的行数和列数,帮助判断产物是不是空壳。
+ *
+ * 参数：
+ * - workbook：后端预览接口返回的工作簿摘要,包含 sheetCount 和 sheets。
+ *
+ * 返回值：React 工作簿摘要节点。
+ * 可能抛出的异常：不主动抛异常。
+ */
+function WorkbookArtifactPreview({ workbook = {} }) {
+  const sheets = Array.isArray(workbook.sheets) ? workbook.sheets : [];
+  if (!sheets.length) {
+    return null;
+  }
+
+  return (
+    <section className="workbook-artifact-preview" aria-label="工作表摘要">
+      <header>
+        <strong>工作表摘要</strong>
+        <span>{workbook.sheetCount || sheets.length} 个工作表</span>
+      </header>
+      <div className="workbook-sheet-list">
+        {sheets.map((sheet) => (
+          <div className="workbook-sheet-row" key={sheet.name}>
+            <strong>{sheet.name}</strong>
+            <span>{sheet.rowCount || 0} 行</span>
+            <span>{sheet.columnCount || 0} 列</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * MarkdownArtifactPreview 把 Markdown 文本转成安全的轻量预览。
+ *
+ * 参数：
+ * - content：后端读取到的 Markdown 文本。
+ *
+ * 返回值：React 预览内容。
+ * 可能抛出的异常：无。
+ */
+function MarkdownArtifactPreview({ content }) {
+  const blocks = String(content || '').split('\n');
+  return (
+    <div className="markdown-artifact-preview">
+      {blocks.map((line, index) => renderMarkdownPreviewLine(line, index))}
+    </div>
+  );
+}
+
+function renderMarkdownPreviewLine(line, index) {
+  const key = `${index}-${line}`;
+  if (!line.trim()) {
+    return <div className="markdown-preview-space" key={key} />;
+  }
+  if (line.startsWith('# ')) {
+    return <h3 key={key}>{line.replace(/^#\s+/, '')}</h3>;
+  }
+  if (line.startsWith('## ')) {
+    return <h4 key={key}>{line.replace(/^##\s+/, '')}</h4>;
+  }
+  if (line.startsWith('> ')) {
+    return <blockquote key={key}>{line.replace(/^>\s+/, '')}</blockquote>;
+  }
+  if (/^\d+\.\s+/.test(line)) {
+    return <p className="markdown-preview-list" key={key}>{line}</p>;
+  }
+  if (line.startsWith('- ')) {
+    return <p className="markdown-preview-list" key={key}>{line}</p>;
+  }
+  return <p key={key}>{line}</p>;
+}
+
+/**
+ * formatBytes 把文件大小转成业务用户可读的文本。
+ *
+ * 参数：
+ * - value：字节数。
+ *
+ * 返回值：格式化后的大小文本。
+ * 可能抛出的异常：无。
+ */
+function formatBytes(value) {
+  const size = Number(value);
+  if (!Number.isFinite(size) || size <= 0) {
+    return '';
+  }
+  if (size < 1024) {
+    return `${size} B`;
+  }
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * ActivityStream 渲染目标驱动 Agent 的业务化操作记录。
  *
  * 参数：
  * - items：活动项数组，每项包含 kind、title、detail 和 status。
@@ -1329,8 +2176,8 @@ function AgentThreadMessage({ isProcessExpanded, message, onPrototypeAction, onT
 function ActivityStream({ items }) {
   return (
     <div className="activity-stream">
-      {items.map((item) => (
-        <div className={`activity-item ${item.kind} ${item.status || ''}`} key={`${item.kind}-${item.title}`}>
+      {items.map((item, index) => (
+        <div className={`activity-item ${item.kind} ${item.status || ''}`} key={`${item.kind}-${item.title}-${index}`}>
           <span className="activity-rail" aria-hidden="true">
             {item.status === 'complete' ? <Check size={11} /> : null}
           </span>
@@ -1340,8 +2187,8 @@ function ActivityStream({ items }) {
             <p>{item.detail}</p>
             {item.observation || item.nextAction ? (
               <div className="activity-meta-row">
-                {item.observation ? <span>observation: {item.observation}</span> : null}
-                {item.nextAction ? <span>next: {item.nextAction}</span> : null}
+                {item.observation ? <span>发现：{item.observation}</span> : null}
+                {item.nextAction ? <span>下一步：{item.nextAction}</span> : null}
               </div>
             ) : null}
           </div>
@@ -1379,7 +2226,7 @@ function ExecutionProcess({ steps }) {
 }
 
 /**
- * formatActivityKind 把后端活动类型转换成用户可扫读的短标签。
+ * formatActivityKind 把后端活动类型转换成用户可扫读的业务标签。
  *
  * 参数：
  * - kind：活动类型，如 goal、action、observation。
@@ -1389,13 +2236,13 @@ function ExecutionProcess({ steps }) {
  */
 function formatActivityKind(kind) {
   const labels = {
-    action: 'ACTION',
-    goal: 'GOAL',
-    observation: 'OBS',
-    plan: 'PLAN',
-    thought: 'THINK',
+    action: '处理',
+    goal: '识别',
+    observation: '检查',
+    plan: '计划',
+    thought: '判断',
   };
-  return labels[kind] || 'STEP';
+  return labels[kind] || '步骤';
 }
 
 /**
@@ -1416,11 +2263,11 @@ function formatMessageTime(value) {
 }
 
 /**
- * SkillAgentRunPanel 渲染新对话里的 Skill Agent 执行状态。
+ * SkillAgentRunPanel 渲染新对话里的外贸任务执行状态。
  *
  * 作用：
- * - 把后端真实 runner 返回的进度、摘要和 XLSX 路径展示给用户。
- * - 让新对话像 Accio Work 一样能看到任务正在被执行，而不是只有聊天回复。
+ * - 把后端返回的进度、摘要和产物路径展示给用户。
+ * - 让新对话像 Codex / Claude Code 一样能看到任务正在被处理，而不是只有聊天回复。
  *
  * 参数：
  * - agentError：执行错误文案。
@@ -1439,13 +2286,15 @@ function SkillAgentRunPanel({ agentError, agentResult, agentStatus, progressItem
 
   const stateText = agentStatus === 'running' ? '执行中' : agentStatus === 'completed' ? '已完成' : '失败';
   const stateClass = agentStatus === 'completed' ? 'complete' : 'pending';
+  const taskTitle = agentResult?.taskTitle || '本次外贸任务';
+  const artifactName = agentResult?.artifact?.workbookName || agentResult?.artifact?.name || '业务产物';
 
   return (
-    <section className="skill-agent-panel" aria-label="Skill Agent 执行状态">
+    <section className="skill-agent-panel" aria-label="外贸任务执行状态">
       <div className="progress-head">
         <div>
-          <strong>alibaba-inquiry-meeting Agent</strong>
-          <span>{agentResult?.summary || '正在执行 Skill、采集只读数据并生成询盘分析会 XLSX'}</span>
+          <strong>{taskTitle}</strong>
+          <span>{agentResult?.summary || '正在识别任务、核对资料并生成业务材料'}</span>
         </div>
         <span className={`progress-state ${stateClass}`}>{stateText}</span>
       </div>
@@ -1475,8 +2324,8 @@ function SkillAgentRunPanel({ agentError, agentResult, agentStatus, progressItem
         <div className="skill-artifact-card">
           <FileText size={18} />
           <div>
-            <strong>{agentResult.artifact.workbookName}</strong>
-            <span>{agentResult.artifact.outputPath}</span>
+            <strong>{artifactName}</strong>
+            <span>{artifactStatusText(agentResult.artifact)}</span>
           </div>
           <button type="button" onClick={() => onPrototypeAction('已定位到本地 XLSX 产物路径')}>
             <Download size={15} />
@@ -2047,7 +2896,7 @@ function ProgressSummary({ analysisError, analysisRunId, analysisStatus, items, 
         <div className="progress-head">
           <div>
             <strong>处理进度</strong>
-            <span>点击开始分析后显示 Runtime 步骤</span>
+            <span>点击开始分析后显示处理步骤</span>
           </div>
           <span className="progress-state pending">未开始</span>
         </div>

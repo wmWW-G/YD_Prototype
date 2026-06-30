@@ -1,10 +1,14 @@
 # 赢单 Agent 工作台 · 第一刀执行规格（修正版）
 
-> 修正日期：2026-06-27。
+> 修正日期：2026-06-29。
 >
 > 这版修正一个关键错误：赢单现有 `技能Skill` 里的市场调研、新客开发信、询盘分析回复等，是「赢单外贸顾问」chatbot 的业务入口，不等于 Runtime 架构里的验收 Skill。
 >
 > 第一刀验收标准改为：**能执行真实外部 Accio skill 包 `alibaba-inquiry-meeting`，并产出合格 XLSX。**
+>
+> 2026-06-29 追加：总架构升级为 DealOps Runtime Loop v2。第一刀仍保持窄闭环,但后续改造必须优先补 `status + phase`、checkpoint/resume、evidence ledger、typed evaluator 和前台业务化活动流。
+>
+> 范围收窄：第一阶段只要求「新对话」具备 Codex / Claude Code 式任务执行感。其他入口不作为本轮 Runtime Loop 验收对象。
 
 ---
 
@@ -44,6 +48,7 @@ Agent Runtime 层
 - 赢单 UI 里的 `技能Skill` 是用户看到的功能分类。
 - Runtime 里的 `Skill` 是可执行任务包。
 - 第一刀不能拿赢单 chatbot 里的「询盘分析回复」自嗨，必须跑通用户指定的外部 Skill 包。
+- 第一刀前台只验收「新对话」是否像外贸业务版 Codex / Claude Code:用户给目标,系统拆任务、查资料、生成产物、检查结果、继续追问。
 
 ---
 
@@ -139,7 +144,7 @@ agent-thread-prototype/src/App.jsx 中的询盘分析接入
 
 这些只证明过：
 
-- 能调 DeepSeek flash。
+- 能调后端快模型入口。
 - 能跑一个本地询盘 demo。
 - 能写 run log、checkpoint、reply artifact 和 memory。
 
@@ -202,6 +207,32 @@ workbench/artifacts/alibaba-inquiry-meeting-real/alibaba-inquiry-meeting/
   询盘分析会_2026-06-15_2026-06-21.xlsx
 ```
 
+2026-06-29 已完成通用 Runtime 抽象:
+
+```text
+server/skill-registry.mjs
+  -> 读取 workbench/registry/skills.json
+  -> 扫描 workbench/skills/<skill>/skill.json
+  -> 用 registry 数据匹配自然语言目标和明确 Skill 命令
+
+server/skill-runner.mjs
+  -> 统一执行 goal.received / skill.matched / skill.loaded / plan.created
+  -> 统一执行 policy.checked
+  -> 调用 adapter 执行 action
+  -> 记录 observation.recorded
+  -> Runtime 层 artifact.verified
+  -> run.completed / run.failed
+
+server/skill-adapters/alibaba-inquiry-meeting.mjs
+  -> alibaba-inquiry-meeting 第一个插件式 adapter
+  -> 内部仍复用 server/alibaba-real-runner.mjs,保留真实 real-bridge 能力
+
+server/artifact-validator.mjs
+  -> Runtime 层复核 XLSX: unzip、openpyxl、sheet、table/drawing 残留
+```
+
+新增 `workbench/skills/supplier-brief/skill.json` 作为第二个轻量 Skill,用于证明新增 Skill 可以走 registry + runner,而不是继续改 `skill-agent.mjs`。
+
 ---
 
 ## 5. 技术形态
@@ -245,6 +276,41 @@ artifact.written       # XLSX
 artifact.validated     # XLSX 安全流程通过
 run.completed
 ```
+
+通用 Skill Runtime 的 run log 至少要包含：
+
+```text
+goal.received
+skill.matched
+skill.loaded
+plan.created
+policy.checked
+action.executed
+observation.recorded
+evidence.added
+artifact.verified
+run.waiting / run.resumed   # 触发 ask 或用户补充时必须出现
+run.completed
+```
+
+前台活动流必须来自这组 Runtime steps,不能在执行结束后拼静态文案。但前台不直接展示 `goal/action/observation/evidence` 等内部词,要翻译成:
+
+```text
+识别任务
+核对资料
+生成材料
+检查结果
+等待确认
+```
+
+下一轮 Runtime 改造时,`skill-runner` 需要从固定执行链升级为:
+
+```text
+status: running / waiting / resuming / completed / failed / cancelled
+phase: preflight / assembling_context / planning / executing / validating / committing
+```
+
+每个 phase 后写 checkpoint;policy 返回 `ask` 时进入 `waiting`;resume 后从 `resume_from` 继续,不得重复执行已完成的外部 adapter phase。
 
 如果需要用户确认，比如导出到指定目录、调用付费工具、外发消息：
 
@@ -334,8 +400,8 @@ npm run acceptance:alibaba-inquiry-meeting:real
 -> server/skill-agent.mjs 识别自然语言目标并匹配 alibaba-inquiry-meeting
 -> goal-agent loop 逐步执行 goal.classify / skill.match / plan.create / skill.execute / artifact.verify / finish
 -> server/alibaba-real-runner.mjs 执行真实只读采集和 XLSX builder
--> 前台创建 Agent 对话线程,显示 Session ID、Agent 回复、可展开活动流和 XLSX 路径
--> 同一个 Session 继续追问时只追加回答,不重新跑只读采集
+-> 前台创建业务化任务线程,显示 Agent 回复、可展开「本次操作记录」和 XLSX 路径
+-> 同一次任务继续追问时只追加回答,不重新跑只读采集
 ```
 
 ---
@@ -345,16 +411,17 @@ npm run acceptance:alibaba-inquiry-meeting:real
 用户不用看代码，最终只看这些：
 
 1. 在「新对话」输入 `帮我开上周询盘分析会`。
-2. 页面从空白输入态变成 Agent 对话线程,能看到一个 `agent-session-...` Session ID。
-3. Agent 回复里写明已自动匹配 `alibaba-inquiry-meeting`。
-4. Agent 回复里有「活动流」按钮,展开后能看到：收到目标、匹配任务、执行计划、action、observation、nextAction 和 artifact.ready。
+2. 页面从空白输入态变成 Agent 任务线程,默认不展示内部 `Session ID`。
+3. Agent 内部自动匹配 `alibaba-inquiry-meeting`,但前台可以说“询盘复盘会材料”,不要把 skill slug 当主文案。
+4. Agent 回复里有「本次操作记录」按钮,展开后能看到：识别任务、核对资料、生成材料、检查结果、等待确认。
 5. 最终返回一个 `.xlsx` 路径。
-6. 在同一个输入框继续追问,页面沿用同一个 Session ID,只追加回答,不重新采集 Alibaba 只读数据。
+6. 在同一个输入框继续追问,页面沿用同一次任务,只追加回答,不重新采集 Alibaba 只读数据。
 7. 打开 XLSX 后有 8 张固定 sheet。
 8. 里面是老板/销售主管能直接看的会后复盘，不是会前提纲，不是聊天回答。
 9. 没有工具名、JSON、token、bridge、内部报错。
 10. 没有自动发消息、改配置、发品、上传或扣费。
 11. 如果数据缺失，缺口写清楚，不能编造漂亮数据。
+12. 关键结论必须能追到依据:来自询盘原文、客户档案、产品资料、历史跟进或只读工具数据。
 
 ---
 

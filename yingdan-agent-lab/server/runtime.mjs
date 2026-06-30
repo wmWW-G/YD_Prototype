@@ -5,6 +5,7 @@ const WORKBENCH_DIRS = [
   'agents/inquiry-follow-up',
   'customers/global-sourcing-inc',
   'skills/inquiry-reply',
+  'skills/supplier-brief',
   'registry',
   'runs',
   'artifacts',
@@ -15,6 +16,7 @@ const DEFAULT_POLICY_RULES = [
   { action: 'customer.write_memory', decision: 'ask', why: '写入客户记忆需用户确认' },
   { action: 'skill.read_external_package', decision: 'allow', why: '读取用户指定的外部 Skill 包' },
   { action: 'artifact.write_xlsx', decision: 'allow', why: '写入本地 XLSX 产物' },
+  { action: 'artifact.write_markdown', decision: 'allow', why: '写入本地 Markdown 产物' },
   { action: 'artifact.validate_xlsx', decision: 'allow', why: '执行交付前 XLSX 安全校验' },
   { action: 'artifact.export_file', decision: 'ask', why: '导出可能外泄底价或客户隐私' },
   { action: 'alibaba.read_only_tool', decision: 'allow', why: '只读采集询盘复盘需要的数据' },
@@ -191,6 +193,81 @@ export function createRuntime(options = {}) {
             replyDraft: { type: 'string' },
             nextSteps: { type: 'array', items: { type: 'string' } },
           },
+        },
+        null,
+        2,
+      ),
+    );
+
+    await writeIfMissing(
+      path.join(workbenchRoot, 'registry/skills.json'),
+      JSON.stringify(
+        {
+          skills: [
+            {
+              id: 'alibaba-inquiry-meeting',
+              displayName: '国际站询盘分析会',
+              description: '给老板和销售主管生成上周询盘复盘会 XLSX。',
+              adapter: 'alibaba-inquiry-meeting',
+              artifactType: 'xlsx',
+              commandAliases: ['alibaba-inquiry-meeting'],
+              goalMatchers: [
+                {
+                  requiresAll: ['询盘'],
+                  requiresAny: ['分析会', '复盘会', '复盘', '会议', '开会'],
+                  periodHint: 'previous_full_week',
+                  confidence: 0.94,
+                  reason: '用户要开询盘复盘会，匹配国际站询盘分析会 Skill。',
+                },
+              ],
+              policyActions: ['skill.read_external_package', 'alibaba.read_only_tool', 'artifact.write_xlsx', 'artifact.validate_xlsx'],
+              requiredSheets: [
+                '本次会议总览',
+                '本周询盘概览',
+                '业务员询盘复盘',
+                '重点询盘逐条分析',
+                '共性问题归因',
+                '会议主持提问',
+                '下周跟进行动表',
+                '会后追踪项',
+              ],
+              plan: [
+                { id: 'understand_goal', label: '理解目标', detail: '确认用户要完成上周询盘复盘会。' },
+                { id: 'load_skill', label: '读取Skill', detail: '读取外部 alibaba-inquiry-meeting Skill 定义和 XLSX 要求。' },
+                { id: 'run_skill', label: '执行任务', detail: '采集只读数据，生成主持材料和 XLSX。' },
+                { id: 'verify_artifact', label: '校验产物', detail: '复核 XLSX 结构和交付安全。' },
+              ],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+
+    await writeIfMissing(
+      path.join(workbenchRoot, 'skills/supplier-brief/skill.json'),
+      JSON.stringify(
+        {
+          id: 'supplier-brief',
+          displayName: '供应商简报',
+          description: '把供应商线索整理成业务员可读的简报，用于验证通用 Skill Runtime 可接第二个 Skill。',
+          adapter: 'mock-artifact',
+          artifactType: 'markdown',
+          commandAliases: ['supplier-brief'],
+          goalMatchers: [
+            {
+              requiresAll: ['供应商'],
+              requiresAny: ['简报', '整理'],
+              confidence: 0.82,
+              reason: '用户要整理供应商简报，匹配轻量本地 Skill。',
+            },
+          ],
+          policyActions: ['skill.read_external_package', 'artifact.write_markdown'],
+          plan: [
+            { id: 'read_context', label: '读取资料', detail: '读取当前供应商线索和用户补充信息。' },
+            { id: 'write_brief', label: '生成简报', detail: '输出业务员可读的供应商简报。' },
+          ],
         },
         null,
         2,

@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 export const ALIBABA_INQUIRY_MEETING_SKILL_PATH =
@@ -211,9 +212,16 @@ export async function buildInquiryMeetingXlsx(options) {
   await mkdir(runDir, { recursive: true });
   await writeFile(payloadPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 
-  const builder = await runCommand(pythonBin, [skill.builderPath, '--input', payloadPath, '--output', outputPath], {
-    cwd: skill.skillPath,
-  });
+  const builderHome = await mkdtemp(path.join(os.tmpdir(), 'yingdan-builder-home-'));
+  let builder;
+  try {
+    builder = await runCommand(pythonBin, [skill.builderPath, '--input', payloadPath, '--output', outputPath], {
+      cwd: skill.skillPath,
+      env: { ...process.env, HOME: builderHome },
+    });
+  } finally {
+    await rm(builderHome, { recursive: true, force: true });
+  }
 
   if (builder.exitCode !== 0) {
     const error = new Error(`alibaba-inquiry-meeting builder failed with exit code ${builder.exitCode}`);
@@ -356,6 +364,7 @@ function escapeRegExp(value) {
  * - command：可执行文件路径，字符串。
  * - args：命令参数数组。
  * - options.cwd：工作目录，字符串。
+ * - options.env：可选环境变量对象。
  *
  * 返回值：Promise<object>，包含 exitCode、stdout、stderr。
  * 可能抛出的异常：进程无法启动或被系统终止时抛出。
@@ -364,7 +373,7 @@ function runCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd,
-      env: process.env,
+      env: options.env || process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';

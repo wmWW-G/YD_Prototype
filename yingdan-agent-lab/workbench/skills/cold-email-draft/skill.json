@@ -1,0 +1,45 @@
+{
+  "id": "cold-email-draft",
+  "displayName": "开发信草稿",
+  "description": "根据用户补充的客户、产品或目标市场信息，生成可检查的英文开发信草稿。",
+  "adapter": "business-draft",
+  "artifactType": "markdown",
+  "commandAliases": ["cold-email-draft"],
+  "goalMatchers": [
+    {
+      "requiresAll": ["开发信"],
+      "requiresAny": ["准备", "生成", "写", "跟进", "邮件", "草稿"],
+      "confidence": 0.86,
+      "reason": "用户要准备开发信，匹配开发信草稿任务。"
+    },
+    {
+      "requiresAll": ["邮件"],
+      "requiresAny": ["开发", "跟进", "客户", "英文", "草稿"],
+      "confidence": 0.82,
+      "reason": "用户要写客户邮件，匹配开发信草稿任务。"
+    }
+  ],
+  "policyActions": ["skill.read_external_package", "artifact.write_markdown"],
+  "plan": [
+    {
+      "id": "understand_goal",
+      "label": "识别任务",
+      "detail": "确认用户要生成一封可检查的开发信草稿。"
+    },
+    {
+      "id": "check_context",
+      "label": "核对资料",
+      "detail": "核对客户、产品、目标市场和缺失信息。"
+    },
+    {
+      "id": "write_draft",
+      "label": "生成材料",
+      "detail": "生成英文开发信草稿、依据、缺口和下一步。"
+    },
+    {
+      "id": "verify_result",
+      "label": "检查结果",
+      "detail": "确认草稿没有承诺价格、交期或外发动作。"
+    }
+  ]
+}

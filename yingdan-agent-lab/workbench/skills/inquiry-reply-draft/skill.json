@@ -1,0 +1,39 @@
+{
+  "id": "inquiry-reply-draft",
+  "displayName": "询盘回复草稿",
+  "description": "根据询盘或聊天记录生成英文回复草稿、信息缺口和下一步澄清问题。",
+  "adapter": "business-draft",
+  "artifactType": "markdown",
+  "commandAliases": ["inquiry-reply-draft"],
+  "goalMatchers": [
+    {
+      "requiresAll": ["询盘"],
+      "requiresAny": ["回复", "回信", "草稿", "邮件"],
+      "confidence": 0.86,
+      "reason": "用户要处理询盘回复，匹配询盘回复草稿任务。"
+    }
+  ],
+  "policyActions": ["skill.read_external_package", "artifact.write_markdown"],
+  "plan": [
+    {
+      "id": "understand_goal",
+      "label": "识别任务",
+      "detail": "确认用户要生成询盘回复草稿。"
+    },
+    {
+      "id": "check_context",
+      "label": "核对资料",
+      "detail": "核对询盘内容、产品信息和缺失字段。"
+    },
+    {
+      "id": "write_reply",
+      "label": "生成材料",
+      "detail": "生成英文回复草稿和澄清问题。"
+    },
+    {
+      "id": "verify_result",
+      "label": "检查结果",
+      "detail": "确认没有自动外发或承诺未经确认的信息。"
+    }
+  ]
+}
