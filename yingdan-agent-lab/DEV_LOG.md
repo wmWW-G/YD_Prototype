@@ -703,3 +703,8 @@
   - 新增红灯测试 `buildRecoverableAgentErrorResult explains typed evaluator failures as a check-result pause`,要求 HTTP/SSE 兜底 result 保持 `waiting`,标题为 `检查结果需要处理`,内容说明“检查结果没有通过,没有继续交付”,不再泛化成 `处理卡住`。
   - `server/agent-message-stream.mjs` 新增 typed evaluator 失败识别、SSE progress 映射和 recoverable result 专用文案。
   - 已执行 `node --test server/agent-message-stream.test.mjs`,20 个测试通过。
+- 收紧 Runtime policy checkpoint 的续跑语义：
+  - 新增红灯断言到 `createSkillRuntime checkpoints policy ask and resumes from the same run after confirmation`,要求 `run.resumed` 之后不能再追加 `goal.received / skill.matched / skill.loaded / plan.created`,最终 loop 也只能从 `继续执行 / 核对权限 / 生成材料 / 整理发现 / 检查结果 / 完成` 往后走。
+  - `server/skill-runner.mjs` 抽出 `executeAdapterAndFinish()`,让首跑和续跑共用 adapter 执行、observation、artifact verification 和完成/失败收尾逻辑。
+  - `resumeGoal()` 现在走 `resumeFromPolicyCheckpoint()`,会恢复 skill、adapter 和 plan,但 run log 不再重播前置阶段;checkpoint 同步保存 `completedActions / completedPhases / pendingAction / artifactRefs / evidenceSummary / memoryCandidates`。
+  - 已执行 `node --test server/skill-runtime.test.mjs --test-name-pattern "checkpoints policy ask"`、`node --test server/skill-agent.test.mjs --test-name-pattern "Runtime policy ask|preserves Runtime waiting artifact|paid action confirmation"`、`node --test server/agent-message-stream.test.mjs --test-name-pattern "run.resumed|progress|confirmation machine|session internals"` 和 `node --check server/skill-runner.mjs`。

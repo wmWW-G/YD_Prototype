@@ -158,18 +158,15 @@ export function createSkillRuntime(options = {}) {
       }
       if (decision.decision === 'ask') {
         state.status = 'waiting';
-        const checkpoint = {
+        const checkpoint = buildPolicyCheckpoint({
+          action,
           approvedActions: (state.skill.policyActions || []).slice(0, index),
-          createdAt: new Date().toISOString(),
-          pendingAction: action,
-          phase: 'executing',
-          resume_from: `policy:${action}`,
+          decision,
+          plan: state.plan,
           runId,
-          skillId: state.skill.id,
-          status: 'waiting',
+          skill: state.skill,
           text,
-          why: decision.why,
-        };
+        });
         const checkpointPath = await writeRuntimeCheckpoint({ checkpoint, runId, workbenchRoot });
         await recordRunEvent({
           type: 'run.checkpointed',
@@ -197,81 +194,17 @@ export function createSkillRuntime(options = {}) {
       }
     }
 
-    state.result = await state.adapter.execute({
-      goal: state.goal,
-      loadedSkill: state.loadedSkill,
+    return executeAdapterAndFinish({
+      loopSteps,
       outputRoot,
       projectRoot,
-      runId,
-      skill: state.skill,
-      userText: text,
-    });
-    state.artifact = normalizeArtifact(state.result, state.skill);
-    await recordRunEvent({
-      type: 'action.executed',
-      status: state.result?.ok === false ? 'failed' : 'complete',
-      skillId: state.skill.id,
-      artifactType: state.artifact?.type || state.skill.artifactType,
-    });
-    loopSteps.push(toLoopStep('action.execute', '执行任务', actionDetail(state), state.result?.ok === false ? 'action.failed' : 'action.executed', state.result?.ok === false ? 'error' : 'complete', 'observation.record'));
-
-    await recordRunEvent({
-      type: 'observation.recorded',
-      status: state.result?.ok === false ? 'failed' : 'complete',
-      observation: buildObservation(state),
-    });
-    loopSteps.push(toLoopStep('observation.record', '记录观察', buildObservation(state), state.result?.ok === false ? 'observation.failed' : 'observation.ready', state.result?.ok === false ? 'error' : 'complete', 'artifact.verify'));
-
-    const artifactVerification = await verifyArtifact(state.artifact, state.skill, {
-      runId,
-      userText: text,
-      workbenchRoot,
-    });
-    state.artifact = {
-      ...state.artifact,
-      validation: artifactVerification,
-    };
-    if (artifactVerification.evidenceLedgerPath) {
-      await recordRunEvent({
-        type: 'evidence.added',
-        status: artifactVerification.ok ? 'complete' : 'failed',
-        coverage: artifactVerification.evidence?.coverage,
-        evidencePath: path.relative(workbenchRoot, artifactVerification.evidenceLedgerPath),
-      });
-    }
-    await recordRunEvent({
-      type: 'artifact.verified',
-      status: artifactVerification.ok ? 'complete' : 'failed',
-      artifact: state.artifact,
-      validation: artifactVerification,
-    });
-    loopSteps.push(toLoopStep('artifact.verify', '校验产物', artifactVerification.message || (artifactVerification.ok ? '产物已通过 Runtime 基础校验。' : '产物检查没有通过。'), artifactVerification.ok ? 'artifact.ready' : 'artifact.invalid', artifactVerification.ok ? 'complete' : 'error', 'finish'));
-
-    state.status = artifactVerification.ok ? 'completed' : 'failed';
-    await recordRunEvent({
-      type: state.status === 'completed' ? 'run.completed' : 'run.failed',
-      status: state.status,
-      outputPath: state.artifact?.outputPath || '',
-    });
-    loopSteps.push(toLoopStep('finish', '完成', state.status === 'completed' ? '本轮目标已完成。' : '本轮目标未完成。', state.status === 'completed' ? 'run.completed' : 'run.failed', state.status === 'completed' ? 'complete' : 'error', 'none'));
-
-    return {
-      ok: state.status === 'completed',
+      recordRunEvent,
       runId,
       runLogPath,
-      goal: state.goal,
-      skill: state.skill,
-      loadedSkill: state.loadedSkill,
-      plan: state.plan,
-      result: state.result,
-      artifact: state.artifact,
-      loop: {
-        maxSteps: 8,
-        phase: latestLoopPhase(loopSteps),
-        status: state.status,
-        steps: loopSteps,
-      },
-    };
+      state,
+      text,
+      workbenchRoot,
+    });
   }
 
   /**
@@ -300,12 +233,7 @@ export function createSkillRuntime(options = {}) {
       });
     }
 
-    const result = await runGoal({
-      approvedPolicyActions: [...(checkpoint.approvedActions || []), checkpoint.pendingAction],
-      resumeFromCheckpoint: checkpoint,
-      runId,
-      text: checkpoint.text,
-    });
+    const result = await resumeFromPolicyCheckpoint({ checkpoint, runId });
 
     if (result.loop?.status === 'completed') {
       await writeRuntimeCheckpoint({
@@ -321,6 +249,311 @@ export function createSkillRuntime(options = {}) {
 
     return result;
   }
+
+  /**
+   * resumeFromPolicyCheckpoint 从 policy 等待点继续,不重放已完成的前置阶段。
+   *
+   * 作用：
+   * - 用户确认保存、导出、付费等动作后,前台看到的是“继续执行”,不是重新识别任务。
+   * - 内存里会恢复 skill、adapter 和 plan,但 run log 不再追加 goal/skill/plan 的重复事件。
+   * - 如果后续 policy 再次需要确认,会写新的 checkpoint 并继续等待。
+   *
+   * 参数：
+   * - input.checkpoint：`runs/<run_id>.checkpoint.json` 里保存的等待状态。
+   * - input.runId：当前 run id。
+   *
+   * 返回值：Promise<object>,结构与 runGoal 的执行结果一致。
+   * 可能抛出的异常：checkpoint 对应的 skill 不存在、adapter 失败或文件写入失败时抛出。
+   */
+  async function resumeFromPolicyCheckpoint(input = {}) {
+    const checkpoint = input.checkpoint || {};
+    const runId = input.runId;
+    const text = String(checkpoint.text || '').trim();
+    const runLogPath = path.join(workbenchRoot, 'runs', `${runId}.jsonl`);
+    const outputRoot = path.join(workbenchRoot, 'artifacts', runId);
+    const loopSteps = [];
+    const recordRunEvent = (event) => appendRunEvent(runLogPath, withRuntimePhase({ runId, ...event }), onEvent);
+
+    await mkdir(path.dirname(runLogPath), { recursive: true });
+    await mkdir(outputRoot, { recursive: true });
+    await recordRunEvent({
+      type: 'run.resumed',
+      status: 'resuming',
+      resume_from: checkpoint.resume_from,
+    });
+    loopSteps.push(toLoopStep('resume.run', '继续执行', '已从刚才暂停的位置继续。', 'run.resumed', 'complete', 'policy.confirm'));
+
+    const registry = await loadSkillRegistry({ projectRoot });
+    const skill = registry.byId.get(checkpoint.skillId);
+    const adapter = skill ? adapters[skill.adapter] : null;
+    const state = {
+      adapter,
+      artifact: null,
+      goal: {
+        confidence: 1,
+        matched: Boolean(skill),
+        periodHint: checkpoint.periodHint || '',
+        reason: checkpoint.reason || `从 checkpoint 继续执行 ${skill?.displayName || checkpoint.skillId || '任务'}。`,
+        skill,
+        skillId: skill?.id || checkpoint.skillId || '',
+        trigger: checkpoint.trigger || 'checkpoint_resume',
+      },
+      loadedSkill: null,
+      plan: null,
+      result: null,
+      skill,
+      status: 'running',
+    };
+
+    if (!skill || !adapter) {
+      state.status = 'failed';
+      await recordRunEvent({
+        type: 'run.failed',
+        status: 'failed',
+        reason: !skill ? 'SKILL_CHECKPOINT_MISSING_SKILL' : 'SKILL_ADAPTER_MISSING',
+        skillId: checkpoint.skillId || '',
+      });
+      return buildFailedResult({ loopSteps, runId, runLogPath, state });
+    }
+
+    state.loadedSkill = await state.adapter.load({ projectRoot, runId, skill: state.skill });
+    state.plan = checkpoint.plan || buildPlan(state.skill, state.goal);
+    if (state.loadedSkill?.hasExecutable === false) {
+      state.status = 'failed';
+      await recordRunEvent({ type: 'run.failed', status: 'failed', reason: 'SKILL_NOT_EXECUTABLE', skillId: state.skill.id });
+      return buildFailedResult({ loopSteps, runId, runLogPath, state });
+    }
+
+    const policyActions = state.skill.policyActions || [];
+    const pendingIndex = policyActions.indexOf(checkpoint.pendingAction);
+    if (pendingIndex < 0) {
+      throw Object.assign(new Error('Runtime checkpoint pending action is not declared by the skill'), {
+        code: 'SKILL_RUNTIME_PENDING_ACTION_MISMATCH',
+        status: 400,
+      });
+    }
+
+    const approvedPolicyActions = new Set([...(checkpoint.approvedActions || []), checkpoint.pendingAction]);
+    for (let index = pendingIndex; index < policyActions.length; index += 1) {
+      const action = policyActions[index];
+      const decision = approvedPolicyActions.has(action)
+        ? { action, decision: 'allow', why: `用户已确认 ${action},本轮从 checkpoint 继续。` }
+        : await checkPolicy(action, { runId, skill: state.skill });
+      await recordRunEvent({
+        type: 'policy.checked',
+        action,
+        decision: decision.decision,
+        status: decision.decision === 'deny' ? 'denied' : decision.decision === 'ask' ? 'waiting' : 'complete',
+        why: decision.why,
+      });
+
+      if (decision.decision === 'deny') {
+        state.status = 'failed';
+        loopSteps.push(toLoopStep('policy.confirm', '核对权限', decision.why || '这一步不允许自动执行。', 'policy.denied', 'error', 'finish'));
+        await recordRunEvent({ type: 'run.failed', status: 'failed', reason: 'POLICY_DENIED', action });
+        return buildFailedResult({ loopSteps, runId, runLogPath, state });
+      }
+
+      if (decision.decision === 'ask') {
+        state.status = 'waiting';
+        const nextCheckpoint = buildPolicyCheckpoint({
+          action,
+          approvedActions: policyActions.slice(0, index),
+          decision,
+          plan: state.plan,
+          runId,
+          skill: state.skill,
+          text,
+        });
+        const checkpointPath = await writeRuntimeCheckpoint({ checkpoint: nextCheckpoint, runId, workbenchRoot });
+        await recordRunEvent({
+          type: 'run.checkpointed',
+          checkpoint: path.relative(workbenchRoot, checkpointPath),
+          resume_from: nextCheckpoint.resume_from,
+        });
+        await recordRunEvent({
+          type: 'run.waiting',
+          action,
+          reason: decision.why,
+          resume_from: nextCheckpoint.resume_from,
+          status: 'waiting',
+        });
+        loopSteps.push(toLoopStep('policy.confirm', '等待确认', decision.why || '这一步需要你确认后继续。', 'policy.ask', 'waiting', 'resume_run'));
+        return buildWaitingResult({
+          action,
+          checkpoint: nextCheckpoint,
+          checkpointPath,
+          decision,
+          loopSteps,
+          runId,
+          runLogPath,
+          state,
+        });
+      }
+
+      loopSteps.push(toLoopStep('policy.confirm', '核对权限', decision.why || '这一步已确认可以继续。', 'policy.allowed', 'complete', index + 1 < policyActions.length ? 'policy.confirm' : 'action.execute'));
+    }
+
+    return executeAdapterAndFinish({
+      loopSteps,
+      outputRoot,
+      projectRoot,
+      recordRunEvent,
+      runId,
+      runLogPath,
+      state,
+      text,
+      workbenchRoot,
+    });
+  }
+}
+
+/**
+ * executeAdapterAndFinish 执行 adapter 并完成 Runtime 收尾。
+ *
+ * 作用：
+ * - 统一记录 `action.executed -> observation.recorded -> artifact.verified -> run.completed/failed`。
+ * - 普通 run 和 checkpoint resume 共用这一段,避免“续跑”和“首跑”的校验逻辑不一致。
+ * - 任何业务产物都必须经过这里的基础验证,不能绕过检查直接完成。
+ *
+ * 参数：
+ * - input.state：当前 Runtime 状态,包含 skill、adapter、loadedSkill、plan。
+ * - input.loopSteps：前台可见的 loop step 数组,函数会继续追加。
+ * - input.recordRunEvent：写 run log 的异步函数。
+ * - input.outputRoot：本轮产物目录。
+ * - input.projectRoot：项目根目录。
+ * - input.runId / input.runLogPath：当前 run 标识和日志路径。
+ * - input.text：用于执行 adapter 和校验 evidence 的用户业务文本。
+ * - input.workbenchRoot：workbench 根目录,用于相对路径和 evidence ledger。
+ *
+ * 返回值：Promise<object>,可直接返回给 Skill Agent。
+ * 可能抛出的异常：adapter 执行、产物验证、文件写入失败时抛出。
+ */
+async function executeAdapterAndFinish(input = {}) {
+  const state = input.state || {};
+  const loopSteps = input.loopSteps || [];
+  const text = String(input.text || '');
+
+  state.result = await state.adapter.execute({
+    goal: state.goal,
+    loadedSkill: state.loadedSkill,
+    outputRoot: input.outputRoot,
+    projectRoot: input.projectRoot,
+    runId: input.runId,
+    skill: state.skill,
+    userText: text,
+  });
+  state.artifact = normalizeArtifact(state.result, state.skill);
+  await input.recordRunEvent({
+    type: 'action.executed',
+    status: state.result?.ok === false ? 'failed' : 'complete',
+    skillId: state.skill.id,
+    artifactType: state.artifact?.type || state.skill.artifactType,
+  });
+  loopSteps.push(toLoopStep('action.execute', '执行任务', actionDetail(state), state.result?.ok === false ? 'action.failed' : 'action.executed', state.result?.ok === false ? 'error' : 'complete', 'observation.record'));
+
+  await input.recordRunEvent({
+    type: 'observation.recorded',
+    status: state.result?.ok === false ? 'failed' : 'complete',
+    observation: buildObservation(state),
+  });
+  loopSteps.push(toLoopStep('observation.record', '记录观察', buildObservation(state), state.result?.ok === false ? 'observation.failed' : 'observation.ready', state.result?.ok === false ? 'error' : 'complete', 'artifact.verify'));
+
+  const artifactVerification = await verifyArtifact(state.artifact, state.skill, {
+    runId: input.runId,
+    userText: text,
+    workbenchRoot: input.workbenchRoot,
+  });
+  state.artifact = {
+    ...state.artifact,
+    validation: artifactVerification,
+  };
+  if (artifactVerification.evidenceLedgerPath) {
+    await input.recordRunEvent({
+      type: 'evidence.added',
+      status: artifactVerification.ok ? 'complete' : 'failed',
+      coverage: artifactVerification.evidence?.coverage,
+      evidencePath: path.relative(input.workbenchRoot, artifactVerification.evidenceLedgerPath),
+    });
+  }
+  await input.recordRunEvent({
+    type: 'artifact.verified',
+    status: artifactVerification.ok ? 'complete' : 'failed',
+    artifact: state.artifact,
+    validation: artifactVerification,
+  });
+  loopSteps.push(toLoopStep('artifact.verify', '校验产物', artifactVerification.message || (artifactVerification.ok ? '产物已通过 Runtime 基础校验。' : '产物检查没有通过。'), artifactVerification.ok ? 'artifact.ready' : 'artifact.invalid', artifactVerification.ok ? 'complete' : 'error', 'finish'));
+
+  state.status = artifactVerification.ok ? 'completed' : 'failed';
+  await input.recordRunEvent({
+    type: state.status === 'completed' ? 'run.completed' : 'run.failed',
+    status: state.status,
+    outputPath: state.artifact?.outputPath || '',
+  });
+  loopSteps.push(toLoopStep('finish', '完成', state.status === 'completed' ? '本轮目标已完成。' : '本轮目标未完成。', state.status === 'completed' ? 'run.completed' : 'run.failed', state.status === 'completed' ? 'complete' : 'error', 'none'));
+
+  return {
+    ok: state.status === 'completed',
+    runId: input.runId,
+    runLogPath: input.runLogPath,
+    goal: state.goal,
+    skill: state.skill,
+    loadedSkill: state.loadedSkill,
+    plan: state.plan,
+    result: state.result,
+    artifact: state.artifact,
+    loop: buildLoopState({ loopSteps, status: state.status }),
+  };
+}
+
+/**
+ * buildPolicyCheckpoint 生成 policy ask 的可恢复 checkpoint。
+ *
+ * 作用：
+ * - 明确记录哪些阶段和 action 已完成,让 resume 不需要重播前置步骤。
+ * - 先放入 artifact/evidence/memory 的空摘要,为后续更细的恢复和评估留位置。
+ * - checkpoint 是内部缓存,前台不会展示这些字段。
+ *
+ * 参数：
+ * - input.action：当前等待确认的 policy action。
+ * - input.approvedActions：当前 action 之前已经允许的 policy action。
+ * - input.decision：policy ask 决策,用于保存等待原因。
+ * - input.plan：已生成的执行计划。
+ * - input.runId：当前 run id。
+ * - input.skill：当前 Skill。
+ * - input.text：用户原始业务目标。
+ *
+ * 返回值：可写入 `runs/<run_id>.checkpoint.json` 的对象。
+ * 可能抛出的异常：无。
+ */
+function buildPolicyCheckpoint(input = {}) {
+  const approvedActions = Array.isArray(input.approvedActions) ? input.approvedActions : [];
+  return {
+    approvedActions,
+    artifactRefs: [],
+    completedActions: [
+      'goal.classify',
+      'skill.match',
+      'skill.load',
+      'plan.create',
+      ...approvedActions.map((action) => `policy:${action}`),
+    ],
+    completedPhases: ['preflight', 'assembling_context', 'planning'],
+    createdAt: new Date().toISOString(),
+    evidenceSummary: {
+      status: 'not_started',
+    },
+    memoryCandidates: [],
+    pendingAction: input.action,
+    phase: 'executing',
+    plan: input.plan || null,
+    resume_from: `policy:${input.action}`,
+    runId: input.runId,
+    skillId: input.skill?.id || '',
+    status: 'waiting',
+    text: String(input.text || ''),
+    why: input.decision?.why || '',
+  };
 }
 
 function createMockArtifactAdapter() {
@@ -1218,6 +1451,7 @@ function phaseForLoopAction(action = '') {
     'skill.match': 'preflight',
     'skill.load': 'assembling_context',
     'plan.create': 'planning',
+    'resume.run': 'executing',
     'policy.confirm': 'executing',
     'action.execute': 'executing',
     'observation.record': 'executing',

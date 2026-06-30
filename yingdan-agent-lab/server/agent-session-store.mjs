@@ -90,7 +90,7 @@ export function createAgentSessionStore(options = {}) {
       }
 
       return sessions
-        .sort((left, right) => String(right.updatedAt || right.createdAt || '').localeCompare(String(left.updatedAt || left.createdAt || '')))
+        .sort(compareSessionListItemsByRecency)
         .slice(0, limit);
     },
 
@@ -242,6 +242,29 @@ function toSessionListItem(session = {}) {
     taskTitle: safeDisplayText(session.taskTitle || session.skillAgentResult?.taskTitle || artifact.workbookName || artifact.name || '外贸任务'),
     updatedAt: session.updatedAt || session.createdAt,
   });
+}
+
+/**
+ * compareSessionListItemsByRecency 按最近更新时间排序 session 摘要。
+ *
+ * 作用：
+ * - 两次保存可能发生在同一毫秒,只按 updatedAt 排序会退回文件系统读取顺序。
+ * - sessionId 本身带创建时间戳,可作为稳定兜底,让历史列表更像真实最近任务。
+ *
+ * 参数：
+ * - left/right：toSessionListItem() 生成的 session 摘要。
+ *
+ * 返回值：Array.sort 兼容的比较结果；越新的 session 排在越前。
+ * 可能抛出的异常：无。
+ */
+function compareSessionListItemsByRecency(left = {}, right = {}) {
+  const rightTime = String(right.updatedAt || right.createdAt || '');
+  const leftTime = String(left.updatedAt || left.createdAt || '');
+  const timeOrder = rightTime.localeCompare(leftTime);
+  if (timeOrder !== 0) {
+    return timeOrder;
+  }
+  return String(right.sessionId || '').localeCompare(String(left.sessionId || ''));
 }
 
 function latestUserMessagePreview(messages = []) {

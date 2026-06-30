@@ -952,7 +952,7 @@ resume_run(run_id, resume_token, user_decision_or_input)
 - `runs/<run_id>.jsonl` 是事实来源，必须 append-only。
 - `runs/<run_id>.checkpoint.json` 是可覆盖缓存，每次覆盖都要写 `run.checkpointed`。
 - checkpoint 必须记录已完成 phase、已完成 action、pending action、evidence ledger 摘要、artifact refs 和 memory candidates。
-- resume 后不得重复执行已完成的外部 action，尤其是付费、写入、导出、外发类动作。
+- resume 后不得重复执行已完成的外部 action，尤其是付费、写入、导出、外发类动作；policy 确认续跑也不得重复追加 `goal.received / skill.matched / skill.loaded / plan.created` 这类前置 run log。
 
 ### 9.9 第一刀落地顺序
 
@@ -1406,7 +1406,7 @@ agent_slug = inquiry-meeting-host
 - `run_id` 用 `run-YYYYMMDD-HHMMSS-<random>`，不要用每日序号。
 - 模型调用、工具调用、保存和导出前都先走 `policy.jsonl`；只读采集可 allow,外发/修改/发品/上传/扣费必须 deny。
 - 循环必须有 `MAX_STEPS`（建议 8~10）、`MAX_COST` 和连续 deny 上限，撞上限安全落 `run.failed`，绝不无上限跑。
-- `checkpoint.json` 第一刀只保证能恢复“等待用户确认导出或工具授权”这类节点,但必须做到 resume 后不重跑已完成的 adapter phase。
+- `checkpoint.json` 第一刀已能恢复“等待用户确认导出或工具授权”这类节点:checkpoint 记录 `completedActions / completedPhases / pendingAction / artifactRefs / evidenceSummary / memoryCandidates`;确认后从 `resume_from` 继续,不重跑已完成的前置 phase 或 adapter phase。
 - 关键判断和关键 sheet 行至少有 `evidenceId`、来源、可信度、覆盖度、缺口和新鲜度;缺证据不能当确定结论交付。
 
 第一刀通过后，才能继续扩。
@@ -1501,7 +1501,7 @@ Policy Engine 能作为唯一硬执行来源，在模型、工具、写入、导
 Tool Proxy 能发现并调用 alibaba-inquiry-meeting 需要的 Alibaba 只读工具
 Run Logger 能写入 runs/<run_id>.jsonl
 Run Logger 能写入 run.waiting、run.resumed、run.checkpointed 事件
-Checkpoint 能保存 resume_from，并能从 runs/<run_id>.jsonl 重建
+Checkpoint 能保存 resume_from、completedActions、completedPhases、pendingAction、artifactRefs、evidenceSummary 和 memoryCandidates,并能从 runs/<run_id>.jsonl 重建
 Evidence Ledger 能为关键判断和关键 sheet 行保存 source、confidence、coverage、gap、freshness
 Typed Evaluator 能拒绝证据不足、内部词泄漏或 XLSX 结构不合格的产物
 Artifact Writer 能生成并保存主持材料 JSON、XLSX 和 manifest

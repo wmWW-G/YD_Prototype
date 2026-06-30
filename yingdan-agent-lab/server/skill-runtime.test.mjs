@@ -1106,6 +1106,10 @@ test('createSkillRuntime checkpoints policy ask and resumes from the same run af
     assert.equal(waiting.waiting.action, 'paid_api.call');
     assert.equal(checkpoint.status, 'waiting');
     assert.equal(checkpoint.pendingAction, 'paid_api.call');
+    assert.deepEqual(checkpoint.completedActions, ['goal.classify', 'skill.match', 'skill.load', 'plan.create', 'policy:skill.read_external_package']);
+    assert.deepEqual(checkpoint.completedPhases, ['preflight', 'assembling_context', 'planning']);
+    assert.deepEqual(checkpoint.artifactRefs, []);
+    assert.equal(checkpoint.evidenceSummary.status, 'not_started');
     assert.equal(executeCount, 0);
 
     const resumed = await runtime.resumeGoal({ runId: waiting.runId });
@@ -1121,6 +1125,25 @@ test('createSkillRuntime checkpoints policy ask and resumes from the same run af
     assert.equal(events.some((event) => event.type === 'run.checkpointed'), true);
     assert.equal(events.some((event) => event.type === 'run.waiting'), true);
     assert.equal(events.some((event) => event.type === 'run.resumed'), true);
+    const resumedEventIndex = events.findIndex((event) => event.type === 'run.resumed');
+    const eventsAfterResume = events.slice(resumedEventIndex + 1).map((event) => event.type);
+    assert.deepEqual(eventsAfterResume, [
+      'policy.checked',
+      'policy.checked',
+      'action.executed',
+      'observation.recorded',
+      'artifact.verified',
+      'run.completed',
+    ]);
+    assert.deepEqual(resumed.loop.steps.map((step) => step.action), [
+      'resume.run',
+      'policy.confirm',
+      'policy.confirm',
+      'action.execute',
+      'observation.record',
+      'artifact.verify',
+      'finish',
+    ]);
     assert.deepEqual(policyChecks.map((item) => item.action), [
       'skill.read_external_package',
       'paid_api.call',

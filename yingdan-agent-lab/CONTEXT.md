@@ -67,7 +67,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - `server/skill-registry.mjs`:读取 `workbench/registry/skills.json` 和 `workbench/skills/<skill>/skill.json`,所以新增轻量 Skill 不需要改 `skill-agent.mjs`。
 - `server/skill-runner.mjs`:通用 loop、policy 检查、adapter 调度、run log 和产物校验。
 - `server/skill-runner.mjs` 的 run log 事件和 `loop.steps` 必须带 Runtime phase: `preflight / assembling_context / planning / executing / validating / committing`。这是内部结构化字段,用于恢复、评估和排查;前台仍只展示业务化的 `识别任务 / 核对资料 / 生成材料 / 检查结果`。
-- `server/skill-runner.mjs` 的 policy `ask` 已经是 Runtime 硬边界:遇到 `ask` 会写 `run.checkpointed` / `run.waiting` 和 `<runId>.checkpoint.json`,不执行 adapter;用户确认后可通过 `resumeGoal()` 从同一 runId 继续。
+- `server/skill-runner.mjs` 的 policy `ask` 已经是 Runtime 硬边界:遇到 `ask` 会写 `run.checkpointed` / `run.waiting` 和 `<runId>.checkpoint.json`,不执行 adapter;checkpoint 记录 `completedActions`、`completedPhases`、`pendingAction`、`artifactRefs`、`evidenceSummary` 和 `memoryCandidates`。用户确认后 `resumeGoal()` 会从同一 runId 的 `resume_from` 继续,只追加 `run.resumed / policy.checked / action.executed / observation.recorded / artifact.verified / run.completed`,不再重复写 `goal.received / skill.matched / skill.loaded / plan.created`。
 - Runtime policy 暂停确认时如果同轮已经有业务产物,响应必须继续保留 `artifact` 和 `context.artifact`;确认或取消期间不能丢当前产物,否则后续预览、保存、导出或同任务续改会断上下文。
 - 缺资料等待态也必须写 Runtime 风格 checkpoint:进入 `needs-input` 时后端写 `workbench/runs/<runId>.jsonl` 和 `<runId>.checkpoint.json`,run log 至少包含 `goal.received / skill.matched / skill.loaded / run.checkpointed / run.needs_input`;用户补资料足够后用同一个 runId 继续,run log 追加 `run.resumed / action.executed / artifact.verified`。公开 HTTP/SSE payload 仍不能暴露 runId、checkpointPath、runLogPath 或本地路径。
 - `server/skill-adapters/alibaba-inquiry-meeting.mjs`:把已跑通的 Alibaba real-bridge 链路包装成第一个 adapter,保留原真实验收能力。
