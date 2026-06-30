@@ -693,3 +693,8 @@
   - `server/alibaba-real-runner.mjs` 会从 coverage、priority inquiries、common issues 和 corrective actions 生成内部证据账本,保留来源、可信度、覆盖度、缺口、新鲜度和业务摘要,同时过滤 raw tool、bridge、Gateway、localhost、127.0.0.1、本机路径、临时路径等内部词。
   - `server/agent-message-stream.test.mjs` 追加公开 payload 防漏断言,确保 `evidenceLedgerPath` 不进入前台响应。
   - 已执行 `node --test server/alibaba-real-runner.test.mjs server/agent-message-stream.test.mjs`,22 个测试通过。
+- 给 `alibaba-inquiry-meeting` 真实 XLSX 链路补最小 typed evaluator：
+  - 新增红灯测试 `runAlibabaInquiryMeetingReal refuses to complete when typed evaluator rejects XLSX evidence`,复现 builder validation 显示 `workbookExists:false` 时 runner 仍会写 `run.completed` 的问题。
+  - 追加红灯测试 `runAlibabaInquiryMeetingReal routes missing manifest through typed evaluator failure`,确保缺 manifest 也统一写 `artifact.typed_evaluated / run.failed`,不会被 evidence ledger 写入前置校验截胡。
+  - `server/alibaba-real-runner.mjs` 在写 `evidence-ledger.json` 前先追加 `artifact.typed_evaluated`,检查 XLSX validation、evidence ledger 必需分区、字段完整性和内部词泄漏;失败时写 `run.failed / TYPED_EVALUATOR_REJECTED` 并抛错,不会落 ledger 或 `run.completed`。
+  - 已执行 `node --test server/alibaba-real-runner.test.mjs`,6 个测试通过。

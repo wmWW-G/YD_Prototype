@@ -343,7 +343,28 @@ export async function runAlibabaInquiryMeetingReal(options = {}) {
       toolSummary: summarizeObservations(observations),
     },
   });
+  const evidenceItems = buildAlibabaEvidenceItems(payload);
+  const typedEvaluation = evaluateAlibabaTypedArtifact({
+    evidenceItems,
+    xlsxResult,
+  });
+  await appendRunEvent(runLogPath, {
+    type: 'artifact.typed_evaluated',
+    checks: typedEvaluation.checks,
+    reasons: typedEvaluation.reasons,
+    status: typedEvaluation.ok ? 'passed' : 'failed',
+  });
+  if (!typedEvaluation.ok) {
+    await appendRunEvent(runLogPath, {
+      type: 'run.failed',
+      status: 'failed',
+      reason: 'TYPED_EVALUATOR_REJECTED',
+      detail: typedEvaluation.reasons.join('; '),
+    });
+    throw new Error(`typed evaluator rejected alibaba-inquiry-meeting artifact: ${typedEvaluation.reasons.join('; ')}`);
+  }
   const evidenceLedgerPath = await writeAlibabaEvidenceLedger({
+    items: evidenceItems,
     manifestPath: xlsxResult.manifestPath,
     payload,
     period,
@@ -353,7 +374,7 @@ export async function runAlibabaInquiryMeetingReal(options = {}) {
     type: 'evidence.added',
     coverage: 'alibaba-inquiry-meeting',
     evidencePath: path.relative(workbenchRoot, evidenceLedgerPath),
-    items: countEvidenceLedgerItems(payload),
+    items: evidenceItems.length,
     status: 'complete',
   });
 
@@ -485,7 +506,7 @@ async function writeAlibabaEvidenceLedger(input = {}) {
       type: 'xlsx',
     },
     createdAt: new Date().toISOString(),
-    items: buildAlibabaEvidenceItems(payload),
+    items: input.items || buildAlibabaEvidenceItems(payload),
     period: input.period || payload.period || {},
     runId: input.runId || '',
     skillId: 'alibaba-inquiry-meeting',
@@ -497,16 +518,70 @@ async function writeAlibabaEvidenceLedger(input = {}) {
 }
 
 /**
- * countEvidenceLedgerItems 统计本轮主持材料可写入证据账本的业务证据数量。
+ * evaluateAlibabaTypedArtifact 对真实询盘复盘产物执行最小 typed evaluator。
+ *
+ * 作用：
+ * - 在 `run.completed` 前检查 XLSX builder validation 和 evidence ledger 结构。
+ * - 防止 builder 或证据账本结构明显不合格时,Runtime 仍把任务标成完成。
+ * - 这是内部质量门槛,前台仍只看到“检查结果”这类业务语言。
  *
  * 参数：
- * - payload：主持材料 payload,包含 coverage、priority_inquiries、common_issues、corrective_actions。
+ * - input.xlsxResult：XLSX builder 返回值,包含 outputPath、manifestPath、validation。
+ * - input.evidenceItems：即将写入 evidence ledger 的证据数组。
  *
- * 返回值：number,通过内部词过滤后的证据条数。
- * 可能抛出的异常：当前函数只做内存计算,不主动抛出异常。
+ * 返回值：{ok:boolean, checks:object, reasons:string[]}。
+ * 可能抛出的异常：当前函数只做内存检查,不主动抛出异常。
  */
-function countEvidenceLedgerItems(payload = {}) {
-  return buildAlibabaEvidenceItems(payload).length;
+function evaluateAlibabaTypedArtifact(input = {}) {
+  const xlsxResult = input.xlsxResult || {};
+  const validation = xlsxResult.validation || {};
+  const evidenceItems = Array.isArray(input.evidenceItems) ? input.evidenceItems : [];
+  const requiredSections = ['coverage', 'priority_inquiries', 'common_issues', 'corrective_actions'];
+  const requiredFields = ['source', 'confidence', 'coverage', 'gap', 'freshness', 'summary'];
+  const sections = new Set(evidenceItems.map((item) => item.section).filter(Boolean));
+  const missingSections = requiredSections.filter((section) => !sections.has(section));
+  const itemsWithMissingFields = evidenceItems.filter((item) =>
+    requiredFields.some((field) => !Object.hasOwn(item, field))
+  ).length;
+  const internalLeakCount = evidenceItems.filter((item) => looksInternalEvidenceText(JSON.stringify(item))).length;
+  const checks = {
+    builderExitCode: validation.builderExitCode,
+    hasManifestPath: Boolean(xlsxResult.manifestPath),
+    hasOutputPath: Boolean(xlsxResult.outputPath),
+    internalLeakCount,
+    itemsWithMissingFields,
+    missingSections,
+    workbookExists: validation.workbookExists,
+  };
+  const reasons = [];
+
+  if (!checks.hasOutputPath) {
+    reasons.push('缺少 XLSX 输出路径');
+  }
+  if (!checks.hasManifestPath) {
+    reasons.push('缺少 manifest 路径');
+  }
+  if (validation.builderExitCode !== 0) {
+    reasons.push('XLSX builder 未正常退出');
+  }
+  if (validation.workbookExists !== true) {
+    reasons.push('XLSX 文件未通过存在性校验');
+  }
+  if (missingSections.length) {
+    reasons.push(`evidence ledger 缺少分区:${missingSections.join(',')}`);
+  }
+  if (itemsWithMissingFields > 0) {
+    reasons.push('evidence ledger 存在缺字段条目');
+  }
+  if (internalLeakCount > 0) {
+    reasons.push('evidence ledger 存在内部工具或本地路径泄漏');
+  }
+
+  return {
+    checks,
+    ok: reasons.length === 0,
+    reasons,
+  };
 }
 
 /**

@@ -60,7 +60,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 → 前台新对话展示业务化活动流和产物卡
 ```
 
-注意:这仍是第一刀骨架,不是完整 DealOps Runtime Loop。当前已补上 Runtime 层 policy ask / checkpoint / resumeGoal 的最小硬边界,并给 `server/skill-runner.mjs` 的 run log 与 loop steps 补上 `status + phase`;Markdown 业务产物和 `alibaba-inquiry-meeting` 真实 XLSX 链路都会写入内部 `evidence-ledger.json`。下一步要继续补更完整的 resume_from、更广的 XLSX typed evaluator 和跨 Skill 的 evidence ledger 标准。
+注意:这仍是第一刀骨架,不是完整 DealOps Runtime Loop。当前已补上 Runtime 层 policy ask / checkpoint / resumeGoal 的最小硬边界,并给 `server/skill-runner.mjs` 的 run log 与 loop steps 补上 `status + phase`;Markdown 业务产物和 `alibaba-inquiry-meeting` 真实 XLSX 链路都会写入内部 `evidence-ledger.json`;`alibaba-inquiry-meeting` 真实 runner 已有最小 typed evaluator,会在证据账本或 XLSX validation 不合格时阻止 `run.completed`。下一步要继续补更完整的 resume_from、更广的 XLSX typed evaluator 和跨 Skill 的 evidence ledger 标准。
 
 当前已落地:
 
@@ -257,7 +257,7 @@ Electron 桌面壳、SQLite 索引层、Python 工具进程(PDF/XLSX/OCR)、
 - DealOps Runtime Loop v2 的状态用 `running / waiting / resuming / completed / failed / cancelled`,用 `phase` 表示 `preflight / assembling_context / planning / executing / validating / committing`。
 - 下一步最小 `waiting/resume/checkpoint`:先覆盖导出确认、工具授权、预算确认、bridge 不可用和用户补充信息;resume 后不能重跑已完成 adapter phase。
 - Evidence Ledger 是进入交付前的门槛:关键判断、关键 sheet 行和下一步动作必须有来源、可信度、覆盖度、缺口和新鲜度。
-- Typed Evaluator 先覆盖 XLSX 和 `alibaba-inquiry-meeting` host-material,证据不足、内部词泄漏或结构不合格时不能 `run.completed`。
+- Typed Evaluator 已先覆盖 `alibaba-inquiry-meeting` 真实 XLSX 链路的最小门槛:builder validation、evidence ledger 分区、字段完整性和内部词泄漏;后续再扩到更细的 sheet 行级检查。
 - 客户 memory 控量;`run_id` 用时间戳 + 随机后缀,不用每日序号。
 - 当前最终验收锚点是 `alibaba-inquiry-meeting`:读取外部 skill 包、发现并调用只读 Alibaba 工具、生成主持材料 JSON、调用 XLSX builder、写 artifact、manifest 和内部 evidence ledger。
 - 当前真实执行入口分两层:

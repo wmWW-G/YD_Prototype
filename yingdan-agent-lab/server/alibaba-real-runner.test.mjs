@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -299,8 +299,136 @@ test('runAlibabaInquiryMeetingReal discovers tools, calls read-only Alibaba sour
     assert.ok(events.some((event) => event.type === 'tool.discovery'));
     assert.ok(events.some((event) => event.type === 'tool.called'));
     assert.ok(events.some((event) => event.type === 'diagnosis.generated'));
+    assert.ok(events.some((event) => event.type === 'artifact.typed_evaluated' && event.status === 'passed'));
     assert.ok(events.some((event) => event.type === 'evidence.added' && event.items >= 4));
     assert.equal(events.at(-1).type, 'run.completed');
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('runAlibabaInquiryMeetingReal refuses to complete when typed evaluator rejects XLSX evidence', async () => {
+  const fixture = await withTempProject();
+  const bridgeClient = {
+    async listTools() {
+      return [
+        'subaccount_query',
+        'query_seller_acct_dim_diag_data',
+        'query_seller_shop_dim_diag_data',
+        'query_seller_chat_quality_check_detail',
+      ];
+    },
+    async callTool(name) {
+      if (name === 'query_seller_chat_quality_check_detail') {
+        return {
+          ok: true,
+          data: {
+            details: [
+              {
+                buyer: 'US Retail Buyer',
+                country: 'US',
+                owner: 'Alice',
+                level: 'L3',
+                issue: '已读后没有形成下一步',
+                evidence: '买家询问批量采购和交付条件，当前只看到基础确认。',
+              },
+            ],
+          },
+        };
+      }
+      return { ok: true, data: { summary: { inquiryCount: 3, replyRate: '64%' } } };
+    },
+  };
+
+  try {
+    await assert.rejects(
+      () =>
+        runAlibabaInquiryMeetingReal({
+          bridgeClient,
+          buildXlsx: async ({ manifestMode }) => ({
+            ok: true,
+            outputPath: path.join(fixture.projectRoot, 'workbench/artifacts/alibaba-inquiry-meeting-real/alibaba-inquiry-meeting/broken.xlsx'),
+            manifestPath: path.join(fixture.projectRoot, 'workbench/artifacts/alibaba-inquiry-meeting-real/alibaba-inquiry-meeting/manifest.json'),
+            workbookName: 'broken.xlsx',
+            validation: { mode: manifestMode, builderExitCode: 0, workbookExists: false },
+          }),
+          now: new Date('2026-06-27T12:00:00+08:00'),
+          projectRoot: fixture.projectRoot,
+        }),
+      /typed evaluator rejected alibaba-inquiry-meeting artifact/i
+    );
+
+    const runDir = path.join(fixture.projectRoot, 'workbench', 'runs');
+    const [runFile] = (await readdir(runDir)).filter((file) => file.endsWith('.jsonl'));
+    const events = await readJsonl(path.join(runDir, runFile));
+    assert.ok(events.some((event) => event.type === 'artifact.typed_evaluated' && event.status === 'failed'));
+    assert.ok(events.some((event) => event.type === 'run.failed' && event.reason === 'TYPED_EVALUATOR_REJECTED'));
+    assert.equal(events.some((event) => event.type === 'run.completed'), false);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('runAlibabaInquiryMeetingReal routes missing manifest through typed evaluator failure', async () => {
+  const fixture = await withTempProject();
+  const bridgeClient = {
+    async listTools() {
+      return [
+        'subaccount_query',
+        'query_seller_acct_dim_diag_data',
+        'query_seller_shop_dim_diag_data',
+        'query_seller_chat_quality_check_detail',
+      ];
+    },
+    async callTool(name) {
+      if (name === 'query_seller_chat_quality_check_detail') {
+        return {
+          ok: true,
+          data: {
+            details: [
+              {
+                buyer: 'US Retail Buyer',
+                country: 'US',
+                owner: 'Alice',
+                level: 'L3',
+                issue: '已读后没有形成下一步',
+                evidence: '买家询问批量采购和交付条件，当前只看到基础确认。',
+              },
+            ],
+          },
+        };
+      }
+      return { ok: true, data: { summary: { inquiryCount: 3, replyRate: '64%' } } };
+    },
+  };
+
+  try {
+    await assert.rejects(
+      () =>
+        runAlibabaInquiryMeetingReal({
+          bridgeClient,
+          buildXlsx: async ({ manifestMode }) => ({
+            ok: true,
+            outputPath: path.join(fixture.projectRoot, 'workbench/artifacts/alibaba-inquiry-meeting-real/alibaba-inquiry-meeting/broken.xlsx'),
+            manifestPath: '',
+            workbookName: 'broken.xlsx',
+            validation: { mode: manifestMode, builderExitCode: 0, workbookExists: true },
+          }),
+          now: new Date('2026-06-27T12:00:00+08:00'),
+          projectRoot: fixture.projectRoot,
+        }),
+      /typed evaluator rejected alibaba-inquiry-meeting artifact/i
+    );
+
+    const runDir = path.join(fixture.projectRoot, 'workbench', 'runs');
+    const [runFile] = (await readdir(runDir)).filter((file) => file.endsWith('.jsonl'));
+    const events = await readJsonl(path.join(runDir, runFile));
+    const typedEvent = events.find((event) => event.type === 'artifact.typed_evaluated');
+    assert.equal(typedEvent.status, 'failed');
+    assert.equal(typedEvent.checks.hasManifestPath, false);
+    assert.ok(events.some((event) => event.type === 'run.failed' && event.reason === 'TYPED_EVALUATOR_REJECTED'));
+    assert.equal(events.some((event) => event.type === 'evidence.added'), false);
+    assert.equal(events.some((event) => event.type === 'run.completed'), false);
   } finally {
     await fixture.cleanup();
   }
