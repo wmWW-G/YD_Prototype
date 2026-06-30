@@ -24,6 +24,11 @@ import {
   agentThreadStatusFromPayload,
   agentThreadStatusFromRestoredSession,
 } from './agentThreadStatus.js';
+import {
+  buildReferenceDraftBlock,
+  readReferenceFileText,
+  referenceFileErrorMessage,
+} from './agentReferenceMaterials.js';
 import { mergeStreamingProgressItem } from './agentThreadProgress.js';
 import { deriveAgentThreadTaskTitle } from './agentThreadTitle.js';
 import { getNewConversationComposerState } from './agentThreadComposerState.js';
@@ -1277,69 +1282,6 @@ function buildRecoverablePendingTaskContext(originalText = '') {
 }
 
 /**
- * readReferenceFileText 读取用户主动选择的文本资料。
- *
- * 作用：
- * - 让“引用资料”真正把客户资料、询盘或产品说明带入当前任务输入。
- * - 第一阶段只读取文本类资料,避免在前端伪装 PDF/XLSX 解析能力。
- *
- * 参数：
- * - file：浏览器 File 对象。
- *
- * 返回值：Promise<object>,包含文件名和截断后的文本内容。
- * 可能抛出的异常：浏览器读取文件失败时会抛出,调用方负责展示业务化提示。
- */
-async function readReferenceFileText(file) {
-  const rawText = await file.text();
-  return {
-    name: file.name || '未命名资料',
-    text: trimReferenceText(rawText),
-  };
-}
-
-/**
- * buildReferenceDraftBlock 把多份引用资料拼成输入框里的业务上下文。
- *
- * 作用：
- * - 用户点击开始处理时,这些资料会随同自然语言任务一起发给后端。
- * - 文本格式保持人可读,不要求用户理解 schema 或 JSON。
- *
- * 参数：
- * - references：资料数组,每项包含 name 和 text。
- *
- * 返回值：可追加到输入框的字符串。
- * 可能抛出的异常：无。
- */
-function buildReferenceDraftBlock(references = []) {
-  const blocks = references
-    .filter((reference) => reference?.text)
-    .map((reference) => `【${reference.name}】\n${reference.text}`);
-  return ['引用资料：', ...blocks].join('\n\n');
-}
-
-/**
- * trimReferenceText 限制单份引用资料长度。
- *
- * 作用：
- * - 防止用户误选超长文件导致输入框和本地请求过大。
- * - 保留开头业务信息,并用自然语言提示内容已截断。
- *
- * 参数：
- * - text：原始文件文本。
- *
- * 返回值：截断后的文本。
- * 可能抛出的异常：无。
- */
-function trimReferenceText(text = '') {
-  const normalized = String(text || '').trim();
-  const limit = 6000;
-  if (normalized.length <= limit) {
-    return normalized;
-  }
-  return `${normalized.slice(0, limit)}\n\n[资料较长,这里只引用前 ${limit} 个字符。]`;
-}
-
-/**
  * readAgentEventStream 读取后端 SSE 任务流。
  *
  * 作用：
@@ -1700,8 +1642,8 @@ function NewConversationView({
         inputRef.current.focus();
       }
       setReferenceImportStatus(`已引用 ${references.length} 份资料，会和这次任务一起处理。`);
-    } catch {
-      setReferenceImportStatus('资料读取失败，请直接粘贴到输入框。');
+    } catch (error) {
+      setReferenceImportStatus(referenceFileErrorMessage(error));
     }
   };
 

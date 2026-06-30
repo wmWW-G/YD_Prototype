@@ -353,6 +353,26 @@ test('runNewConversationAgent asks for missing business context before generatin
   assert.deepEqual(progressEvents, ['goal.received', 'skill.loaded', 'run.needs_input']);
 });
 
+test('runNewConversationAgent does not treat channel agent wording as product context for email drafts', async () => {
+  const response = await runNewConversationAgent({
+    text: '写一封开发信给德国渠道代理',
+    registry: createEmailRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not run when channel agent wording is missing product context');
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '开发信草稿');
+  assert.equal(response.context.pendingTask.skillId, 'cold-email-draft');
+  assert.deepEqual(response.messages[0].needsInput.items, ['产品或核心卖点']);
+  assert.match(response.messages[0].content, /产品或核心卖点/);
+});
+
 test('runNewConversationAgent asks for concrete context before generic customer analysis', async () => {
   const response = await runNewConversationAgent({
     text: '客户是德国采购商，帮我做客户分析',
@@ -1056,6 +1076,201 @@ test('runNewConversationAgent treats small trial orders as a concrete customer f
   assert.equal(response.taskTitle, '客户推进分析');
   assert.equal(response.artifact.name, '客户推进分析.md');
   assert.match(runtimeText, /客户只想小批量试单/);
+  assert.match(runtimeText, /产品是灯具/);
+});
+
+test('runNewConversationAgent treats exclusive agency requests as a concrete customer follow-up issue', async () => {
+  let runtimeText = '';
+  const response = await runNewConversationAgent({
+    text: '客户想做独家代理，产品是灯具，怎么谈',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'customer-followup-plan',
+            reason: '用户要处理客户独家代理的跟进场景。',
+          },
+          skill: {
+            id: 'customer-followup-plan',
+            displayName: '客户推进分析',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/客户推进分析.md',
+            artifactName: '客户推进分析.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: '/tmp/客户推进分析.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.equal(response.artifact.name, '客户推进分析.md');
+  assert.match(runtimeText, /客户想做独家代理/);
+  assert.match(runtimeText, /产品是灯具/);
+});
+
+test('runNewConversationAgent asks for product context before negotiating exclusive agency', async () => {
+  const response = await runNewConversationAgent({
+    text: '客户想做独家代理，怎么谈',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not run before exclusive agency product context is known');
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.equal(response.context.pendingTask.skillId, 'customer-followup-plan');
+  assert.deepEqual(response.messages[0].needsInput.items, ['产品或核心卖点']);
+  assert.match(response.messages[0].content, /产品或核心卖点/);
+});
+
+test('runNewConversationAgent asks for product context before a seven-day follow-up plan', async () => {
+  const response = await runNewConversationAgent({
+    text: '客户已读不回，帮我做一个7天跟进计划',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not run before seven-day follow-up product context is known');
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.equal(response.context.pendingTask.skillId, 'customer-followup-plan');
+  assert.deepEqual(response.messages[0].needsInput.items, ['产品或核心卖点']);
+  assert.match(response.messages[0].content, /产品或核心卖点/);
+});
+
+test('runNewConversationAgent resumes a seven-day follow-up plan after product context is added', async () => {
+  const first = await runNewConversationAgent({
+    text: '客户已读不回，帮我做一个7天跟进计划',
+    registry: createFollowupRegistry(),
+  });
+  let runtimeText = '';
+
+  const second = await runNewConversationAgent({
+    text: '产品是家具',
+    sessionId: first.sessionId,
+    context: first.context,
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'customer-followup-plan',
+            reason: '用户补充产品后,匹配7天客户跟进计划任务。',
+          },
+          skill: {
+            id: 'customer-followup-plan',
+            displayName: '客户推进分析',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/客户推进分析.md',
+            artifactName: '客户推进分析.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: '/tmp/客户推进分析.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(first.kind, 'needs-input');
+  assert.equal(second.ok, true);
+  assert.equal(second.kind, 'goal-run');
+  assert.equal(second.taskTitle, '客户推进分析');
+  assert.equal(second.artifact.name, '客户推进分析.md');
+  assert.match(runtimeText, /客户已读不回/);
+  assert.match(runtimeText, /7天跟进计划/);
+  assert.match(runtimeText, /产品是家具/);
+});
+
+test('runNewConversationAgent resumes exclusive agency negotiation after product context is added', async () => {
+  const first = await runNewConversationAgent({
+    text: '客户想做独家代理，怎么谈',
+    registry: createFollowupRegistry(),
+  });
+  let runtimeText = '';
+
+  const second = await runNewConversationAgent({
+    text: '产品是灯具',
+    sessionId: first.sessionId,
+    context: first.context,
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'customer-followup-plan',
+            reason: '用户补充产品后,匹配独家代理客户推进分析任务。',
+          },
+          skill: {
+            id: 'customer-followup-plan',
+            displayName: '客户推进分析',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/客户推进分析.md',
+            artifactName: '客户推进分析.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: '/tmp/客户推进分析.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(first.kind, 'needs-input');
+  assert.equal(second.ok, true);
+  assert.equal(second.kind, 'goal-run');
+  assert.equal(second.taskTitle, '客户推进分析');
+  assert.equal(second.artifact.name, '客户推进分析.md');
+  assert.match(runtimeText, /客户想做独家代理/);
   assert.match(runtimeText, /产品是灯具/);
 });
 
@@ -1973,6 +2188,197 @@ test('runNewConversationAgent treats sending to a described customer as an exter
   assert.equal(response.context.pendingConfirmation.type, 'external_send');
   assert.match(response.messages[0].confirmation.title, /外发前需要你确认/);
   assert.equal(response.messages[0].confirmation.confirmLabel, '先生成草稿');
+});
+
+test('runNewConversationAgent treats channel script versions as current artifact follow-up, not external send', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-channel-script-followup-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '客户推进分析.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(
+      artifactPath,
+      [
+        '# 客户推进分析',
+        '',
+        '## 依据',
+        '',
+        '- 产品: 家具',
+        '- 客户关注点: 客户沉默/未回复',
+        '',
+        '## 7天跟进节奏',
+        '',
+        '- 第1天: 发一条轻量提醒。',
+        '- 第3天: 换一个触达理由。',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const response = await runNewConversationAgent({
+      text: '把第1天/第3天话术写成英文 WhatsApp 和邮件两版',
+      sessionId: 'agent-session-20260630T155500-channel-followup',
+      context: {
+        artifact: {
+          type: 'markdown',
+          name: '客户推进分析.md',
+          outputPath: artifactPath,
+        },
+      },
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+        },
+      },
+      registry: createEmailAndFollowupRegistry(),
+      projectRoot,
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'followup');
+    assert.equal(response.status, 'completed');
+    assert.equal(response.context.pendingConfirmation, undefined);
+    assert.equal(response.artifact.name, '客户推进分析.md');
+    assert.match(updated, /Day 1 WhatsApp/);
+    assert.match(updated, /Day 1 Email/);
+    assert.match(updated, /Day 3 WhatsApp/);
+    assert.match(updated, /Day 3 Email/);
+    assert.match(updated, /Subject:/);
+    assert.match(updated, /furniture/i);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('runNewConversationAgent still asks before sending drafted channel script versions', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-channel-script-send-confirm-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '客户推进分析.md');
+  const originalContent = [
+    '# 客户推进分析',
+    '',
+    '## 依据',
+    '',
+    '- 产品: 家具',
+    '- 客户关注点: 客户沉默/未回复',
+    '',
+    '## 7天跟进节奏',
+    '',
+    '- 第1天: 发一条轻量提醒。',
+    '- 第3天: 换一个触达理由。',
+  ].join('\n');
+  const cases = [
+    '把第1天/第3天话术写成英文 WhatsApp 和邮件两版，然后发送',
+    '把第1天/第3天话术写成英文 WhatsApp 和邮件两版，然后发客户',
+    '把第1天/第3天话术写成英文 WhatsApp 和邮件两版，send it',
+    '把第1天/第3天话术写成英文 WhatsApp 和邮件两版，send now',
+  ];
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+
+    for (const [index, text] of cases.entries()) {
+      await writeFile(artifactPath, originalContent, 'utf8');
+
+      const response = await runNewConversationAgent({
+        text,
+        sessionId: `agent-session-20260630T162000-channel-send-${index}`,
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+        },
+        session: {
+          context: {
+            artifact: {
+              type: 'markdown',
+              name: '客户推进分析.md',
+              outputPath: artifactPath,
+            },
+          },
+        },
+        registry: createEmailAndFollowupRegistry(),
+        projectRoot,
+      });
+      const currentContent = await readFile(artifactPath, 'utf8');
+
+      assert.equal(response.ok, true);
+      assert.equal(response.kind, 'confirmation-required');
+      assert.equal(response.status, 'waiting');
+      assert.equal(response.context.pendingConfirmation.type, 'external_send');
+      assert.equal(response.messages[0].confirmation.title, '外发前需要你确认');
+      assert.equal(response.messages[0].confirmation.confirmLabel, '先生成草稿');
+      assert.equal(currentContent, originalContent);
+    }
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('runNewConversationAgent does not treat customer development wording as sending drafted channel scripts', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-channel-script-customer-development-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '客户推进分析.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(
+      artifactPath,
+      [
+        '# 客户推进分析',
+        '',
+        '## 依据',
+        '',
+        '- 产品: 家具',
+        '- 客户关注点: 客户沉默/未回复',
+        '',
+        '## 7天跟进节奏',
+        '',
+        '- 第1天: 发一条轻量提醒。',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const response = await runNewConversationAgent({
+      text: '把第1天话术写成英文 WhatsApp 和邮件两版，用于开发客户',
+      sessionId: 'agent-session-20260630T163000-channel-development',
+      context: {
+        artifact: {
+          type: 'markdown',
+          name: '客户推进分析.md',
+          outputPath: artifactPath,
+        },
+      },
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+        },
+      },
+      registry: createEmailAndFollowupRegistry(),
+      projectRoot,
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'followup');
+    assert.equal(response.status, 'completed');
+    assert.equal(response.context.pendingConfirmation, undefined);
+    assert.match(updated, /Day 1 WhatsApp/);
+    assert.match(updated, /Day 1 Email/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
 });
 
 test('runNewConversationAgent stops and asks before natural paid actions', async () => {

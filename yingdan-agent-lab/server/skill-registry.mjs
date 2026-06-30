@@ -258,7 +258,7 @@ function normalizeGoalText(text = '') {
   if (/buyer|客户|买家|采购商|客人|对方/.test(lower)) {
     additions.push('客户');
   }
-  if (/next step|下一步|咋办|怎么办|怎么处理|怎么推进|怎么谈|怎么跟|谈判|推进|跟下去|跟进|回访|优先跟|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|砍价|压价|还价|议价|让价|降价|折扣|账期|赊账|月结|付款条件|付款方式|免费样品|样品费|样品费用|不想付样品|不付样品|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|free\s+sample|sample\s+fee|small\s+(?:trial\s+)?order|trial\s+order|payment\s+terms|credit\s+terms/.test(lower)) {
+  if (/next step|下一步|咋办|怎么办|怎么处理|怎么推进|怎么谈|怎么跟|谈判|推进|跟下去|跟进|回访|优先跟|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|砍价|压价|还价|议价|让价|降价|折扣|账期|赊账|月结|付款条件|付款方式|免费样品|样品费|样品费用|不想付样品|不付样品|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|free\s+sample|sample\s+fee|small\s+(?:trial\s+)?order|trial\s+order|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights|payment\s+terms|credit\s+terms/.test(lower)) {
     additions.push('下一步推进分析');
   }
   if (/客户分析|客户画像|优先级|机会|意向|成交|判断/.test(lower)) {

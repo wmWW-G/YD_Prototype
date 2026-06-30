@@ -69,6 +69,105 @@ test('reviseMarkdownArtifactForFollowup appends a safe follow-up revision to the
   }
 });
 
+test('reviseMarkdownArtifactForFollowup drafts day-specific WhatsApp and email follow-up scripts', async () => {
+  const fixture = await withRevisionProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '客户推进分析.md');
+    await writeFile(
+      artifactPath,
+      [
+        '# 客户推进分析',
+        '',
+        '## 依据',
+        '',
+        '- 产品: 家具',
+        '- 客户关注点: 客户沉默/未回复',
+        '',
+        '## 7天跟进节奏',
+        '',
+        '- 第1天: 发一条轻量提醒,围绕家具补充一个有用信息点。',
+        '- 第3天: 换一个触达理由,补充 1 个客户可能关心的规格、交期、案例或样品选项。',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = await reviseMarkdownArtifactForFollowup({
+      projectRoot: fixture.projectRoot,
+      instruction: '把第1天/第3天话术写成英文 WhatsApp 和邮件两版',
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+        },
+      },
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.match(updated, /本次补充优化/);
+    assert.match(updated, /第1天 WhatsApp|Day 1 WhatsApp/i);
+    assert.match(updated, /第1天 Email|Day 1 Email/i);
+    assert.match(updated, /第3天 WhatsApp|Day 3 WhatsApp/i);
+    assert.match(updated, /第3天 Email|Day 3 Email/i);
+    assert.match(updated, /Subject:/);
+    assert.match(updated, /furniture/i);
+    assert.match(updated, /外发前仍需确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('reviseMarkdownArtifactForFollowup supports day five follow-up scripts', async () => {
+  const fixture = await withRevisionProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '客户推进分析.md');
+    await writeFile(
+      artifactPath,
+      [
+        '# 客户推进分析',
+        '',
+        '## 依据',
+        '',
+        '- 产品: 家具',
+        '- 客户关注点: 客户沉默/未回复',
+        '',
+        '## 7天跟进节奏',
+        '',
+        '- 第5天: 给出两个清晰选项,例如继续看资料、确认数量、安排样品或暂缓跟进。',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = await reviseMarkdownArtifactForFollowup({
+      projectRoot: fixture.projectRoot,
+      instruction: '把第5天话术写成英文 WhatsApp 和邮件两版',
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+        },
+      },
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.match(updated, /Day 5 WhatsApp/i);
+    assert.match(updated, /Day 5 Email/i);
+    assert.match(updated, /Subject:/);
+    assert.match(updated, /furniture/i);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('reviseMarkdownArtifactForFollowup rejects artifacts outside generated artifact roots', async () => {
   const fixture = await withRevisionProject();
 

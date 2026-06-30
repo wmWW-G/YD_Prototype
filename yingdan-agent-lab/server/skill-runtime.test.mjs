@@ -452,6 +452,37 @@ test('createSkillRuntime carries no-reply status into customer follow-up artifac
   }
 });
 
+test('createSkillRuntime turns a seven-day follow-up request into a day-by-day plan', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户已读不回，产品是家具，帮我做一个7天跟进计划',
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.equal(result.artifact?.name, '客户推进分析.md');
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.match(content, /产品: 家具/);
+    assert.match(content, /客户关注点: 客户沉默\/未回复/);
+    assert.match(content, /7天跟进节奏|7 天跟进节奏/);
+    assert.match(content, /第1天|第 1 天/);
+    assert.match(content, /第3天|第 3 天/);
+    assert.match(content, /第5天|第 5 天/);
+    assert.match(content, /第7天|第 7 天/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime carries payment-term pressure into customer follow-up artifacts', async () => {
   const fixture = await withRegistryProject();
 
@@ -580,6 +611,33 @@ test('createSkillRuntime carries small trial order pressure into customer follow
     assert.match(content, /产品: 灯具/);
     assert.match(content, /客户关注点: 小单\/MOQ压力/);
     assert.match(content, /试单数量|MOQ|利润|客户意向/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime carries exclusive agency requests into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户想做独家代理，产品是灯具，怎么谈',
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.equal(result.artifact?.name, '客户推进分析.md');
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.match(content, /产品: 灯具/);
+    assert.match(content, /客户关注点: 独家代理\/渠道合作/);
+    assert.match(content, /区域|销量承诺|价格体系|试运行|渠道/);
     assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
   } finally {
     await fixture.cleanup();

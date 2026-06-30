@@ -2,6 +2,36 @@
 
 ## 2026-06-30
 
+- 补强「新对话」引用资料入口:
+  - 将引用资料读取从 `App.jsx` 抽成 `agent-thread-prototype/src/agentReferenceMaterials.js`,让 `.txt/.md/.csv` 读取、空文件、不支持文件和长文本截断都有独立测试。
+  - `.txt/.md/.csv` 会被拼成 `引用资料：` 的自然语言块追加进输入框,随下一次任务一起发送,不要求用户理解 schema、JSON 或 tool call。
+  - PDF/XLSX 等当前不支持解析的文件会提示先转成 `txt/md/csv` 或直接粘贴关键内容,不会把二进制内容塞进任务输入,也不会假装已解析。
+  - 新增 `server/agent-reference-materials.test.mjs`,并更新 `server/frontend-copy.test.mjs` 确认新对话使用可测试 helper。
+  - 浏览器验证通过:选择 `客户聊天.md` 后输入框出现 `引用资料：` 和客户问题;再选择 `产品目录.pdf` 只显示不支持提示,草稿保持原引用资料不被污染。
+
+- 继续补「新对话」的 7 天跟进计划产物:
+  - 复现问题:`客户已读不回，产品是家具，帮我做一个7天跟进计划` 会生成 `客户推进分析.md`,但正文仍只有通用下一步行动,没有按天拆开的跟进节奏。
+  - 已修复:用户明确要 `7天 / 七天 / 一周 / 跟进节奏 / follow-up plan` 时,客户推进分析会追加 `7天跟进节奏`,包含第1天、第3天、第5天、第7天的具体动作。
+  - 新增红绿回归测试 `createSkillRuntime turns a seven-day follow-up request into a day-by-day plan`。
+  - 继续收紧缺资料 gate:`客户已读不回，帮我做一个7天跟进计划` 现在会先追问 `产品或核心卖点`;同 session 补 `产品是家具` 后再继续生成带 7 天节奏的 `客户推进分析.md`。
+  - 新增红绿回归测试 `runNewConversationAgent asks for product context before a seven-day follow-up plan` 和 `runNewConversationAgent resumes a seven-day follow-up plan after product context is added`。
+  - 继续补同产物续改:生成 7 天跟进计划后,用户补 `把第1天/第3天话术写成英文 WhatsApp 和邮件两版`,后端会沿用当前 `客户推进分析.md`,追加 Day 1 / Day 3 的 WhatsApp 与 Email 草稿,不会重开任务或外发。
+  - 新增红绿回归测试 `reviseMarkdownArtifactForFollowup drafts day-specific WhatsApp and email follow-up scripts`。
+  - 真实 HTTP 复验发现风险识别会因为 `WhatsApp` 误弹 `外发前需要你确认`;已修复为只有明确 `发给客户 / 发送 / 外发 / 直接发` 才按外发拦截,`话术 / 文案 / 草稿 / 两版 / 写成` 这类渠道版本请求直接续改当前产物。
+  - 继续修正同线程优先级:同一 session 已有 `客户推进分析.md` 时,`邮件两版` 不能被开发信路由抢走;明显的 `继续 / 优化 / 改成 / 写成 / 两版 / 第1天话术` 优先作为当前产物 follow-up 处理。
+  - 新增红绿回归测试 `runNewConversationAgent treats channel script versions as current artifact follow-up, not external send`,同时保留 `发给德国客户` 的外发确认保护,并用开发信 + 客户推进混合 registry 复现真实路由竞争。
+  - 根据 sub agent 评估修复 P1:渠道草稿请求后面接 `然后发送 / 发客户 / send it / send now` 仍进入 `外发前需要你确认`,不会先改稿或自动外发;新增回归测试 `runNewConversationAgent still asks before sending drafted channel script versions`。
+  - 根据 sub agent 评估修复 P2:同任务 Markdown 续改的跟进天数识别从第1/3/7天扩展到通用第 N 天;新增回归测试 `reviseMarkdownArtifactForFollowup supports day five follow-up scripts`。
+  - 二次 sub agent 复核发现 `用于开发客户` 被裸 `发客户` 误拦;已收窄为只有 `然后/再/直接/现在/立即/马上/帮我 + 发客户` 或 `发给客户` 才算外发,新增回归测试 `runNewConversationAgent does not treat customer development wording as sending drafted channel scripts`。
+
+- 继续补「新对话」的独家代理/渠道合作口语:
+  - 复现问题:`客户想做独家代理，产品是灯具，怎么谈` 会停在 `needs-input`,没有被当成足够明确的客户推进卡点;即使 runtime 生成产物,也不会把独家代理提炼成客户关注点。
+  - 已修复:`独家代理 / 独代 / 代理权 / 区域代理 / 总代理 / 渠道代理 / 经销代理 / 分销代理 / exclusive agency / exclusive distributor` 会进入客户推进分析。
+  - 产物层同步补强:客户推进分析会把这类输入提炼成 `客户关注点: 独家代理/渠道合作`,并用区域边界、销量承诺、价格体系和试运行条件组织下一步。
+  - 新增红绿回归测试 `runNewConversationAgent treats exclusive agency requests as a concrete customer follow-up issue` 和 `createSkillRuntime carries exclusive agency requests into customer follow-up artifacts`。
+  - 根据 sub agent 评估继续收紧边界:`代理 / 渠道` 不能算作产品资料。`写一封开发信给德国渠道代理` 现在会进入 `needs-input`,只追问 `产品或核心卖点`;`客户想做独家代理，怎么谈` 也会先追问产品,同 session 补 `产品是灯具` 后再生成 `客户推进分析.md`。
+  - 新增红绿回归测试 `runNewConversationAgent does not treat channel agent wording as product context for email drafts`、`runNewConversationAgent asks for product context before negotiating exclusive agency` 和 `runNewConversationAgent resumes exclusive agency negotiation after product context is added`。
+
 - 继续补「新对话」的小批量试单 / MOQ 压力口语:
   - 复现问题:`客户只想小批量试单，产品是灯具，怎么处理` 会停在 `needs-input`,没有被当成足够明确的客户推进卡点;产物层也不会提炼小单和 MOQ 压力。
   - 已修复:`小批量 / 小单 / 试单 / 小数量 / 低于 MOQ / MOQ 太高 / 起订量太高 / small trial order` 会进入客户推进分析。

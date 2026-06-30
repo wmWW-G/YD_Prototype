@@ -5,6 +5,7 @@ import test from 'node:test';
 
 const appSourcePath = path.join(process.cwd(), 'agent-thread-prototype', 'src', 'App.jsx');
 const appStylesPath = path.join(process.cwd(), 'agent-thread-prototype', 'src', 'styles.css');
+const referenceMaterialsPath = path.join(process.cwd(), 'agent-thread-prototype', 'src', 'agentReferenceMaterials.js');
 
 async function readNewConversationSource() {
   const source = await readFile(appSourcePath, 'utf8');
@@ -195,6 +196,7 @@ test('New Conversation keeps paid-action confirmation guidance visible while pro
 
 test('New Conversation reference material button imports text into the current task draft', async () => {
   const source = await readFile(appSourcePath, 'utf8');
+  const referenceSource = await readFile(referenceMaterialsPath, 'utf8');
   const threadSource = await readNewConversationSource();
 
   assert.equal(threadSource.includes('referenceInputRef'), true);
@@ -202,8 +204,10 @@ test('New Conversation reference material button imports text into the current t
   assert.equal(threadSource.includes('handleReferenceFilesChange'), true);
   assert.equal(threadSource.includes('type="file"'), true);
   assert.equal(threadSource.includes('reference-import-status'), true);
-  assert.equal(source.includes('function readReferenceFileText'), true);
-  assert.equal(source.includes('引用资料：'), true);
+  assert.equal(source.includes("from './agentReferenceMaterials.js'"), true);
+  assert.equal(source.includes('readReferenceFileText'), true);
+  assert.equal(source.includes('referenceFileErrorMessage'), true);
+  assert.equal(referenceSource.includes('引用资料：'), true);
 });
 
 test('New Conversation keeps the recognized business task title in the thread header', async () => {

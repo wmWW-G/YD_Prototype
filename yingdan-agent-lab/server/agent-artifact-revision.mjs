@@ -78,6 +78,7 @@ export async function reviseMarkdownArtifactForFollowup(input = {}) {
   const current = await readFile(sourcePath, 'utf8');
   const revision = buildFollowupRevisionSection({
     artifactName: artifact.name || path.basename(sourcePath),
+    currentContent: current,
     instruction,
   });
   const nextContent = `${current.replace(/\s+$/u, '')}\n\n${revision}\n`;
@@ -257,7 +258,10 @@ function buildXlsxFollowupResult(instruction = '') {
 function buildFollowupRevisionSection(input = {}) {
   const instruction = sanitizeInstruction(input.instruction || '继续优化当前产物');
   const generatedAt = new Date().toISOString();
-  const suggestions = buildSafeBusinessAdditions(instruction);
+  const suggestions = buildSafeBusinessAdditions({
+    currentContent: input.currentContent || '',
+    instruction,
+  });
 
   return [
     `## 本次补充优化（${generatedAt}）`,
@@ -277,9 +281,12 @@ function buildFollowupRevisionSection(input = {}) {
   ].join('\n');
 }
 
-function buildSafeBusinessAdditions(instruction = '') {
+function buildSafeBusinessAdditions(input = '') {
+  const instruction = typeof input === 'string' ? input : String(input.instruction || '');
+  const currentContent = typeof input === 'string' ? '' : String(input.currentContent || '');
   const lower = instruction.toLowerCase();
   const additions = [];
+  additions.push(...buildChannelScriptAdditions({ currentContent, instruction }));
 
   if (/样品|sample/.test(lower)) {
     additions.push('- 可替换英文句: If helpful, we can arrange samples after confirming the specification, quantity, and shipping details.');
@@ -313,6 +320,123 @@ function sanitizeInstruction(value = '') {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
   return cleaned || '继续优化当前产物';
+}
+
+/**
+ * buildChannelScriptAdditions 为跟进计划生成渠道化英文话术。
+ *
+ * 作用：
+ * - 用户对已有客户推进计划补一句“把第1天/第3天话术写成英文 WhatsApp 和邮件两版”时,
+ *   直接把可用话术写回当前 Markdown,而不是只记录这句要求。
+ * - 只生成草稿内容,不执行外发；外发仍由上层确认机制处理。
+ *
+ * 参数：
+ * - currentContent：当前 Markdown 产物正文,用于提取产品等上下文。
+ * - instruction：用户本次补充要求。
+ *
+ * 返回值：Markdown 行数组。
+ * 可能抛出的异常：无。
+ */
+function buildChannelScriptAdditions({ currentContent = '', instruction = '' } = {}) {
+  const lower = String(instruction || '').toLowerCase();
+  const asksForWhatsApp = /whatsapp|wa|站内信|即时消息/.test(lower);
+  const asksForEmail = /邮件|email|mail/.test(lower);
+  const asksForEnglish = /英文|english/.test(lower);
+  const mentionsScript = /话术|文案|script|copy|message/.test(lower);
+  const requestedDays = extractRequestedFollowupDays(instruction);
+
+  if (!requestedDays.length || !mentionsScript || (!asksForWhatsApp && !asksForEmail)) {
+    return [];
+  }
+
+  const product = extractProductFromMarkdown(currentContent);
+  const englishProduct = translateRevisionProduct(product);
+  const channelLabel = [
+    asksForWhatsApp ? 'WhatsApp' : '',
+    asksForEmail ? 'Email' : '',
+  ].filter(Boolean).join(' 和 ');
+  const languageNote = asksForEnglish ? '英文' : '可直接改写';
+  const additions = [
+    `- 已根据当前客户推进计划补充${languageNote} ${channelLabel} 跟进话术草稿,仅作为草稿,不会自动外发。`,
+  ];
+
+  for (const day of requestedDays) {
+    if (asksForWhatsApp) {
+      additions.push(
+        `#### Day ${day} WhatsApp`,
+        buildWhatsAppScript({ day, englishProduct }),
+      );
+    }
+    if (asksForEmail) {
+      additions.push(
+        `#### Day ${day} Email`,
+        `Subject: Quick follow-up on ${englishProduct}`,
+        '',
+        'Hi {{Customer Name}},',
+        '',
+        buildEmailBody({ day, englishProduct }),
+        '',
+        'Best regards,',
+        '{{Your Name}}',
+      );
+    }
+  }
+
+  return additions;
+}
+
+function extractRequestedFollowupDays(instruction = '') {
+  const value = String(instruction || '');
+  const days = [];
+  const dayPattern = /第\s*(\d{1,2})\s*天|day\s*(\d{1,2})/gi;
+  let match = dayPattern.exec(value);
+
+  while (match) {
+    const day = Number(match[1] || match[2]);
+    if (Number.isInteger(day) && day > 0 && day <= 31) {
+      days.push(day);
+    }
+    match = dayPattern.exec(value);
+  }
+
+  return [...new Set(days)].sort((a, b) => a - b);
+}
+
+function extractProductFromMarkdown(content = '') {
+  const value = String(content || '');
+  return value.match(/产品[:：]\s*([^\n\r]+)/u)?.[1]?.trim() || '该产品';
+}
+
+function translateRevisionProduct(product = '') {
+  const value = String(product || '').trim();
+  const dictionary = [
+    [/家具/u, 'furniture'],
+    [/灯具|灯/u, 'lighting products'],
+    [/太阳能路灯/u, 'solar street lights'],
+    [/设备|机器/u, 'equipment'],
+  ];
+  const translated = dictionary.find(([pattern]) => pattern.test(value))?.[1];
+  return translated || value || 'the product';
+}
+
+function buildWhatsAppScript({ day, englishProduct }) {
+  if (day === 1) {
+    return `Hi {{Customer Name}}, just checking whether the ${englishProduct} options are still useful for your current sourcing plan. I can send a short specification summary if helpful.`;
+  }
+  if (day === 3) {
+    return `Hi {{Customer Name}}, I wanted to share one more angle on the ${englishProduct}: we can compare specification, sample timing, and packing options before you decide whether to continue.`;
+  }
+  return `Hi {{Customer Name}}, I will keep this brief. If the ${englishProduct} project is still active, I can help confirm the next practical step.`;
+}
+
+function buildEmailBody({ day, englishProduct }) {
+  if (day === 1) {
+    return `I wanted to follow up briefly on the ${englishProduct} discussion. If this project is still active, I can prepare a concise summary covering suitable specifications, sample options, and the key details we should confirm before quotation.`;
+  }
+  if (day === 3) {
+    return `I am following up with one more practical point on the ${englishProduct}. Before moving to pricing, it may help to compare the required specification, target quantity, packing preference, and sample timing, so we can avoid giving you an inaccurate recommendation.`;
+  }
+  return `I will keep this follow-up short. If the ${englishProduct} project is still on your list, I can help confirm the most useful next step and reduce any unnecessary back-and-forth.`;
 }
 
 function createRevisionError(code, message, status) {

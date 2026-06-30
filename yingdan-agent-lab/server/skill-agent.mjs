@@ -247,6 +247,23 @@ export async function runNewConversationAgent(options = {}) {
     }
   }
 
+  if (shouldHandleAsCurrentArtifactFollowup({
+    context,
+    session: options.session,
+    sessionId: options.sessionId,
+    startsFreshTask,
+    text,
+  })) {
+    return buildAgentFollowupResponse({
+      context,
+      onRuntimeEvent: options.onRuntimeEvent,
+      projectRoot,
+      session: options.session,
+      sessionId: options.sessionId,
+      text,
+    });
+  }
+
   if (options.sessionId && !startsFreshTask && !match.matched) {
     return buildAgentFollowupResponse({
       context,
@@ -527,8 +544,17 @@ function detectMissingBusinessContext(input = {}) {
   const missing = requiredSignals.filter((requirement) => !signals[requirement.signal]).map((requirement) => requirement.label);
   const strongSignalCount = [signals.market, signals.product, signals.inquiry, signals.customerSpecific].filter(Boolean).length;
 
+  if (skill.id === 'cold-email-draft' && !signals.product) {
+    return { missing };
+  }
   if (skill.id === 'cold-email-draft' && strongSignalCount >= 2) {
     return { missing: [] };
+  }
+  if (skill.id === 'customer-followup-plan' && signals.exclusiveAgencyIssue && !signals.product) {
+    return { missing: ['产品或核心卖点'] };
+  }
+  if (skill.id === 'customer-followup-plan' && signals.followupCadenceRequested && !signals.product) {
+    return { missing: ['产品或核心卖点'] };
   }
   if (skill.id === 'customer-followup-plan' && signals.customer && !signals.genericCustomerOnly && signals.currentIssue) {
     return { missing: [] };
@@ -573,7 +599,7 @@ function detectBusinessSignals(text = '') {
   const productPattern = /产品|规格|型号|卖点|报价|价格|底价|moq|起订|小批量|小单|试单|交期|lead\s*time|delivery|样品|sample|包装|付款|账期|赊账|月结|付款条件|付款方式|质量|售后|库存|认证|材质|尺寸|quantity|price|quote|payment\s+terms|credit\s+terms/i;
   const explicitProductPattern = /产品|规格|型号|卖点|包装|库存|认证|材质|尺寸|型号|太阳能|路灯|灯|家具|服装|电池|设备|机器|配件|solar|light|lamp|battery|machine|equipment|product|model|spec/i;
   const inquiryPattern = /询盘|邮件|聊天|客户说|客户问|问了|问|需求|投诉|异议|报价|回复|回信|沉默|订单|inquiry|rfq|reply/i;
-  const currentIssuePattern = /客户(?:说|问|提到|要求|抱怨|投诉|反馈)|问了.+|问.*(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|质量|售后)|投诉|抱怨|异议|沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|卡点|嫌贵|太贵|贵了|价格(?:太)?高|砍价|压价|还价|议价|让价|降价|折扣|报价|价格|底价|moq|起订|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量(?:不行|问题|投诉)?|货有问题|售后|认证|quantity|price|quote|small\s+(?:trial\s+)?order|trial\s+order|too\s+expensive|price\s+too\s+high|discount|payment\s+terms|credit\s+terms|quality\s+(?:issue|complaint|problem)|after[-\s]?sales/i;
+  const currentIssuePattern = /客户(?:说|问|提到|要求|抱怨|投诉|反馈)|问了.+|问.*(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|质量|售后)|投诉|抱怨|异议|沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|卡点|嫌贵|太贵|贵了|价格(?:太)?高|砍价|压价|还价|议价|让价|降价|折扣|报价|价格|底价|moq|起订|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量(?:不行|问题|投诉)?|货有问题|售后|认证|quantity|price|quote|small\s+(?:trial\s+)?order|trial\s+order|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights|too\s+expensive|price\s+too\s+high|discount|payment\s+terms|credit\s+terms|quality\s+(?:issue|complaint|problem)|after[-\s]?sales/i;
   const customerPattern = /采购商|买家|对方|公司|联系人|进口商|批发商|零售商|经销商|代理商|客户(?:名称|类型|是|叫)|客户(?:说|问|提到).+|buyer|customer\s+(?:is|type|name)|client\s+(?:is|type|name)|importer|distributor|wholesaler|retailer/i;
   const quantityPattern = /(?:数量|qty|quantity)\s*[:：]?\s*\d+|\d+\s*(?:套|件|个|箱|台|pcs|pieces|units?|cartons?)/i;
   const priceTermPattern = /(?:单价|底价|目标价|价格|报价)\s*(?:是|为|:|：)?\s*(?:usd|us\$|\$|rmb|¥|人民币|美元|美金)?\s*\d+|\d+(?:\.\d+)?\s*(?:usd|美元|美金|rmb|人民币|元)/i;
@@ -582,12 +608,17 @@ function detectBusinessSignals(text = '') {
     /^(分析|判断)(一下)?(这个|该个|该)?(客户|买家|采购商|客人)(有没有机会成交|优先级|机会|意向)?$/u.test(compact);
   const currentIssue = currentIssuePattern.test(lower);
   const customerActorWithIssue = /客户|买家|采购商|客人|对方|buyer|customer|client/i.test(lower) && currentIssue;
+  const exclusiveAgencyIssue = /独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights/.test(lower);
+  const followupCadenceRequested = /7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|weekly/.test(lower) &&
+    /跟进|回访|节奏|计划|follow[-\s]?up/.test(lower);
 
   return {
     customer: customerPattern.test(lower) || marketPattern.test(lower) || customerActorWithIssue,
     customerSpecific: !genericCustomerOnly && (marketPattern.test(lower) || /[A-Z][A-Za-z0-9&.\s]{2,}/.test(value)),
     genericCustomerOnly,
     currentIssue,
+    exclusiveAgencyIssue,
+    followupCadenceRequested,
     inquiry: inquiryPattern.test(lower),
     market: marketPattern.test(lower),
     priceTerm: priceTermPattern.test(value),
@@ -658,10 +689,44 @@ function detectRiskyAction(text = '') {
   ];
 
   return rules.find((rule) => {
+    if (rule.type === 'external_send' && isChannelDraftOnlyRequest(text)) {
+      return false;
+    }
     const hasKeyword = rule.keywords.some((keyword) => value.includes(keyword));
     const hasPattern = (rule.patterns || []).some((pattern) => pattern.test(value));
     return hasKeyword || hasPattern;
   }) || null;
+}
+
+/**
+ * isChannelDraftOnlyRequest 判断“WhatsApp / 邮件”等渠道词是不是只在描述草稿版本。
+ *
+ * 作用：
+ * - 用户常会说“把第1天话术写成英文 WhatsApp 和邮件两版”，这只是编辑当前产物。
+ * - 这类请求不能因为出现渠道名就被当成外发动作，否则对话会突然停在确认卡。
+ * - 真正包含“发给客户 / 发送 / 外发 / 直接发”的句子仍然需要确认。
+ *
+ * 参数：
+ * - text：用户本轮输入文本。
+ *
+ * 返回值：boolean，true 表示这是渠道草稿或话术版本请求，不是外发动作。
+ * 可能抛出的异常：无。
+ */
+function isChannelDraftOnlyRequest(text = '') {
+  const value = String(text).toLowerCase();
+  const mentionsChannel = /whatsapp|wa\b|邮件|email|mail|站内信|即时消息/.test(value);
+  if (!mentionsChannel) {
+    return false;
+  }
+
+  const asksForDraftVersion = /话术|文案|草稿|模板|版本|两版|多版|改成|写成|整理成|生成[^，。,.!?！？]{0,8}版|subject|标题/.test(value);
+  if (!asksForDraftVersion) {
+    return false;
+  }
+
+  const explicitSendIntent =
+    /外发|直接(?:发|发送)|现在(?:发|发送)|立即(?:发|发送)|马上(?:发|发送)|帮我(?:发|发送)|(?:然后|再|并)?发送(?:给|到)?(?:客户|买家|采购商|客人)?|发出|发(?:送)?给|(?:然后|再|并|直接|现在|立即|马上|帮我)\s*发(?:客户|买家|采购商|客人)|发到|发送到|寄给|send\s+(?:to|email|it|now)|发邮件(?:给|到)/.test(value);
+  return !explicitSendIntent;
 }
 
 function missingArtifactForRiskyAction(input = {}) {
@@ -1966,6 +2031,45 @@ export function buildSkillAgentResponse(input = {}) {
 
 function hasBusinessArtifact(artifact = null) {
   return Boolean(artifact?.name || artifact?.workbookName || artifact?.outputPath);
+}
+
+/**
+ * shouldHandleAsCurrentArtifactFollowup 判断本轮是否应优先续改当前产物。
+ *
+ * 作用：
+ * - 同一线程已经有业务产物时，用户说“继续优化 / 写成两版 / 第1天话术”通常是在改当前材料。
+ * - 这类话可能同时命中“邮件”“草稿”等新任务关键词；如果先跑新 Skill，会让线程突然换产物。
+ * - 这里只识别明确编辑意图，不把“再做一个报价单 / 新客户分析”这类新任务吞掉。
+ *
+ * 参数：
+ * - input.text：用户本轮输入。
+ * - input.sessionId：当前线程 ID。
+ * - input.startsFreshTask：是否明确要求重开或换客户。
+ * - input.context / input.session：用于确认当前线程是否已有 artifact。
+ *
+ * 返回值：boolean，true 表示应走 `buildAgentFollowupResponse()`。
+ * 可能抛出的异常：无。
+ */
+function shouldHandleAsCurrentArtifactFollowup(input = {}) {
+  if (!input.sessionId || input.startsFreshTask) {
+    return false;
+  }
+
+  const artifact = input.context?.artifact || input.session?.context?.artifact || null;
+  if (!hasBusinessArtifact(artifact)) {
+    return false;
+  }
+
+  const value = String(input.text || '').trim().toLowerCase();
+  if (!value) {
+    return false;
+  }
+
+  if (isChannelDraftOnlyRequest(value)) {
+    return true;
+  }
+
+  return /继续|优化|修改|调整|补充|补一句|加一句|增加|删掉|删除|改成|换成|写成|整理成|版本|两版|多版|话术|文案|第\s*\d+\s*天|day\s*\d+|更礼貌|更正式|更短|更强硬|语气/.test(value);
 }
 
 /**

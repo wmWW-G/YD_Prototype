@@ -469,6 +469,7 @@ function buildBusinessDraftMarkdown({ skill, userText }) {
     const signalSentence = signals.concernsChinese.length
       ? buildCustomerFollowupSignalSentence(signals.concernsChinese)
       : '当前信息足以先做推进框架,但不足以给出确定成交结论。应先把客户意向、采购约束和下一步动作拆开处理。';
+    const cadenceSection = buildFollowupCadenceSection({ signals, userText });
 
     return [
       `# ${title}`,
@@ -506,6 +507,7 @@ function buildBusinessDraftMarkdown({ skill, userText }) {
       '3. 高意向客户准备报价区间和样品方案;待澄清客户先发 3 个关键问题。',
       '4. 把确认后的摘要写入客户档案前,需要用户确认。',
       '',
+      ...cadenceSection,
     ].join('\n');
   }
 
@@ -577,7 +579,45 @@ function buildCustomerFollowupSignalSentence(concerns = []) {
   if (concerns.includes('小单/MOQ压力')) {
     return '客户只想小批量试单或低于常规 MOQ,这通常说明需要同时判断客户意向、试单数量、利润和后续放量可能;下一步应说明可接受的起订量、样品或试单政策和升级到正式订单的条件。';
   }
+  if (concerns.includes('独家代理/渠道合作')) {
+    return '客户想做独家代理或渠道合作,这通常说明不能先口头承诺代理权;下一步应先确认区域边界、销量承诺、价格体系和试运行条件,再决定是否进入正式授权谈判。';
+  }
   return `客户已经在问${concerns.join('、')},这通常说明他开始评估供应条件,下一步应先补齐采购约束,再决定是否报价。`;
+}
+
+/**
+ * buildFollowupCadenceSection 根据用户是否明确要跟进节奏生成执行段落。
+ *
+ * 参数：
+ * - signals：已从用户输入里提取出的业务信号对象。
+ * - userText：用户原始输入文本。
+ *
+ * 返回值：Markdown 行数组；没有请求节奏时返回空数组。
+ * 可能抛出的异常：无。
+ */
+function buildFollowupCadenceSection({ signals = {}, userText = '' } = {}) {
+  const lower = String(userText || '').toLowerCase();
+  const wantsSevenDayCadence = /7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|weekly/.test(lower) &&
+    /跟进|回访|节奏|计划|follow[-\s]?up/.test(lower);
+  if (!wantsSevenDayCadence) {
+    return [];
+  }
+
+  const product = signals.productChinese || '该产品';
+  const lowPressureReason = signals.concernsChinese?.includes('客户沉默/未回复')
+    ? '不追问是否下单,先用低压力理由重新打开对话。'
+    : '先用低压力理由确认客户当前优先级。';
+
+  return [
+    '## 7天跟进节奏',
+    '',
+    `- 第1天: 发一条轻量提醒,围绕${product}补充一个有用信息点,${lowPressureReason}`,
+    '- 第3天: 换一个触达理由,补充 1 个客户可能关心的规格、交期、案例或样品选项。',
+    '- 第5天: 给出两个清晰选项,例如继续看资料、确认数量、安排样品或暂缓跟进。',
+    '- 第7天: 做一次收口,说明后续会降低打扰频率,同时留下一个容易回复的问题。',
+    '- 任一节点客户回复后,先记录客户原话,再决定是否报价、发样品或保存到客户档案。',
+    '',
+  ];
 }
 
 function extractBusinessSignals(userText = '') {
@@ -590,6 +630,9 @@ function extractBusinessSignals(userText = '') {
     concerns.push({ chinese: '小单/MOQ压力', english: 'small order/MOQ pressure' });
   } else if (/moq|起订量|最小起订|起订/.test(lower)) {
     concerns.push({ chinese: 'MOQ/起订量', english: 'MOQ' });
+  }
+  if (/独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights/.test(lower)) {
+    concerns.push({ chinese: '独家代理/渠道合作', english: 'exclusive agency/channel partnership' });
   }
   if (/交期|lead\s*time|delivery|发货时间/.test(lower)) {
     concerns.push({ chinese: '交期', english: 'lead time' });
