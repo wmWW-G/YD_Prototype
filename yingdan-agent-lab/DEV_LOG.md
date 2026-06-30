@@ -604,3 +604,27 @@
   - 用户补一句 `他问MOQ和交期，产品是太阳能灯` 后,后端用原始任务 + 补充资料继续同一 session,再生成 `客户推进分析.md`。
   - sub agent 复核指出两个 P1:`有个询盘/有需求` 这类空壳词仍会放行,以及 `询盘 + 回一封邮件` 被开发信抢路由。已修复:客户推进分析现在要求具体卡点/产品信号,询盘回复意图不再被“邮件=开发信”归一化误伤。
   - 新增回归测试覆盖空壳询盘、空壳需求、客户优先级补资料续跑,以及 `客户发来询盘，帮我回一封邮件，产品太阳能路灯` 路由到 `inquiry-reply-draft`。
+- 修正外发确认后的当前产物续改：
+  - 复现问题:当前 session 已有 `客户推进分析.md` 时,用户说 `把第1天话术写成英文 WhatsApp 和邮件两版，然后发送` 会先正确进入外发确认,但确认 `先生成草稿` 后旧逻辑会误路由成新的 `开发信草稿` 缺资料等待态。
+  - 新增红灯测试覆盖该路径:等待确认时不改原文件;确认后必须回到当前 `客户推进分析.md` 追加 Day 1 WhatsApp/Email 草稿、产品语境和外发前确认提醒,并清掉 `pendingConfirmation`。
+  - `buildConfirmationAcceptedResponse()` 的 `external_send` 分支现在会先用原始确认前请求判断是否为当前 artifact follow-up;能续改时走 `buildAgentFollowupResponse()`,只把 kind 包装为 `confirmation-accepted`,不会重新匹配成新草稿任务。
+  - 同步修正标题恢复:如果后端 session 处于确认等待,且 `taskTitle` 只是确认卡标题,确认后同任务续改会回退到上一轮业务任务名,例如 `客户推进分析`,不会继续显示 `外发前需要你确认`。
+  - 已执行 `node --test --test-name-pattern "channel script" server/skill-agent.test.mjs`,4 个测试通过;已执行 `node --test --test-name-pattern "external-send|channel script|natural external-send|confirmation" server/skill-agent.test.mjs`,20 个测试通过;最终执行 `npm test`,185 个测试通过,并执行 `npm run build:web` 通过。
+  - 真实 HTTP 验证通过:`客户已读不回，产品是家具，帮我做一个7天跟进计划` → `把第1天话术写成英文 WhatsApp 和邮件两版，然后发送` → `先生成草稿`,第三步返回 `confirmation-accepted / completed / 客户推进分析`,产物仍为 `客户推进分析.md`,预览包含 Day 1 WhatsApp、Day 1 Email、furniture 和外发前确认提醒。
+- 净化补资料续跑后的业务产物文本：
+  - 复现问题:缺资料等待态为了恢复任务会在内部拼接 `产出类型: ...；补充资料: ...`,外发确认后生成 `询盘回复草稿.md` 时这些内部词会漏进 `任务来源` 和 `用户目标`。
+  - 新增红灯测试 `createSkillRuntime keeps internal resume markers out of business draft artifacts`,要求产物保留 `客户问MOQ和交期`、`产品太阳能路灯` 和英文 solar street lights,但不能出现 `产出类型 / 补充资料 / 原始需求`。
+  - `buildBusinessDraftMarkdown()` 改用展示专用 `sanitizeBusinessVisibleInput()`,只清理写入 Markdown 的摘要;业务信号提取仍读取原始文本,避免丢失产品、MOQ、交期、样品等事实。
+  - 已执行 `node --test --test-name-pattern "business draft|inquiry reply|resume|external-send|channel script|sample|customer follow-up" server/skill-runtime.test.mjs server/skill-agent.test.mjs`,36 个测试通过;最终执行 `npm test`,186 个测试通过,并执行 `npm run build:web` 通过。
+  - 真实 HTTP 验证通过:`客户问MOQ和交期，帮我回一下` → `产品太阳能路灯，发给客户` → `先生成草稿`,第三步返回 `confirmation-accepted / 询盘回复草稿`,预览含 solar street lights、MOQ/lead time,且不含 `产出类型 / 补充资料 / 原始需求`。
+- 净化客户档案保存确认后的公开 payload：
+  - 复现问题:写入客户档案成功后,公开 `context.lastCustomerSave` 会把内部 `memoryPath`、`diaryPath`、`memory.md` 和 `agent-saves.jsonl` 暴露给前台;这不符合新对话只展示业务摘要的规则。
+  - 新增红灯测试 `sanitizeAgentResultForFrontend hides customer memory filesystem paths`,要求公开 result 只保留 `customerSlug` 和 `savedSummary`,并禁止出现本地绝对路径、memory 文件名和 diary 文件名。
+  - `server/agent-message-stream.mjs` 新增 `sanitizeLastCustomerSave()`,统一净化 `context.lastCustomerSave`;后端 session 文件仍可保留内部路径用于排查,但 HTTP/SSE/session restore 不返回。
+- 修正保存确认后的任务标题污染：
+  - 复现问题:当前任务是 `客户推进分析` 时,用户说 `保存到客户档案` 会进入 `写入客户档案前需要确认`;确认写入后即时 result 可能退成 `本次外贸任务`,恢复 session 也可能停在确认卡标题。
+  - 新增红灯测试 `agent session store keeps business task title after a confirmation is accepted`,要求确认卡标题不能覆盖上一轮业务标题。
+  - `server/agent-session-store.mjs` 新增确认标题过滤逻辑,保存 `confirmation-accepted` 后优先保留上一轮业务 taskTitle。
+  - `server/skill-agent.mjs` 的 `customer_write` 确认分支现在用当前 artifact 和 session 上下文恢复业务标题,例如 `客户推进分析`,不再返回 `本次外贸任务`。
+  - 保存确认成功后的即时 result 和助手消息也继续带当前 artifact 摘要,前台文件卡不会因为确认成功而短暂丢失。
+  - 已执行 `node --test server/agent-session-store.test.mjs server/agent-message-stream.test.mjs server/skill-agent.test.mjs`,106 个测试通过;最终执行 `npm test`,188 个测试通过,并执行 `npm run build:web` 通过。

@@ -1507,6 +1507,40 @@ async function buildConfirmationAcceptedResponse(input = {}) {
 
   if (pendingConfirmation.type === 'external_send') {
     const draftText = buildDraftTextFromConfirmation(pendingConfirmation);
+    const continuationText = buildTaskTextFromConfirmation(pendingConfirmation) || draftText;
+    const contextWithoutPendingConfirmation = clearPendingConfirmation(input.context);
+    if (shouldHandleAsCurrentArtifactFollowup({
+      context: contextWithoutPendingConfirmation,
+      session: input.session,
+      sessionId: input.sessionId,
+      startsFreshTask: false,
+      text: continuationText,
+    })) {
+      const response = await buildAgentFollowupResponse({
+        context: contextWithoutPendingConfirmation,
+        onRuntimeEvent: input.onRuntimeEvent,
+        projectRoot: input.projectRoot,
+        session: input.session,
+        sessionId: input.sessionId,
+        text: continuationText,
+      });
+      const responseContext = clearPendingConfirmation(response.context);
+
+      return {
+        ...response,
+        kind: response.kind === 'followup' ? 'confirmation-accepted' : response.kind,
+        context: responseContext,
+        messages: response.messages.map((message) => {
+          if (message.role !== 'assistant') {
+            return message;
+          }
+          return {
+            ...message,
+            content: `已确认,我只生成可检查草稿,不会自动外发。\n${message.content}`,
+          };
+        }),
+      };
+    }
     const draftMatch = input.registry ? matchSkillForGoal({ registry: input.registry, text: draftText }) : { matched: false };
     if (draftMatch.matched) {
       const missingContext = detectMissingBusinessContext({ match: draftMatch, text: draftText });
@@ -1611,13 +1645,21 @@ async function buildConfirmationAcceptedResponse(input = {}) {
     const now = new Date().toISOString();
     const summary = `已确认保存。${saved.message}。`;
     const { pendingConfirmation: _clearedPendingConfirmation, ...confirmedContext } = input.context || {};
+    const taskTitle = resolveFollowupTaskTitle({
+      artifactName: confirmedContext.artifact?.name || confirmedContext.artifact?.workbookName || '',
+      context: confirmedContext,
+      session: input.session,
+    });
+    const artifact = confirmedContext.artifact || input.session?.context?.artifact;
 
     return {
       ok: true,
       kind: 'confirmation-accepted',
       sessionId: input.sessionId || createAgentSessionId(),
       status: 'completed',
+      taskTitle,
       summary,
+      ...(artifact ? { artifact } : {}),
       context: {
         ...confirmedContext,
         customerSlug: saved.customerSlug,
@@ -1638,6 +1680,7 @@ async function buildConfirmationAcceptedResponse(input = {}) {
             '我只保存摘要、依据和下一步,没有外发内容,也没有调用付费能力。',
           ].join('\n'),
           createdAt: now,
+          ...(artifact ? { artifact } : {}),
         },
       ],
     };
@@ -1664,6 +1707,24 @@ async function buildConfirmationAcceptedResponse(input = {}) {
       },
     ],
   };
+}
+
+/**
+ * clearPendingConfirmation 从上下文里移除等待确认状态。
+ *
+ * 作用：
+ * - 用户确认“只生成草稿”后,线程应该回到可继续工作的业务上下文。
+ * - 不能把旧 pendingConfirmation 继续带回前端,否则下一句话会再次被当成同一个确认卡的补充。
+ *
+ * 参数：
+ * - context：当前线程上下文对象,可能包含 artifact、period、pendingTask、pendingConfirmation。
+ *
+ * 返回值：新的上下文对象；保留业务上下文,只删除 pendingConfirmation。
+ * 可能抛出的异常：无。
+ */
+function clearPendingConfirmation(context = {}) {
+  const { pendingConfirmation: _pendingConfirmation, ...contextWithoutPendingConfirmation } = context || {};
+  return contextWithoutPendingConfirmation;
 }
 
 function buildTaskTextFromConfirmation(pendingConfirmation = {}) {
@@ -2094,6 +2155,11 @@ export async function buildAgentFollowupResponse(input = {}) {
   const artifact = context.artifact || {};
   const period = context.period || {};
   const artifactName = artifact.name || artifact.workbookName || '上一份业务产物';
+  const taskTitle = resolveFollowupTaskTitle({
+    artifactName,
+    context,
+    session: input.session,
+  });
   const periodText = period.start && period.end ? `${period.start} ~ ${period.end}` : '上一轮执行周期';
   const question = String(input.text || '').trim() || '继续追问';
   await emitFollowupProgress(input.onRuntimeEvent, {
@@ -2154,6 +2220,7 @@ export async function buildAgentFollowupResponse(input = {}) {
     kind: responseKind,
     sessionId: input.sessionId || createAgentSessionId(),
     status: responseStatus,
+    taskTitle,
     artifact: responseArtifact,
     context: responseArtifact ? { ...context, artifact: responseArtifact } : context,
     progress,
@@ -2183,6 +2250,74 @@ export async function buildAgentFollowupResponse(input = {}) {
       },
     ],
   };
+}
+
+/**
+ * resolveFollowupTaskTitle 为同任务追问保留业务任务标题。
+ *
+ * 作用：
+ * - 用户正在续改产物时,顶部标题应该保持“客户推进分析 / 开发信草稿”这类业务任务。
+ * - 文件名属于产物卡和续接提示,不能把 `客户推进分析.md` 直接当成线程标题。
+ * - 没有 session 标题时,用产物名去掉常见扩展名兜底。
+ *
+ * 参数：
+ * - input.artifactName：当前产物名,例如 `客户推进分析.md`。
+ * - input.context：当前线程上下文,可能由前端或后端恢复。
+ * - input.session：后端读取的完整 session,优先从这里沿用 taskTitle。
+ *
+ * 返回值：用户可见的业务任务标题。
+ * 可能抛出的异常：无。
+ */
+function resolveFollowupTaskTitle(input = {}) {
+  const session = input.session || {};
+  const context = input.context || {};
+  const sessionTitle = session.taskTitle || '';
+  const latestConfirmationTitle = latestSessionConfirmationTitle(session);
+  const sessionTitleIsConfirmation = Boolean(
+    session.kind === 'confirmation-required' &&
+    sessionTitle &&
+    latestConfirmationTitle &&
+    sessionTitle === latestConfirmationTitle
+  );
+  const title =
+    (sessionTitleIsConfirmation ? '' : sessionTitle) ||
+    context.taskTitle ||
+    session.skillAgentResult?.taskTitle ||
+    '';
+  if (title) {
+    return title;
+  }
+
+  return stripArtifactExtension(input.artifactName) || '同任务追问';
+}
+
+/**
+ * latestSessionConfirmationTitle 读取 session 中最近一次确认卡标题。
+ *
+ * 参数：
+ * - session：后端保存的新对话 session。
+ *
+ * 返回值：最近确认卡的标题；没有确认卡时返回空字符串。
+ * 可能抛出的异常：无。
+ */
+function latestSessionConfirmationTitle(session = {}) {
+  return [...(session.messages || [])]
+    .reverse()
+    .find((message) => message?.confirmation?.title)
+    ?.confirmation?.title || '';
+}
+
+/**
+ * stripArtifactExtension 去掉常见业务产物扩展名。
+ *
+ * 参数：
+ * - name：产物文件名。
+ *
+ * 返回值：不带扩展名的显示标题。
+ * 可能抛出的异常：无。
+ */
+function stripArtifactExtension(name = '') {
+  return String(name || '').replace(/\.(?:md|markdown|txt|csv|xlsx)$/i, '').trim();
 }
 
 /**

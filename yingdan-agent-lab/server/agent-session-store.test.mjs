@@ -174,6 +174,103 @@ test('agent session store writes a readable JSON file with the latest artifact s
   }
 });
 
+test('agent session store keeps business task title after a confirmation is accepted', async () => {
+  const fixture = await withSessionStore();
+
+  try {
+    const sessionId = 'agent-session-20260629T121200-title-confirm';
+    const artifact = {
+      type: 'markdown',
+      name: '客户推进分析.md',
+      outputPath: '/tmp/客户推进分析.md',
+    };
+
+    await fixture.store.saveTurn({
+      sessionId,
+      userText: '客户已读不回，产品是家具，帮我做一个7天跟进计划',
+      response: {
+        ok: true,
+        kind: 'goal-run',
+        sessionId,
+        status: 'completed',
+        taskTitle: '客户推进分析',
+        artifact,
+        messages: [
+          {
+            id: 'assistant-followup-plan',
+            role: 'assistant',
+            content: '已生成客户推进分析。',
+            createdAt: '2026-06-29T12:12:00.000Z',
+            artifact,
+          },
+        ],
+      },
+    });
+
+    await fixture.store.saveTurn({
+      sessionId,
+      userText: '保存到客户档案',
+      response: {
+        ok: true,
+        kind: 'confirmation-required',
+        sessionId,
+        status: 'waiting',
+        taskTitle: '写入客户档案前需要确认',
+        context: {
+          artifact,
+          pendingConfirmation: {
+            title: '写入客户档案前需要确认',
+            type: 'customer_write',
+          },
+        },
+        messages: [
+          {
+            id: 'assistant-save-confirm',
+            role: 'assistant',
+            content: '写入客户档案前需要确认。',
+            createdAt: '2026-06-29T12:13:00.000Z',
+          },
+        ],
+      },
+    });
+
+    await fixture.store.saveTurn({
+      sessionId,
+      userText: '确认写入',
+      response: {
+        ok: true,
+        kind: 'confirmation-accepted',
+        sessionId,
+        status: 'completed',
+        context: {
+          artifact,
+          customerSlug: 'global-sourcing-inc',
+          lastCustomerSave: {
+            customerSlug: 'global-sourcing-inc',
+            savedSummary: '客户推进分析',
+          },
+        },
+        messages: [
+          {
+            id: 'assistant-save-done',
+            role: 'assistant',
+            content: '已确认保存。',
+            createdAt: '2026-06-29T12:14:00.000Z',
+          },
+        ],
+      },
+    });
+
+    const session = await fixture.store.read(sessionId);
+
+    assert.equal(session.taskTitle, '客户推进分析');
+    assert.equal(session.skillAgentResult.taskTitle, '客户推进分析');
+    assert.equal(session.context.lastCustomerSave.savedSummary, '客户推进分析');
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('agent session store ignores stale pending confirmation after a completed confirmation turn', async () => {
   const fixture = await withSessionStore();
 

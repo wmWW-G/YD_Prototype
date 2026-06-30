@@ -239,17 +239,48 @@ function toStoredAgentResult(response = {}) {
  * 可能抛出的异常：无。
  */
 function pickTaskTitle(response = {}, previous = {}) {
+  const responseTitle = isConfirmationOnlyTitle(response) ? '' : response.taskTitle;
+  const previousTitle = isConfirmationOnlyTitle(previous) ? '' : previous.taskTitle;
   return (
-    response.taskTitle ||
+    responseTitle ||
     response.context?.pendingTask?.skillName ||
-    previous.taskTitle ||
     previous.skillAgentResult?.taskTitle ||
+    previousTitle ||
     response.artifact?.workbookName ||
     response.artifact?.name ||
     previous.artifact?.workbookName ||
     previous.artifact?.name ||
     ''
   );
+}
+
+/**
+ * isConfirmationOnlyTitle 判断一个标题是否只是确认卡标题。
+ *
+ * 作用：
+ * - 保存、导出、外发、扣费确认可以临时显示为线程标题。
+ * - 但一旦确认完成,session 应恢复业务任务标题,例如“客户推进分析”。
+ * - 这个 helper 避免把“写入客户档案前需要确认”持久化成业务任务名。
+ *
+ * 参数：
+ * - value：response 或 previous session。
+ *
+ * 返回值：boolean，true 表示 taskTitle 只是确认动作标题。
+ * 可能抛出的异常：无。
+ */
+function isConfirmationOnlyTitle(value = {}) {
+  const title = value.taskTitle || '';
+  if (!title) {
+    return false;
+  }
+  if (value.kind !== 'confirmation-required') {
+    return false;
+  }
+  const confirmationTitle =
+    value.context?.pendingConfirmation?.title ||
+    [...(value.messages || [])].reverse().find((message) => message?.confirmation?.title)?.confirmation?.title ||
+    '';
+  return Boolean(confirmationTitle && title === confirmationTitle);
 }
 
 function messageId(role) {

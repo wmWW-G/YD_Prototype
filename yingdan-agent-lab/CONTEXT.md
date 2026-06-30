@@ -123,6 +123,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 成功执行的公开主进度必须从 `识别任务` 开始,然后是 `核对资料 / 拆解任务 / 生成材料 / 检查结果`;不能只在折叠活动流里出现任务识别。
 - 对外 Agent payload 会先净化:前台接口只返回 `taskTitle`、业务化进度、消息、产物摘要和上下文摘要,不暴露 `goal/loop/plan/skillId/runId/mode`、真实 `outputPath/manifestPath` 或 `goal.classify/action.execute` 这类内部 runtime 名。
 - 即时 Agent result 只返回助手消息;用户消息由前端用用户原始输入本地追加。后端为了续接任务拼出的 `产出类型: ...；补充资料: ...` 这类内部恢复文本不能进入公开 result messages,否则前台会像在展示系统拼接记录而不是自然 agent thread。刷新恢复时再从 session store 返回真实用户消息。
+- 业务产物本身也不能泄露内部恢复文本:Markdown 里的 `任务来源 / 用户目标 / 用户补充` 应还原成自然业务资料,不能出现 `产出类型`、`补充资料`、`原始需求` 这类 Runtime 拼接痕迹。比如缺产品等待后,用户补 `产品太阳能路灯，发给客户`,确认只生成草稿后,`询盘回复草稿.md` 的任务来源应类似 `客户问MOQ和交期，帮我回一下；产品太阳能路灯，发给客户`。
 - `GET /api/agent/session/:sessionId` 是前台恢复接口,也必须返回净化 session;后端 session 文件可以保留真实路径和 pendingConfirmation,但 HTTP 恢复 payload 不返回这些内部执行字段。
 - `server/agent-artifact-preview.mjs` 和 `GET /api/agent/session/:sessionId/artifact`:只允许预览当前 session 绑定的 `workbench/artifacts/` 产物;Markdown 草稿/客户分析可在前台线程内打开,XLSX 返回工作簿摘要。
 - XLSX 的 `查看文件` 不能只提示“表格文件已生成”;预览 payload 至少要包含工作表数量、sheet 名、行数和列数,让用户能在 agent thread 里确认真实产物结构。
@@ -139,6 +140,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 保存、外发、导出这类口语动作必须优先识别为风险/确认动作,不能被同任务追问吞掉。用户说 `保存一下`、`保存当前`、`保存当前文件`、`保存起来` 时,没有当前产物就提示先生成可保存材料;已有产物就进入 `写入客户档案前需要确认`。只有保存表达里明确带 `桌面`、`下载` 或 `导出` 时才走导出确认。
 - 外发确认不是绕过资料 gate 的通行证:用户说“发给客户”“发给德国客户”“发送给这个买家”“发到某个采购商”等带外发含义的说法时先停在确认卡;确认“先生成草稿”后,如果原始请求仍缺客户、产品或目标市场,继续返回 `needs-input`,不生成泛泛开发信。
 - 外发确认后必须保留原始业务意图:如果原始请求是 `客户发来询盘,帮我回一封邮件发给客户,产品太阳能路灯`,确认 `先生成草稿` 后应生成 `询盘回复草稿.md`,不能因为确认动作里出现“邮件/草稿”就改路由成 `开发信草稿.md`。
+- 外发确认后如果原始请求是在续改当前产物,必须回到同一份 artifact 继续处理。例如当前已有 `客户推进分析.md`,用户说 `把第1天话术写成英文 WhatsApp 和邮件两版，然后发送` 时先进入外发确认;确认 `先生成草稿` 后应在当前 `客户推进分析.md` 里追加 Day 1 WhatsApp/Email 草稿和外发前确认提醒,不能改路由成新的 `开发信草稿.md`,也不能丢失当前产物上下文。
 - 缺资料等待态里补充的话如果带外发动作,也必须先停在外发确认,并且确认后继续原来的 pending task。比如先说 `客户问MOQ和交期，帮我回一下` 后,系统追问产品资料;用户补 `产品太阳能路灯，发给客户` 时应先返回 `外发前需要你确认`;确认 `先生成草稿` 后仍生成 `询盘回复草稿.md`,不能丢掉上一轮客户问题或改成开发信。
 - 确认等待态要听懂自然口语:用户说 `可以，先生成草稿`、`好的，确认导出` 这类带确认前缀且包含当前动作的话,应视为确认;用户说 `先不要生成草稿`、`不用导出文件` 这类否定当前动作的话,应视为取消。不能因为一句话里包含 `生成草稿` 就把否定句误当确认,也不能把 `不要太正式`、`不要写成草稿格式，正式一点` 这类内容调整误当取消。
 - 用户把确认和补资料写在同一句里时,补充资料必须进入同一次恢复任务。例如 `可以，产品是太阳能路灯，先生成草稿` 应确认外发前只生成草稿,同时把 `产品是太阳能路灯` 并入本次询盘回复任务,不能确认后又追问产品资料。
@@ -155,6 +157,8 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 付费确认不是任务终点:用户确认 `确认继续` 后,后端必须用原始请求和确认期间 supplements 继续匹配业务任务;资料足够时继续生成客户分析、邮件草稿、报价单等产物,资料不足时回到 `needs-input`。不能只回复一句“已确认”就结束。
 - `server/agent-customer-memory.mjs`:写入客户档案确认后,只把当前 session 绑定产物的摘要写入 `workbench/customers/<customerSlug>/memory.md`,并追加 `diary/agent-saves.jsonl`。
 - 保存确认成功后会清掉 `pendingConfirmation`,但保留 artifact、customerSlug 和 lastCustomerSave;用户再补一句「继续优化」会进入同任务 follow-up,不会重复保存。
+- 保存确认成功后的公开 `context.lastCustomerSave` 只能包含客户标识和可读摘要,不能把 `memoryPath`、`diaryPath`、`memory.md`、`agent-saves.jsonl` 或任何本地绝对路径返回给前台;后端 session 文件和内部日志可以保留排查用路径,但 HTTP result、SSE result 和 session 恢复 payload 必须净化。
+- 保存、导出、外发等确认卡标题只是暂停点标题,不能污染业务任务标题。比如 `客户推进分析.md` 生成后用户说 `保存到客户档案`,确认卡可显示 `写入客户档案前需要确认`;用户确认写入后,即时 result 和 `GET /api/agent/session/:sessionId` 恢复标题都应回到 `客户推进分析`,不能变成 `本次外贸任务` 或继续停在确认卡标题。
 
 `server/skill-agent.mjs` 现在只负责新对话的任务线程包装、同任务追问和前台响应格式,不再直接写死单个 Alibaba runner。
 
@@ -377,7 +381,7 @@ npm run acceptance:alibaba-inquiry-meeting:real
 继续输入追问后,页面应沿用同一次任务,并提示不会重新采集 Alibaba 只读数据
 流式接口验收: `POST /api/agent/message/stream` 应先返回多段 progress,首个可见步骤必须是 `识别任务`,例如 识别任务、确认任务类型、核对资料、拆解任务、生成材料、检查结果,最后返回 result
 普通成功 result 的 `progress` 和助手消息 `process.steps` 应包含 `识别任务 / 核对资料 / 拆解任务 / 生成材料 / 检查结果`
-对外 payload 验收:普通 JSON、SSE result、session 恢复和 artifact preview 不应包含 `goal/loop/plan/skillId/runId/mode` 顶层字段,也不应包含 `outputPath/manifestPath`、`skill-runtime`、`goal.classify/action.execute/artifact.verify` 这类内部名
+对外 payload 验收:普通 JSON、SSE result、session 恢复和 artifact preview 不应包含 `goal/loop/plan/skillId/runId/mode` 顶层字段,也不应包含 `outputPath/manifestPath`、`memoryPath/diaryPath`、`memory.md/agent-saves.jsonl`、`skill-runtime`、`goal.classify/action.execute/artifact.verify` 这类内部名或本地绝对路径
 ```
 
 新对话缺资料 gate 验收:
@@ -458,6 +462,8 @@ npm run acceptance:alibaba-inquiry-meeting:real
 输入: 确认写入
 → 追加 workbench/customers/global-sourcing-inc/memory.md 和 diary/agent-saves.jsonl
 → session context 不再保留 pendingConfirmation
+→ 公开 result 和 session 恢复 payload 里的 lastCustomerSave 只保留 customerSlug 和 savedSummary,不暴露 memoryPath、diaryPath、本地绝对路径、memory.md 或 agent-saves.jsonl
+→ 即时 result.taskTitle 和 GET /api/agent/session/:sessionId 恢复标题仍为 客户推进分析,不能变成 本次外贸任务 或 写入客户档案前需要确认
 输入: 继续优化一下下一步动作
 → 返回同任务 follow-up,不会重复写客户 memory
 输入: 导出文件

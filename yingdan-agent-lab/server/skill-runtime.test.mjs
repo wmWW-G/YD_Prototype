@@ -379,6 +379,33 @@ test('createSkillRuntime carries product and sample intent into inquiry reply ar
   }
 });
 
+test('createSkillRuntime keeps internal resume markers out of business draft artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '帮我准备一封询盘回复草稿。原始需求: 产出类型: 询盘回复草稿；补充资料: 客户问MOQ和交期，帮我回一下；补充资料: 产品太阳能路灯，发给客户',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'inquiry-reply-draft');
+    assert.match(content, /客户问MOQ和交期/);
+    assert.match(content, /产品太阳能路灯/);
+    assert.match(content, /solar street lights/);
+    assert.doesNotMatch(content, /产出类型/);
+    assert.doesNotMatch(content, /补充资料/);
+    assert.doesNotMatch(content, /原始需求/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime keeps sample wording out of extracted product names', async () => {
   const fixture = await withRegistryProject();
 

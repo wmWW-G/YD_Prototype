@@ -404,7 +404,7 @@ function createQuotationSheetAdapter() {
 }
 
 function buildBusinessDraftMarkdown({ skill, userText }) {
-  const cleanInput = sanitizeMarkdownText(userText || '用户未补充具体资料');
+  const cleanInput = sanitizeBusinessVisibleInput(userText || '用户未补充具体资料');
   const generatedAt = new Date().toISOString();
   const title = skill.displayName || skill.id;
   const signals = extractBusinessSignals(userText);
@@ -894,6 +894,37 @@ function sanitizeMarkdownText(value) {
     .replace(/\n{3,}/g, '\n\n')
     .trim()
     .slice(0, 1200);
+}
+
+/**
+ * sanitizeBusinessVisibleInput 清理写进业务产物的用户输入摘要。
+ *
+ * 作用：
+ * - Runtime 为了恢复 waiting / confirmation 会在内部拼接 `产出类型` 和 `补充资料`。
+ * - 这些词属于系统恢复痕迹,不能出现在 Markdown 产物的「任务来源 / 用户目标」里。
+ * - 这里只清理展示文本;业务信号提取仍然读取原始 userText,避免丢失产品、MOQ、交期等事实。
+ *
+ * 参数：
+ * - value：Runtime 收到的原始任务文本,可能包含内部恢复标记。
+ *
+ * 返回值：用户能理解的业务输入摘要。
+ * 可能抛出的异常：无。
+ */
+function sanitizeBusinessVisibleInput(value) {
+  let text = sanitizeMarkdownText(value || '用户未补充具体资料');
+
+  text = text
+    .replace(/^帮我准备一封(?:询盘回复草稿|跟进开发信)。原始需求:\s*/u, '')
+    .replace(/^产出类型\s*[:：]\s*[^；;。\n]+[；;]\s*/u, '')
+    .replace(/(^|[；;]\s*)补充资料\s*[:：]\s*/gu, (match) => {
+      const hasLeadingSeparator = /^[；;]/u.test(match.trimStart());
+      return hasLeadingSeparator ? '；' : '';
+    })
+    .replace(/[；;]\s*[；;]+/gu, '；')
+    .replace(/^[；;\s]+|[；;\s]+$/gu, '')
+    .trim();
+
+  return text || '用户未补充具体资料';
 }
 
 /**

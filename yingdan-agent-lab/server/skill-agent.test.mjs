@@ -2322,6 +2322,86 @@ test('runNewConversationAgent still asks before sending drafted channel script v
   }
 });
 
+test('runNewConversationAgent resumes current artifact after confirming draft-only channel scripts', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-channel-script-confirm-resume-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '客户推进分析.md');
+  const sessionId = 'agent-session-20260630T170000-channel-confirm-resume';
+  const artifactContext = {
+    type: 'markdown',
+    name: '客户推进分析.md',
+    outputPath: artifactPath,
+  };
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(
+      artifactPath,
+      [
+        '# 客户推进分析',
+        '',
+        '## 依据',
+        '',
+        '- 产品: 家具',
+        '- 客户关注点: 客户沉默/未回复',
+        '',
+        '## 7天跟进节奏',
+        '',
+        '- 第1天: 发一条轻量提醒。',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const first = await runNewConversationAgent({
+      text: '把第1天话术写成英文 WhatsApp 和邮件两版，然后发送',
+      sessionId,
+      context: { artifact: artifactContext },
+      session: { context: { artifact: artifactContext } },
+      registry: createEmailAndFollowupRegistry(),
+      projectRoot,
+    });
+    const afterWaiting = await readFile(artifactPath, 'utf8');
+
+    const second = await runNewConversationAgent({
+      text: '先生成草稿',
+      sessionId,
+      context: first.context,
+      session: {
+        context: first.context,
+        kind: first.kind,
+        messages: first.messages,
+        skillAgentResult: {
+          taskTitle: '客户推进分析',
+        },
+        taskTitle: first.taskTitle,
+      },
+      registry: createEmailAndFollowupRegistry(),
+      projectRoot,
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+
+    assert.equal(first.ok, true);
+    assert.equal(first.kind, 'confirmation-required');
+    assert.equal(first.status, 'waiting');
+    assert.equal(first.context.pendingConfirmation.type, 'external_send');
+    assert.equal(afterWaiting.includes('Day 1 WhatsApp'), false);
+
+    assert.equal(second.ok, true);
+    assert.equal(second.kind, 'confirmation-accepted');
+    assert.equal(second.status, 'completed');
+    assert.equal(second.taskTitle, '客户推进分析');
+    assert.equal(second.context.pendingConfirmation, undefined);
+    assert.equal(second.artifact.name, '客户推进分析.md');
+    assert.match(second.messages[0].content, /不会自动外发/);
+    assert.match(updated, /Day 1 WhatsApp/);
+    assert.match(updated, /Day 1 Email/);
+    assert.match(updated, /furniture/i);
+    assert.match(updated, /外发前仍需确认/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('runNewConversationAgent does not treat customer development wording as sending drafted channel scripts', async () => {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-channel-script-customer-development-'));
   const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
@@ -2713,6 +2793,10 @@ test('runNewConversationAgent exports the current artifact only after confirmati
       context: first.context,
       session: {
         sessionId: first.sessionId,
+        taskTitle: '客户推进分析',
+        skillAgentResult: {
+          taskTitle: '客户推进分析',
+        },
         context: {
           artifact: {
             type: 'markdown',
@@ -2971,9 +3055,12 @@ test('runNewConversationAgent saves current artifact summary to customer memory 
     assert.equal(first.context.pendingConfirmation.type, 'customer_write');
     assert.equal(second.ok, true);
     assert.equal(second.kind, 'confirmation-accepted');
+    assert.equal(second.taskTitle, '客户推进分析');
+    assert.equal(second.artifact.name, '客户推进分析.md');
     assert.equal(second.context.customerSlug, 'global-sourcing-inc');
     assert.equal(Object.hasOwn(second.context, 'pendingConfirmation'), false);
     assert.equal(second.context.artifact.name, '客户推进分析.md');
+    assert.equal(second.messages[0].artifact.name, '客户推进分析.md');
     assert.match(second.messages[0].content, /已确认保存/);
     assert.match(memory, /Agent 保存: 客户推进分析/);
     assert.match(memory, /先确认MOQ和交期/);

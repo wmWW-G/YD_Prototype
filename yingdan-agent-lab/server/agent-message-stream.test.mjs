@@ -294,6 +294,32 @@ test('sanitizeAgentResultForFrontend keeps structured missing inputs for the age
   assert.equal(JSON.stringify(result).includes('cold-email-draft'), false);
 });
 
+test('sanitizeAgentResultForFrontend hides customer memory filesystem paths', () => {
+  const result = sanitizeAgentResultForFrontend({
+    ok: true,
+    kind: 'confirmation-accepted',
+    sessionId: 'agent-session-20260630T140000-save',
+    status: 'completed',
+    context: {
+      customerSlug: 'global-sourcing-inc',
+      lastCustomerSave: {
+        customerSlug: 'global-sourcing-inc',
+        diaryPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/customers/global-sourcing-inc/diary/agent-saves.jsonl',
+        memoryPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/customers/global-sourcing-inc/memory.md',
+        savedSummary: '客户推进分析',
+      },
+    },
+  });
+
+  assert.deepEqual(result.context.lastCustomerSave, {
+    customerSlug: 'global-sourcing-inc',
+    savedSummary: '客户推进分析',
+  });
+  assert.equal(JSON.stringify(result).includes('/Users/garden'), false);
+  assert.equal(JSON.stringify(result).includes('memory.md'), false);
+  assert.equal(JSON.stringify(result).includes('agent-saves.jsonl'), false);
+});
+
 test('sanitizeAgentResultForFrontend does not expose internal resumed user text in immediate results', () => {
   const result = sanitizeAgentResultForFrontend({
     ok: true,

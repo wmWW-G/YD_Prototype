@@ -477,9 +477,33 @@ function sanitizeContext(context = null) {
   return compactObject({
     artifact: sanitizeArtifact(context.artifact),
     customerSlug: context.customerSlug,
-    lastCustomerSave: context.lastCustomerSave,
+    lastCustomerSave: sanitizeLastCustomerSave(context.lastCustomerSave),
     pendingTask: sanitizePendingTask(context.pendingTask),
     period: context.period,
+  });
+}
+
+/**
+ * sanitizeLastCustomerSave 清理客户档案写入结果。
+ *
+ * 作用：
+ * - 后端 session 里需要保存 memoryPath / diaryPath 方便排查。
+ * - 前台只需要知道保存到了哪个客户和保存摘要,不能看到本机文件路径。
+ *
+ * 参数：
+ * - save：saveAgentArtifactToCustomerMemory 返回的 lastCustomerSave。
+ *
+ * 返回值：前台可见的保存摘要；没有保存结果时返回 undefined。
+ * 可能抛出的异常：无。
+ */
+function sanitizeLastCustomerSave(save = null) {
+  if (!save || typeof save !== 'object') {
+    return undefined;
+  }
+
+  return compactObject({
+    customerSlug: safeDisplayText(save.customerSlug),
+    savedSummary: safeDisplayText(save.savedSummary),
   });
 }
 
