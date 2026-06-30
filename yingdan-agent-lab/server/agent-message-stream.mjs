@@ -198,7 +198,27 @@ export function buildRecoverableAgentErrorResult(input = {}) {
   const sessionId = normalizeAgentSessionId(input.sessionId) || createAgentSessionId();
   const userText = String(input.userText || '').trim();
   const createdAt = new Date().toISOString();
-  const progress = [
+  const typedEvaluatorFailure = isTypedEvaluatorFailure(input.error);
+  const progress = typedEvaluatorFailure ? [
+    {
+      detail: '已收到这次外贸任务。',
+      label: '识别任务',
+      phase: '识别',
+      status: 'complete',
+    },
+    {
+      detail: '检查结果没有通过,我已先停下,避免交付可能误导的材料。',
+      label: '检查结果',
+      phase: '检查',
+      status: 'error',
+    },
+    {
+      detail: '可以补充资料、换一种要求,或让我重新生成更稳妥的材料。',
+      label: '等待补充',
+      phase: '检查',
+      status: 'waiting',
+    },
+  ] : [
     {
       detail: '已收到这次外贸任务。',
       label: '识别任务',
@@ -218,10 +238,15 @@ export function buildRecoverableAgentErrorResult(input = {}) {
       status: 'waiting',
     },
   ];
-  const content = [
-    '我这一步处理卡住了,所以没有继续编造结果。',
-    '可以直接补充资料、换一种说法,或告诉我要生成邮件草稿、客户分析、跟进计划还是表格,我会接着这次任务继续处理。',
-  ].join(' ');
+  const content = typedEvaluatorFailure
+    ? [
+        '检查结果没有通过,我没有继续交付这份材料。',
+        '可以补充资料、换一种要求,或让我重新生成更稳妥的版本,我会接着这次任务继续处理。',
+      ].join(' ')
+    : [
+        '我这一步处理卡住了,所以没有继续编造结果。',
+        '可以直接补充资料、换一种说法,或告诉我要生成邮件草稿、客户分析、跟进计划还是表格,我会接着这次任务继续处理。',
+      ].join(' ');
 
   return {
     ok: true,
@@ -229,13 +254,13 @@ export function buildRecoverableAgentErrorResult(input = {}) {
     sessionId,
     status: 'waiting',
     summary: content,
-    taskTitle: '本次外贸任务',
+    taskTitle: typedEvaluatorFailure ? '检查结果需要处理' : '本次外贸任务',
     progress,
     context: {
       pendingTask: {
-        missing: ['更多业务资料或更明确的产物要求'],
+        missing: typedEvaluatorFailure ? ['补充资料、调整要求或重新生成材料'] : ['更多业务资料或更明确的产物要求'],
         originalText: userText,
-        reason: 'agent_recoverable_error',
+        reason: typedEvaluatorFailure ? 'artifact_check_failed' : 'agent_recoverable_error',
       },
     },
     messages: [
@@ -261,14 +286,18 @@ export function buildRecoverableAgentErrorResult(input = {}) {
               title: '识别任务',
             },
             {
-              detail: '没有继续执行可能产生误导结果的步骤。',
-              phase: '执行',
+              detail: typedEvaluatorFailure
+                ? '检查结果没有通过,没有继续交付可能误导的材料。'
+                : '没有继续执行可能产生误导结果的步骤。',
+              phase: typedEvaluatorFailure ? '检查' : '执行',
               status: 'error',
-              title: '处理卡住',
+              title: typedEvaluatorFailure ? '检查结果' : '处理卡住',
             },
             {
-              detail: '等待用户补充资料后继续同一次任务。',
-              phase: '执行',
+              detail: typedEvaluatorFailure
+                ? '等待用户补充资料、调整要求或重新生成。'
+                : '等待用户补充资料后继续同一次任务。',
+              phase: typedEvaluatorFailure ? '检查' : '执行',
               status: 'waiting',
               title: '等待补充',
             },
@@ -277,6 +306,10 @@ export function buildRecoverableAgentErrorResult(input = {}) {
       },
     ],
   };
+}
+
+function isTypedEvaluatorFailure(error = null) {
+  return /typed evaluator rejected|TYPED_EVALUATOR_REJECTED/i.test(String(error?.message || error || ''));
 }
 
 const progressMap = {
@@ -328,6 +361,10 @@ const progressMap = {
     label: '检查结果',
     detail: '正在检查产物是否可以交付。',
   },
+  'artifact.typed_evaluated': {
+    label: '检查结果',
+    detail: '正在检查产物是否可以交付。',
+  },
   'run.completed': {
     label: '完成',
     detail: '这次任务已经处理到可交付状态。',
@@ -349,6 +386,12 @@ function detailForEvent(event = {}, fallback = '') {
   }
   if (event.type === 'artifact.verified' && event.status === 'failed') {
     return '产物检查没有通过,需要修正后才能交付。';
+  }
+  if (event.type === 'artifact.typed_evaluated' && event.status === 'failed') {
+    return '检查结果没有通过,我已先停下,避免交付可能误导的材料。';
+  }
+  if (event.type === 'artifact.typed_evaluated' && event.status !== 'failed') {
+    return '已核对产物结构、业务依据和交付条件。';
   }
   if (event.type === 'artifact.verified' && event.validation?.evidence?.coverage === 'complete') {
     return '已核对产物里的业务依据和用户事实覆盖。';
@@ -397,6 +440,7 @@ function phaseLabelForEvent(event = {}) {
 function phaseForRuntimeEventType(type = '') {
   const map = {
     'action.executed': 'executing',
+    'artifact.typed_evaluated': 'validating',
     'artifact.verified': 'validating',
     'goal.received': 'preflight',
     'observation.recorded': 'executing',

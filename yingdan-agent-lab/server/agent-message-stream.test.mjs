@@ -57,6 +57,32 @@ test('runtimeEventToStreamEvent exposes user-facing phase labels instead of runt
   assert.equal(JSON.stringify(event.data).includes('skill-runtime-20260630-120000-phase'), false);
 });
 
+test('runtimeEventToStreamEvent turns typed evaluator failures into a check-result progress step', () => {
+  const event = runtimeEventToStreamEvent({
+    phase: 'validating',
+    status: 'failed',
+    type: 'artifact.typed_evaluated',
+    reasons: ['XLSX 文件未通过存在性校验', 'evidence ledger 缺少分区:coverage'],
+    checks: {
+      hasManifestPath: false,
+    },
+    runId: 'skill-runtime-20260630-typed-failure',
+  });
+
+  assert.deepEqual(event, {
+    event: 'progress',
+    data: {
+      detail: '检查结果没有通过,我已先停下,避免交付可能误导的材料。',
+      label: '检查结果',
+      phase: '检查',
+      status: 'error',
+    },
+  });
+  assert.equal(JSON.stringify(event).includes('artifact.typed_evaluated'), false);
+  assert.equal(JSON.stringify(event).includes('skill-runtime-20260630-typed-failure'), false);
+  assert.equal(JSON.stringify(event).includes('evidence ledger'), false);
+});
+
 test('createInitialAgentStreamProgress starts the visible loop with task recognition', () => {
   const progress = createInitialAgentStreamProgress();
 
@@ -192,6 +218,46 @@ test('buildRecoverableAgentErrorResult turns stream failures into a waiting task
   assert.equal(payloadText.includes('skill-runtime-20260629'), false);
   assert.equal(payloadText.includes('action.execute'), false);
   assert.equal(payloadText.includes('Raw runtime stack'), false);
+});
+
+test('buildRecoverableAgentErrorResult explains typed evaluator failures as a check-result pause', async () => {
+  const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
+
+  const result = buildRecoverableAgentErrorResult({
+    error: new Error('typed evaluator rejected alibaba-inquiry-meeting artifact: XLSX 文件未通过存在性校验; evidence ledger 缺少分区:coverage'),
+    sessionId: 'agent-session-typed-evaluator',
+    userText: '帮我开上周询盘分析会',
+  });
+  const publicResult = sanitizeAgentResultForFrontend(result);
+  const payloadText = JSON.stringify(publicResult);
+
+  assert.equal(publicResult.ok, true);
+  assert.equal(publicResult.kind, 'needs-input');
+  assert.equal(publicResult.status, 'waiting');
+  assert.equal(publicResult.taskTitle, '检查结果需要处理');
+  assert.deepEqual(publicResult.progress.map((item) => item.label), ['识别任务', '检查结果', '等待补充']);
+  assert.deepEqual(publicResult.progress.map((item) => item.phase), ['识别', '检查', '检查']);
+  assert.match(publicResult.messages[0].content, /检查结果没有通过/);
+  assert.match(publicResult.messages[0].content, /没有继续交付/);
+  assert.equal(payloadText.includes('typed evaluator'), false);
+  assert.equal(payloadText.includes('alibaba-inquiry-meeting'), false);
+  assert.equal(payloadText.includes('evidence ledger'), false);
+});
+
+test('buildRecoverableAgentErrorResult does not treat incidental typed evaluator mentions as check failures', async () => {
+  const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
+
+  const result = buildRecoverableAgentErrorResult({
+    error: new Error('stream parser failed while reading artifact.typed_evaluated event'),
+    sessionId: 'agent-session-incidental-typed-event',
+    userText: '帮我开上周询盘分析会',
+  });
+  const publicResult = sanitizeAgentResultForFrontend(result);
+
+  assert.equal(publicResult.taskTitle, '本次外贸任务');
+  assert.deepEqual(publicResult.progress.map((item) => item.label), ['识别任务', '处理卡住', '等待补充']);
+  assert.match(publicResult.messages[0].content, /我这一步处理卡住了/);
+  assert.doesNotMatch(publicResult.messages[0].content, /检查结果没有通过/);
 });
 
 test('sanitizeAgentResultForFrontend removes raw runtime fields from public agent payloads', () => {

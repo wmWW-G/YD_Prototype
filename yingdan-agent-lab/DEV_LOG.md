@@ -698,3 +698,8 @@
   - 追加红灯测试 `runAlibabaInquiryMeetingReal routes missing manifest through typed evaluator failure`,确保缺 manifest 也统一写 `artifact.typed_evaluated / run.failed`,不会被 evidence ledger 写入前置校验截胡。
   - `server/alibaba-real-runner.mjs` 在写 `evidence-ledger.json` 前先追加 `artifact.typed_evaluated`,检查 XLSX validation、evidence ledger 必需分区、字段完整性和内部词泄漏;失败时写 `run.failed / TYPED_EVALUATOR_REJECTED` 并抛错,不会落 ledger 或 `run.completed`。
   - 已执行 `node --test server/alibaba-real-runner.test.mjs`,6 个测试通过。
+- 把 typed evaluator 失败翻译成前台业务化检查暂停：
+  - 新增红灯测试 `runtimeEventToStreamEvent turns typed evaluator failures into a check-result progress step`,要求 `artifact.typed_evaluated / failed` 只展示 `检查结果`,不暴露 typed evaluator、skill-runtime 或 evidence ledger。
+  - 新增红灯测试 `buildRecoverableAgentErrorResult explains typed evaluator failures as a check-result pause`,要求 HTTP/SSE 兜底 result 保持 `waiting`,标题为 `检查结果需要处理`,内容说明“检查结果没有通过,没有继续交付”,不再泛化成 `处理卡住`。
+  - `server/agent-message-stream.mjs` 新增 typed evaluator 失败识别、SSE progress 映射和 recoverable result 专用文案。
+  - 已执行 `node --test server/agent-message-stream.test.mjs`,20 个测试通过。

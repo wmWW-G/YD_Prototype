@@ -253,7 +253,7 @@ Skill Adapter
 `Skill Runner`
 
 - 负责统一执行 Skill Runtime loop。
-- 当前固定链路是 `goal.received -> skill.matched -> skill.loaded -> plan.created -> policy.checked -> action.executed -> observation.recorded -> evidence.added -> artifact.verified -> run.completed`。
+- 当前成功链路是 `goal.received -> skill.matched -> skill.loaded -> plan.created -> policy.checked -> action.executed -> observation.recorded -> evidence.added -> artifact.verified/artifact.typed_evaluated(passed) -> run.completed`;如果 `artifact.typed_evaluated` 失败,必须走 `run.failed` 并在前台翻译成 `检查结果` 暂停。
 - 每轮都会写 append-only run log,供前台操作记录和同任务追问读取。
 - `business-draft` 这类 Markdown 业务产物会在产物目录写内部 `evidence-ledger.json`;普通 mock artifact 不强制写 evidence ledger。
 
@@ -1485,7 +1485,7 @@ XLSX 禁止包含：
 npm run acceptance:alibaba-inquiry-meeting:real
 ```
 
-2026-06-27 已跑通一次 `real-bridge` 验收：周期 `2026-06-15 ~ 2026-06-21`，`tool.called=38`，`tool.degraded=0`，产物在 `workbench/artifacts/alibaba-inquiry-meeting-real/alibaba-inquiry-meeting/询盘分析会_2026-06-15_2026-06-21.xlsx`。2026-06-30 已补上同目录内部 `evidence-ledger.json`,由 coverage、priority inquiries、common issues 和 corrective actions 生成,并在 run log 写入 `evidence.added`。同日继续补上最小 typed evaluator:`artifact.typed_evaluated` 会检查 XLSX validation、evidence ledger 分区、字段完整性和内部词泄漏,失败时写 `run.failed` 而不是 `run.completed`。
+2026-06-27 已跑通一次 `real-bridge` 验收：周期 `2026-06-15 ~ 2026-06-21`，`tool.called=38`，`tool.degraded=0`，产物在 `workbench/artifacts/alibaba-inquiry-meeting-real/alibaba-inquiry-meeting/询盘分析会_2026-06-15_2026-06-21.xlsx`。2026-06-30 已补上同目录内部 `evidence-ledger.json`,由 coverage、priority inquiries、common issues 和 corrective actions 生成,并在 run log 写入 `evidence.added`。同日继续补上最小 typed evaluator:`artifact.typed_evaluated` 会检查 XLSX validation、evidence ledger 分区、字段完整性和内部词泄漏,失败时写 `run.failed` 而不是 `run.completed`;前台只显示业务化 `检查结果` 暂停,不暴露 typed evaluator 或 evidence ledger 术语。
 
 ```text
 Runtime API 能创建 run
