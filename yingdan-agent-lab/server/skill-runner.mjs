@@ -467,7 +467,7 @@ function buildBusinessDraftMarkdown({ skill, userText }) {
 
   if (skill.id === 'customer-followup-plan') {
     const signalSentence = signals.concernsChinese.length
-      ? `客户已经在问${signals.concernsChinese.join('、')},这通常说明他开始评估供应条件,下一步应先补齐采购约束,再决定是否报价。`
+      ? buildCustomerFollowupSignalSentence(signals.concernsChinese)
       : '当前信息足以先做推进框架,但不足以给出确定成交结论。应先把客户意向、采购约束和下一步动作拆开处理。';
 
     return [
@@ -558,6 +558,13 @@ function buildBusinessDraftMarkdown({ skill, userText }) {
   ].join('\n');
 }
 
+function buildCustomerFollowupSignalSentence(concerns = []) {
+  if (concerns.includes('客户沉默/未回复')) {
+    return '客户暂时未回复,这通常说明需要调整跟进节奏和触达理由;下一步应先补齐客户背景、上次沟通内容和可推进的低压力话题。';
+  }
+  return `客户已经在问${concerns.join('、')},这通常说明他开始评估供应条件,下一步应先补齐采购约束,再决定是否报价。`;
+}
+
 function extractBusinessSignals(userText = '') {
   const text = String(userText || '');
   const lower = text.toLowerCase();
@@ -569,11 +576,17 @@ function extractBusinessSignals(userText = '') {
   if (/交期|lead\s*time|delivery|发货时间/.test(lower)) {
     concerns.push({ chinese: '交期', english: 'lead time' });
   }
+  if (/砍价|压价|还价|议价|让价|降价|折扣|discount|price\s+cut|price\s+reduction/.test(lower)) {
+    concerns.push({ chinese: '议价/折扣压力', english: 'price negotiation pressure' });
+  }
   if (/价格|报价|price|target price/.test(lower)) {
     concerns.push({ chinese: '价格/报价', english: 'pricing' });
   }
   if (/样品|sample/.test(lower)) {
     concerns.push({ chinese: '样品', english: 'samples' });
+  }
+  if (/沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|no\s+reply|not\s+replying|no\s+response/.test(lower)) {
+    concerns.push({ chinese: '客户沉默/未回复', english: 'customer silence/no reply' });
   }
   if (/认证|certification|certificate|ce|fda/.test(lower)) {
     concerns.push({ chinese: '认证', english: 'certification' });

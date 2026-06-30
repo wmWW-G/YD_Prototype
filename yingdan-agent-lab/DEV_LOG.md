@@ -2,6 +2,18 @@
 
 ## 2026-06-30
 
+- 继续补「新对话」的客户沉默/未回复口语:
+  - 复现问题:`客户已读不回，产品是家具，怎么跟` 会落到泛泛 `needs-input / 本次外贸任务`;`买家一直没回复，产品太阳能灯，下一步怎么办` 虽能匹配客户推进,但仍误追问当前卡点。
+  - 已修复:`已读不回 / 没回复 / 未回复 / 不回复 / 不回消息 / 不回信 / 没回 / 怎么跟` 会进入客户推进分析;`客户/买家/采购商/客人/对方 + 未回复卡点` 会被视为具体客户对象。
+  - 产物层同步补强:客户推进分析会把这类输入提炼成 `客户关注点: 客户沉默/未回复`,不能只藏在任务来源里。
+  - 新增回归测试 `runNewConversationAgent treats read-with-no-reply as a concrete customer follow-up issue`、`runNewConversationAgent treats no-reply wording as a concrete customer follow-up issue` 和 `createSkillRuntime carries no-reply status into customer follow-up artifacts`。
+
+- 继续补「新对话」的外贸议价口语:
+  - 复现问题:`客户砍价，产品是家具，怎么谈`、`买家要折扣，产品是太阳能灯，怎么谈` 会落到泛泛 `needs-input / 本次外贸任务`,或者进入客户推进后还误追问客户类型。
+  - 已修复:`怎么谈 / 谈判 / 砍价 / 压价 / 还价 / 议价 / 让价 / 降价 / 折扣` 会归一化到客户推进分析;`客户/客人/买家/采购商/对方 + 明确议价卡点` 会被视为具体客户对象,但泛泛 `帮我判断这个客户优先级` 仍继续等待补询盘、聊天记录或当前卡点。
+  - 产物层同步补强:客户推进分析会把 `砍价 / 折扣 / 降价` 提炼成 `客户关注点: 议价/折扣压力`,不能只把这些事实藏在任务来源里。
+  - 新增回归测试 `runNewConversationAgent treats haggling as a concrete customer negotiation issue`、`runNewConversationAgent treats discount pressure as a concrete customer negotiation issue` 和 `createSkillRuntime carries negotiation pressure into customer follow-up artifacts`,确保这类口语直接生成可读的 `客户推进分析.md`。
+
 - 继续收紧「新对话」的缺资料 gate:
   - 复现问题:`客户要报价，帮我做报价单` 会进入报价单等待态,但漏问 `产品资料`,因为后端把 `报价/价格` 这类任务意图词也算成了产品上下文。
   - 已修复:报价单现在使用更严格的 `quoteProduct` 信号;只有真的出现产品、规格、型号或具体品类时才算产品资料。单独出现 `报价/价格` 只代表报价任务意图,不能冒充产品。

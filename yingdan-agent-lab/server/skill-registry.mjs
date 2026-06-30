@@ -258,7 +258,7 @@ function normalizeGoalText(text = '') {
   if (/buyer|客户|买家|采购商|客人|对方/.test(lower)) {
     additions.push('客户');
   }
-  if (/next step|下一步|咋办|怎么办|怎么推进|推进|跟下去|跟进|回访|优先跟/.test(lower)) {
+  if (/next step|下一步|咋办|怎么办|怎么推进|怎么谈|怎么跟|谈判|推进|跟下去|跟进|回访|优先跟|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|砍价|压价|还价|议价|让价|降价|折扣/.test(lower)) {
     additions.push('下一步推进分析');
   }
   if (/客户分析|客户画像|优先级|机会|意向|成交|判断/.test(lower)) {

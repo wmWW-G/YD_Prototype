@@ -402,6 +402,56 @@ test('createSkillRuntime keeps sample wording out of extracted product names', a
   }
 });
 
+test('createSkillRuntime carries negotiation pressure into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户砍价，产品是家具，怎么谈',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.match(content, /产品: 家具/);
+    assert.match(content, /客户关注点: 议价\/折扣压力/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime carries no-reply status into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户已读不回，产品是家具，怎么跟',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.match(content, /产品: 家具/);
+    assert.match(content, /客户关注点: 客户沉默\/未回复/);
+    assert.match(content, /客户暂时未回复|客户处于沉默状态/);
+    assert.doesNotMatch(content, /客户已经在问客户沉默\/未回复/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime generates a validated XLSX quotation sheet when quote terms are complete', async () => {
   const fixture = await withRegistryProject();
 
