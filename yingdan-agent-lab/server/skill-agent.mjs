@@ -2637,18 +2637,19 @@ async function reviseCurrentArtifactIfPossible(input = {}) {
 function buildProgress(result) {
   const steps = result.loop?.steps || [];
   const labels = [
-    ['goal.classify', '识别任务'],
-    ['skill.load', '核对资料'],
-    ['plan.create', '拆解任务'],
-    ['action.execute', '生成材料'],
-    ['artifact.verify', '检查结果'],
+    ['goal.classify', '识别任务', '识别'],
+    ['skill.load', '核对资料', '核对资料'],
+    ['plan.create', '拆解任务', '拆步骤'],
+    ['action.execute', '生成材料', '执行'],
+    ['artifact.verify', '检查结果', '检查'],
   ];
 
-  return labels.map(([action, label]) => {
+  return labels.map(([action, label, fallbackPhase]) => {
     const step = steps.find((item) => item.action === action);
     return {
       label,
       detail: humanProgressDetail(action, step?.detail),
+      phase: humanRuntimePhase(step?.phase) || fallbackPhase,
       status: step?.status || 'pending',
     };
   });
@@ -2691,6 +2692,7 @@ function buildSummary({ artifact, period, result, runtimeResult, skill, toolSumm
 function buildActivityStream(input = {}) {
   const loopItems = (input.loop?.steps || []).map((step) => ({
     kind: activityKindForAction(step.action),
+    phase: humanRuntimePhase(step.phase) || humanPhaseForAction(step.action),
     title: humanActivityTitle(step.action, step.title),
     detail: humanActivityDetail(step.action, step.detail),
     nextAction: humanNextAction(step.nextAction),
@@ -2704,6 +2706,55 @@ function buildActivityStream(input = {}) {
     source: 'skill-runtime-loop',
     items: loopItems,
   };
+}
+
+/**
+ * humanRuntimePhase 把 Runtime phase key 翻译成公开中文阶段。
+ *
+ * 作用：
+ * - Runtime 和 run log 可以保留机器阶段名。
+ * - 前台消息、活动流和进度条只显示用户看得懂的短标签。
+ *
+ * 参数：
+ * - phase：内部阶段 key。
+ *
+ * 返回值：中文阶段标签；无法识别时返回空字符串。
+ * 可能抛出的异常：无。
+ */
+function humanRuntimePhase(phase = '') {
+  const map = {
+    assembling_context: '核对资料',
+    committing: '收尾',
+    executing: '执行',
+    planning: '拆步骤',
+    preflight: '识别',
+    validating: '检查',
+  };
+  return map[phase] || '';
+}
+
+/**
+ * humanPhaseForAction 为没有 phase 的旧 loop step 补公开阶段。
+ *
+ * 参数：
+ * - action：Runtime loop action。
+ *
+ * 返回值：中文阶段标签。
+ * 可能抛出的异常：无。
+ */
+function humanPhaseForAction(action = '') {
+  const map = {
+    'action.execute': '执行',
+    'artifact.verify': '检查',
+    finish: '收尾',
+    'goal.classify': '识别',
+    'observation.record': '执行',
+    'plan.create': '拆步骤',
+    'policy.confirm': '执行',
+    'skill.load': '核对资料',
+    'skill.match': '识别',
+  };
+  return map[action] || '';
 }
 
 function humanActivityTitle(action, fallback = '') {

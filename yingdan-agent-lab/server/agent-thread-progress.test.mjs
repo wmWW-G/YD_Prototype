@@ -43,3 +43,21 @@ test('mergeStreamingProgressItem updates only the latest same-label progress ste
   ]);
   assert.equal(items.at(-1).status, 'pending');
 });
+
+test('mergeStreamingProgressItem preserves user-facing runtime phase labels', () => {
+  const items = mergeStreamingProgressItem([], {
+    detail: '已核对产物里的业务依据和用户事实覆盖。',
+    label: '检查结果',
+    phase: '检查',
+    status: 'complete',
+  });
+
+  assert.deepEqual(items, [
+    {
+      detail: '已核对产物里的业务依据和用户事实覆盖。',
+      label: '检查结果',
+      phase: '检查',
+      status: 'complete',
+    },
+  ]);
+});

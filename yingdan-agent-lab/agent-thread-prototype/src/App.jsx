@@ -2362,6 +2362,7 @@ function ActivityStream({ items }) {
           </span>
           <div>
             <span className="activity-kind">{formatActivityKind(item.kind)}</span>
+            {item.phase ? <span className="progress-phase">{item.phase}</span> : null}
             <strong>{item.title}</strong>
             <p>{item.detail}</p>
             {item.observation || item.nextAction ? (
@@ -2389,12 +2390,13 @@ function ActivityStream({ items }) {
 function ExecutionProcess({ steps }) {
   return (
     <div className="progress-strip skill-progress-strip">
-      {steps.map((item) => (
-        <div className={`progress-step ${item.status}`} key={item.label}>
+      {steps.map((item, index) => (
+        <div className={`progress-step ${item.status}`} key={`${item.label}-${item.phase || 'step'}-${index}`}>
           <span className="progress-dot" aria-hidden="true">
             {item.status === 'complete' ? <Check size={12} /> : null}
           </span>
           <div>
+            {item.phase ? <span className="progress-phase">{item.phase}</span> : null}
             <strong>{item.label}</strong>
             <span>{item.detail}</span>
           </div>

@@ -194,6 +194,19 @@ test('New Conversation uses shared progress merging for repeated labels', async 
   assert.equal(source.includes('setStreamingProgressItems((items) => mergeStreamingProgressItem(items, data))'), true);
 });
 
+test('New Conversation renders user-facing runtime phase labels in progress steps', async () => {
+  const source = await readFile(appSourcePath, 'utf8');
+  const styles = await readFile(appStylesPath, 'utf8');
+  const activitySource = await readFunctionSource('ActivityStream');
+  const processSource = await readFunctionSource('ExecutionProcess');
+
+  assert.equal(processSource.includes('item.phase ? <span className="progress-phase">{item.phase}</span> : null'), true);
+  assert.equal(activitySource.includes('item.phase ? <span className="progress-phase">{item.phase}</span> : null'), true);
+  assert.equal(processSource.includes("key={`${item.label}-${item.phase || 'step'}-${index}`}"), true);
+  assert.equal(styles.includes('.progress-phase'), true);
+  assert.equal(processSource.includes('key={item.label}'), false);
+});
+
 test('New Conversation keeps paid-action confirmation guidance visible while progress is streaming', async () => {
   const threadSource = await readNewConversationSource();
   const runningStart = threadSource.indexOf('{isRunning ? (');

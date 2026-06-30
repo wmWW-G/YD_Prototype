@@ -46,6 +46,9 @@ export function mergeStreamingProgressItem(items = [], data = {}) {
     label: data.label,
     status: normalizeStreamingProgressStatus(data.status),
   };
+  if (data.phase) {
+    nextItem.phase = data.phase;
+  }
   const lastIndex = items.length - 1;
   const shouldUpdateLastItem = lastIndex >= 0 && items[lastIndex].label === nextItem.label;
 

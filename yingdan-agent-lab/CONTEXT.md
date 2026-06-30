@@ -109,7 +109,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - Markdown 产物续改:用户已生成 `开发信草稿.md`、`客户推进分析.md` 这类文本产物后,再补一句“语气更礼貌一点 / 加一句可以寄样品”,后端会安全更新同一份 `workbench/artifacts/` 产物,而不是重开任务或只返回摘要。
 - 已有产物的同线程明显改稿请求必须优先于新任务路由:如果当前 session 有 `客户推进分析.md`、`开发信草稿.md` 等 artifact,用户再说 `继续 / 优化 / 修改 / 改成 / 写成 / 两版 / 第1天话术 / 补一句`,应先按当前产物 follow-up 处理。只有用户明确说 `新任务 / 重新开始 / 另一个客户 / 再做一个报价单` 或输入不带改稿意图的完整新目标,才重新匹配新的 Skill。
 - XLSX 产物续改:用户已生成 `询盘分析会.xlsx`、`报价单.xlsx` 这类表格产物后,再补一句“按负责人补一列下周动作 / 加一列有效期30天”,后端会在同一任务下生成一份 `已续改` 修订版 XLSX,保留原工作表并新增 `本次追问` sheet;原文件不被覆盖,修订版必须通过 Runtime XLSX 校验。公开 `taskTitle`、artifact 名和消息内容必须使用 `报价单-已续改-*.xlsx` 这类业务友好名称,不能暴露 `quotation-sheet`、`skill-runtime` 等内部文件名。
-- `server/agent-message-stream.mjs` 和 `POST /api/agent/message/stream`:把 Runtime 真实 run events 翻译成 `progress` SSE 事件,前端运行中气泡会逐步显示“识别任务 / 核对资料 / 生成材料 / 检查结果”,最后收到 `result` 再落正式 Agent 回复。
+- `server/agent-message-stream.mjs` 和 `POST /api/agent/message/stream`:把 Runtime 真实 run events 翻译成 `progress` SSE 事件,前端运行中气泡会逐步显示“识别任务 / 核对资料 / 生成材料 / 检查结果”,最后收到 `result` 再落正式 Agent 回复。公开 progress 可以带 `phase`,但必须是 `识别 / 核对资料 / 拆步骤 / 执行 / 检查 / 收尾` 这类中文短标签,不能把 `preflight / validating` 等内部 phase key 暴露给业务用户。
 - `artifact.verified` 对 Markdown 业务产物不再只是检查文件非空;Runtime 会生成机器可读 `validation.evidence`,核对产物是否包含依据段、用户来源、产品、客户/市场、关注点、数量、价格、贸易条款、付款条件、样品计划和下一步动作。SSE 的 `检查结果` 在 evidence 通过时显示 `已核对产物里的业务依据和用户事实覆盖`,失败时阻止任务完成。
 - SSE 展示层会合并连续重复的 progress,例如多个内部 `policy.checked` 只展示一次 `核对权限`;后台 run log 仍保留完整审计事件。
 - 前端实时进度合并只允许“连续同名步骤”更新同一步,例如 `识别任务 running → 识别任务 complete`;非连续同名步骤必须保留为新阶段,例如先核对产物权限,生成材料后再核对保存权限。不能按 label 全局覆盖,否则后面的确认步骤会被挪到前面旧位置。
@@ -386,7 +386,7 @@ npm run acceptance:alibaba-inquiry-meeting:real
 操作记录每一步应来自真实 Runtime 事件,不是执行结束后拼静态文案
 继续输入追问后,页面应沿用同一次任务,并提示不会重新采集 Alibaba 只读数据
 流式接口验收: `POST /api/agent/message/stream` 应先返回多段 progress,首个可见步骤必须是 `识别任务`,例如 识别任务、确认任务类型、核对资料、拆解任务、生成材料、检查结果,最后返回 result
-普通成功 result 的 `progress` 和助手消息 `process.steps` 应包含 `识别任务 / 核对资料 / 拆解任务 / 生成材料 / 检查结果`
+普通成功 result 的 `progress` 和助手消息 `process.steps` 应包含 `识别任务 / 核对资料 / 拆解任务 / 生成材料 / 检查结果`,并保留用户可见中文 `phase` 标签用于前台回看
 对外 payload 验收:普通 JSON、SSE result、session 恢复和 artifact preview 不应包含 `goal/loop/plan/skillId/runId/mode` 顶层字段,也不应包含 `outputPath/manifestPath`、`memoryPath/diaryPath`、`memory.md/agent-saves.jsonl`、`skill-runtime`、`goal.classify/action.execute/artifact.verify` 这类内部名或本地绝对路径
 历史列表验收:`GET /api/agent/sessions` 应按 updatedAt 倒序返回最近任务摘要;前台 `历史` 面板显示 `最近任务`,可点击恢复对应线程;列表和恢复 payload 不展示本地路径、runId、checkpointPath、runLogPath 或 outputPath
 ```

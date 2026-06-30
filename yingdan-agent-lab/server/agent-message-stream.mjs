@@ -33,6 +33,7 @@ export function createInitialAgentStreamProgress() {
   return {
     detail: '正在理解这次外贸任务要完成什么。',
     label: '识别任务',
+    phase: '识别',
     status: 'running',
   };
 }
@@ -63,6 +64,7 @@ export function runtimeEventToStreamEvent(event = {}) {
     data: {
       detail: detailForEvent(event, mapped.detail),
       label: mapped.label,
+      phase: phaseLabelForEvent(event),
       status: normalizeProgressStatus(status),
     },
   };
@@ -200,16 +202,19 @@ export function buildRecoverableAgentErrorResult(input = {}) {
     {
       detail: '已收到这次外贸任务。',
       label: '识别任务',
+      phase: '识别',
       status: 'complete',
     },
     {
       detail: '执行过程中有一步没有完成,我先停下来避免继续编造结果。',
       label: '处理卡住',
+      phase: '执行',
       status: 'error',
     },
     {
       detail: '可以直接补充资料、换一种说法,或指定要生成的产物。',
       label: '等待补充',
+      phase: '执行',
       status: 'waiting',
     },
   ];
@@ -251,16 +256,19 @@ export function buildRecoverableAgentErrorResult(input = {}) {
           items: [
             {
               detail: '已记录用户交代的任务。',
+              phase: '识别',
               status: 'complete',
               title: '识别任务',
             },
             {
               detail: '没有继续执行可能产生误导结果的步骤。',
+              phase: '执行',
               status: 'error',
               title: '处理卡住',
             },
             {
               detail: '等待用户补充资料后继续同一次任务。',
+              phase: '执行',
               status: 'waiting',
               title: '等待补充',
             },
@@ -351,6 +359,61 @@ function detailForEvent(event = {}, fallback = '') {
   return fallback;
 }
 
+/**
+ * phaseLabelForEvent 把 Runtime phase 转成前台可见的短阶段。
+ *
+ * 作用：
+ * - Runtime 内部使用 preflight / validating 这类机器阶段名。
+ * - 前台只展示“识别 / 核对资料 / 执行 / 检查”等业务用户能扫读的阶段。
+ *
+ * 参数：
+ * - event：Runtime 事件对象。
+ *
+ * 返回值：中文阶段标签；无法识别时返回空字符串。
+ * 可能抛出的异常：无。
+ */
+function phaseLabelForEvent(event = {}) {
+  const phase = event.phase || phaseForRuntimeEventType(event.type);
+  const labels = {
+    assembling_context: '核对资料',
+    committing: '收尾',
+    executing: '执行',
+    planning: '拆步骤',
+    preflight: '识别',
+    validating: '检查',
+  };
+  return labels[phase] || '';
+}
+
+/**
+ * phaseForRuntimeEventType 为旧事件或手写测试事件补齐 Runtime 阶段。
+ *
+ * 参数：
+ * - type：Runtime 事件类型。
+ *
+ * 返回值：内部阶段 key；仅在本文件内转换为中文后再公开。
+ * 可能抛出的异常：无。
+ */
+function phaseForRuntimeEventType(type = '') {
+  const map = {
+    'action.executed': 'executing',
+    'artifact.verified': 'validating',
+    'goal.received': 'preflight',
+    'observation.recorded': 'executing',
+    'plan.created': 'planning',
+    'policy.checked': 'executing',
+    'run.checkpointed': 'executing',
+    'run.completed': 'committing',
+    'run.failed': 'committing',
+    'run.needs_input': 'executing',
+    'run.resumed': 'executing',
+    'run.waiting': 'executing',
+    'skill.loaded': 'assembling_context',
+    'skill.matched': 'preflight',
+  };
+  return map[type] || '';
+}
+
 function normalizeProgressStatus(status) {
   if (status === 'waiting') {
     return 'waiting';
@@ -409,6 +472,7 @@ function sanitizeProgressItems(items = []) {
   return items.map((item) => compactObject({
     detail: scrubInternalToken(item.detail),
     label: scrubInternalToken(item.label),
+    phase: sanitizeProgressPhase(item.phase),
     status: normalizeProgressStatus(item.status),
   }));
 }
@@ -445,6 +509,7 @@ function sanitizeActivityItem(item = {}) {
     kind: scrubInternalToken(item.kind),
     nextAction: nextAction && nextAction !== item.nextAction ? nextAction : safeDisplayText(nextAction),
     observation: observation && observation !== item.observation ? observation : safeDisplayText(observation),
+    phase: sanitizeProgressPhase(item.phase),
     status: normalizeProgressStatus(item.status),
     title: scrubInternalToken(item.title),
   });
@@ -635,6 +700,28 @@ function createAgentSessionId() {
 function normalizeAgentSessionId(sessionId) {
   const value = String(sessionId || '').trim();
   return /^agent-session-[A-Za-z0-9T_-]+$/.test(value) ? value : '';
+}
+
+/**
+ * sanitizeProgressPhase 清理公开进度里的阶段标签。
+ *
+ * 作用：
+ * - 接收来自最终 result / session 的 progress.phase。
+ * - 如果误传了 Runtime 内部 phase key,先翻译成中文；如果是未知机器词,直接丢弃。
+ *
+ * 参数：
+ * - phase：待公开的阶段值。
+ *
+ * 返回值：中文阶段标签或空字符串。
+ * 可能抛出的异常：无。
+ */
+function sanitizeProgressPhase(phase = '') {
+  const value = scrubInternalToken(String(phase || '').trim());
+  const publicLabels = new Set(['识别', '核对资料', '拆步骤', '执行', '检查', '收尾']);
+  if (publicLabels.has(value)) {
+    return value;
+  }
+  return phaseLabelForEvent({ phase: value });
 }
 
 function messageId(role) {

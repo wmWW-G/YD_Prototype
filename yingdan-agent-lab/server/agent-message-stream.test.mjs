@@ -21,6 +21,7 @@ test('formatSseEvent writes a standards-compatible SSE event', () => {
 
 test('runtimeEventToStreamEvent turns Runtime events into business progress language', () => {
   const event = runtimeEventToStreamEvent({
+    phase: 'preflight',
     type: 'goal.received',
     runId: 'skill-runtime-20260629-180000-stream',
     status: 'complete',
@@ -31,9 +32,29 @@ test('runtimeEventToStreamEvent turns Runtime events into business progress lang
     data: {
       detail: '正在理解这次外贸任务要完成什么。',
       label: '识别任务',
+      phase: '识别',
       status: 'complete',
     },
   });
+});
+
+test('runtimeEventToStreamEvent exposes user-facing phase labels instead of runtime phase keys', () => {
+  const event = runtimeEventToStreamEvent({
+    phase: 'validating',
+    runId: 'skill-runtime-20260630-120000-phase',
+    status: 'complete',
+    type: 'artifact.verified',
+    validation: {
+      evidence: {
+        coverage: 'complete',
+      },
+    },
+  });
+
+  assert.equal(event.event, 'progress');
+  assert.equal(event.data.phase, '检查');
+  assert.equal(JSON.stringify(event.data).includes('validating'), false);
+  assert.equal(JSON.stringify(event.data).includes('skill-runtime-20260630-120000-phase'), false);
 });
 
 test('createInitialAgentStreamProgress starts the visible loop with task recognition', () => {
@@ -42,6 +63,7 @@ test('createInitialAgentStreamProgress starts the visible loop with task recogni
   assert.deepEqual(progress, {
     detail: '正在理解这次外贸任务要完成什么。',
     label: '识别任务',
+    phase: '识别',
     status: 'running',
   });
   assert.equal(JSON.stringify(progress).includes('收到任务'), false);
@@ -88,6 +110,7 @@ test('runtimeEventToStreamEvent turns missing input waits into a business progre
     data: {
       detail: '还缺: 客户名称或客户类型、产品或核心卖点。请补充后我再继续。',
       label: '等待补充',
+      phase: '执行',
       status: 'waiting',
     },
   });
@@ -109,6 +132,7 @@ test('runtimeEventToStreamEvent surfaces business evidence checks in result veri
     data: {
       detail: '已核对产物里的业务依据和用户事实覆盖。',
       label: '检查结果',
+      phase: '检查',
       status: 'complete',
     },
   });
@@ -158,6 +182,9 @@ test('buildRecoverableAgentErrorResult turns stream failures into a waiting task
   assert.equal(publicResult.status, 'waiting');
   assert.match(publicResult.sessionId, /^agent-session-/);
   assert.deepEqual(publicResult.progress.map((item) => item.label), ['识别任务', '处理卡住', '等待补充']);
+  assert.deepEqual(publicResult.progress.map((item) => item.phase), ['识别', '执行', '执行']);
+  assert.deepEqual(publicResult.messages[0].process.steps.map((item) => item.phase), ['识别', '执行', '执行']);
+  assert.deepEqual(publicResult.messages[0].activity.items.map((item) => item.phase), ['识别', '执行', '执行']);
   assert.equal(publicResult.messages.length, 1);
   assert.equal(publicResult.messages[0].role, 'assistant');
   assert.match(publicResult.messages[0].content, /我这一步处理卡住了/);
@@ -187,7 +214,7 @@ test('sanitizeAgentResultForFrontend removes raw runtime fields from public agen
     skillId: 'cold-email-draft',
     runId: 'skill-runtime-20260629-180500-stream',
     mode: 'business-draft',
-    progress: [{ label: '生成材料', detail: '正在生成这次任务的业务材料。', status: 'complete' }],
+    progress: [{ label: '生成材料', detail: '正在生成这次任务的业务材料。', phase: '执行', status: 'complete' }],
     artifact: {
       type: 'markdown',
       name: '开发信草稿.md',
@@ -213,6 +240,7 @@ test('sanitizeAgentResultForFrontend removes raw runtime fields from public agen
               kind: 'action',
               title: '生成材料',
               detail: '已生成开发信草稿。',
+              phase: 'validating',
               observation: 'action.executed',
               nextAction: 'artifact.verify',
               status: 'complete',
@@ -231,17 +259,39 @@ test('sanitizeAgentResultForFrontend removes raw runtime fields from public agen
   assert.equal(result.skillId, undefined);
   assert.equal(result.runId, undefined);
   assert.equal(result.mode, undefined);
+  assert.equal(result.progress[0].phase, '执行');
   assert.equal(result.artifact.outputPath, undefined);
   assert.equal(result.artifact.manifestPath, undefined);
   assert.equal(result.artifact.validation, undefined);
   assert.equal(result.context.artifact.outputPath, undefined);
   assert.equal(result.messages[0].activity.source, undefined);
   assert.equal(result.messages[0].activity.items[0].title, '生成材料');
+  assert.equal(result.messages[0].activity.items[0].phase, '检查');
   assert.equal(payloadText.includes('goal.classify'), false);
   assert.equal(payloadText.includes('skill-runtime-loop'), false);
   assert.equal(payloadText.includes('skill-runtime-20260629-180500-stream'), false);
   assert.equal(payloadText.includes('action.executed'), false);
   assert.equal(payloadText.includes('artifact.verify'), false);
+  assert.equal(payloadText.includes('validating'), false);
+});
+
+test('sanitizeAgentResultForFrontend translates raw runtime phase keys before publishing progress', () => {
+  const result = sanitizeAgentResultForFrontend({
+    ok: true,
+    kind: 'goal-run',
+    status: 'completed',
+    progress: [
+      {
+        detail: '正在检查产物是否可以交付。',
+        label: '检查结果',
+        phase: 'validating',
+        status: 'complete',
+      },
+    ],
+  });
+
+  assert.equal(result.progress[0].phase, '检查');
+  assert.equal(JSON.stringify(result).includes('validating'), false);
 });
 
 test('sanitizeAgentResultForFrontend hides confirmation machine types from public messages', () => {

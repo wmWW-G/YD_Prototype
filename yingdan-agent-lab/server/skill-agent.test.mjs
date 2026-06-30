@@ -254,6 +254,7 @@ test('buildSkillAgentResponse exposes generic progress, activity, and XLSX artif
   assert.equal(response.taskTitle, '国际站询盘分析会');
   assert.equal(response.artifact.outputPath, '/tmp/询盘分析会_2026-06-15_2026-06-21.xlsx');
   assert.deepEqual(response.progress.map((item) => item.label), ['识别任务', '核对资料', '拆解任务', '生成材料', '检查结果']);
+  assert.deepEqual(response.progress.map((item) => item.phase), ['识别', '核对资料', '拆步骤', '执行', '检查']);
   assert.match(response.summary, /38\/38 次只读采集/);
   assert.match(response.summary, /询盘分析会_2026-06-15_2026-06-21\.xlsx/);
   assert.equal(response.messages[1].activity.source, 'skill-runtime-loop');

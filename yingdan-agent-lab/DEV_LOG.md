@@ -671,3 +671,12 @@
   - 新增红灯测试 `readAgentArtifactPreview exposes typed purchasing evidence facts`,要求产物预览把这些 fact 转成 `quantity / price / trade_term / payment / sample / next_action` 安全白名单结构。
   - 新增红灯测试 `readAgentArtifactPreview keeps sample and next-action facts when purchasing evidence is dense`,把安全预览 fact 上限提升到 12 条,避免复杂采购场景里样品计划和下一步动作被截掉。
   - 已执行 `node --test --test-name-pattern "typed purchasing evidence" server/skill-runtime.test.mjs` 和 `node --test --test-name-pattern "typed purchasing evidence facts|sample and next-action facts" server/agent-artifact-preview.test.mjs`,3 个测试通过。
+- 给新对话公开进度补中文 Runtime 阶段：
+  - 新增红灯测试 `runtimeEventToStreamEvent exposes user-facing phase labels instead of runtime phase keys`,要求 SSE progress 只暴露 `识别 / 核对资料 / 拆步骤 / 执行 / 检查 / 收尾` 这类中文阶段,不能泄露 `validating`、runId 或内部 phase key。
+  - 新增红灯测试 `mergeStreamingProgressItem preserves user-facing runtime phase labels` 和前台源码测试 `New Conversation renders user-facing runtime phase labels in progress steps`,确保流式进度合并和 `ExecutionProcess` 都保留并展示阶段标签。
+  - `server/agent-message-stream.mjs` 新增 phase 翻译;`agentThreadProgress.js` 只在后端提供 phase 时保留该字段;`App.jsx` 的进度步骤渲染 `.progress-phase` 小标签。
+  - `server/skill-agent.mjs` 的最终 `progress/process.steps` 也会带中文 phase,用户展开历史消息时能看到同一套阶段感。
+  - 追加 sanitizer 兜底测试 `sanitizeAgentResultForFrontend translates raw runtime phase keys before publishing progress`,即使中间层误传 `validating`,公开 payload 也会转成 `检查`。
+  - sub agent 只读评估指出 P1:最终消息优先渲染 `本次操作记录`,但 `activity.items[].phase` 没过 sanitizer 和 UI;已修复 `sanitizeActivityItem()`、`ActivityStream` 和相关源码测试。
+  - 同步处理两个 P2:可恢复错误 waiting 也补 `识别 / 执行 / 执行` phase;`ExecutionProcess` 的 React key 改成 label + phase + index,避免非连续同名步骤冲突。
+  - 已执行 `node --test server/agent-message-stream.test.mjs server/agent-thread-progress.test.mjs server/frontend-copy.test.mjs server/skill-agent.test.mjs`,132 个测试通过;最终执行 `npm test`,206 个测试通过,并执行 `npm run build:web` 通过。
