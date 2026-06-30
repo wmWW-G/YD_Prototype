@@ -708,3 +708,13 @@
   - `server/skill-runner.mjs` 抽出 `executeAdapterAndFinish()`,让首跑和续跑共用 adapter 执行、observation、artifact verification 和完成/失败收尾逻辑。
   - `resumeGoal()` 现在走 `resumeFromPolicyCheckpoint()`,会恢复 skill、adapter 和 plan,但 run log 不再重播前置阶段;checkpoint 同步保存 `completedActions / completedPhases / pendingAction / artifactRefs / evidenceSummary / memoryCandidates`。
   - 已执行 `node --test server/skill-runtime.test.mjs --test-name-pattern "checkpoints policy ask"`、`node --test server/skill-agent.test.mjs --test-name-pattern "Runtime policy ask|preserves Runtime waiting artifact|paid action confirmation"`、`node --test server/agent-message-stream.test.mjs --test-name-pattern "run.resumed|progress|confirmation machine|session internals"` 和 `node --check server/skill-runner.mjs`。
+- 收紧 needs-input checkpoint 的补资料续跑语义：
+  - 新增红灯断言到 `runNewConversationAgent records runtime resume when a needs-input checkpoint gets enough supplement`,要求 `run.resumed` 后不能再追加 `goal.received / skill.matched / skill.loaded / plan.created`;最终 loop、activity 和 progress 都从 `继续执行 / 生成材料 / 整理发现 / 检查结果 / 完成` 展开。
+  - `server/skill-runner.mjs` 新增 `resumeFromNeedsInputCheckpoint()`,遇到 `resume_from=needs-input:<skillId>` 时恢复 skill、adapter、plan 和 policy 检查,但不重播前置 run log。
+  - `server/skill-agent.mjs` 的最终 `progress` 和活动流现在识别 `resume.run`,补资料后不会显示一串 pending 的 `识别任务 / 核对资料 / 拆解任务`。
+  - 已执行 `node --test server/skill-agent.test.mjs --test-name-pattern "records runtime resume when a needs-input checkpoint gets enough supplement"`、`node --test server/skill-agent.test.mjs --test-name-pattern "needs-input checkpoint|records runtime resume|waiting task|preserves a waiting inquiry task|Runtime policy ask|paid action confirmation"`、`node --test server/skill-runtime.test.mjs --test-name-pattern "checkpoints policy ask|emits runtime events|status and phase|business artifacts"`、`node --test server/agent-message-stream.test.mjs --test-name-pattern "run.resumed|progress|session internals|internal resumed user text"` 和 `node --check server/skill-runner.mjs && node --check server/skill-agent.mjs`。
+- 修复 needs-input 续跑遇到 policy ask 的进度误导：
+  - sub agent 复核指出 P2:`resume.run` 分支会吞掉 `policy.confirm`,导致补资料后如果 Runtime 需要确认,前台仍显示 `生成材料 / 检查结果`。
+  - 新增红灯测试 `runNewConversationAgent shows policy confirmation when a needs-input resume hits Runtime policy ask`,覆盖真实 skill 带 `policyActions` 的补资料续跑分支。
+  - `buildProgress()` 现在通过 `buildResumeProgress()` 只展示实际发生的续跑步骤:policy waiting 时显示 `继续执行 / 核对权限 / 等待确认`,不会显示尚未执行的生成材料。
+  - 文档同步说明 needs-input 续跑仍会执行 policy 检查:allow 时继续生成材料,ask 时停在确认。

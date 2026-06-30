@@ -79,6 +79,14 @@ export function createSkillRuntime(options = {}) {
     await mkdir(path.dirname(runLogPath), { recursive: true });
     await mkdir(outputRoot, { recursive: true });
 
+    if (String(resumeCheckpoint?.resume_from || '').startsWith('needs-input:')) {
+      return resumeFromNeedsInputCheckpoint({
+        checkpoint: resumeCheckpoint,
+        runId,
+        text,
+      });
+    }
+
     if (resumeCheckpoint) {
       await recordRunEvent({
         type: 'run.resumed',
@@ -248,6 +256,153 @@ export function createSkillRuntime(options = {}) {
     }
 
     return result;
+  }
+
+  /**
+   * resumeFromNeedsInputCheckpoint 从缺资料等待点继续执行。
+   *
+   * 作用：
+   * - 用户补一句话后,沿用同一个 runId 继续生成材料。
+   * - 内部恢复 skill、adapter、plan 和 policy 检查,但不重复追加目标识别、Skill 匹配和计划事件。
+   * - 让补资料续跑在 run log 和前台活动流里都像“接着做”,而不是重新开一轮任务。
+   *
+   * 参数：
+   * - input.checkpoint：缺资料等待时保存的 checkpoint 摘要。
+   * - input.runId：当前 run id。
+   * - input.text：原始任务和用户补充合并后的完整业务文本。
+   *
+   * 返回值：Promise<object>,结构与 runGoal 的执行结果一致。
+   * 可能抛出的异常：Skill 恢复、policy 检查、adapter 执行或产物校验失败时抛出。
+   */
+  async function resumeFromNeedsInputCheckpoint(input = {}) {
+    const checkpoint = input.checkpoint || {};
+    const runId = input.runId;
+    const text = String(input.text || '').trim();
+    const runLogPath = path.join(workbenchRoot, 'runs', `${runId}.jsonl`);
+    const outputRoot = path.join(workbenchRoot, 'artifacts', runId);
+    const loopSteps = [];
+    const recordRunEvent = (event) => appendRunEvent(runLogPath, withRuntimePhase({ runId, ...event }), onEvent);
+
+    await mkdir(path.dirname(runLogPath), { recursive: true });
+    await mkdir(outputRoot, { recursive: true });
+    await recordRunEvent({
+      type: 'run.resumed',
+      status: 'resuming',
+      resume_from: checkpoint.resume_from,
+    });
+    loopSteps.push(toLoopStep('resume.run', '继续执行', '已收到补充资料,从刚才暂停的位置继续。', 'run.resumed', 'complete', 'action.execute'));
+
+    const registry = await loadSkillRegistry({ projectRoot });
+    const checkpointSkillId = checkpoint.skillId || parseSkillIdFromNeedsInputResume(checkpoint.resume_from);
+    const matchedGoal = matchSkillForGoal({ registry, text });
+    const skill = registry.byId.get(checkpointSkillId) || matchedGoal.skill;
+    const adapter = skill ? adapters[skill.adapter] : null;
+    const state = {
+      adapter,
+      artifact: null,
+      goal: {
+        confidence: matchedGoal.confidence || 1,
+        matched: Boolean(skill),
+        periodHint: matchedGoal.periodHint || checkpoint.periodHint || '',
+        reason: checkpoint.reason || matchedGoal.reason || `从缺资料等待点继续执行 ${skill?.displayName || checkpointSkillId || '任务'}。`,
+        skill,
+        skillId: skill?.id || checkpointSkillId || '',
+        trigger: matchedGoal.trigger || 'checkpoint_resume',
+      },
+      loadedSkill: null,
+      plan: null,
+      result: null,
+      skill,
+      status: 'running',
+    };
+
+    if (!skill || !adapter) {
+      state.status = 'failed';
+      await recordRunEvent({
+        type: 'run.failed',
+        status: 'failed',
+        reason: !skill ? 'SKILL_CHECKPOINT_MISSING_SKILL' : 'SKILL_ADAPTER_MISSING',
+        skillId: checkpointSkillId,
+      });
+      return buildFailedResult({ loopSteps, runId, runLogPath, state });
+    }
+
+    state.loadedSkill = await state.adapter.load({ projectRoot, runId, skill: state.skill });
+    state.plan = checkpoint.plan || buildPlan(state.skill, state.goal);
+    if (state.loadedSkill?.hasExecutable === false) {
+      state.status = 'failed';
+      await recordRunEvent({ type: 'run.failed', status: 'failed', reason: 'SKILL_NOT_EXECUTABLE', skillId: state.skill.id });
+      return buildFailedResult({ loopSteps, runId, runLogPath, state });
+    }
+
+    for (const [index, action] of (state.skill.policyActions || []).entries()) {
+      const decision = await checkPolicy(action, { runId, skill: state.skill });
+      await recordRunEvent({
+        type: 'policy.checked',
+        action,
+        decision: decision.decision,
+        status: decision.decision === 'deny' ? 'denied' : decision.decision === 'ask' ? 'waiting' : 'complete',
+        why: decision.why,
+      });
+
+      if (decision.decision === 'deny') {
+        state.status = 'failed';
+        loopSteps.push(toLoopStep('policy.confirm', '核对权限', decision.why || '这一步不允许自动执行。', 'policy.denied', 'error', 'finish'));
+        await recordRunEvent({ type: 'run.failed', status: 'failed', reason: 'POLICY_DENIED', action });
+        return buildFailedResult({ loopSteps, runId, runLogPath, state });
+      }
+
+      if (decision.decision === 'ask') {
+        state.status = 'waiting';
+        const nextCheckpoint = buildPolicyCheckpoint({
+          action,
+          approvedActions: (state.skill.policyActions || []).slice(0, index),
+          decision,
+          plan: state.plan,
+          runId,
+          skill: state.skill,
+          text,
+        });
+        const checkpointPath = await writeRuntimeCheckpoint({ checkpoint: nextCheckpoint, runId, workbenchRoot });
+        await recordRunEvent({
+          type: 'run.checkpointed',
+          checkpoint: path.relative(workbenchRoot, checkpointPath),
+          resume_from: nextCheckpoint.resume_from,
+        });
+        await recordRunEvent({
+          type: 'run.waiting',
+          action,
+          reason: decision.why,
+          resume_from: nextCheckpoint.resume_from,
+          status: 'waiting',
+        });
+        loopSteps.push(toLoopStep('policy.confirm', '等待确认', decision.why || '这一步需要你确认后继续。', 'policy.ask', 'waiting', 'resume_run'));
+        return buildWaitingResult({
+          action,
+          checkpoint: nextCheckpoint,
+          checkpointPath,
+          decision,
+          loopSteps,
+          runId,
+          runLogPath,
+          state,
+        });
+      }
+
+      loopSteps.push(toLoopStep('policy.confirm', '核对权限', decision.why || '这一步已确认可以继续。', 'policy.allowed', 'complete', index + 1 < (state.skill.policyActions || []).length ? 'policy.confirm' : 'action.execute'));
+    }
+
+    return executeAdapterAndFinish({
+      loopSteps,
+      outputRoot,
+      projectRoot,
+      recordRunEvent,
+      runId,
+      runLogPath,
+      state,
+      text,
+      workbenchRoot,
+    });
   }
 
   /**
@@ -554,6 +709,21 @@ function buildPolicyCheckpoint(input = {}) {
     text: String(input.text || ''),
     why: input.decision?.why || '',
   };
+}
+
+/**
+ * parseSkillIdFromNeedsInputResume 从 needs-input resume_from 里取回 Skill id。
+ *
+ * 参数：
+ * - resumeFrom：例如 `needs-input:inquiry-reply-draft`。
+ *
+ * 返回值：Skill id；不是 needs-input 格式时返回空字符串。
+ * 可能抛出的异常：无。
+ */
+function parseSkillIdFromNeedsInputResume(resumeFrom = '') {
+  const value = String(resumeFrom || '');
+  const prefix = 'needs-input:';
+  return value.startsWith(prefix) ? value.slice(prefix.length).trim() : '';
 }
 
 function createMockArtifactAdapter() {

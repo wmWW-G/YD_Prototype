@@ -952,7 +952,7 @@ resume_run(run_id, resume_token, user_decision_or_input)
 - `runs/<run_id>.jsonl` 是事实来源，必须 append-only。
 - `runs/<run_id>.checkpoint.json` 是可覆盖缓存，每次覆盖都要写 `run.checkpointed`。
 - checkpoint 必须记录已完成 phase、已完成 action、pending action、evidence ledger 摘要、artifact refs 和 memory candidates。
-- resume 后不得重复执行已完成的外部 action，尤其是付费、写入、导出、外发类动作；policy 确认续跑也不得重复追加 `goal.received / skill.matched / skill.loaded / plan.created` 这类前置 run log。
+- resume 后不得重复执行已完成的外部 action，尤其是付费、写入、导出、外发类动作；policy 确认续跑和 needs-input 补资料续跑都不得重复追加 `goal.received / skill.matched / skill.loaded / plan.created` 这类前置 run log。
 
 ### 9.9 第一刀落地顺序
 
@@ -1387,7 +1387,7 @@ agent_slug = inquiry-meeting-host
 4. 一个有界 ReAct 循环：
    第一刀可以继续由 registry plan 驱动,不急着放开模型自主选所有动作
    每个 phase 后写 checkpoint,policy ask 时进入 waiting
-   resume 后从 resume_from 继续,不重复执行已完成外部动作
+   resume 后从 resume_from 继续,不重复执行已完成外部动作,也不重播已完成前置 run log
    第一刀 phase 围绕：读取 Skill、工具发现、只读采集、生成 JSON、执行 XLSX builder、校验产物
 
 5. 一个任务日志：

@@ -2636,6 +2636,10 @@ async function reviseCurrentArtifactIfPossible(input = {}) {
 
 function buildProgress(result) {
   const steps = result.loop?.steps || [];
+  if (steps.some((item) => item.action === 'resume.run')) {
+    return buildResumeProgress(steps);
+  }
+
   const labels = [
     ['goal.classify', '识别任务', '识别'],
     ['skill.load', '核对资料', '核对资料'],
@@ -2655,8 +2659,74 @@ function buildProgress(result) {
   });
 }
 
+/**
+ * buildResumeProgress 生成 checkpoint 续跑后的最终可见进度。
+ *
+ * 作用：
+ * - 用户补资料或确认后,前台应显示“继续执行”,而不是重新识别任务。
+ * - 如果续跑后又遇到 policy ask,必须停在“核对权限 / 等待确认”。
+ * - 只展示实际发生的后续步骤,避免把还没执行的“生成材料 / 检查结果”标成 pending。
+ *
+ * 参数：
+ * - steps：Runtime loop steps。
+ *
+ * 返回值：前台 progress 数组。
+ * 可能抛出的异常：无。
+ */
+function buildResumeProgress(steps = []) {
+  const progress = [];
+  const addRuntimeStep = (action, label, fallbackPhase) => {
+    const step = steps.find((item) => item.action === action);
+    if (!step) {
+      return;
+    }
+    progress.push({
+      label,
+      detail: humanProgressDetail(action, step.detail),
+      phase: humanRuntimePhase(step.phase) || fallbackPhase,
+      status: step.status || 'pending',
+    });
+  };
+
+  addRuntimeStep('resume.run', '继续执行', '执行');
+
+  const policySteps = steps.filter((item) => item.action === 'policy.confirm');
+  const waitingPolicyStep = policySteps.find((item) => item.status === 'waiting');
+  if (waitingPolicyStep) {
+    progress.push({
+      label: '核对权限',
+      detail: '已检查这一步需要你确认。',
+      phase: humanRuntimePhase(waitingPolicyStep.phase) || '执行',
+      status: 'complete',
+    });
+    progress.push({
+      label: '等待确认',
+      detail: humanProgressDetail('policy.confirm', waitingPolicyStep.detail),
+      phase: humanRuntimePhase(waitingPolicyStep.phase) || '执行',
+      status: 'waiting',
+    });
+    return progress;
+  }
+  const policyStep = policySteps.at(-1);
+  if (policyStep) {
+    progress.push({
+      label: '核对权限',
+      detail: humanProgressDetail('policy.confirm', policyStep.detail),
+      phase: humanRuntimePhase(policyStep.phase) || '执行',
+      status: policyStep.status || 'complete',
+    });
+  }
+
+  addRuntimeStep('action.execute', '生成材料', '执行');
+  addRuntimeStep('observation.record', '整理发现', '执行');
+  addRuntimeStep('artifact.verify', '检查结果', '检查');
+  addRuntimeStep('finish', '完成', '收尾');
+  return progress;
+}
+
 function humanProgressDetail(action, fallback = '') {
   const map = {
+    'policy.confirm': fallback || '已检查这一步是否需要你确认。',
     'skill.load': '已核对任务所需资料、规则和产物要求。',
     'plan.create': fallback && !/skill|json/i.test(fallback) ? fallback : '已把这次任务拆成可执行步骤。',
     'artifact.verify': '产物已检查通过。',
@@ -2760,6 +2830,7 @@ function humanPhaseForAction(action = '') {
 function humanActivityTitle(action, fallback = '') {
   const map = {
     'goal.classify': '识别任务',
+    'resume.run': '继续执行',
     'skill.match': '确认任务类型',
     'skill.load': '核对资料',
     'plan.create': '拆解任务',
@@ -2774,6 +2845,7 @@ function humanActivityTitle(action, fallback = '') {
 
 function humanActivityDetail(action, fallback = '') {
   const map = {
+    'resume.run': '已从刚才暂停的位置继续。',
     'skill.match': '已判断这次要产出的业务材料。',
     'skill.load': '已核对任务所需资料、规则和产物要求。',
     'plan.create': '已把这次任务拆成可执行步骤。',
@@ -2806,6 +2878,7 @@ function activityKindForAction(action) {
 function humanObservation(value) {
   const map = {
     'goal.matched': '已识别业务目标',
+    'run.resumed': '已继续刚才的任务',
     'skill.matched': '已确认业务任务类型',
     'skill.loaded': '已核对任务所需资料和规则',
     'plan.ready': '已拆好处理步骤',

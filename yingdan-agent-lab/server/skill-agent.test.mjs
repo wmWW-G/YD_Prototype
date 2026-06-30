@@ -79,7 +79,7 @@ function createEmailRegistry() {
   };
 }
 
-function createInquiryReplyRegistry() {
+function createInquiryReplyRegistry(options = {}) {
   const inquiryReplySkill = {
     id: 'inquiry-reply-draft',
     displayName: '询盘回复草稿',
@@ -93,6 +93,7 @@ function createInquiryReplyRegistry() {
         reason: '用户要处理询盘回复，匹配询盘回复草稿任务。',
       },
     ],
+    policyActions: options.policyActions || [],
   };
   return {
     skills: [inquiryReplySkill],
@@ -100,8 +101,8 @@ function createInquiryReplyRegistry() {
   };
 }
 
-async function writeInquiryReplySkillProject(projectRoot) {
-  const skill = createInquiryReplyRegistry().skills[0];
+async function writeInquiryReplySkillProject(projectRoot, options = {}) {
+  const skill = createInquiryReplyRegistry(options).skills[0];
   const registryDir = path.join(projectRoot, 'workbench', 'registry');
   const skillDir = path.join(projectRoot, 'workbench', 'skills', skill.id);
   await mkdir(registryDir, { recursive: true });
@@ -613,7 +614,87 @@ test('runNewConversationAgent records runtime resume when a needs-input checkpoi
     assert.ok(runEvents.some((event) => event.type === 'run.resumed' && event.resume_from === 'needs-input:inquiry-reply-draft'));
     assert.ok(runEvents.some((event) => event.type === 'action.executed'));
     assert.ok(runEvents.some((event) => event.type === 'artifact.verified'));
+    const resumedEventIndex = runEvents.findIndex((event) => event.type === 'run.resumed');
+    const eventsAfterResume = runEvents.slice(resumedEventIndex + 1).map((event) => event.type);
+    assert.deepEqual(eventsAfterResume, [
+      'action.executed',
+      'observation.recorded',
+      'evidence.added',
+      'artifact.verified',
+      'run.completed',
+    ]);
+    assert.deepEqual(second.loop.steps.map((step) => step.action), [
+      'resume.run',
+      'action.execute',
+      'observation.record',
+      'artifact.verify',
+      'finish',
+    ]);
+    assert.deepEqual(second.messages[1].activity.items.map((item) => item.title), [
+      '继续执行',
+      '生成材料',
+      '整理发现',
+      '检查结果',
+      '完成',
+    ]);
+    assert.deepEqual(second.progress.map((item) => item.label), [
+      '继续执行',
+      '生成材料',
+      '整理发现',
+      '检查结果',
+      '完成',
+    ]);
     assert.equal(Object.hasOwn(second.context, 'pendingTask'), false);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('runNewConversationAgent shows policy confirmation when a needs-input resume hits Runtime policy ask', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-needs-input-resume-policy-'));
+  const policyActions = ['skill.read_external_package', 'artifact.write_markdown'];
+  const registry = createInquiryReplyRegistry({ policyActions });
+
+  try {
+    await writeInquiryReplySkillProject(projectRoot, { policyActions });
+    const first = await runNewConversationAgent({
+      text: '客户问MOQ和交期，帮我回一下',
+      registry,
+      projectRoot,
+    });
+    const runtime = first.context.pendingTask.runtime;
+    const runLogPath = path.join(projectRoot, 'workbench', 'runs', `${runtime.runId}.jsonl`);
+    const second = await runNewConversationAgent({
+      text: '产品太阳能路灯',
+      sessionId: first.sessionId,
+      context: first.context,
+      registry,
+      projectRoot,
+      checkPolicy: async (action) => {
+        if (action === 'artifact.write_markdown') {
+          return { decision: 'ask', why: '写入 Markdown 产物前需要确认' };
+        }
+        return { decision: 'allow', why: 'test allow' };
+      },
+    });
+    const runEvents = (await readFile(runLogPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+    const resumedEventIndex = runEvents.findIndex((event) => event.type === 'run.resumed');
+    const eventsAfterResume = runEvents.slice(resumedEventIndex + 1).map((event) => event.type);
+
+    assert.equal(first.kind, 'needs-input');
+    assert.equal(second.kind, 'confirmation-required');
+    assert.equal(second.status, 'waiting');
+    assert.equal(second.context.pendingConfirmation.runtime.action, 'artifact.write_markdown');
+    assert.deepEqual(eventsAfterResume, [
+      'policy.checked',
+      'policy.checked',
+      'run.checkpointed',
+      'run.waiting',
+    ]);
+    assert.deepEqual(second.progress.map((item) => item.label), ['继续执行', '核对权限', '等待确认']);
+    assert.deepEqual(second.messages[1].process.steps.map((item) => item.label), ['继续执行', '核对权限', '等待确认']);
+    assert.equal(second.messages[1].activity.items.some((item) => item.title === '等待确认'), true);
+    assert.equal(second.messages[1].activity.items.some((item) => item.title === '生成材料'), false);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
