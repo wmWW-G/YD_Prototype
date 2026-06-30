@@ -382,6 +382,41 @@ test('createSkillRuntime attaches a machine-checkable evidence ledger to markdow
   }
 });
 
+test('createSkillRuntime writes markdown evidence ledger beside the artifact', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '帮我准备一封跟进开发信，客户是德国采购商，产品是太阳能路灯，关注MOQ和交期',
+    });
+    const ledgerPath = path.join(path.dirname(result.artifact.outputPath), 'evidence-ledger.json');
+    const ledger = JSON.parse(await readFile(ledgerPath, 'utf8'));
+    const events = await readJsonl(result.runLogPath);
+    const evidenceEvent = events.find((event) => event.type === 'evidence.added');
+
+    assert.equal(result.ok, true);
+    assert.equal(ledger.runId, result.runId);
+    assert.equal(ledger.skillId, 'cold-email-draft');
+    assert.equal(ledger.artifact.name, '开发信草稿.md');
+    assert.equal(ledger.coverage, 'complete');
+    assert.deepEqual(ledger.missingFacts, []);
+    assert.ok(ledger.checkedFacts.includes('产品:太阳能路灯'));
+    assert.ok(ledger.checkedFacts.includes('客户/市场:德国'));
+    assert.ok(ledger.checkedFacts.includes('关注点:MOQ/起订量'));
+    assert.ok(ledger.checkedFacts.includes('关注点:交期'));
+    assert.equal(evidenceEvent.status, 'complete');
+    assert.equal(evidenceEvent.coverage, 'complete');
+    assert.equal(evidenceEvent.evidencePath, path.join('artifacts', result.runId, 'evidence-ledger.json'));
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime records typed purchasing evidence in markdown business artifacts', async () => {
   const fixture = await withRegistryProject();
 
@@ -930,6 +965,7 @@ test('createSkillRuntime emits runtime events while it writes the run log', asyn
         'policy.checked',
         'action.executed',
         'observation.recorded',
+        'evidence.added',
         'artifact.verified',
         'run.completed',
       ],
@@ -983,6 +1019,7 @@ test('createSkillRuntime records status and phase on runtime loop events', async
         ['policy.checked', 'executing'],
         ['action.executed', 'executing'],
         ['observation.recorded', 'executing'],
+        ['evidence.added', 'validating'],
         ['artifact.verified', 'validating'],
         ['run.completed', 'committing'],
       ],

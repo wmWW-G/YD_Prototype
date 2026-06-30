@@ -209,6 +209,7 @@ Skill Runner
   policy.checked
   action.executed
   observation.recorded
+  evidence.added
   artifact.verified
   run.completed
 
@@ -252,8 +253,9 @@ Skill Adapter
 `Skill Runner`
 
 - 负责统一执行 Skill Runtime loop。
-- 当前固定链路是 `goal.received -> skill.matched -> skill.loaded -> plan.created -> policy.checked -> action.executed -> observation.recorded -> artifact.verified -> run.completed`。
+- 当前固定链路是 `goal.received -> skill.matched -> skill.loaded -> plan.created -> policy.checked -> action.executed -> observation.recorded -> evidence.added -> artifact.verified -> run.completed`。
 - 每轮都会写 append-only run log,供前台操作记录和同任务追问读取。
+- `business-draft` 这类 Markdown 业务产物会在产物目录写内部 `evidence-ledger.json`;普通 mock artifact 不强制写 evidence ledger。
 
 `Skill Adapter`
 

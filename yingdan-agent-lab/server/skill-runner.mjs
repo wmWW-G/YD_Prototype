@@ -222,11 +222,23 @@ export function createSkillRuntime(options = {}) {
     });
     loopSteps.push(toLoopStep('observation.record', '记录观察', buildObservation(state), state.result?.ok === false ? 'observation.failed' : 'observation.ready', state.result?.ok === false ? 'error' : 'complete', 'artifact.verify'));
 
-    const artifactVerification = await verifyArtifact(state.artifact, state.skill, { userText: text });
+    const artifactVerification = await verifyArtifact(state.artifact, state.skill, {
+      runId,
+      userText: text,
+      workbenchRoot,
+    });
     state.artifact = {
       ...state.artifact,
       validation: artifactVerification,
     };
+    if (artifactVerification.evidenceLedgerPath) {
+      await recordRunEvent({
+        type: 'evidence.added',
+        status: artifactVerification.ok ? 'complete' : 'failed',
+        coverage: artifactVerification.evidence?.coverage,
+        evidencePath: path.relative(workbenchRoot, artifactVerification.evidenceLedgerPath),
+      });
+    }
     await recordRunEvent({
       type: 'artifact.verified',
       status: artifactVerification.ok ? 'complete' : 'failed',
@@ -1236,6 +1248,7 @@ function phaseForRuntimeEvent(type = '') {
     'run.resumed': 'executing',
     'action.executed': 'executing',
     'observation.recorded': 'executing',
+    'evidence.added': 'validating',
     'artifact.verified': 'validating',
     'run.completed': 'committing',
     'run.failed': 'committing',
@@ -1291,6 +1304,8 @@ async function verifyArtifact(artifact, skill = {}, options = {}) {
       return await verifyBusinessMarkdownArtifact({
         artifact,
         fileStat,
+        runId: options.runId,
+        skill,
         userText: options.userText,
       });
     }
@@ -1339,12 +1354,14 @@ function isBusinessMarkdownArtifact({ artifact = {}, skill = {} } = {}) {
  * 参数：
  * - artifact：Runtime 产物摘要,必须包含 outputPath。
  * - fileStat：fs.stat() 返回的文件状态。
+ * - runId：本轮 Runtime 的 runId,用于把 evidence ledger 和 run log 关联起来。
+ * - skill：当前 Skill 定义,用于记录 evidence ledger 的 skillId。
  * - userText：本轮 Runtime 执行使用的用户输入。
  *
- * 返回值：Runtime artifact verification 对象。
+ * 返回值：Runtime artifact verification 对象,包含 evidence 和内部 evidenceLedgerPath。
  * 可能抛出的异常：readFile 失败时向上抛出,由 verifyArtifact 包装成失败结果。
  */
-async function verifyBusinessMarkdownArtifact({ artifact = {}, fileStat = {}, userText = '' } = {}) {
+async function verifyBusinessMarkdownArtifact({ artifact = {}, fileStat = {}, runId = '', skill = {}, userText = '' } = {}) {
   const content = await readFile(artifact.outputPath, 'utf8');
   const signals = extractBusinessSignals(userText);
   const missingFacts = [];
@@ -1435,6 +1452,35 @@ async function verifyBusinessMarkdownArtifact({ artifact = {}, fileStat = {}, us
   });
 
   const ok = checks.nonEmptyFile && missingFacts.length === 0;
+  const evidence = {
+    checkedFacts,
+    coverage: ok ? 'complete' : 'incomplete',
+    missingFacts,
+    source: '用户原始输入 + 产物依据段',
+  };
+  const evidenceLedgerPath = path.join(path.dirname(artifact.outputPath), 'evidence-ledger.json');
+  await writeFile(
+    evidenceLedgerPath,
+    `${JSON.stringify(
+      {
+        artifact: {
+          name: artifact.name || path.basename(artifact.outputPath),
+          type: artifact.type || 'markdown',
+        },
+        checkedFacts,
+        coverage: evidence.coverage,
+        createdAt: new Date().toISOString(),
+        missingFacts,
+        runId,
+        skillId: skill.id || '',
+        source: evidence.source,
+      },
+      null,
+      2,
+    )}\n`,
+    'utf8',
+  );
+
   return {
     ok,
     message: ok
@@ -1442,12 +1488,8 @@ async function verifyBusinessMarkdownArtifact({ artifact = {}, fileStat = {}, us
       : `业务依据检查未通过: 缺少 ${missingFacts.join('、')}。`,
     bytes: fileStat.size,
     checks,
-    evidence: {
-      checkedFacts,
-      coverage: ok ? 'complete' : 'incomplete',
-      missingFacts,
-      source: '用户原始输入 + 产物依据段',
-    },
+    evidence,
+    evidenceLedgerPath,
   };
 }
 

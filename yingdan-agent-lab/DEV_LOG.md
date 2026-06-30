@@ -684,3 +684,7 @@
   - 新增红灯测试 `runNewConversationAgent treats rewrite wording as current artifact follow-up before matching a new skill`,复现已有 `开发信草稿.md` 时用户说 `重写一下开发信，更直接一点` 会被误判为缺上下文的新开发信任务。
   - `server/skill-agent.mjs` 扩展当前产物续改意图,支持 `重写`、`重新写`、`再来一版`、`另写一版`、`换种说法` 等表达;仍保留 `重新开始 / 新任务 / 换客户` 的上下文清理逻辑。
   - 已执行 `node --test server/skill-agent.test.mjs`,89 个测试通过。
+- 让 Markdown 业务产物的 evidence ledger 真实落盘：
+  - 新增红灯测试 `createSkillRuntime writes markdown evidence ledger beside the artifact`,要求 `business-draft` 产物目录写入 `evidence-ledger.json`,并在 run log 追加 `evidence.added`。
+  - `server/skill-runner.mjs` 在业务 Markdown 校验时把 `checkedFacts / missingFacts / coverage / runId / skillId / artifact` 写入内部 evidence ledger 文件;公开前台 payload 仍只展示业务化进度和安全摘要。
+  - 已执行 `node --test --test-name-pattern "writes markdown evidence ledger" server/skill-runtime.test.mjs`,1 个测试通过。
