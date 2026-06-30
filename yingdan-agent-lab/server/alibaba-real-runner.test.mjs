@@ -221,6 +221,14 @@ test('runAlibabaInquiryMeetingReal discovers tools, calls read-only Alibaba sour
                 issue: '已读后没有形成下一步',
                 evidence: '买家询问批量采购和交付条件，当前只看到基础确认。',
               },
+              {
+                buyer: 'EU Buyer',
+                country: 'DE',
+                owner: '/Users/garden/raw/alibaba.json',
+                level: 'L2',
+                issue: '需要主管复核样品节奏',
+                evidence: 'file:///Users/garden/raw/alibaba.json and http://127.0.0.1:4097/debug',
+              },
             ],
           },
           rawPath: `/tmp/${name}.json`,
@@ -265,13 +273,33 @@ test('runAlibabaInquiryMeetingReal discovers tools, calls read-only Alibaba sour
     assert.equal(builtPayload.period.label, '上周完整自然周');
     assert.match(builtPayload.salespeople[0].name, /Alice/);
     assert.match(builtPayload.priority_inquiries[0].buyer, /US Retail Buyer/);
-    assert.doesNotMatch(JSON.stringify(builtPayload), /query_|subaccount_query|bridge|Gateway|localhost/i);
+    assert.doesNotMatch(JSON.stringify(builtPayload), /query_|subaccount_query|bridge|Gateway|localhost|127\.0\.0\.1|file:\/\/|\/tmp\/|\/Users\/|\/var\/folders\/|workbench\//i);
+
+    const evidenceLedgerPath = path.join(path.dirname(result.manifestPath), 'evidence-ledger.json');
+    const evidenceLedger = JSON.parse(await readFile(evidenceLedgerPath, 'utf8'));
+    assert.equal(evidenceLedger.runId, result.runId);
+    assert.equal(evidenceLedger.skillId, 'alibaba-inquiry-meeting');
+    assert.equal(evidenceLedger.period.start, '2026-06-15');
+    assert.ok(evidenceLedger.items.some((item) => item.section === 'coverage' && item.summary.includes('业务员清单')));
+    assert.ok(evidenceLedger.items.some((item) => item.section === 'priority_inquiries' && item.summary.includes('US Retail Buyer')));
+    assert.ok(evidenceLedger.items.some((item) => item.section === 'common_issues'));
+    assert.ok(evidenceLedger.items.some((item) => item.section === 'corrective_actions'));
+    assert.equal(
+      evidenceLedger.items.every((item) =>
+        ['source', 'confidence', 'coverage', 'gap', 'freshness', 'summary'].every((field) =>
+          Object.hasOwn(item, field)
+        )
+      ),
+      true
+    );
+    assert.doesNotMatch(JSON.stringify(evidenceLedger), /query_|subaccount_query|bridge|Gateway|localhost|127\.0\.0\.1|file:\/\/|\/tmp\/|\/Users\/|\/var\/folders\/|workbench\//i);
 
     const events = await readJsonl(result.runLogPath);
     assert.deepEqual(events.at(0).type, 'run.started');
     assert.ok(events.some((event) => event.type === 'tool.discovery'));
     assert.ok(events.some((event) => event.type === 'tool.called'));
     assert.ok(events.some((event) => event.type === 'diagnosis.generated'));
+    assert.ok(events.some((event) => event.type === 'evidence.added' && event.items >= 4));
     assert.equal(events.at(-1).type, 'run.completed');
   } finally {
     await fixture.cleanup();

@@ -214,12 +214,14 @@ test('sanitizeAgentResultForFrontend removes raw runtime fields from public agen
     skillId: 'cold-email-draft',
     runId: 'skill-runtime-20260629-180500-stream',
     mode: 'business-draft',
+    evidenceLedgerPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/artifacts/skill-runtime-20260629-180500-stream/evidence-ledger.json',
     progress: [{ label: '生成材料', detail: '正在生成这次任务的业务材料。', phase: '执行', status: 'complete' }],
     artifact: {
       type: 'markdown',
       name: '开发信草稿.md',
       outputPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/artifacts/skill-runtime-20260629-180500-stream/cold-email-draft-skill-runtime-20260629-180500-stream.md',
       manifestPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/artifacts/skill-runtime-20260629-180500-stream/manifest.json',
+      evidenceLedgerPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/artifacts/skill-runtime-20260629-180500-stream/evidence-ledger.json',
       validation: { mode: 'runtime', builderExitCode: 0 },
     },
     context: {
@@ -259,9 +261,11 @@ test('sanitizeAgentResultForFrontend removes raw runtime fields from public agen
   assert.equal(result.skillId, undefined);
   assert.equal(result.runId, undefined);
   assert.equal(result.mode, undefined);
+  assert.equal(result.evidenceLedgerPath, undefined);
   assert.equal(result.progress[0].phase, '执行');
   assert.equal(result.artifact.outputPath, undefined);
   assert.equal(result.artifact.manifestPath, undefined);
+  assert.equal(result.artifact.evidenceLedgerPath, undefined);
   assert.equal(result.artifact.validation, undefined);
   assert.equal(result.context.artifact.outputPath, undefined);
   assert.equal(result.messages[0].activity.source, undefined);
@@ -270,6 +274,7 @@ test('sanitizeAgentResultForFrontend removes raw runtime fields from public agen
   assert.equal(payloadText.includes('goal.classify'), false);
   assert.equal(payloadText.includes('skill-runtime-loop'), false);
   assert.equal(payloadText.includes('skill-runtime-20260629-180500-stream'), false);
+  assert.equal(payloadText.includes('evidence-ledger.json'), false);
   assert.equal(payloadText.includes('action.executed'), false);
   assert.equal(payloadText.includes('artifact.verify'), false);
   assert.equal(payloadText.includes('validating'), false);

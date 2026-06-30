@@ -688,3 +688,8 @@
   - 新增红灯测试 `createSkillRuntime writes markdown evidence ledger beside the artifact`,要求 `business-draft` 产物目录写入 `evidence-ledger.json`,并在 run log 追加 `evidence.added`。
   - `server/skill-runner.mjs` 在业务 Markdown 校验时把 `checkedFacts / missingFacts / coverage / runId / skillId / artifact` 写入内部 evidence ledger 文件;公开前台 payload 仍只展示业务化进度和安全摘要。
   - 已执行 `node --test --test-name-pattern "writes markdown evidence ledger" server/skill-runtime.test.mjs`,1 个测试通过。
+- 让 `alibaba-inquiry-meeting` 真实 XLSX 链路写入 evidence ledger：
+  - 新增红灯测试 `runAlibabaInquiryMeetingReal discovers tools, calls read-only Alibaba sources, and builds real-bridge XLSX payload`,要求 XLSX manifest 同目录写入 `evidence-ledger.json`,并在 run log 追加 `evidence.added`。
+  - `server/alibaba-real-runner.mjs` 会从 coverage、priority inquiries、common issues 和 corrective actions 生成内部证据账本,保留来源、可信度、覆盖度、缺口、新鲜度和业务摘要,同时过滤 raw tool、bridge、Gateway、localhost、127.0.0.1、本机路径、临时路径等内部词。
+  - `server/agent-message-stream.test.mjs` 追加公开 payload 防漏断言,确保 `evidenceLedgerPath` 不进入前台响应。
+  - 已执行 `node --test server/alibaba-real-runner.test.mjs server/agent-message-stream.test.mjs`,22 个测试通过。

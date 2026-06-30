@@ -1485,7 +1485,7 @@ XLSX 禁止包含：
 npm run acceptance:alibaba-inquiry-meeting:real
 ```
 
-2026-06-27 已跑通一次 `real-bridge` 验收：周期 `2026-06-15 ~ 2026-06-21`，`tool.called=38`，`tool.degraded=0`，产物在 `workbench/artifacts/alibaba-inquiry-meeting-real/alibaba-inquiry-meeting/询盘分析会_2026-06-15_2026-06-21.xlsx`。
+2026-06-27 已跑通一次 `real-bridge` 验收：周期 `2026-06-15 ~ 2026-06-21`，`tool.called=38`，`tool.degraded=0`，产物在 `workbench/artifacts/alibaba-inquiry-meeting-real/alibaba-inquiry-meeting/询盘分析会_2026-06-15_2026-06-21.xlsx`。2026-06-30 已补上同目录内部 `evidence-ledger.json`,由 coverage、priority inquiries、common issues 和 corrective actions 生成,并在 run log 写入 `evidence.added`。
 
 ```text
 Runtime API 能创建 run

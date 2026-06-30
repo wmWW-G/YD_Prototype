@@ -343,6 +343,19 @@ export async function runAlibabaInquiryMeetingReal(options = {}) {
       toolSummary: summarizeObservations(observations),
     },
   });
+  const evidenceLedgerPath = await writeAlibabaEvidenceLedger({
+    manifestPath: xlsxResult.manifestPath,
+    payload,
+    period,
+    runId,
+  });
+  await appendRunEvent(runLogPath, {
+    type: 'evidence.added',
+    coverage: 'alibaba-inquiry-meeting',
+    evidencePath: path.relative(workbenchRoot, evidenceLedgerPath),
+    items: countEvidenceLedgerItems(payload),
+    status: 'complete',
+  });
 
   await appendRunEvent(runLogPath, {
     type: 'artifact.written',
@@ -369,6 +382,7 @@ export async function runAlibabaInquiryMeetingReal(options = {}) {
     rawDir,
     period,
     outputPath: xlsxResult.outputPath,
+    evidenceLedgerPath,
     manifestPath: xlsxResult.manifestPath,
     workbookName: xlsxResult.workbookName,
     validation: xlsxResult.validation,
@@ -439,6 +453,131 @@ export function buildHostMaterialPayload(input) {
     corrective_actions: buildCorrectiveActions(priorityInquiries, missingBusinessSources),
     followup_items: buildFollowupItems(priorityInquiries, missingBusinessSources, observations),
   };
+}
+
+/**
+ * writeAlibabaEvidenceLedger 保存询盘复盘 XLSX 的内部证据账本。
+ *
+ * 作用：
+ * - 让真实 XLSX 产物不只依赖 manifest,还保留可机器检查的 evidence ledger。
+ * - 只写业务化来源、覆盖、缺口和摘要,不写 bridge、tool name、raw path 或鉴权信息。
+ * - 前台不直接展示这个 JSON;它是 Runtime 后台追溯和后续 typed evaluator 的输入。
+ *
+ * 参数：
+ * - input.manifestPath：XLSX builder 生成的 manifest 路径,ledger 会写到同目录。
+ * - input.payload：主持材料 payload。
+ * - input.period：复盘周期。
+ * - input.runId：本轮真实执行 runId。
+ *
+ * 返回值：Promise<string>,写入的 evidence-ledger.json 绝对路径。
+ * 可能抛出的异常：目录创建或文件写入失败时抛出。
+ */
+async function writeAlibabaEvidenceLedger(input = {}) {
+  if (!input.manifestPath) {
+    throw new Error('writeAlibabaEvidenceLedger requires manifestPath');
+  }
+
+  const ledgerPath = path.join(path.dirname(input.manifestPath || ''), 'evidence-ledger.json');
+  const payload = input.payload || {};
+  const ledger = {
+    artifact: {
+      name: '询盘分析会.xlsx',
+      type: 'xlsx',
+    },
+    createdAt: new Date().toISOString(),
+    items: buildAlibabaEvidenceItems(payload),
+    period: input.period || payload.period || {},
+    runId: input.runId || '',
+    skillId: 'alibaba-inquiry-meeting',
+  };
+
+  await mkdir(path.dirname(ledgerPath), { recursive: true });
+  await writeFile(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`, 'utf8');
+  return ledgerPath;
+}
+
+/**
+ * countEvidenceLedgerItems 统计本轮主持材料可写入证据账本的业务证据数量。
+ *
+ * 参数：
+ * - payload：主持材料 payload,包含 coverage、priority_inquiries、common_issues、corrective_actions。
+ *
+ * 返回值：number,通过内部词过滤后的证据条数。
+ * 可能抛出的异常：当前函数只做内存计算,不主动抛出异常。
+ */
+function countEvidenceLedgerItems(payload = {}) {
+  return buildAlibabaEvidenceItems(payload).length;
+}
+
+/**
+ * buildAlibabaEvidenceItems 把主持材料转换成统一 evidence ledger item。
+ *
+ * 参数：
+ * - payload：主持材料 payload,来源于真实 Alibaba 只读采集后的业务化摘要。
+ *
+ * 返回值：Array<object>,每条包含 section、source、confidence、coverage、gap、freshness、summary。
+ * 可能抛出的异常：当前函数只做内存转换,不主动抛出异常。
+ */
+function buildAlibabaEvidenceItems(payload = {}) {
+  const items = [];
+  for (const row of payload.coverage || []) {
+    items.push({
+      section: 'coverage',
+      source: businessSafeText(row.source || '数据覆盖'),
+      confidence: row.status === '完整' ? 'high' : 'partial',
+      coverage: businessSafeText(row.coverage || row.status || '待复查'),
+      gap: row.status === '完整' ? '' : businessSafeText(row.note || '该来源覆盖不足,结论需标为待复查。'),
+      freshness: businessSafeText(payload.period?.label || ''),
+      summary: `${businessSafeText(row.source || '数据覆盖')}: ${businessSafeText(row.status || '待复查')}`,
+    });
+  }
+  for (const row of payload.priority_inquiries || []) {
+    items.push({
+      section: 'priority_inquiries',
+      source: businessSafeText(row.owner || '销售主管'),
+      confidence: row.buyer && row.buyer !== '未返回' ? 'medium' : 'partial',
+      coverage: businessSafeText(row.level || row.country || ''),
+      gap: row.buyer === '未返回' ? '缺少可逐条复盘的买家和会话证据。' : '',
+      freshness: businessSafeText(payload.period?.label || ''),
+      summary: `${businessSafeText(row.buyer || '重点询盘')}: ${businessSafeText(row.evidence || row.issue || '待复查')}`,
+    });
+  }
+  for (const row of payload.common_issues || []) {
+    items.push({
+      section: 'common_issues',
+      source: '主持材料归因',
+      confidence: 'medium',
+      coverage: businessSafeText(row.issue || '共性问题'),
+      gap: '',
+      freshness: businessSafeText(payload.period?.label || ''),
+      summary: `${businessSafeText(row.issue || '共性问题')}: ${businessSafeText(row.evidence || row.next_step || '待复查')}`,
+    });
+  }
+  for (const row of payload.corrective_actions || []) {
+    items.push({
+      section: 'corrective_actions',
+      source: businessSafeText(row.owner || '销售主管'),
+      confidence: 'medium',
+      coverage: businessSafeText(row.priority || 'P1'),
+      gap: '',
+      freshness: businessSafeText(payload.period?.label || ''),
+      summary: `${businessSafeText(row.action || '整改动作')}: ${businessSafeText(row.verification || '下次复盘检查')}`,
+    });
+  }
+  return items.filter((item) => item.summary && !looksInternalEvidenceText(JSON.stringify(item)));
+}
+
+/**
+ * looksInternalEvidenceText 判断证据文本是否夹带内部工具、bridge 或本地路径词。
+ *
+ * 参数：
+ * - value：待检查文本。
+ *
+ * 返回值：boolean,true 表示该文本不适合作为业务 evidence ledger 公开/落账内容。
+ * 可能抛出的异常：当前函数只做正则检查,不主动抛出异常。
+ */
+function looksInternalEvidenceText(value = '') {
+  return /query_|subaccount_query|bridge|Gateway|localhost|127\.0\.0\.1|file:\/\/|\/tmp\/|\/Users\/|\/var\/folders\/|workbench\/|rawPath|toolName/i.test(String(value || ''));
 }
 
 /**
@@ -1557,7 +1696,7 @@ function businessSafeText(value, fallback = '未返回') {
   if (text === '[object Object]' || text === 'text') {
     return fallback;
   }
-  if (/query_[A-Za-z0-9_]+|subaccount_query|Gateway|localhost|Authorization|access token|ACCIO_GATEWAY_TOKEN|\/mcp\/proxy|bridge|Traceback|errorCode|errorMsg/i.test(text)) {
+  if (/query_[A-Za-z0-9_]+|subaccount_query|Gateway|localhost|127\.0\.0\.1|file:\/\/|\/tmp\/|\/Users\/|\/var\/folders\/|workbench\/|Authorization|access token|ACCIO_GATEWAY_TOKEN|\/mcp\/proxy|bridge|Traceback|errorCode|errorMsg/i.test(text)) {
     return fallback;
   }
   return text.length > 180 ? `${text.slice(0, 177)}...` : text;

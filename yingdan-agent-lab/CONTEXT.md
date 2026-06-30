@@ -60,7 +60,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 → 前台新对话展示业务化活动流和产物卡
 ```
 
-注意:这仍是第一刀骨架,不是完整 DealOps Runtime Loop。当前已补上 Runtime 层 policy ask / checkpoint / resumeGoal 的最小硬边界,并给 `server/skill-runner.mjs` 的 run log 与 loop steps 补上 `status + phase`;Markdown 业务产物已经会写入内部 `evidence-ledger.json`。下一步要继续补更完整的 resume_from、Alibaba/XLSX evidence ledger 和 typed evaluator。
+注意:这仍是第一刀骨架,不是完整 DealOps Runtime Loop。当前已补上 Runtime 层 policy ask / checkpoint / resumeGoal 的最小硬边界,并给 `server/skill-runner.mjs` 的 run log 与 loop steps 补上 `status + phase`;Markdown 业务产物和 `alibaba-inquiry-meeting` 真实 XLSX 链路都会写入内部 `evidence-ledger.json`。下一步要继续补更完整的 resume_from、更广的 XLSX typed evaluator 和跨 Skill 的 evidence ledger 标准。
 
 当前已落地:
 
@@ -259,7 +259,7 @@ Electron 桌面壳、SQLite 索引层、Python 工具进程(PDF/XLSX/OCR)、
 - Evidence Ledger 是进入交付前的门槛:关键判断、关键 sheet 行和下一步动作必须有来源、可信度、覆盖度、缺口和新鲜度。
 - Typed Evaluator 先覆盖 XLSX 和 `alibaba-inquiry-meeting` host-material,证据不足、内部词泄漏或结构不合格时不能 `run.completed`。
 - 客户 memory 控量;`run_id` 用时间戳 + 随机后缀,不用每日序号。
-- 当前最终验收锚点是 `alibaba-inquiry-meeting`:读取外部 skill 包、发现并调用只读 Alibaba 工具、生成主持材料 JSON、调用 XLSX builder、写 artifact 和 manifest。
+- 当前最终验收锚点是 `alibaba-inquiry-meeting`:读取外部 skill 包、发现并调用只读 Alibaba 工具、生成主持材料 JSON、调用 XLSX builder、写 artifact、manifest 和内部 evidence ledger。
 - 当前真实执行入口分两层:
   - 命令行验收: `server/alibaba-real-runner.mjs` 和 `npm run acceptance:alibaba-inquiry-meeting:real`。
   - 前台验收:「新对话」输入 `帮我开上周询盘分析会`,调用 `POST /api/agent/message`,自动匹配 `alibaba-inquiry-meeting`,生成一个业务化任务线程。内部 Session ID 可以存在,但默认不要暴露给业务用户。
