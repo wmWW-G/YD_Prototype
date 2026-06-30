@@ -562,6 +562,21 @@ function buildCustomerFollowupSignalSentence(concerns = []) {
   if (concerns.includes('客户沉默/未回复')) {
     return '客户暂时未回复,这通常说明需要调整跟进节奏和触达理由;下一步应先补齐客户背景、上次沟通内容和可推进的低压力话题。';
   }
+  if (concerns.includes('付款/账期压力')) {
+    return '客户正在要求更宽松的付款或账期条件,这通常说明他在评估采购风险和现金流压力;下一步应先确认客户信用、订单规模和我方可接受的付款边界。';
+  }
+  if (concerns.includes('质量/售后风险')) {
+    return '客户正在表达质量或售后不满,这通常说明当前重点不是继续推销,而是先稳定情绪、收集证据并判断责任边界。';
+  }
+  if (concerns.includes('样品/费用压力')) {
+    return '客户正在要求免费样品或回避样品费用,这通常说明需要同时判断客户意向和控制样品成本;下一步应说明样品政策、可抵扣条件和正式订单后的费用处理方式。';
+  }
+  if (concerns.includes('物流/运费压力')) {
+    return '客户正在质疑物流或运费成本,这通常说明需要把产品价格、运输方案和总到手成本拆开说明;下一步应比较不同运输方式、目的港费用和订单数量对运费摊薄的影响。';
+  }
+  if (concerns.includes('小单/MOQ压力')) {
+    return '客户只想小批量试单或低于常规 MOQ,这通常说明需要同时判断客户意向、试单数量、利润和后续放量可能;下一步应说明可接受的起订量、样品或试单政策和升级到正式订单的条件。';
+  }
   return `客户已经在问${concerns.join('、')},这通常说明他开始评估供应条件,下一步应先补齐采购约束,再决定是否报价。`;
 }
 
@@ -570,7 +585,10 @@ function extractBusinessSignals(userText = '') {
   const lower = text.toLowerCase();
   const concerns = [];
 
-  if (/moq|起订量|最小起订|起订/.test(lower)) {
+  const hasSmallOrderPressure = /小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|small\s+(?:trial\s+)?order|trial\s+order/.test(lower);
+  if (hasSmallOrderPressure) {
+    concerns.push({ chinese: '小单/MOQ压力', english: 'small order/MOQ pressure' });
+  } else if (/moq|起订量|最小起订|起订/.test(lower)) {
     concerns.push({ chinese: 'MOQ/起订量', english: 'MOQ' });
   }
   if (/交期|lead\s*time|delivery|发货时间/.test(lower)) {
@@ -582,8 +600,20 @@ function extractBusinessSignals(userText = '') {
   if (/价格|报价|price|target price/.test(lower)) {
     concerns.push({ chinese: '价格/报价', english: 'pricing' });
   }
-  if (/样品|sample/.test(lower)) {
+  if (/付款|账期|赊账|月结|付款条件|付款方式|payment\s+terms|credit\s+terms/.test(lower)) {
+    concerns.push({ chinese: '付款/账期压力', english: 'payment terms pressure' });
+  }
+  if (/质量(?:不行|问题|投诉)?|货有问题|售后|抱怨|投诉|quality\s+(?:issue|complaint|problem)|after[-\s]?sales/.test(lower)) {
+    concerns.push({ chinese: '质量/售后风险', english: 'quality/after-sales risk' });
+  }
+  const hasSampleCostPressure = /免费样品|样品费|样品费用|不想付样品|不付样品|免样品费|free\s+sample|sample\s+fee/.test(lower);
+  if (hasSampleCostPressure) {
+    concerns.push({ chinese: '样品/费用压力', english: 'sample cost pressure' });
+  } else if (/样品|sample/.test(lower)) {
     concerns.push({ chinese: '样品', english: 'samples' });
+  }
+  if (/运费|物流|运输费|运输成本|海运费|空运费|freight|shipping\s+cost|logistics\s+cost/.test(lower)) {
+    concerns.push({ chinese: '物流/运费压力', english: 'logistics/shipping cost pressure' });
   }
   if (/沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|no\s+reply|not\s+replying|no\s+response/.test(lower)) {
     concerns.push({ chinese: '客户沉默/未回复', english: 'customer silence/no reply' });

@@ -452,6 +452,140 @@ test('createSkillRuntime carries no-reply status into customer follow-up artifac
   }
 });
 
+test('createSkillRuntime carries payment-term pressure into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户要求60天账期，产品是设备，怎么处理',
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.equal(result.artifact?.name, '客户推进分析.md');
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.match(content, /产品: 设备/);
+    assert.match(content, /客户关注点: 付款\/账期压力/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime carries quality complaints into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户抱怨质量不行，产品是灯具，怎么处理',
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.equal(result.artifact?.name, '客户推进分析.md');
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.match(content, /产品: 灯具/);
+    assert.match(content, /客户关注点: 质量\/售后风险/);
+    assert.match(content, /质量|售后|证据/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime carries free sample pressure into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户要免费样品，产品是灯具',
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.equal(result.artifact?.name, '客户推进分析.md');
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.match(content, /产品: 灯具/);
+    assert.match(content, /客户关注点: 样品\/费用压力/);
+    assert.match(content, /样品成本|样品政策|客户意向/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime carries shipping cost objections into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户嫌运费太贵，产品是灯具，怎么处理',
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.equal(result.artifact?.name, '客户推进分析.md');
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.match(content, /产品: 灯具/);
+    assert.match(content, /客户关注点: 物流\/运费压力/);
+    assert.match(content, /运费|物流|运输方案/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime carries small trial order pressure into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户只想小批量试单，产品是灯具，怎么处理',
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.equal(result.artifact?.name, '客户推进分析.md');
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.match(content, /产品: 灯具/);
+    assert.match(content, /客户关注点: 小单\/MOQ压力/);
+    assert.match(content, /试单数量|MOQ|利润|客户意向/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime generates a validated XLSX quotation sheet when quote terms are complete', async () => {
   const fixture = await withRegistryProject();
 

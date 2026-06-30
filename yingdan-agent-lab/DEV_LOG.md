@@ -2,6 +2,36 @@
 
 ## 2026-06-30
 
+- 继续补「新对话」的小批量试单 / MOQ 压力口语:
+  - 复现问题:`客户只想小批量试单，产品是灯具，怎么处理` 会停在 `needs-input`,没有被当成足够明确的客户推进卡点;产物层也不会提炼小单和 MOQ 压力。
+  - 已修复:`小批量 / 小单 / 试单 / 小数量 / 低于 MOQ / MOQ 太高 / 起订量太高 / small trial order` 会进入客户推进分析。
+  - 产物层同步补强:客户推进分析会把这类输入提炼成 `客户关注点: 小单/MOQ压力`,并用客户意向、试单数量、利润、后续放量可能和正式订单条件组织下一步。
+  - 新增红绿回归测试 `runNewConversationAgent treats small trial orders as a concrete customer follow-up issue` 和 `createSkillRuntime carries small trial order pressure into customer follow-up artifacts`。
+
+- 继续补「新对话」的物流/运费压力口语:
+  - 复现问题:`客户嫌运费太贵，产品是灯具，怎么处理` 能进入客户推进分析,但产物没有把 `运费太贵` 提炼成客户关注点,仍显示客户关注点待确认。
+  - 已修复:`运费 / 物流 / 运输费 / 运输成本 / freight / shipping cost / logistics cost` 会在客户推进分析里提炼成 `客户关注点: 物流/运费压力`。
+  - 产物层同步补强:推进判断会把产品价格、运输方案、总到手成本、目的港费用和订单数量摊薄运费分开处理。
+  - 新增红绿回归测试 `runNewConversationAgent treats shipping cost objections as a concrete customer follow-up issue` 和 `createSkillRuntime carries shipping cost objections into customer follow-up artifacts`。
+
+- 继续补「新对话」的免费样品/样品费口语:
+  - 复现问题:`客户要免费样品，产品是灯具` 会停在 `needs-input`,没有被当成足够明确的客户推进卡点;产物层也只会泛泛写 `样品`,没有表达样品成本压力。
+  - 已修复:`免费样品 / 样品费 / 样品费用 / 不想付样品 / free sample / sample fee` 会归一化到客户推进分析。
+  - 产物层同步补强:客户推进分析会把这类输入提炼成 `客户关注点: 样品/费用压力`,并用客户意向、样品成本、样品政策和可抵扣条件组织下一步。
+  - 新增红绿回归测试 `runNewConversationAgent treats free sample requests as a concrete customer follow-up issue` 和 `createSkillRuntime carries free sample pressure into customer follow-up artifacts`。
+
+- 继续补「新对话」的质量/售后投诉口语:
+  - 复现问题:`客户抱怨质量不行，产品是灯具，怎么处理` 会停在 `needs-input`,或生成客户推进分析时没有把质量问题提炼成客户关注点。
+  - 已修复:`客户抱怨 / 客户投诉 / 质量不行 / 质量问题 / 货有问题 / 售后 / quality issue` 会被视为具体客户卡点,直接进入客户推进分析。
+  - 产物层同步补强:客户推进分析会把这类输入提炼成 `客户关注点: 质量/售后风险`,并把下一步组织成稳定情绪、收集证据和判断责任边界。
+  - 新增红绿回归测试 `runNewConversationAgent treats quality complaints as a concrete customer follow-up issue` 和 `createSkillRuntime carries quality complaints into customer follow-up artifacts`。
+
+- 继续补「新对话」的付款/账期压力口语:
+  - 复现问题:`客户要求60天账期，产品是设备，怎么处理` 会停在 `needs-input`,没有被当成足够明确的客户推进卡点。
+  - 已修复:`账期 / 赊账 / 月结 / 付款条件 / 付款方式 / payment terms / credit terms` 会归一化到客户推进分析;`客户要求 + 账期类卡点` 会被视为具体客户问题。
+  - 产物层同步补强:客户推进分析会把这类输入提炼成 `客户关注点: 付款/账期压力`,并用付款边界、客户信用和订单规模组织下一步,不能只藏在任务来源里。
+  - 新增红绿回归测试 `runNewConversationAgent treats payment-term pressure as a concrete customer follow-up issue` 和 `createSkillRuntime carries payment-term pressure into customer follow-up artifacts`。
+
 - 继续补「新对话」的客户沉默/未回复口语:
   - 复现问题:`客户已读不回，产品是家具，怎么跟` 会落到泛泛 `needs-input / 本次外贸任务`;`买家一直没回复，产品太阳能灯，下一步怎么办` 虽能匹配客户推进,但仍误追问当前卡点。
   - 已修复:`已读不回 / 没回复 / 未回复 / 不回复 / 不回消息 / 不回信 / 没回 / 怎么跟` 会进入客户推进分析;`客户/买家/采购商/客人/对方 + 未回复卡点` 会被视为具体客户对象。
