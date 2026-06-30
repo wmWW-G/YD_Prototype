@@ -681,7 +681,7 @@ button {
   letter-spacing: 0;
 }
 
-.agent-thread-header > div:last-child {
+.agent-thread-actions {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -689,7 +689,8 @@ button {
   margin-left: auto;
 }
 
-.thread-new-task-button {
+.thread-new-task-button,
+.thread-history-button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -708,15 +709,112 @@ button {
     color 160ms ease;
 }
 
-.thread-new-task-button:hover:not(:disabled) {
+.thread-new-task-button:hover:not(:disabled),
+.thread-history-button:hover:not(:disabled),
+.thread-history-button[aria-expanded="true"] {
   color: var(--orange-strong);
   background: #fff7f1;
   border-color: #ffd1b5;
 }
 
-.thread-new-task-button:disabled {
+.thread-new-task-button:disabled,
+.thread-history-button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.thread-history-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: clamp(18px, 3vw, 34px);
+  z-index: 30;
+  display: grid;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(460px, calc(100vh - 120px));
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e7e5e1;
+  border-radius: 8px;
+  box-shadow: 0 18px 46px rgba(28, 31, 36, 0.14);
+}
+
+.thread-history-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid #f0ede9;
+}
+
+.thread-history-panel header strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.thread-history-panel header button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: #6c717a;
+  background: #fff;
+  border: 1px solid #ecebea;
+  border-radius: 8px;
+}
+
+.thread-history-list {
+  display: grid;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.thread-history-list button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 72px;
+  padding: 10px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.thread-history-list button:hover,
+.thread-history-list button.active {
+  background: #fff8f2;
+  border-color: #ffd6bd;
+}
+
+.thread-history-list span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.thread-history-list strong {
+  overflow: hidden;
+  color: #535862;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-history-list small,
+.thread-history-panel p {
+  margin: 0;
+  color: #7b8088;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.thread-history-panel p {
+  padding: 14px;
 }
 
 .session-chip {
@@ -3153,7 +3251,7 @@ button {
     transform: none;
   }
 
-  .agent-thread-header > div:last-child {
+  .agent-thread-actions {
     position: absolute;
     right: 10px;
     display: inline-flex;
@@ -3164,7 +3262,8 @@ button {
     display: none;
   }
 
-  .thread-new-task-button {
+  .thread-new-task-button,
+  .thread-history-button {
     width: 32px;
     min-height: 32px;
     justify-content: center;
@@ -3172,6 +3271,11 @@ button {
     padding: 0;
     overflow: hidden;
     font-size: 0;
+  }
+
+  .thread-history-panel {
+    top: 58px;
+    right: 10px;
   }
 
   .thread-agent-switch {

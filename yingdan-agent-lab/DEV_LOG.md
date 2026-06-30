@@ -628,3 +628,23 @@
   - `server/skill-agent.mjs` 的 `customer_write` 确认分支现在用当前 artifact 和 session 上下文恢复业务标题,例如 `客户推进分析`,不再返回 `本次外贸任务`。
   - 保存确认成功后的即时 result 和助手消息也继续带当前 artifact 摘要,前台文件卡不会因为确认成功而短暂丢失。
   - 已执行 `node --test server/agent-session-store.test.mjs server/agent-message-stream.test.mjs server/skill-agent.test.mjs`,106 个测试通过;最终执行 `npm test`,188 个测试通过,并执行 `npm run build:web` 通过。
+- 把 Markdown 业务产物的“检查结果”升级成机器质量门：
+  - sub agent 只读评估指出 `evidence ledger / 检查结果 / 不瞎编` 已有部分硬依据,但 Markdown 业务产物仍容易停留在“文件非空”级别。
+  - 新增红灯测试 `createSkillRuntime attaches a machine-checkable evidence ledger to markdown business artifacts` 和 `createSkillRuntime fails markdown business artifacts that do not cover user-provided facts`。
+  - `server/skill-runner.mjs` 新增 `verifyBusinessMarkdownArtifact()`,对 `business-draft` Markdown 产物检查依据段、用户来源、内部恢复标记、产品、客户/市场和关注点覆盖,并写入 `artifact.validation.evidence`。
+  - `server/agent-message-stream.mjs` 的 `artifact.verified` 进度在 evidence 通过时显示 `已核对产物里的业务依据和用户事实覆盖`,让前台“检查结果”不是空泛文案。
+  - 已执行 `node --test server/skill-runtime.test.mjs server/agent-message-stream.test.mjs`,37 个测试通过。
+- 把缺资料等待态升级为 Runtime 风格 checkpoint：
+  - sub agent 评估指出最大 P1 是 `needs-input` 还只是 `skill-agent` 的 `pendingTask` 拼接重跑,不像 Codex / Claude Code 的硬暂停点。
+  - 新增红灯测试 `runNewConversationAgent writes a runtime checkpoint when a matched task needs business input`,要求缺资料等待写入 `<runId>.jsonl` 和 `<runId>.checkpoint.json`,并记录 `goal.received / skill.matched / skill.loaded / run.checkpointed / run.needs_input`,不能出现 `action.executed`。
+  - 新增红灯测试 `runNewConversationAgent records runtime resume when a needs-input checkpoint gets enough supplement`,要求用户补资料后用同一 runId 继续,run log 追加 `run.resumed / action.executed / artifact.verified`。
+  - `buildNeedsInputResponse()` 现在写 Runtime-compatible checkpoint,但 `sanitizePendingTask()` 仍只公开任务名、原始诉求和缺失项,不把 runId、checkpointPath、runLogPath 或本地路径暴露给前台。
+  - 已执行 `node --test server/skill-agent.test.mjs server/skill-runtime.test.mjs server/agent-message-stream.test.mjs`,125 个测试通过。
+  - 真实 JSON HTTP 验证通过:`客户问MOQ和交期，帮我回一下` 返回 `needs-input / waiting / 询盘回复草稿`,公开 pendingTask 不含 runtime;后端 session 内部 runtime 有 `needs-input:inquiry-reply-draft`;同 session 补 `产品太阳能路灯` 返回 `goal-run / completed / 询盘回复草稿.md`,旧 run log 追加 `run.resumed / action.executed / artifact.verified`。
+  - 真实 SSE 验证通过:第一轮进度以 `等待补充` 收口;第二轮同 session 进度包含 `继续执行 / 生成材料 / 检查结果`,其中检查结果文案为 `已核对产物里的业务依据和用户事实覆盖`,且公开流不含 runId、checkpointPath、runLogPath 或本地绝对路径。
+- 补齐新对话最近任务历史：
+  - 当前前台只能恢复最后一个 session,不像 Codex / Claude Code 可以从最近任务切回不同线程。
+  - 新增红灯测试 `agent session store lists recent sessions as safe thread summaries`,要求 session store 按 updatedAt 倒序返回 taskTitle、status、preview、artifactName 等安全摘要,不能包含 outputPath、checkpointPath、runId 或本地路径。
+  - `server/agent-session-store.mjs` 新增 `list({limit})`,`server/index.mjs` 新增 `GET /api/agent/sessions`。
+  - `agent-thread-prototype/src/App.jsx` 新增 `历史` 按钮、最近任务面板、`handleRefreshAgentSessionHistory()` 和 `handleOpenAgentSessionFromHistory()`,点击历史任务后恢复对应 session 的消息、标题、状态、产物和上下文。
+  - 新增前台源码测试 `New Conversation can reopen recent agent threads from history`;已执行 `node --test --test-name-pattern "reopen recent agent threads|lists recent sessions" server/frontend-copy.test.mjs server/agent-session-store.test.mjs`,2 个测试通过,并执行 `npm run build:web` 通过。

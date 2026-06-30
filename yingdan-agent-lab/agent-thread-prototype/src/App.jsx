@@ -7,6 +7,7 @@ import {
   CircleAlert,
   Download,
   FileText,
+  History,
   LayoutGrid,
   ListChecks,
   MoreHorizontal,
@@ -527,6 +528,8 @@ export function App() {
   const [skillAgentResult, setSkillAgentResult] = useState(restoredAgentThread.skillAgentResult || null);
   const [skillAgentError, setSkillAgentError] = useState('');
   const [agentSessionId, setAgentSessionId] = useState(restoredAgentThread.sessionId || '');
+  const [agentSessionHistory, setAgentSessionHistory] = useState([]);
+  const [agentSessionHistoryOpen, setAgentSessionHistoryOpen] = useState(false);
   const [agentTaskContext, setAgentTaskContext] = useState(restoredAgentThread.context || {});
   const [agentThreadTaskTitle, setAgentThreadTaskTitle] = useState(deriveAgentThreadTaskTitle(restoredAgentThread));
   const [agentThreadMessages, setAgentThreadMessages] = useState(restoredAgentThread.messages || []);
@@ -883,6 +886,74 @@ export function App() {
   }
 
   /**
+   * 刷新新对话最近任务列表。
+   *
+   * 作用：
+   * - 让用户能像 Codex / Claude Code 一样从最近任务线程切回去。
+   * - 只读取后端净化后的 session 摘要,不把 runId、路径或内部上下文展示给前台。
+   *
+   * 参数：无。
+   * 返回值：Promise<void>。
+   * 可能抛出的异常：函数内部捕获接口异常,失败时只给 toast。
+   */
+  async function handleRefreshAgentSessionHistory() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/agent/sessions?limit=12`);
+      const payload = await response.json();
+      if (!response.ok || payload.ok === false) {
+        setToast(payload.message || '最近任务暂时无法读取');
+        return;
+      }
+      setAgentSessionHistory(payload.sessions || []);
+      setAgentSessionHistoryOpen(true);
+    } catch {
+      setToast('最近任务暂时无法读取');
+    }
+  }
+
+  /**
+   * 从历史列表打开一条 Agent 任务线程。
+   *
+   * 作用：
+   * - 用后端 session 恢复消息、产物、等待态和标题。
+   * - 清空当前草稿和预览,避免切线程后把上一条任务的输入带过去。
+   *
+   * 参数：
+   * - sessionId：要恢复的历史任务线程 ID。
+   *
+   * 返回值：Promise<void>。
+   * 可能抛出的异常：函数内部捕获网络异常并转成 toast。
+   */
+  async function handleOpenAgentSessionFromHistory(sessionId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/agent/session/${encodeURIComponent(sessionId)}`);
+      const payload = await response.json();
+      if (!response.ok || payload.ok === false || !payload.session) {
+        setToast(payload.message || '这条任务线程暂时无法打开');
+        return;
+      }
+      const session = payload.session;
+      setAgentSessionId(session.sessionId || sessionId);
+      setAgentTaskContext(session.context || {});
+      setAgentThreadMessages(session.messages || []);
+      setExpandedProcessMessageId(session.expandedProcessMessageId || '');
+      setSkillAgentResult(session.skillAgentResult || null);
+      setSkillAgentStatus(agentThreadStatusFromRestoredSession(session));
+      setAgentThreadTaskTitle(deriveAgentThreadTaskTitle(session));
+      setNewConversationDraft('');
+      setStreamingProgressItems([]);
+      setArtifactPreview({ open: false, status: 'idle', artifact: null, content: '', error: '' });
+      setAgentSessionHistoryOpen(false);
+      if (newConversationInputRef.current) {
+        newConversationInputRef.current.value = '';
+      }
+      setToast('已打开最近任务');
+    } catch {
+      setToast('这条任务线程暂时无法打开');
+    }
+  }
+
+  /**
    * ensureRecoverableAgentSessionId 确保可恢复异常也有一个本地任务线程 ID。
    *
    * 作用：
@@ -1136,6 +1207,8 @@ export function App() {
           draft={newConversationDraft}
           expandedProcessMessageId={expandedProcessMessageId}
           inputRef={newConversationInputRef}
+          agentSessionHistory={agentSessionHistory}
+          agentSessionHistoryOpen={agentSessionHistoryOpen}
           messages={agentThreadMessages}
           sessionId={agentSessionId}
           streamingProgressItems={streamingProgressItems}
@@ -1145,6 +1218,9 @@ export function App() {
           onCloseArtifactPreview={handleCloseArtifactPreview}
           onPreviewArtifact={handlePreviewAgentArtifact}
           onRunAgent={handleRunNewConversationAgent}
+          onOpenHistorySession={handleOpenAgentSessionFromHistory}
+          onRefreshHistory={handleRefreshAgentSessionHistory}
+          onToggleHistory={() => setAgentSessionHistoryOpen((isOpen) => !isOpen)}
           onStartNewTask={handleStartNewConversationTask}
           onPrototypeAction={handlePrototypeAction}
           onToggleProcess={handleToggleAgentProcess}
@@ -1544,6 +1620,8 @@ function WorkspaceHeader({ title, subtitle, chips = [], action }) {
  * - agentError：Agent 执行错误文案，字符串。
  * - agentStatus：Agent 状态，idle/running/waiting/completed/error。
  * - artifactPreview：当前产物预览面板状态。
+ * - agentSessionHistory：最近任务线程摘要列表。
+ * - agentSessionHistoryOpen：最近任务面板是否展开。
  * - currentArtifact：当前 session 绑定的产物摘要，用于提示用户正在续改哪份材料。
  * - draft：新对话输入框内容。
  * - expandedProcessMessageId：当前展开执行过程的消息 ID。
@@ -1556,6 +1634,8 @@ function WorkspaceHeader({ title, subtitle, chips = [], action }) {
  * - onCloseArtifactPreview：关闭产物预览的回调函数。
  * - onConfirmAction：确认或取消待确认动作的回调函数。
  * - onPreviewArtifact：打开产物预览的回调函数。
+ * - onOpenHistorySession：从历史里打开一条任务线程。
+ * - onRefreshHistory：刷新最近任务线程列表。
  * - onRunAgent：执行 Agent 的回调函数。
  * - onStartNewTask：清空当前线程并开始全新任务的回调函数。
  * - onPrototypeAction：原型反馈回调函数。
@@ -1566,6 +1646,8 @@ function WorkspaceHeader({ title, subtitle, chips = [], action }) {
  */
 function NewConversationView({
   agentError,
+  agentSessionHistory = [],
+  agentSessionHistoryOpen = false,
   agentStatus,
   artifactPreview,
   currentArtifact,
@@ -1580,9 +1662,12 @@ function NewConversationView({
   onCloseArtifactPreview,
   onConfirmAction,
   onPreviewArtifact,
+  onOpenHistorySession,
+  onRefreshHistory,
   onRunAgent,
   onStartNewTask,
   onPrototypeAction,
+  onToggleHistory,
   onToggleProcess,
 }) {
   const {
@@ -1669,6 +1754,23 @@ function NewConversationView({
             </div>
           </div>
           <div className="agent-thread-actions">
+            <button
+              type="button"
+              className="thread-history-button"
+              onClick={() => {
+                if (agentSessionHistoryOpen) {
+                  onToggleHistory();
+                  return;
+                }
+                onRefreshHistory();
+              }}
+              disabled={isRunning}
+              aria-expanded={agentSessionHistoryOpen}
+              aria-label="查看最近任务"
+            >
+              <History size={14} />
+              历史
+            </button>
             {canStartFreshTask ? (
               <button type="button" className="thread-new-task-button" onClick={onStartNewTask} disabled={isRunning} aria-label="开始新任务">
                 <Plus size={14} />
@@ -1679,6 +1781,37 @@ function NewConversationView({
               {statusChipLabel}
             </span>
           </div>
+          {agentSessionHistoryOpen ? (
+            <section className="thread-history-panel" aria-label="最近任务">
+              <header>
+                <strong>最近任务</strong>
+                <button type="button" onClick={onToggleHistory} aria-label="关闭最近任务">
+                  <X size={14} />
+                </button>
+              </header>
+              {agentSessionHistory.length ? (
+                <div className="thread-history-list">
+                  {agentSessionHistory.map((item) => (
+                    <button
+                      type="button"
+                      className={item.sessionId === sessionId ? 'active' : ''}
+                      key={item.sessionId}
+                      onClick={() => onOpenHistorySession(item.sessionId)}
+                    >
+                      <span>{item.taskTitle || '外贸任务'}</span>
+                      <strong>{item.preview || item.artifactName || '继续这次任务'}</strong>
+                      <small>
+                        {historyStatusLabel(item.status)}
+                        {item.artifactName ? ` · ${item.artifactName}` : ''}
+                      </small>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p>暂无最近任务</p>
+              )}
+            </section>
+          ) : null}
         </header>
 
         <div className="agent-message-list" aria-label="Agent 对话消息">
@@ -1792,6 +1925,28 @@ function NewConversationView({
       </section>
     </div>
   );
+}
+
+/**
+ * historyStatusLabel 把后端线程状态转成业务可读文案。
+ *
+ * 参数：
+ * - status：后端 session 状态。
+ *
+ * 返回值：用于最近任务列表的小标签。
+ * 可能抛出的异常：无。
+ */
+function historyStatusLabel(status = '') {
+  if (status === 'waiting') {
+    return '等待补充';
+  }
+  if (status === 'completed') {
+    return '已完成';
+  }
+  if (status === 'running') {
+    return '处理中';
+  }
+  return '任务线程';
 }
 
 /**

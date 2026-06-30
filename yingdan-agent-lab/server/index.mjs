@@ -288,6 +288,15 @@ app.get('/api/agent/session/:sessionId', async (request, response) => {
   }
 });
 
+app.get('/api/agent/sessions', async (request, response) => {
+  try {
+    const sessions = await agentSessionStore.list({ limit: request.query.limit });
+    response.json({ ok: true, sessions });
+  } catch (error) {
+    sendError(response, error);
+  }
+});
+
 app.get('/api/agent/session/:sessionId/artifact', async (request, response) => {
   try {
     const session = await agentSessionStore.read(request.params.sessionId);

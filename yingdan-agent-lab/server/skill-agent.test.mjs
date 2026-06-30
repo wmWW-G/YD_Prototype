@@ -100,6 +100,24 @@ function createInquiryReplyRegistry() {
   };
 }
 
+async function writeInquiryReplySkillProject(projectRoot) {
+  const skill = createInquiryReplyRegistry().skills[0];
+  const registryDir = path.join(projectRoot, 'workbench', 'registry');
+  const skillDir = path.join(projectRoot, 'workbench', 'skills', skill.id);
+  await mkdir(registryDir, { recursive: true });
+  await mkdir(skillDir, { recursive: true });
+  await writeFile(
+    path.join(registryDir, 'skills.json'),
+    `${JSON.stringify({ skills: [skill] }, null, 2)}\n`,
+    'utf8',
+  );
+  await writeFile(
+    path.join(skillDir, 'skill.json'),
+    `${JSON.stringify(skill, null, 2)}\n`,
+    'utf8',
+  );
+}
+
 function createEmailAndInquiryReplyRegistry() {
   const emailRegistry = createEmailRegistry();
   const inquiryReplyRegistry = createInquiryReplyRegistry();
@@ -353,6 +371,46 @@ test('runNewConversationAgent asks for missing business context before generatin
   assert.deepEqual(progressEvents, ['goal.received', 'skill.loaded', 'run.needs_input']);
 });
 
+test('runNewConversationAgent writes a runtime checkpoint when a matched task needs business input', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-needs-input-checkpoint-'));
+
+  try {
+    const response = await runNewConversationAgent({
+      text: '客户问MOQ和交期，帮我回一下',
+      registry: createInquiryReplyRegistry(),
+      projectRoot,
+      skillRuntime: {
+        async runGoal() {
+          throw new Error('runtime should not execute before product context exists');
+        },
+      },
+    });
+    const runtime = response.context.pendingTask.runtime;
+    const checkpointPath = path.join(projectRoot, 'workbench', 'runs', `${runtime.runId}.checkpoint.json`);
+    const runLogPath = path.join(projectRoot, 'workbench', 'runs', `${runtime.runId}.jsonl`);
+    const checkpoint = JSON.parse(await readFile(checkpointPath, 'utf8'));
+    const runEvents = (await readFile(runLogPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+
+    assert.equal(response.kind, 'needs-input');
+    assert.equal(response.status, 'waiting');
+    assert.equal(runtime.resumeFrom, 'needs-input:inquiry-reply-draft');
+    assert.equal(checkpoint.status, 'waiting');
+    assert.equal(checkpoint.resume_from, 'needs-input:inquiry-reply-draft');
+    assert.equal(checkpoint.skillId, 'inquiry-reply-draft');
+    assert.deepEqual(checkpoint.missing, ['产品资料或报价边界']);
+    assert.deepEqual(runEvents.map((event) => event.type), [
+      'goal.received',
+      'skill.matched',
+      'skill.loaded',
+      'run.checkpointed',
+      'run.needs_input',
+    ]);
+    assert.equal(runEvents.some((event) => event.type === 'action.executed'), false);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('runNewConversationAgent does not treat channel agent wording as product context for email drafts', async () => {
   const response = await runNewConversationAgent({
     text: '写一封开发信给德国渠道代理',
@@ -525,6 +583,39 @@ test('runNewConversationAgent resumes customer analysis after the user adds the 
   assert.match(runtimeText, /客户是德国采购商/);
   assert.match(runtimeText, /他问MOQ和交期/);
   assert.match(runtimeText, /产品是太阳能灯/);
+});
+
+test('runNewConversationAgent records runtime resume when a needs-input checkpoint gets enough supplement', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-needs-input-resume-'));
+
+  try {
+    await writeInquiryReplySkillProject(projectRoot);
+    const first = await runNewConversationAgent({
+      text: '客户问MOQ和交期，帮我回一下',
+      registry: createInquiryReplyRegistry(),
+      projectRoot,
+    });
+    const runtime = first.context.pendingTask.runtime;
+    const runLogPath = path.join(projectRoot, 'workbench', 'runs', `${runtime.runId}.jsonl`);
+    const second = await runNewConversationAgent({
+      text: '产品太阳能路灯',
+      sessionId: first.sessionId,
+      context: first.context,
+      registry: createInquiryReplyRegistry(),
+      projectRoot,
+    });
+    const runEvents = (await readFile(runLogPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+
+    assert.equal(second.kind, 'goal-run');
+    assert.equal(second.sessionId, first.sessionId);
+    assert.equal(second.artifact.name, '询盘回复草稿.md');
+    assert.ok(runEvents.some((event) => event.type === 'run.resumed' && event.resume_from === 'needs-input:inquiry-reply-draft'));
+    assert.ok(runEvents.some((event) => event.type === 'action.executed'));
+    assert.ok(runEvents.some((event) => event.type === 'artifact.verified'));
+    assert.equal(Object.hasOwn(second.context, 'pendingTask'), false);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
 });
 
 test('runNewConversationAgent treats a concrete customer objection as enough follow-up context', async () => {

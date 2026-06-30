@@ -249,6 +249,26 @@ test('New Conversation can start a fresh business task without carrying the old 
   assert.equal(threadSource.includes('新任务'), true);
 });
 
+test('New Conversation can reopen recent agent threads from history', async () => {
+  const source = await readFile(appSourcePath, 'utf8');
+  const historySource = await readFunctionSource('handleRefreshAgentSessionHistory');
+  const openSource = await readFunctionSource('handleOpenAgentSessionFromHistory');
+  const threadSource = await readNewConversationSource();
+
+  assert.equal(source.includes('agentSessionHistory'), true);
+  assert.equal(source.includes('setAgentSessionHistory'), true);
+  assert.equal(historySource.includes('/api/agent/sessions'), true);
+  assert.equal(openSource.includes('/api/agent/session/'), true);
+  assert.equal(openSource.includes('setAgentSessionId(session.sessionId'), true);
+  assert.equal(openSource.includes('setAgentThreadMessages(session.messages'), true);
+  assert.equal(openSource.includes('deriveAgentThreadTaskTitle(session)'), true);
+  assert.equal(source.includes('onOpenHistorySession={handleOpenAgentSessionFromHistory}'), true);
+  assert.equal(threadSource.includes('agentSessionHistory = []'), true);
+  assert.equal(threadSource.includes('onOpenHistorySession,'), true);
+  assert.equal(threadSource.includes('thread-history-panel'), true);
+  assert.equal(threadSource.includes('最近任务'), true);
+});
+
 test('New Conversation toast does not block header actions after a task finishes', async () => {
   const styles = await readFile(appStylesPath, 'utf8');
   const toastStart = styles.indexOf('.toast {');

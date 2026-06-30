@@ -342,6 +342,9 @@ function detailForEvent(event = {}, fallback = '') {
   if (event.type === 'artifact.verified' && event.status === 'failed') {
     return '产物检查没有通过,需要修正后才能交付。';
   }
+  if (event.type === 'artifact.verified' && event.validation?.evidence?.coverage === 'complete') {
+    return '已核对产物里的业务依据和用户事实覆盖。';
+  }
   if (event.type === 'run.needs_input' && Array.isArray(event.missing) && event.missing.length > 0) {
     return `还缺: ${event.missing.join('、')}。请补充后我再继续。`;
   }

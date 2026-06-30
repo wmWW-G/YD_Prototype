@@ -221,14 +221,18 @@ export function createSkillRuntime(options = {}) {
     });
     loopSteps.push(toLoopStep('observation.record', '记录观察', buildObservation(state), state.result?.ok === false ? 'observation.failed' : 'observation.ready', state.result?.ok === false ? 'error' : 'complete', 'artifact.verify'));
 
-    const artifactVerification = await verifyArtifact(state.artifact, state.skill);
+    const artifactVerification = await verifyArtifact(state.artifact, state.skill, { userText: text });
+    state.artifact = {
+      ...state.artifact,
+      validation: artifactVerification,
+    };
     await recordRunEvent({
       type: 'artifact.verified',
       status: artifactVerification.ok ? 'complete' : 'failed',
       artifact: state.artifact,
       validation: artifactVerification,
     });
-    loopSteps.push(toLoopStep('artifact.verify', '校验产物', artifactVerification.ok ? '产物已通过 Runtime 基础校验。' : artifactVerification.message, artifactVerification.ok ? 'artifact.ready' : 'artifact.invalid', artifactVerification.ok ? 'complete' : 'error', 'finish'));
+    loopSteps.push(toLoopStep('artifact.verify', '校验产物', artifactVerification.message || (artifactVerification.ok ? '产物已通过 Runtime 基础校验。' : '产物检查没有通过。'), artifactVerification.ok ? 'artifact.ready' : 'artifact.invalid', artifactVerification.ok ? 'complete' : 'error', 'finish'));
 
     state.status = artifactVerification.ok ? 'completed' : 'failed';
     await recordRunEvent({
@@ -1082,7 +1086,7 @@ function buildObservation(state) {
   return parts.join('；') || '已返回可用结果。';
 }
 
-async function verifyArtifact(artifact, skill = {}) {
+async function verifyArtifact(artifact, skill = {}, options = {}) {
   if (!artifact?.outputPath) {
     return { ok: false, message: '没有返回产物路径。' };
   }
@@ -1097,6 +1101,14 @@ async function verifyArtifact(artifact, skill = {}) {
 
   try {
     const fileStat = await stat(artifact.outputPath);
+    if (isBusinessMarkdownArtifact({ artifact, skill })) {
+      return await verifyBusinessMarkdownArtifact({
+        artifact,
+        fileStat,
+        userText: options.userText,
+      });
+    }
+
     return {
       ok: fileStat.isFile() && fileStat.size > 0,
       message: fileStat.isFile() ? '产物存在。' : '产物路径不是文件。',
@@ -1108,6 +1120,176 @@ async function verifyArtifact(artifact, skill = {}) {
       message: error.code === 'ENOENT' ? '产物文件不存在。' : error.message,
     };
   }
+}
+
+/**
+ * isBusinessMarkdownArtifact 判断产物是否需要业务依据质量门。
+ *
+ * 作用：
+ * - 普通 mock markdown 只需要基础文件校验。
+ * - 外贸业务草稿必须检查依据段和用户事实覆盖,避免“文件非空”就被当成交付成功。
+ *
+ * 参数：
+ * - artifact：Runtime 规范化后的产物摘要。
+ * - skill：当前匹配到的 Skill 定义。
+ *
+ * 返回值：需要业务依据校验时返回 true。
+ * 可能抛出的异常：无。
+ */
+function isBusinessMarkdownArtifact({ artifact = {}, skill = {} } = {}) {
+  const name = String(artifact.name || artifact.outputPath || '').toLowerCase();
+  const isMarkdown = artifact.type === 'markdown' || name.endsWith('.md') || name.endsWith('.txt');
+  return isMarkdown && skill.adapter === 'business-draft';
+}
+
+/**
+ * verifyBusinessMarkdownArtifact 校验 Markdown 业务产物的依据覆盖。
+ *
+ * 作用：
+ * - 确认产物不是只有一个非空文件,而是真的带了可回看的业务依据。
+ * - 把用户输入里识别出的产品、国家/市场、客户关注点逐项核对到产物正文。
+ * - 产出机器可读 evidence ledger,供 run log、测试和后续 evaluator 继续使用。
+ *
+ * 参数：
+ * - artifact：Runtime 产物摘要,必须包含 outputPath。
+ * - fileStat：fs.stat() 返回的文件状态。
+ * - userText：本轮 Runtime 执行使用的用户输入。
+ *
+ * 返回值：Runtime artifact verification 对象。
+ * 可能抛出的异常：readFile 失败时向上抛出,由 verifyArtifact 包装成失败结果。
+ */
+async function verifyBusinessMarkdownArtifact({ artifact = {}, fileStat = {}, userText = '' } = {}) {
+  const content = await readFile(artifact.outputPath, 'utf8');
+  const signals = extractBusinessSignals(userText);
+  const missingFacts = [];
+  const checkedFacts = [];
+  const checks = {
+    nonEmptyFile: fileStat.isFile() && fileStat.size > 0,
+    hasEvidenceSection: /^##\s*依据\s*$/mu.test(content),
+    hasUserSourceLine: /(?:任务来源|用户目标|用户补充)\s*:/u.test(content),
+    noInternalResumeMarkers: !/(?:产出类型|补充资料|原始需求)/u.test(content),
+  };
+
+  if (!checks.hasEvidenceSection) {
+    missingFacts.push('依据段');
+  }
+  if (!checks.hasUserSourceLine) {
+    missingFacts.push('用户来源');
+  }
+  if (!checks.noInternalResumeMarkers) {
+    missingFacts.push('去除内部恢复标记');
+  }
+
+  collectEvidenceFact({
+    content,
+    label: '产品',
+    missingFacts,
+    value: signals.productChinese,
+    checkedFacts,
+  });
+  collectEvidenceFact({
+    alternatives: [signals.countryEnglish],
+    content,
+    label: '客户/市场',
+    missingFacts,
+    value: signals.countryChinese,
+    checkedFacts,
+  });
+
+  for (const concern of signals.concernsChinese || []) {
+    collectEvidenceFact({
+      content,
+      label: '关注点',
+      missingFacts,
+      value: concern,
+      checkedFacts,
+    });
+  }
+
+  const ok = checks.nonEmptyFile && missingFacts.length === 0;
+  return {
+    ok,
+    message: ok
+      ? '业务依据检查通过: 产物已覆盖用户提供的关键事实。'
+      : `业务依据检查未通过: 缺少 ${missingFacts.join('、')}。`,
+    bytes: fileStat.size,
+    checks,
+    evidence: {
+      checkedFacts,
+      coverage: ok ? 'complete' : 'incomplete',
+      missingFacts,
+      source: '用户原始输入 + 产物依据段',
+    },
+  };
+}
+
+/**
+ * collectEvidenceFact 把一个用户事实加入 evidence ledger 并检查正文覆盖。
+ *
+ * 作用：
+ * - 没有识别到的事实不强行检查,避免凭空增加缺口。
+ * - 识别到的事实必须在业务产物里出现,可以使用中文值或允许的英文替代表达。
+ *
+ * 参数：
+ * - content：Markdown 产物正文。
+ * - label：事实类别,例如 产品、客户/市场、关注点。
+ * - value：事实值。
+ * - alternatives：可接受的替代表达。
+ * - checkedFacts：用于记录已检查事实的数组。
+ * - missingFacts：用于记录未覆盖事实的数组。
+ *
+ * 返回值：无,直接修改 checkedFacts / missingFacts。
+ * 可能抛出的异常：无。
+ */
+function collectEvidenceFact(input = {}) {
+  const value = String(input.value || '').trim();
+  if (!value) {
+    return;
+  }
+
+  const fact = `${input.label}:${value}`;
+  input.checkedFacts.push(fact);
+
+  const candidates = [value, ...(input.alternatives || [])].filter(Boolean);
+  if (!candidates.some((candidate) => containsBusinessText(input.content, candidate))) {
+    input.missingFacts.push(fact);
+  }
+}
+
+/**
+ * containsBusinessText 判断正文是否包含某个业务事实。
+ *
+ * 作用：
+ * - 中英文和空格大小写差异不应该导致 evidence check 误判。
+ * - 保持规则简单透明,不引入模型判断,方便后续扩展 typed evaluator。
+ *
+ * 参数：
+ * - content：待检查正文。
+ * - expected：用户事实或替代表达。
+ *
+ * 返回值：包含时返回 true。
+ * 可能抛出的异常：无。
+ */
+function containsBusinessText(content = '', expected = '') {
+  const haystack = normalizeEvidenceText(content);
+  const needle = normalizeEvidenceText(expected);
+  return Boolean(needle) && haystack.includes(needle);
+}
+
+/**
+ * normalizeEvidenceText 归一化 evidence 文本。
+ *
+ * 作用：
+ * - 去掉空白并统一小写,让 `lead time` 和 `lead  time` 这类差异不影响校验。
+ *
+ * 参数：
+ * - value：任意文本。
+ *
+ * 返回值：归一化后的字符串。
+ * 可能抛出的异常：无。
+ */
+function normalizeEvidenceText(value = '') {
+  return String(value || '').toLowerCase().replace(/\s+/g, '');
 }
 
 function normalizeArtifact(result, skill) {

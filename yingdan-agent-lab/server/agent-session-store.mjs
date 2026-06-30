@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 /**
@@ -45,6 +45,53 @@ export function createAgentSessionStore(options = {}) {
         }
         throw error;
       }
+    },
+
+    /**
+     * list 列出最近的新对话线程摘要。
+     *
+     * 作用：
+     * - 让前台可以像 Codex / Claude Code 一样回到最近任务线程。
+     * - 只返回业务标题、状态、产物名和最近用户诉求,不暴露 runId、路径或内部 context。
+     *
+     * 参数：
+     * - input.limit：最多返回多少条,默认 20。
+     *
+     * 返回值：线程摘要数组,按 updatedAt 从新到旧排序。
+     * 可能抛出的异常：目录读取或 JSON 解析失败时抛出；目录不存在时返回空数组。
+     */
+    async list(input = {}) {
+      const limit = normalizeListLimit(input.limit);
+      let entries = [];
+      try {
+        entries = await readdir(sessionsRoot, { withFileTypes: true });
+      } catch (error) {
+        if (error.code === 'ENOENT') {
+          return [];
+        }
+        throw error;
+      }
+
+      const sessions = [];
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.endsWith('.json')) {
+          continue;
+        }
+        const sessionId = entry.name.replace(/\.json$/u, '');
+        if (!normalizeSessionId(sessionId)) {
+          continue;
+        }
+        const raw = await readFile(path.join(sessionsRoot, entry.name), 'utf8');
+        const session = sanitizeSessionForRead(JSON.parse(raw));
+        const summary = toSessionListItem(session);
+        if (summary) {
+          sessions.push(summary);
+        }
+      }
+
+      return sessions
+        .sort((left, right) => String(right.updatedAt || right.createdAt || '').localeCompare(String(left.updatedAt || left.createdAt || '')))
+        .slice(0, limit);
     },
 
     /**
@@ -146,6 +193,76 @@ function normalizeSessionId(sessionId) {
 
 function getSessionPath(sessionsRoot, sessionId) {
   return path.join(sessionsRoot, `${sessionId}.json`);
+}
+
+/**
+ * normalizeListLimit 规整 session 列表数量。
+ *
+ * 参数：
+ * - value：调用方传入的 limit。
+ *
+ * 返回值：1 到 50 之间的整数。
+ * 可能抛出的异常：无。
+ */
+function normalizeListLimit(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return 20;
+  }
+  return Math.max(1, Math.min(50, Math.floor(number)));
+}
+
+/**
+ * toSessionListItem 把完整 session 转成前台历史列表摘要。
+ *
+ * 作用：
+ * - 历史列表只用于用户识别和切回任务,不需要内部 context、runId、路径或消息全文。
+ * - 预览优先取最近一条用户消息,比摘要更接近用户当时交代的任务。
+ *
+ * 参数：
+ * - session：完整 session 状态。
+ *
+ * 返回值：安全摘要对象；无 sessionId 时返回 null。
+ * 可能抛出的异常：无。
+ */
+function toSessionListItem(session = {}) {
+  const sessionId = normalizeSessionId(session.sessionId);
+  if (!sessionId) {
+    return null;
+  }
+
+  const artifact = session.artifact || session.context?.artifact || session.skillAgentResult?.artifact || {};
+  return compactObject({
+    artifactName: safeDisplayText(artifact.workbookName || artifact.name),
+    createdAt: session.createdAt,
+    kind: safeDisplayText(session.kind),
+    preview: latestUserMessagePreview(session.messages),
+    sessionId,
+    status: safeDisplayText(session.status || 'waiting'),
+    taskTitle: safeDisplayText(session.taskTitle || session.skillAgentResult?.taskTitle || artifact.workbookName || artifact.name || '外贸任务'),
+    updatedAt: session.updatedAt || session.createdAt,
+  });
+}
+
+function latestUserMessagePreview(messages = []) {
+  const message = [...(Array.isArray(messages) ? messages : [])].reverse().find((item) => item?.role === 'user' && item.content);
+  return safeDisplayText(message?.content || '').slice(0, 90);
+}
+
+function safeDisplayText(value = '') {
+  const text = String(value || '');
+  if (looksLikeInternalText(text)) {
+    return '';
+  }
+  return text;
+}
+
+function looksLikeInternalText(value = '') {
+  return /(?:\/Users\/|\\Users\\|workbench\/runs|workbench\\runs|skill-runtime-|checkpointPath|runLogPath|outputPath|manifestPath)/u.test(String(value || ''));
+}
+
+function compactObject(value = {}) {
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== ''));
 }
 
 /**

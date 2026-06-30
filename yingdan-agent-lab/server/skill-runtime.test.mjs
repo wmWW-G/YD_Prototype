@@ -354,6 +354,101 @@ test('createSkillRuntime generates a real markdown business artifact for email d
   }
 });
 
+test('createSkillRuntime attaches a machine-checkable evidence ledger to markdown business artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '帮我准备一封跟进开发信，客户是德国采购商，产品是太阳能路灯，关注MOQ和交期',
+    });
+    const verifyStep = result.loop.steps.find((step) => step.action === 'artifact.verify');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.artifact.validation.ok, true);
+    assert.equal(result.artifact.validation.evidence.coverage, 'complete');
+    assert.deepEqual(result.artifact.validation.evidence.missingFacts, []);
+    assert.ok(result.artifact.validation.evidence.checkedFacts.includes('产品:太阳能路灯'));
+    assert.ok(result.artifact.validation.evidence.checkedFacts.includes('客户/市场:德国'));
+    assert.ok(result.artifact.validation.evidence.checkedFacts.includes('关注点:MOQ/起订量'));
+    assert.ok(result.artifact.validation.evidence.checkedFacts.includes('关注点:交期'));
+    assert.match(verifyStep.detail, /业务依据检查/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime fails markdown business artifacts that do not cover user-provided facts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      adapters: {
+        'business-draft': {
+          async load({ skill }) {
+            return {
+              displayName: skill.displayName,
+              requiredFiles: ['skill.json'],
+              hasExecutable: true,
+            };
+          },
+          async execute({ outputRoot, runId, skill }) {
+            const artifactPath = path.join(outputRoot, `${skill.id}-${runId}.md`);
+            await writeFile(
+              artifactPath,
+              [
+                `# ${skill.displayName}`,
+                '',
+                '## 英文开发信草稿',
+                '',
+                'Hi, here is a generic sourcing message.',
+                '',
+                '## 依据',
+                '',
+                '- 用户目标: 准备一封开发信。',
+                '',
+              ].join('\n'),
+              'utf8',
+            );
+            return {
+              ok: true,
+              artifact: {
+                type: 'markdown',
+                name: `${skill.displayName}.md`,
+                outputPath: artifactPath,
+              },
+            };
+          },
+        },
+      },
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '帮我准备一封跟进开发信，客户是德国采购商，产品是太阳能路灯，关注MOQ和交期',
+    });
+    const verifyStep = result.loop.steps.find((step) => step.action === 'artifact.verify');
+
+    assert.equal(result.ok, false);
+    assert.equal(result.loop.status, 'failed');
+    assert.equal(result.artifact.validation.ok, false);
+    assert.equal(result.artifact.validation.evidence.coverage, 'incomplete');
+    assert.ok(result.artifact.validation.evidence.missingFacts.includes('产品:太阳能路灯'));
+    assert.ok(result.artifact.validation.evidence.missingFacts.includes('客户/市场:德国'));
+    assert.ok(result.artifact.validation.evidence.missingFacts.includes('关注点:MOQ/起订量'));
+    assert.ok(result.artifact.validation.evidence.missingFacts.includes('关注点:交期'));
+    assert.equal(verifyStep.status, 'error');
+    assert.match(verifyStep.detail, /业务依据检查未通过/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime carries product and sample intent into inquiry reply artifacts', async () => {
   const fixture = await withRegistryProject();
 

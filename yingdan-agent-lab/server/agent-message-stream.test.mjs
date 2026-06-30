@@ -93,6 +93,27 @@ test('runtimeEventToStreamEvent turns missing input waits into a business progre
   });
 });
 
+test('runtimeEventToStreamEvent surfaces business evidence checks in result verification progress', () => {
+  const event = runtimeEventToStreamEvent({
+    status: 'complete',
+    type: 'artifact.verified',
+    validation: {
+      evidence: {
+        coverage: 'complete',
+      },
+    },
+  });
+
+  assert.deepEqual(event, {
+    event: 'progress',
+    data: {
+      detail: '已核对产物里的业务依据和用户事实覆盖。',
+      label: '检查结果',
+      status: 'complete',
+    },
+  });
+});
+
 test('createConsecutiveProgressDeduper removes repeated progress steps in one stream', () => {
   const dedupe = createConsecutiveProgressDeduper();
   const firstPermissionCheck = runtimeEventToStreamEvent({
@@ -265,6 +286,12 @@ test('sanitizeAgentResultForFrontend keeps structured missing inputs for the age
         skillName: '开发信草稿',
         originalText: '帮我准备一封跟进开发信',
         missing: ['客户名称或客户类型', '产品或核心卖点', '目标市场或客户所在国家'],
+        runtime: {
+          checkpointPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/runs/skill-runtime-abc.checkpoint.json',
+          resumeFrom: 'needs-input:cold-email-draft',
+          runId: 'skill-runtime-abc',
+          runLogPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/runs/skill-runtime-abc.jsonl',
+        },
         supplements: [],
       },
     },
@@ -292,6 +319,8 @@ test('sanitizeAgentResultForFrontend keeps structured missing inputs for the age
     hint: '直接补一句话即可，我会接着这次任务继续。',
   });
   assert.equal(JSON.stringify(result).includes('cold-email-draft'), false);
+  assert.equal(JSON.stringify(result).includes('skill-runtime-abc'), false);
+  assert.equal(JSON.stringify(result).includes('/Users/garden'), false);
 });
 
 test('sanitizeAgentResultForFrontend hides customer memory filesystem paths', () => {

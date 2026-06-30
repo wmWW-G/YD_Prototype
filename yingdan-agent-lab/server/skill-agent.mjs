@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import { exportAgentArtifact } from './agent-artifact-export.mjs';
 import { reviseMarkdownArtifactForFollowup, reviseXlsxArtifactForFollowup } from './agent-artifact-revision.mjs';
@@ -158,6 +159,7 @@ export async function runNewConversationAgent(options = {}) {
             const generatedResponse = await runMatchedSkillGoal({
               checkPolicy: options.checkPolicy,
               projectRoot,
+              resumeRuntime: context.pendingTask.runtime,
               sessionId: options.sessionId,
               skillRuntime: options.skillRuntime,
               onRuntimeEvent: collectRuntimeEvent,
@@ -190,6 +192,7 @@ export async function runNewConversationAgent(options = {}) {
       return buildNeedsInputResponse({
         missing: missingArtifact.missing,
         onRuntimeEvent: options.onRuntimeEvent,
+        projectRoot,
         sessionId: options.sessionId,
         text,
       });
@@ -231,6 +234,7 @@ export async function runNewConversationAgent(options = {}) {
       return runMatchedSkillGoal({
         checkPolicy: options.checkPolicy,
         projectRoot,
+        resumeRuntime: context.pendingTask.runtime,
         sessionId: options.sessionId,
         skillRuntime: options.skillRuntime,
         onRuntimeEvent: options.onRuntimeEvent,
@@ -278,6 +282,7 @@ export async function runNewConversationAgent(options = {}) {
   if (!match.matched) {
     return buildNeedsInputResponse({
       onRuntimeEvent: options.onRuntimeEvent,
+      projectRoot,
       text,
     });
   }
@@ -306,6 +311,7 @@ export async function runNewConversationAgent(options = {}) {
       matchedSkill: match.skill,
       missing: missingContext.missing,
       onRuntimeEvent: options.onRuntimeEvent,
+      projectRoot,
       text,
     });
   }
@@ -347,7 +353,19 @@ async function runMatchedSkillGoal(input = {}) {
       onEvent: input.onRuntimeEvent,
       projectRoot,
     });
-  const result = await runtime.runGoal({ text: input.text, onRuntimeEvent: input.onRuntimeEvent });
+  const runtimeInput = {
+    text: input.text,
+    onRuntimeEvent: input.onRuntimeEvent,
+  };
+  if (input.resumeRuntime?.runId) {
+    runtimeInput.runId = input.resumeRuntime.runId;
+    runtimeInput.resumeFromCheckpoint = {
+      resume_from: input.resumeRuntime.resumeFrom,
+      runId: input.resumeRuntime.runId,
+      status: 'waiting',
+    };
+  }
+  const result = await runtime.runGoal(runtimeInput);
 
   if (result.ok === false) {
     return {
@@ -1439,6 +1457,7 @@ async function buildConfirmationAcceptedResponse(input = {}) {
           matchedSkill: taskMatch.skill,
           missing: missingContext.missing,
           onRuntimeEvent: input.onRuntimeEvent,
+          projectRoot: input.projectRoot,
           sessionId: input.sessionId,
           text: taskText,
         });
@@ -1455,6 +1474,7 @@ async function buildConfirmationAcceptedResponse(input = {}) {
     if (!taskMatch.matched) {
       const response = await buildNeedsInputResponse({
         onRuntimeEvent: input.onRuntimeEvent,
+        projectRoot: input.projectRoot,
         sessionId: input.sessionId,
         text: taskText,
       });
@@ -1549,6 +1569,7 @@ async function buildConfirmationAcceptedResponse(input = {}) {
           matchedSkill: draftMatch.skill,
           missing: missingContext.missing,
           onRuntimeEvent: input.onRuntimeEvent,
+          projectRoot: input.projectRoot,
           sessionId: input.sessionId,
           text: draftText,
         });
@@ -1840,6 +1861,14 @@ async function buildNeedsInputResponse(input = {}) {
     missing,
     supplements: [],
   };
+  const runtime = await writeNeedsInputRuntimeCheckpoint({
+    missing,
+    projectRoot: input.projectRoot,
+    sessionId,
+    skill,
+    text: userText,
+  });
+  pendingTask.runtime = runtime;
   const ask = [
     userText ? `我理解你想处理「${userText}」。` : '我还没拿到明确的任务目标。',
     skill ? `这看起来适合按「${skill.displayName || skill.id}」处理。` : '',
@@ -1984,6 +2013,137 @@ function appendPendingTaskSupplement(pendingTask = {}, text = '') {
     return existing;
   }
   return [...existing, cleanText];
+}
+
+/**
+ * writeNeedsInputRuntimeCheckpoint 为缺资料等待写入 Runtime 风格 checkpoint。
+ *
+ * 作用：
+ * - 让 needs-input 和 policy ask 一样有 run log / checkpoint 硬证据。
+ * - 用户补一句话后可以用同一个 runId 记录 `run.resumed` 和后续执行事件。
+ * - 前台仍只展示业务清单,不展示 runId、路径或 JSON。
+ *
+ * 参数：
+ * - input.projectRoot：项目根目录。
+ * - input.text：原始用户目标。
+ * - input.skill：已匹配到的 Skill,可为空。
+ * - input.missing：缺失资料清单。
+ * - input.sessionId：当前 agent thread id。
+ *
+ * 返回值：pendingTask 内部 runtime 摘要。
+ * 可能抛出的异常：文件系统写入失败时抛出。
+ */
+async function writeNeedsInputRuntimeCheckpoint(input = {}) {
+  const projectRoot = input.projectRoot || process.cwd();
+  const runId = generateRuntimeRunId('skill-runtime');
+  const workbenchRunsRoot = path.join(projectRoot, 'workbench', 'runs');
+  const runLogPath = path.join(workbenchRunsRoot, `${runId}.jsonl`);
+  const checkpointPath = path.join(workbenchRunsRoot, `${runId}.checkpoint.json`);
+  const skill = input.skill || {};
+  const skillId = skill.id || '';
+  const missing = Array.isArray(input.missing) ? input.missing : [];
+  const resumeFrom = `needs-input:${skillId || 'unmatched'}`;
+  const checkpoint = {
+    createdAt: new Date().toISOString(),
+    missing,
+    originalText: String(input.text || ''),
+    resume_from: resumeFrom,
+    runId,
+    sessionId: input.sessionId || '',
+    skillId,
+    skillName: skill.displayName || skillId || '',
+    status: 'waiting',
+  };
+
+  await mkdir(workbenchRunsRoot, { recursive: true });
+  await writeFile(checkpointPath, `${JSON.stringify(checkpoint, null, 2)}\n`, 'utf8');
+  await appendRuntimeRunEvent(runLogPath, {
+    runId,
+    status: 'complete',
+    text: summarizeRuntimeText(input.text),
+    type: 'goal.received',
+  });
+  if (skillId) {
+    await appendRuntimeRunEvent(runLogPath, {
+      runId,
+      skillId,
+      status: 'complete',
+      type: 'skill.matched',
+    });
+    await appendRuntimeRunEvent(runLogPath, {
+      runId,
+      requiredFiles: ['skill.json'],
+      skillId,
+      status: 'complete',
+      type: 'skill.loaded',
+    });
+  }
+  await appendRuntimeRunEvent(runLogPath, {
+    checkpoint: path.relative(path.join(projectRoot, 'workbench'), checkpointPath),
+    resume_from: resumeFrom,
+    runId,
+    status: 'waiting',
+    type: 'run.checkpointed',
+  });
+  await appendRuntimeRunEvent(runLogPath, {
+    missing,
+    reason: '关键业务资料不足,暂停等待用户补充。',
+    resume_from: resumeFrom,
+    runId,
+    status: 'waiting',
+    type: 'run.needs_input',
+  });
+
+  return {
+    checkpointPath,
+    resumeFrom,
+    runId,
+    runLogPath,
+  };
+}
+
+/**
+ * appendRuntimeRunEvent 写入一条 Runtime JSONL 事件。
+ *
+ * 参数：
+ * - runLogPath：run log 文件路径。
+ * - event：事件对象。
+ *
+ * 返回值：Promise<void>。
+ * 可能抛出的异常：文件系统写入失败时抛出。
+ */
+async function appendRuntimeRunEvent(runLogPath, event = {}) {
+  const record = { at: new Date().toISOString(), ...event };
+  await appendFile(runLogPath, `${JSON.stringify(record)}\n`, 'utf8');
+}
+
+/**
+ * generateRuntimeRunId 生成本地 Runtime runId。
+ *
+ * 参数：
+ * - prefix：runId 前缀。
+ *
+ * 返回值：字符串 runId。
+ * 可能抛出的异常：无。
+ */
+function generateRuntimeRunId(prefix = 'skill-runtime') {
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-');
+  const random = Math.random().toString(36).slice(2, 6).padEnd(4, '0');
+  return `${prefix}-${stamp}-${random}`;
+}
+
+/**
+ * summarizeRuntimeText 截断 run log 里的用户目标摘要。
+ *
+ * 参数：
+ * - text：用户输入。
+ *
+ * 返回值：最长 120 字符的单行摘要。
+ * 可能抛出的异常：无。
+ */
+function summarizeRuntimeText(text = '') {
+  const value = String(text || '').replace(/\s+/g, ' ').trim();
+  return value.length > 120 ? `${value.slice(0, 117)}...` : value;
 }
 
 async function emitNeedsInputProgress(onRuntimeEvent, input = {}) {

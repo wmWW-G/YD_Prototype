@@ -174,6 +174,92 @@ test('agent session store writes a readable JSON file with the latest artifact s
   }
 });
 
+test('agent session store lists recent sessions as safe thread summaries', async () => {
+  const fixture = await withSessionStore();
+
+  try {
+    const oldSessionId = 'agent-session-20260629T121500-old';
+    const newSessionId = 'agent-session-20260629T121600-new';
+    await fixture.store.saveTurn({
+      sessionId: oldSessionId,
+      userText: '写一封开发信',
+      response: {
+        ok: true,
+        kind: 'needs-input',
+        sessionId: oldSessionId,
+        status: 'waiting',
+        taskTitle: '开发信草稿',
+        context: {
+          pendingTask: {
+            skillId: 'cold-email-draft',
+            skillName: '开发信草稿',
+            originalText: '写一封开发信',
+            missing: ['产品或核心卖点'],
+            runtime: {
+              runId: 'skill-runtime-secret-old',
+              checkpointPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/runs/old.checkpoint.json',
+            },
+          },
+        },
+        messages: [
+          {
+            id: 'assistant-old',
+            role: 'assistant',
+            content: '还需要补充产品。',
+            createdAt: '2026-06-29T12:15:00.000Z',
+          },
+        ],
+      },
+    });
+    await fixture.store.saveTurn({
+      sessionId: newSessionId,
+      userText: '客户已读不回，产品是家具，帮我做7天跟进计划',
+      response: {
+        ok: true,
+        kind: 'goal-run',
+        sessionId: newSessionId,
+        status: 'completed',
+        taskTitle: '客户推进分析',
+        summary: '已生成客户推进分析。',
+        artifact: {
+          type: 'markdown',
+          name: '客户推进分析.md',
+          outputPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/artifacts/run-1/客户推进分析.md',
+        },
+        messages: [
+          {
+            id: 'assistant-new',
+            role: 'assistant',
+            content: '已生成客户推进分析。',
+            createdAt: '2026-06-29T12:16:00.000Z',
+            artifact: {
+              type: 'markdown',
+              name: '客户推进分析.md',
+              outputPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/artifacts/run-1/客户推进分析.md',
+            },
+          },
+        ],
+      },
+    });
+
+    const sessions = await fixture.store.list({ limit: 10 });
+    const serialized = JSON.stringify(sessions);
+
+    assert.deepEqual(sessions.map((session) => session.sessionId), [newSessionId, oldSessionId]);
+    assert.equal(sessions[0].taskTitle, '客户推进分析');
+    assert.equal(sessions[0].artifactName, '客户推进分析.md');
+    assert.equal(sessions[0].status, 'completed');
+    assert.equal(sessions[1].status, 'waiting');
+    assert.equal(sessions[1].preview, '写一封开发信');
+    assert.equal(serialized.includes('/Users/garden'), false);
+    assert.equal(serialized.includes('skill-runtime-secret-old'), false);
+    assert.equal(serialized.includes('checkpointPath'), false);
+    assert.equal(serialized.includes('outputPath'), false);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('agent session store keeps business task title after a confirmation is accepted', async () => {
   const fixture = await withSessionStore();
 
