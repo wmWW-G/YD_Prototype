@@ -57,6 +57,7 @@ export async function readAgentArtifactPreview(input = {}) {
       ok: true,
       content,
       name,
+      quality: buildArtifactQualitySummary(artifact),
       sizeBytes: fileStat.size,
       truncated: raw.length > MAX_TEXT_PREVIEW_CHARS,
       type: artifact.type || (ext === '.md' ? 'markdown' : 'text'),
@@ -70,6 +71,7 @@ export async function readAgentArtifactPreview(input = {}) {
       content: '',
       name,
       previewNote: buildXlsxPreviewNote(workbook),
+      quality: buildArtifactQualitySummary(artifact),
       sizeBytes: fileStat.size,
       truncated: false,
       type: 'xlsx',
@@ -82,6 +84,7 @@ export async function readAgentArtifactPreview(input = {}) {
     content: '',
     name,
     previewNote: '文件已生成,但当前原型还不支持这种格式的内联预览。',
+    quality: buildArtifactQualitySummary(artifact),
     sizeBytes: fileStat.size,
     truncated: false,
     type: artifact.type || ext.replace('.', '') || 'file',
@@ -170,6 +173,160 @@ function buildXlsxPreviewNote(workbook = {}) {
     .join('、');
   const extra = sheets.length > 8 ? `，另有 ${sheets.length - 8} 个工作表` : '';
   return `表格文件已生成,包含 ${sheets.length} 个工作表: ${sheetSummary}${extra}。`;
+}
+
+/**
+ * buildArtifactQualitySummary 把 Runtime 内部 validation 转成前端可见的安全检查摘要。
+ *
+ * 作用：
+ * - 让用户在产物预览里看到“检查结果”,知道材料不是空文件或瞎编内容。
+ * - 只暴露业务事实覆盖结果,不暴露 outputPath、checkpoint、runId、tool call 等内部字段。
+ *
+ * 参数：
+ * - artifact：session 中保存的产物对象,可能包含 validation.evidence。
+ *
+ * 返回值：quality 摘要对象或 undefined。
+ * 可能抛出的异常：无。
+ */
+function buildArtifactQualitySummary(artifact = {}) {
+  const evidence = artifact.validation?.evidence;
+  if (!evidence || typeof evidence !== 'object') {
+    return undefined;
+  }
+
+  const checkedFacts = safeEvidenceFactList(evidence.checkedFacts);
+  const missingFacts = safeEvidenceFactList(evidence.missingFacts);
+  const hasSafeBusinessFacts = checkedFacts.length > 0 || missingFacts.length > 0;
+  const coverage = hasSafeBusinessFacts ? safeEvidenceCoverage(evidence.coverage) : 'unknown';
+  const passed =
+    artifact.validation?.ok !== false &&
+    coverage === 'complete' &&
+    checkedFacts.length > 0 &&
+    missingFacts.length === 0;
+
+  return {
+    checkedFacts,
+    coverage,
+    label: '依据检查',
+    missingFacts,
+    status: passed ? 'passed' : 'needs-review',
+    summary: passed
+      ? '已核对产物里的业务依据和用户事实覆盖。'
+      : '产物已生成,但仍有用户事实需要复核。',
+  };
+}
+
+/**
+ * safeEvidenceFactList 清理 evidence fact 列表,只保留能给业务用户看的强类型业务事实。
+ *
+ * 参数：
+ * - values：Runtime evidence 中的 checkedFacts 或 missingFacts。
+ *
+ * 返回值：最多 12 条 `{ kind, label }` 事实对象。
+ * 可能抛出的异常：无。
+ */
+function safeEvidenceFactList(values = []) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map((value) => String(value || '').trim())
+    .map(parseSafeEvidenceFact)
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
+/**
+ * parseSafeEvidenceFact 把 Runtime 的字符串 fact 转成白名单业务结构。
+ *
+ * 作用：
+ * - Runtime 内部可以记录更自由的 evidence 字符串。
+ * - 前台只允许展示白名单业务事实,避免 tool_call、run_id 等变体漏出。
+ *
+ * 参数：
+ * - value：待检查的事实文本。
+ *
+ * 返回值：安全 fact 对象或 null。
+ * 可能抛出的异常：无。
+ */
+function parseSafeEvidenceFact(value = '') {
+  if (!value || value.length > 96) {
+    return null;
+  }
+
+  const matchers = [
+    { kind: 'product', pattern: /^(?:产品|商品|品类)[:：]\s*(.+)$/u },
+    { kind: 'market', pattern: /^(?:客户\/市场|市场|国家|地区|客户地区)[:：]\s*(.+)$/u },
+    { kind: 'concern', pattern: /^(?:关注点|客户关注点|问题|客户问题|异议)[:：]\s*(.+)$/u },
+    { kind: 'quantity', pattern: /^(?:数量|采购数量|目标数量)[:：]\s*(.+)$/u },
+    { kind: 'price', pattern: /^(?:价格|报价|单价|目标价)[:：]\s*(.+)$/u },
+    { kind: 'trade_term', pattern: /^(?:贸易条款|成交条款|交付条款)[:：]\s*(.+)$/u },
+    { kind: 'payment', pattern: /^(?:付款条件|付款方式|账期)[:：]\s*(.+)$/u },
+    { kind: 'sample', pattern: /^(?:样品|样品计划)[:：]\s*(.+)$/u },
+    { kind: 'next_action', pattern: /^(?:下一步动作|下一步|跟进动作)[:：]\s*(.+)$/u },
+  ];
+
+  for (const matcher of matchers) {
+    const match = value.match(matcher.pattern);
+    if (!match) {
+      continue;
+    }
+    const label = normalizeEvidenceFactLabel(match[1]);
+    if (!isSafeEvidenceFactLabel(label)) {
+      return null;
+    }
+    return { kind: matcher.kind, label };
+  }
+
+  return null;
+}
+
+/**
+ * normalizeEvidenceFactLabel 规整业务 fact 标签。
+ *
+ * 参数：
+ * - value：业务 fact 冒号后的标签。
+ *
+ * 返回值：去掉多余空白后的短文本。
+ * 可能抛出的异常：无。
+ */
+function normalizeEvidenceFactLabel(value = '') {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * isSafeEvidenceFactLabel 判断 fact 标签是否不含内部实现词。
+ *
+ * 参数：
+ * - label：已规整的业务标签。
+ *
+ * 返回值：true 表示可以展示。
+ * 可能抛出的异常：无。
+ */
+function isSafeEvidenceFactLabel(label = '') {
+  if (!label || label.length > 60) {
+    return false;
+  }
+
+  return !/(?:\/Users\/|\/tmp\/|\/var\/|\\|workbench[\/\\]|output[_\s-]*path|manifest[_\s-]*path|checkpoint|run[_\s-]*id|session[_\s-]*id|tool[_\s-]*call|toolCall|schema|json|validation)/iu.test(label);
+}
+
+/**
+ * safeEvidenceCoverage 规范化 evidence coverage 状态。
+ *
+ * 参数：
+ * - value：Runtime 写入的 coverage 字段。
+ *
+ * 返回值：`complete`、`incomplete` 或 `unknown`。
+ * 可能抛出的异常：无。
+ */
+function safeEvidenceCoverage(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'complete' || normalized === 'incomplete') {
+    return normalized;
+  }
+  return 'unknown';
 }
 
 function runPythonInspector(filePath) {

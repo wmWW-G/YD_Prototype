@@ -120,6 +120,18 @@ test('New Conversation xlsx previews render workbook sheets as structured artifa
   assert.equal(source.includes('列'), true);
 });
 
+test('New Conversation artifact previews render business evidence quality checks', async () => {
+  const source = await readFile(appSourcePath, 'utf8');
+
+  assert.equal(source.includes('function ArtifactQualitySummary'), true);
+  assert.equal(source.includes('function formatArtifactQualityFact'), true);
+  assert.equal(source.includes('fact.label'), true);
+  assert.equal(source.includes('artifact.quality'), true);
+  assert.equal(source.includes('依据检查'), true);
+  assert.equal(source.includes('已覆盖'), true);
+  assert.equal(source.includes('missingFacts'), true);
+});
+
 test('New Conversation missing business inputs render as a checklist in the thread', async () => {
   const source = await readFile(appSourcePath, 'utf8');
 

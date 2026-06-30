@@ -648,3 +648,26 @@
   - `server/agent-session-store.mjs` 新增 `list({limit})`,`server/index.mjs` 新增 `GET /api/agent/sessions`。
   - `agent-thread-prototype/src/App.jsx` 新增 `历史` 按钮、最近任务面板、`handleRefreshAgentSessionHistory()` 和 `handleOpenAgentSessionFromHistory()`,点击历史任务后恢复对应 session 的消息、标题、状态、产物和上下文。
   - 新增前台源码测试 `New Conversation can reopen recent agent threads from history`;已执行 `node --test --test-name-pattern "reopen recent agent threads|lists recent sessions" server/frontend-copy.test.mjs server/agent-session-store.test.mjs`,2 个测试通过,并执行 `npm run build:web` 通过。
+- 让产物预览保留可见“检查结果”：
+  - 新增红灯测试 `readAgentArtifactPreview returns safe evidence quality for markdown business artifacts`,要求 Markdown 业务产物预览返回安全 `quality` 摘要,能展示已覆盖的产品、市场和关注点事实,但不能暴露本地路径或 validation 原文。
+  - 新增前台红灯测试 `New Conversation artifact previews render business evidence quality checks`,要求新对话产物预览面板渲染 `依据检查`、`已覆盖` 和待复核事实。
+  - `server/agent-artifact-preview.mjs` 从 `artifact.validation.evidence` 生成业务化 quality 摘要,并过滤 `/Users/`、`/tmp/`、checkpoint、runId、schema、JSON、tool call 等内部信息。
+  - `agent-thread-prototype/src/App.jsx` 新增 `ArtifactQualitySummary`,打开 `查看文件` 时在 Markdown 产物正文前显示依据覆盖摘要;`src/styles.css` 补齐安静的检查卡片样式。
+  - 已执行 `node --test --test-name-pattern "safe evidence quality|business evidence quality" server/agent-artifact-preview.test.mjs server/frontend-copy.test.mjs`,2 个测试通过。
+  - sub agent 只读评估指出两个 P2:`quality` 过滤仍偏黑名单,且 unsafe facts 全被过滤时可能空洞显示 `已覆盖`。
+  - 已修复:预览接口只把 evidence fact 收敛为 `{ kind, label }` 的业务白名单结构,仅允许 `product / market / concern`;前端通过 `formatArtifactQualityFact()` 渲染 label,不直接显示自由字符串。
+  - 已新增回归测试覆盖 `run_id / tool_call / output_path / toolCall / workbench/artifacts` 等内部变体,这类 fact 会被丢弃并把 quality 降为 `needs-review / unknown`,不能显示空洞 `已覆盖`。
+  - 已执行 `node --test --test-name-pattern "safe evidence quality|internal-looking facts|business evidence quality" server/agent-artifact-preview.test.mjs server/frontend-copy.test.mjs`,3 个测试通过。
+- 给 Skill Runtime 补上 `status + phase` 硬结构：
+  - 根据当前 `CONTEXT.md` / `RUNTIME_ARCHITECTURE.md` 的缺口,`skill-runner` 不能只停留在固定 action 链;run log 和 loop step 需要能标明 `preflight / assembling_context / planning / executing / validating / committing`。
+  - 新增红灯测试 `createSkillRuntime records status and phase on runtime loop events`,要求 `result.loop.phase`、每个 `loop.steps[].phase` 和 jsonl / streamed runtime event 的 `phase` 一致。
+  - `server/skill-runner.mjs` 新增 `withRuntimePhase()`、`phaseForRuntimeEvent()`、`phaseForLoopAction()` 和 `buildLoopState()`,让完成、等待和失败路径都保留当前 phase。
+  - 当前 phase 是内部运行结构,前台仍只展示业务化 `识别任务 / 核对资料 / 生成材料 / 检查结果`,不把 phase 名直接暴露给业务用户。
+  - 已执行 `node --test --test-name-pattern "status and phase" server/skill-runtime.test.mjs` 和 `node --test --test-name-pattern "emits runtime events|checkpoints policy ask" server/skill-runtime.test.mjs`,3 个测试通过。
+- 扩展 Markdown 业务产物的 typed evidence ledger：
+  - sub agent 复核认为下一步应补 `typed evaluator / evidence ledger v2`,把价格、数量、交期、付款条款、样品和下一步动作纳入机器检查。
+  - 新增红灯测试 `createSkillRuntime records typed purchasing evidence in markdown business artifacts`,要求用户给出德国客户、太阳能路灯、500套、20美元、FOB深圳、60天账期、下周样品和7天跟进计划时,Markdown 产物必须写入这些事实,并在 `artifact.validation.evidence.checkedFacts` 中逐项可查。
+  - `server/skill-runner.mjs` 扩展 `extractBusinessSignals()` 和 Markdown 依据段,新增数量、价格、贸易条款、付款条件、样品计划和下一步动作;`verifyBusinessMarkdownArtifact()` 会逐项核对正文覆盖,缺失则阻止完成。
+  - 新增红灯测试 `readAgentArtifactPreview exposes typed purchasing evidence facts`,要求产物预览把这些 fact 转成 `quantity / price / trade_term / payment / sample / next_action` 安全白名单结构。
+  - 新增红灯测试 `readAgentArtifactPreview keeps sample and next-action facts when purchasing evidence is dense`,把安全预览 fact 上限提升到 12 条,避免复杂采购场景里样品计划和下一步动作被截掉。
+  - 已执行 `node --test --test-name-pattern "typed purchasing evidence" server/skill-runtime.test.mjs` 和 `node --test --test-name-pattern "typed purchasing evidence facts|sample and next-action facts" server/agent-artifact-preview.test.mjs`,3 个测试通过。

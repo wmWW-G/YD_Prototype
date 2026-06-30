@@ -382,6 +382,43 @@ test('createSkillRuntime attaches a machine-checkable evidence ledger to markdow
   }
 });
 
+test('createSkillRuntime records typed purchasing evidence in markdown business artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户是德国采购商，产品是太阳能路灯，数量500套，目标价20美元，FOB深圳，要求60天账期，想下周拿样品，帮我做7天跟进计划',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+    const facts = result.artifact.validation.evidence.checkedFacts;
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.deepEqual(result.artifact.validation.evidence.missingFacts, []);
+    assert.ok(facts.includes('产品:太阳能路灯'));
+    assert.ok(facts.includes('客户/市场:德国'));
+    assert.ok(facts.includes('数量:500套'));
+    assert.ok(facts.includes('价格:20美元'));
+    assert.ok(facts.includes('贸易条款:FOB深圳'));
+    assert.ok(facts.includes('付款条件:60天账期'));
+    assert.ok(facts.includes('样品:下周样品计划'));
+    assert.ok(facts.includes('下一步动作:7天跟进计划'));
+    assert.match(content, /500套/);
+    assert.match(content, /20美元/);
+    assert.match(content, /FOB深圳/);
+    assert.match(content, /60天账期/);
+    assert.match(content, /下周样品计划/);
+    assert.match(content, /7天跟进节奏/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime fails markdown business artifacts that do not cover user-provided facts', async () => {
   const fixture = await withRegistryProject();
 
@@ -899,6 +936,58 @@ test('createSkillRuntime emits runtime events while it writes the run log', asyn
     );
     assert.equal(streamedEvents[0].runId, result.runId);
     assert.equal(streamedEvents.at(-1).status, 'completed');
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime records status and phase on runtime loop events', async () => {
+  const fixture = await withRegistryProject();
+  const streamedEvents = [];
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+      onEvent: (event) => {
+        streamedEvents.push(event);
+      },
+    });
+
+    const result = await runtime.runGoal({ text: '帮我准备一封跟进开发信，客户是德国采购商，关注MOQ和交期' });
+    const events = await readJsonl(result.runLogPath);
+
+    assert.equal(result.loop.status, 'completed');
+    assert.equal(result.loop.phase, 'committing');
+    assert.deepEqual(
+      result.loop.steps.map((step) => [step.action, step.phase]),
+      [
+        ['goal.classify', 'preflight'],
+        ['skill.match', 'preflight'],
+        ['skill.load', 'assembling_context'],
+        ['plan.create', 'planning'],
+        ['action.execute', 'executing'],
+        ['observation.record', 'executing'],
+        ['artifact.verify', 'validating'],
+        ['finish', 'committing'],
+      ],
+    );
+    assert.deepEqual(
+      events.map((event) => [event.type, event.phase]),
+      [
+        ['goal.received', 'preflight'],
+        ['skill.matched', 'preflight'],
+        ['skill.loaded', 'assembling_context'],
+        ['plan.created', 'planning'],
+        ['policy.checked', 'executing'],
+        ['policy.checked', 'executing'],
+        ['action.executed', 'executing'],
+        ['observation.recorded', 'executing'],
+        ['artifact.verified', 'validating'],
+        ['run.completed', 'committing'],
+      ],
+    );
+    assert.deepEqual(streamedEvents.map((event) => event.phase), events.map((event) => event.phase));
   } finally {
     await fixture.cleanup();
   }

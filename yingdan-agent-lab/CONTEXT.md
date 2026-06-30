@@ -60,12 +60,13 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 → 前台新对话展示业务化活动流和产物卡
 ```
 
-注意:这仍是第一刀骨架,不是完整 DealOps Runtime Loop。当前已补上 Runtime 层 policy ask / checkpoint / resumeGoal 的最小硬边界;下一步要继续把 `server/skill-runner.mjs` 从固定执行链升级为更完整的 `status + phase`、resume_from、evidence ledger 和 typed evaluator。
+注意:这仍是第一刀骨架,不是完整 DealOps Runtime Loop。当前已补上 Runtime 层 policy ask / checkpoint / resumeGoal 的最小硬边界,并给 `server/skill-runner.mjs` 的 run log 与 loop steps 补上 `status + phase`;下一步要继续补更完整的 resume_from、evidence ledger 和 typed evaluator。
 
 当前已落地:
 
 - `server/skill-registry.mjs`:读取 `workbench/registry/skills.json` 和 `workbench/skills/<skill>/skill.json`,所以新增轻量 Skill 不需要改 `skill-agent.mjs`。
 - `server/skill-runner.mjs`:通用 loop、policy 检查、adapter 调度、run log 和产物校验。
+- `server/skill-runner.mjs` 的 run log 事件和 `loop.steps` 必须带 Runtime phase: `preflight / assembling_context / planning / executing / validating / committing`。这是内部结构化字段,用于恢复、评估和排查;前台仍只展示业务化的 `识别任务 / 核对资料 / 生成材料 / 检查结果`。
 - `server/skill-runner.mjs` 的 policy `ask` 已经是 Runtime 硬边界:遇到 `ask` 会写 `run.checkpointed` / `run.waiting` 和 `<runId>.checkpoint.json`,不执行 adapter;用户确认后可通过 `resumeGoal()` 从同一 runId 继续。
 - Runtime policy 暂停确认时如果同轮已经有业务产物,响应必须继续保留 `artifact` 和 `context.artifact`;确认或取消期间不能丢当前产物,否则后续预览、保存、导出或同任务续改会断上下文。
 - 缺资料等待态也必须写 Runtime 风格 checkpoint:进入 `needs-input` 时后端写 `workbench/runs/<runId>.jsonl` 和 `<runId>.checkpoint.json`,run log 至少包含 `goal.received / skill.matched / skill.loaded / run.checkpointed / run.needs_input`;用户补资料足够后用同一个 runId 继续,run log 追加 `run.resumed / action.executed / artifact.verified`。公开 HTTP/SSE payload 仍不能暴露 runId、checkpointPath、runLogPath 或本地路径。
@@ -109,7 +110,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 已有产物的同线程明显改稿请求必须优先于新任务路由:如果当前 session 有 `客户推进分析.md`、`开发信草稿.md` 等 artifact,用户再说 `继续 / 优化 / 修改 / 改成 / 写成 / 两版 / 第1天话术 / 补一句`,应先按当前产物 follow-up 处理。只有用户明确说 `新任务 / 重新开始 / 另一个客户 / 再做一个报价单` 或输入不带改稿意图的完整新目标,才重新匹配新的 Skill。
 - XLSX 产物续改:用户已生成 `询盘分析会.xlsx`、`报价单.xlsx` 这类表格产物后,再补一句“按负责人补一列下周动作 / 加一列有效期30天”,后端会在同一任务下生成一份 `已续改` 修订版 XLSX,保留原工作表并新增 `本次追问` sheet;原文件不被覆盖,修订版必须通过 Runtime XLSX 校验。公开 `taskTitle`、artifact 名和消息内容必须使用 `报价单-已续改-*.xlsx` 这类业务友好名称,不能暴露 `quotation-sheet`、`skill-runtime` 等内部文件名。
 - `server/agent-message-stream.mjs` 和 `POST /api/agent/message/stream`:把 Runtime 真实 run events 翻译成 `progress` SSE 事件,前端运行中气泡会逐步显示“识别任务 / 核对资料 / 生成材料 / 检查结果”,最后收到 `result` 再落正式 Agent 回复。
-- `artifact.verified` 对 Markdown 业务产物不再只是检查文件非空;Runtime 会生成机器可读 `validation.evidence`,核对产物是否包含依据段、用户来源、产品、客户/市场和关注点。SSE 的 `检查结果` 在 evidence 通过时显示 `已核对产物里的业务依据和用户事实覆盖`,失败时阻止任务完成。
+- `artifact.verified` 对 Markdown 业务产物不再只是检查文件非空;Runtime 会生成机器可读 `validation.evidence`,核对产物是否包含依据段、用户来源、产品、客户/市场、关注点、数量、价格、贸易条款、付款条件、样品计划和下一步动作。SSE 的 `检查结果` 在 evidence 通过时显示 `已核对产物里的业务依据和用户事实覆盖`,失败时阻止任务完成。
 - SSE 展示层会合并连续重复的 progress,例如多个内部 `policy.checked` 只展示一次 `核对权限`;后台 run log 仍保留完整审计事件。
 - 前端实时进度合并只允许“连续同名步骤”更新同一步,例如 `识别任务 running → 识别任务 complete`;非连续同名步骤必须保留为新阶段,例如先核对产物权限,生成材料后再核对保存权限。不能按 label 全局覆盖,否则后面的确认步骤会被挪到前面旧位置。
 - 前台进度和展开的「本次操作记录」不能出现 `匹配处理方式` 这类流程配置语言;内部 `skill.matched` / `skill.match` 应翻译成 `确认任务类型`、`核对资料` 等业务动作,避免重复显示“识别任务”。
@@ -130,6 +131,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 业务产物本身也不能泄露内部恢复文本:Markdown 里的 `任务来源 / 用户目标 / 用户补充` 应还原成自然业务资料,不能出现 `产出类型`、`补充资料`、`原始需求` 这类 Runtime 拼接痕迹。比如缺产品等待后,用户补 `产品太阳能路灯，发给客户`,确认只生成草稿后,`询盘回复草稿.md` 的任务来源应类似 `客户问MOQ和交期，帮我回一下；产品太阳能路灯，发给客户`。
 - `GET /api/agent/session/:sessionId` 是前台恢复接口,也必须返回净化 session;后端 session 文件可以保留真实路径和 pendingConfirmation,但 HTTP 恢复 payload 不返回这些内部执行字段。
 - `server/agent-artifact-preview.mjs` 和 `GET /api/agent/session/:sessionId/artifact`:只允许预览当前 session 绑定的 `workbench/artifacts/` 产物;Markdown 草稿/客户分析可在前台线程内打开,XLSX 返回工作簿摘要。
+- Markdown 业务产物预览必须把 Runtime 的 `validation.evidence` 转成安全的 `quality` 摘要,前台显示 `依据检查 / 已覆盖 / 待复核` 和已核对的业务事实;事实必须先收敛成 `product / market / concern / quantity / price / trade_term / payment / sample / next_action` 这类业务白名单结构,不能直接渲染自由字符串。不能暴露 validation 原文、runId、run_id、checkpoint、outputPath、output_path、本地路径、schema、JSON、tool call、tool_call、toolCall 或 `workbench/artifacts`。
 - XLSX 的 `查看文件` 不能只提示“表格文件已生成”;预览 payload 至少要包含工作表数量、sheet 名、行数和列数,让用户能在 agent thread 里确认真实产物结构。
 - 前台收到 XLSX workbook 摘要后要渲染为结构化工作表列表,不是把所有 sheet 信息塞进一段长提示里。
 - 产物预览接口只返回内容、文件名、类型、大小和预览提示,不返回真实本地路径。

@@ -2144,6 +2144,10 @@ function ArtifactPreviewPanel({ preview, onClose }) {
         <div className="artifact-preview-state">{artifact.previewNote}</div>
       ) : null}
 
+      {preview.status === 'ready' && artifact.quality ? (
+        <ArtifactQualitySummary quality={artifact.quality} />
+      ) : null}
+
       {preview.status === 'ready' && artifact.workbook?.sheets?.length ? (
         <WorkbookArtifactPreview workbook={artifact.workbook} />
       ) : null}
@@ -2157,6 +2161,84 @@ function ArtifactPreviewPanel({ preview, onClose }) {
       ) : null}
     </section>
   );
+}
+
+/**
+ * ArtifactQualitySummary 渲染产物检查结果。
+ *
+ * 作用：
+ * - 把后端 Runtime 的依据覆盖检查转成用户能看懂的“已覆盖/待复核”摘要。
+ * - 只展示后端已经清理过的业务事实,不展示 schema、JSON、tool call 或本地路径。
+ *
+ * 参数：
+ * - quality：预览接口返回的检查摘要,包含 checkedFacts 和 missingFacts。
+ *
+ * 返回值：React 检查结果节点。
+ * 可能抛出的异常：不主动抛异常。
+ */
+function ArtifactQualitySummary({ quality = {} }) {
+  const checkedFacts = Array.isArray(quality.checkedFacts) ? quality.checkedFacts : [];
+  const missingFacts = Array.isArray(quality.missingFacts) ? quality.missingFacts : [];
+  const isPassed = quality.status === 'passed';
+
+  return (
+    <section className={`artifact-quality-summary ${isPassed ? 'passed' : 'needs-review'}`} aria-label="依据检查">
+      <header>
+        <strong>{quality.label || '依据检查'}</strong>
+        <span>{isPassed ? '已覆盖' : '待复核'}</span>
+      </header>
+      <p>{quality.summary || (isPassed ? '已核对产物里的业务依据。' : '仍有依据需要补充确认。')}</p>
+
+      {checkedFacts.length ? (
+        <div className="artifact-quality-facts">
+          {checkedFacts.map((fact) => (
+            <span key={`${fact.kind || 'fact'}-${fact.label || ''}`}>{formatArtifactQualityFact(fact)}</span>
+          ))}
+        </div>
+      ) : null}
+
+      {missingFacts.length ? (
+        <div className="artifact-quality-missing">
+          <strong>待补充</strong>
+          <div>
+            {missingFacts.map((fact) => (
+              <span key={`${fact.kind || 'missing'}-${fact.label || ''}`}>{formatArtifactQualityFact(fact)}</span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * formatArtifactQualityFact 把强类型依据 fact 转成用户可读文本。
+ *
+ * 参数：
+ * - fact：后端返回的 `{ kind, label }` 业务事实。
+ *
+ * 返回值：例如 `产品：太阳能路灯`。
+ * 可能抛出的异常：无。
+ */
+function formatArtifactQualityFact(fact = {}) {
+  const label = String(fact.label || '').trim();
+  if (!label) {
+    return '';
+  }
+
+  const kindLabels = {
+    concern: '关注点',
+    market: '市场',
+    next_action: '下一步',
+    payment: '付款',
+    price: '价格',
+    product: '产品',
+    quantity: '数量',
+    sample: '样品',
+    trade_term: '条款',
+  };
+  const prefix = kindLabels[fact.kind] || '事实';
+  return `${prefix}：${label}`;
 }
 
 /**

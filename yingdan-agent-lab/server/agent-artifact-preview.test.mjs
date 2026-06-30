@@ -54,6 +54,196 @@ test('readAgentArtifactPreview returns markdown artifact content from the sessio
   }
 });
 
+test('readAgentArtifactPreview returns safe evidence quality for markdown business artifacts', async () => {
+  const fixture = await withPreviewProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '询盘回复草稿.md');
+    await writeFile(
+      artifactPath,
+      '# 询盘回复草稿\n\n## 依据\n\n- 任务来源: 客户问 MOQ 和交期。\n',
+      'utf8',
+    );
+
+    const preview = await readAgentArtifactPreview({
+      projectRoot: fixture.projectRoot,
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '询盘回复草稿.md',
+            outputPath: artifactPath,
+            validation: {
+              ok: true,
+              evidence: {
+                coverage: 'complete',
+                checkedFacts: ['产品:太阳能路灯', '客户/市场:德国', '关注点:MOQ/起订量', 'local path:/tmp/secret'],
+                missingFacts: [],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    assert.equal(preview.quality.status, 'passed');
+    assert.equal(preview.quality.label, '依据检查');
+    assert.equal(preview.quality.coverage, 'complete');
+    assert.deepEqual(preview.quality.checkedFacts, [
+      { kind: 'product', label: '太阳能路灯' },
+      { kind: 'market', label: '德国' },
+      { kind: 'concern', label: 'MOQ/起订量' },
+    ]);
+    assert.deepEqual(preview.quality.missingFacts, []);
+    assert.equal(JSON.stringify(preview.quality).includes('/tmp/secret'), false);
+    assert.equal(preview.quality.validation, undefined);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('readAgentArtifactPreview downgrades quality when evidence only contains internal-looking facts', async () => {
+  const fixture = await withPreviewProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '客户推进分析.md');
+    await writeFile(artifactPath, '# 客户推进分析\n\n## 依据\n\n- 任务来源: 测试。\n', 'utf8');
+
+    const preview = await readAgentArtifactPreview({
+      projectRoot: fixture.projectRoot,
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+            validation: {
+              ok: true,
+              evidence: {
+                coverage: 'complete',
+                checkedFacts: [
+                  'run_id:skill-runtime-1',
+                  'tool_call:query_customer',
+                  'output_path:workbench/artifacts/run-1/file.md',
+                  'toolCall:query_customer',
+                  'workbench/artifacts/run-1/file.md',
+                ],
+                missingFacts: [],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    assert.equal(preview.quality.status, 'needs-review');
+    assert.equal(preview.quality.coverage, 'unknown');
+    assert.deepEqual(preview.quality.checkedFacts, []);
+    assert.deepEqual(preview.quality.missingFacts, []);
+    assert.match(preview.quality.summary, /需要复核/);
+    assert.equal(/run_id|tool_call|output_path|toolCall|workbench\/artifacts/u.test(JSON.stringify(preview.quality)), false);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('readAgentArtifactPreview exposes typed purchasing evidence facts', async () => {
+  const fixture = await withPreviewProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '客户推进分析.md');
+    await writeFile(artifactPath, '# 客户推进分析\n\n## 依据\n\n- 任务来源: 测试。\n', 'utf8');
+
+    const preview = await readAgentArtifactPreview({
+      projectRoot: fixture.projectRoot,
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+            validation: {
+              ok: true,
+              evidence: {
+                coverage: 'complete',
+                checkedFacts: [
+                  '产品:太阳能路灯',
+                  '数量:500套',
+                  '价格:20美元',
+                  '贸易条款:FOB深圳',
+                  '付款条件:60天账期',
+                  '样品:下周样品计划',
+                  '下一步动作:7天跟进计划',
+                ],
+                missingFacts: [],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    assert.equal(preview.quality.status, 'passed');
+    assert.deepEqual(preview.quality.checkedFacts, [
+      { kind: 'product', label: '太阳能路灯' },
+      { kind: 'quantity', label: '500套' },
+      { kind: 'price', label: '20美元' },
+      { kind: 'trade_term', label: 'FOB深圳' },
+      { kind: 'payment', label: '60天账期' },
+      { kind: 'sample', label: '下周样品计划' },
+      { kind: 'next_action', label: '7天跟进计划' },
+    ]);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('readAgentArtifactPreview keeps sample and next-action facts when purchasing evidence is dense', async () => {
+  const fixture = await withPreviewProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '客户推进分析.md');
+    await writeFile(artifactPath, '# 客户推进分析\n\n## 依据\n\n- 任务来源: 测试。\n', 'utf8');
+
+    const preview = await readAgentArtifactPreview({
+      projectRoot: fixture.projectRoot,
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+            validation: {
+              ok: true,
+              evidence: {
+                coverage: 'complete',
+                checkedFacts: [
+                  '产品:太阳能路灯',
+                  '客户/市场:德国',
+                  '关注点:付款/账期压力',
+                  '关注点:样品',
+                  '数量:500套',
+                  '价格:20美元',
+                  '贸易条款:FOB深圳',
+                  '付款条件:60天账期',
+                  '样品:下周样品计划',
+                  '下一步动作:7天跟进计划',
+                ],
+                missingFacts: [],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    assert.ok(preview.quality.checkedFacts.some((fact) => fact.kind === 'sample' && fact.label === '下周样品计划'));
+    assert.ok(preview.quality.checkedFacts.some((fact) => fact.kind === 'next_action' && fact.label === '7天跟进计划'));
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('readAgentArtifactPreview rejects paths outside workbench artifacts', async () => {
   const fixture = await withPreviewProject();
 

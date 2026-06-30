@@ -64,7 +64,7 @@ export function createSkillRuntime(options = {}) {
     const resumeCheckpoint = input.resumeFromCheckpoint || null;
     const approvedPolicyActions = new Set(input.approvedPolicyActions || []);
     const loopSteps = [];
-    const recordRunEvent = (event) => appendRunEvent(runLogPath, { runId, ...event }, onEvent);
+    const recordRunEvent = (event) => appendRunEvent(runLogPath, withRuntimePhase({ runId, ...event }), onEvent);
     const state = {
       adapter: null,
       artifact: null,
@@ -162,6 +162,7 @@ export function createSkillRuntime(options = {}) {
           approvedActions: (state.skill.policyActions || []).slice(0, index),
           createdAt: new Date().toISOString(),
           pendingAction: action,
+          phase: 'executing',
           resume_from: `policy:${action}`,
           runId,
           skillId: state.skill.id,
@@ -254,6 +255,7 @@ export function createSkillRuntime(options = {}) {
       artifact: state.artifact,
       loop: {
         maxSteps: 8,
+        phase: latestLoopPhase(loopSteps),
         status: state.status,
         steps: loopSteps,
       },
@@ -453,6 +455,7 @@ function buildBusinessDraftMarkdown({ skill, userText }) {
       signals.productChinese ? `- 产品: ${signals.productChinese}` : '- 产品暂未明确。',
       signals.countryChinese ? `- 已识别客户/市场: ${signals.countryChinese}` : '- 客户国家暂未明确。',
       signals.concernsChinese.length ? `- 已识别关注点: ${signals.concernsChinese.join('、')}` : '- 关注点暂未明确。',
+      ...buildBusinessFactLines(signals),
       '- 当前没有足够客户名称、产品规格、数量和目标市场,因此只生成可检查草稿,不承诺价格或交期。',
       '',
       '## 缺口',
@@ -491,6 +494,7 @@ function buildBusinessDraftMarkdown({ skill, userText }) {
       signals.productChinese ? `- 产品: ${signals.productChinese}` : '- 产品暂未明确。',
       signals.countryChinese ? `- 客户/市场: ${signals.countryChinese}` : '- 客户国家暂未明确。',
       signals.concernsChinese.length ? `- 客户关注点: ${signals.concernsChinese.join('、')}` : '- 客户关注点还需要从询盘原文里确认。',
+      ...buildBusinessFactLines(signals),
       '- 已出现“客户推进 / 下一步 / 分析”类目标,说明任务重点是成交动作而不是泛泛问答。',
       '',
       '## 信息缺口',
@@ -551,6 +555,7 @@ function buildBusinessDraftMarkdown({ skill, userText }) {
     `- 用户目标: ${cleanInput}`,
     signals.productChinese ? `- 产品: ${signals.productChinese}` : '- 产品暂未明确。',
     signals.concernsChinese.length ? `- 客户关注点: ${signals.concernsChinese.join('、')}` : '- 客户关注点暂未明确。',
+    ...buildBusinessFactLines(signals),
     '- 询盘回复任务需要先补齐关键采购信息。',
     '',
     '## 缺口',
@@ -672,16 +677,50 @@ function extractBusinessSignals(userText = '') {
   const country = detectCountry(text);
   const productChinese = extractProductName(text);
   const sampleTiming = detectSampleTiming(text);
+  const quantity = extractQuotationQuantity(text);
+  const priceTerm = extractQuotationPrice(text);
+  const tradeTerm = extractQuotationTradeTerm(text);
+  const paymentTerm = extractPaymentTerm(text);
+  const nextAction = detectNextActionGoal(text);
   return {
     countryChinese: country.chinese,
     countryEnglish: country.english,
     concernsChinese: [...new Set(concerns.map((item) => item.chinese))],
     concernsEnglish: [...new Set(concerns.map((item) => item.english))],
+    nextActionChinese: nextAction.chinese,
+    paymentTerm,
+    priceTerm,
     productChinese,
     productEnglish: translateProductName(productChinese),
+    quantity,
     sampleTimingChinese: sampleTiming.chinese,
     sampleTimingEnglish: sampleTiming.english,
+    tradeTerm,
   };
+}
+
+/**
+ * buildBusinessFactLines 把已识别的采购事实写进 Markdown 依据段。
+ *
+ * 作用：
+ * - 让用户给出的数量、价格、贸易条款、付款、样品和下一步动作有可回看的依据。
+ * - 后续 verifier 会逐项核对这些行,避免这些事实只停留在用户输入里。
+ *
+ * 参数：
+ * - signals：extractBusinessSignals() 返回的业务信号。
+ *
+ * 返回值：Markdown 列表行数组。
+ * 可能抛出的异常：无。
+ */
+function buildBusinessFactLines(signals = {}) {
+  return [
+    signals.quantity ? `- 数量: ${signals.quantity}` : '',
+    signals.priceTerm ? `- 价格: ${signals.priceTerm}` : '',
+    signals.tradeTerm ? `- 贸易条款: ${signals.tradeTerm}` : '',
+    signals.paymentTerm ? `- 付款条件: ${signals.paymentTerm}` : '',
+    signals.sampleTimingChinese ? `- 样品: ${signals.sampleTimingChinese}` : '',
+    signals.nextActionChinese ? `- 下一步动作: ${signals.nextActionChinese}` : '',
+  ].filter(Boolean);
 }
 
 /**
@@ -756,6 +795,47 @@ function extractQuotationTradeTerm(text = '') {
     return '';
   }
   return `${match[1].toUpperCase()}${String(match[2] || '').trim()}`.trim();
+}
+
+/**
+ * extractPaymentTerm 抽取客户给出的付款条件。
+ *
+ * 参数：
+ * - text：用户输入。
+ *
+ * 返回值：付款条件文本,例如 `60天账期`;未识别时返回空字符串。
+ * 可能抛出的异常：无。
+ */
+function extractPaymentTerm(text = '') {
+  const value = String(text || '');
+  const creditDays = value.match(/(\d+\s*天\s*(?:账期|付款|月结|credit\s*terms?))/i);
+  if (creditDays?.[1]) {
+    return creditDays[1].replace(/\s+/g, '').trim();
+  }
+
+  const explicit = value.match(/(?:付款条件|付款方式|账期|payment\s*terms?)\s*(?:是|为|:|：)?\s*([^，。；,;\n]+)/i);
+  return String(explicit?.[1] || '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * detectNextActionGoal 抽取用户明确要求的下一步动作类型。
+ *
+ * 参数：
+ * - text：用户输入。
+ *
+ * 返回值：下一步动作对象。
+ * 可能抛出的异常：无。
+ */
+function detectNextActionGoal(text = '') {
+  const lower = String(text || '').toLowerCase();
+  if (/7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|weekly/.test(lower) &&
+    /跟进|回访|节奏|计划|follow[-\s]?up/.test(lower)) {
+    return { chinese: '7天跟进计划' };
+  }
+  if (/下一步|推进|跟进|回访|follow[-\s]?up|next\s+step/.test(lower)) {
+    return { chinese: '下一步推进' };
+  }
+  return { chinese: '' };
 }
 
 /**
@@ -983,7 +1063,7 @@ function buildUnsupportedResult({ loopSteps, runId, runLogPath, text }) {
     message: `当前新对话 Agent 暂不支持：${text || '空目标'}`,
     runId,
     runLogPath,
-    loop: { maxSteps: 8, status: 'failed', steps: loopSteps },
+    loop: buildLoopState({ loopSteps, status: 'failed' }),
   };
 }
 
@@ -995,7 +1075,7 @@ function buildFailedResult({ loopSteps, runId, runLogPath, state }) {
     runLogPath,
     goal: state.goal,
     skill: state.skill,
-    loop: { maxSteps: 8, status: 'failed', steps: loopSteps },
+    loop: buildLoopState({ loopSteps, status: 'failed' }),
   };
 }
 
@@ -1016,11 +1096,7 @@ function buildWaitingResult({ action, checkpoint, checkpointPath, decision, loop
       resumeFrom: checkpoint.resume_from,
       runId,
     },
-    loop: {
-      maxSteps: 8,
-      status: 'waiting',
-      steps: loopSteps,
-    },
+    loop: buildLoopState({ loopSteps, status: 'waiting' }),
   };
 }
 
@@ -1051,10 +1127,120 @@ function toLoopStep(action, title, detail, observation, status, nextAction) {
     title,
     detail,
     observation,
+    phase: phaseForLoopAction(action),
     status,
     nextAction,
     nextActionReason: nextAction === 'none' ? '无后续动作。' : `根据 ${observation} 进入 ${nextAction}。`,
   };
+}
+
+/**
+ * buildLoopState 生成 Runtime loop 的统一状态对象。
+ *
+ * 作用：
+ * - 让所有返回路径都有 `status + phase`,而不是只有完成路径带阶段信息。
+ * - `phase` 取最后一个可见 loop step 的阶段,表示当前停留位置。
+ *
+ * 参数：
+ * - input.loopSteps：本轮已记录的 loop step。
+ * - input.status：running / waiting / completed / failed 等状态。
+ *
+ * 返回值：前端和 session 可保存的 loop 状态摘要。
+ * 可能抛出的异常：无。
+ */
+function buildLoopState(input = {}) {
+  const loopSteps = Array.isArray(input.loopSteps) ? input.loopSteps : [];
+  return {
+    maxSteps: 8,
+    phase: latestLoopPhase(loopSteps),
+    status: input.status || 'running',
+    steps: loopSteps,
+  };
+}
+
+/**
+ * latestLoopPhase 读取最后一个 loop step 的 phase。
+ *
+ * 参数：
+ * - loopSteps：Runtime step 数组。
+ *
+ * 返回值：phase 字符串。
+ * 可能抛出的异常：无。
+ */
+function latestLoopPhase(loopSteps = []) {
+  return [...(Array.isArray(loopSteps) ? loopSteps : [])].reverse().find((step) => step?.phase)?.phase || 'preflight';
+}
+
+/**
+ * withRuntimePhase 给 run log 事件补充 Runtime phase。
+ *
+ * 作用：
+ * - run log 是后续恢复、评估和排查的事实来源,需要能看出每个事件属于哪个阶段。
+ * - 调用方显式传入 phase 时优先保留,否则按事件类型映射。
+ *
+ * 参数：
+ * - event：准备写入 jsonl 的事件对象。
+ *
+ * 返回值：带 phase 的事件对象。
+ * 可能抛出的异常：无。
+ */
+function withRuntimePhase(event = {}) {
+  return {
+    ...event,
+    phase: event.phase || phaseForRuntimeEvent(event.type),
+  };
+}
+
+/**
+ * phaseForLoopAction 把内部 loop action 映射到 v2 Runtime phase。
+ *
+ * 参数：
+ * - action：loop step 的内部 action 名。
+ *
+ * 返回值：phase 字符串。
+ * 可能抛出的异常：无。
+ */
+function phaseForLoopAction(action = '') {
+  const actionPhaseMap = {
+    'goal.classify': 'preflight',
+    'skill.match': 'preflight',
+    'skill.load': 'assembling_context',
+    'plan.create': 'planning',
+    'policy.confirm': 'executing',
+    'action.execute': 'executing',
+    'observation.record': 'executing',
+    'artifact.verify': 'validating',
+    finish: 'committing',
+  };
+  return actionPhaseMap[action] || 'executing';
+}
+
+/**
+ * phaseForRuntimeEvent 把 run log event 映射到 v2 Runtime phase。
+ *
+ * 参数：
+ * - type：run event 类型。
+ *
+ * 返回值：phase 字符串。
+ * 可能抛出的异常：无。
+ */
+function phaseForRuntimeEvent(type = '') {
+  const eventPhaseMap = {
+    'goal.received': 'preflight',
+    'skill.matched': 'preflight',
+    'skill.loaded': 'assembling_context',
+    'plan.created': 'planning',
+    'policy.checked': 'executing',
+    'run.checkpointed': 'executing',
+    'run.waiting': 'executing',
+    'run.resumed': 'executing',
+    'action.executed': 'executing',
+    'observation.recorded': 'executing',
+    'artifact.verified': 'validating',
+    'run.completed': 'committing',
+    'run.failed': 'committing',
+  };
+  return eventPhaseMap[type] || 'executing';
 }
 
 function loadedSkillDetail(state) {
@@ -1205,6 +1391,48 @@ async function verifyBusinessMarkdownArtifact({ artifact = {}, fileStat = {}, us
       checkedFacts,
     });
   }
+  collectEvidenceFact({
+    content,
+    label: '数量',
+    missingFacts,
+    value: signals.quantity,
+    checkedFacts,
+  });
+  collectEvidenceFact({
+    content,
+    label: '价格',
+    missingFacts,
+    value: signals.priceTerm,
+    checkedFacts,
+  });
+  collectEvidenceFact({
+    content,
+    label: '贸易条款',
+    missingFacts,
+    value: signals.tradeTerm,
+    checkedFacts,
+  });
+  collectEvidenceFact({
+    content,
+    label: '付款条件',
+    missingFacts,
+    value: signals.paymentTerm,
+    checkedFacts,
+  });
+  collectEvidenceFact({
+    content,
+    label: '样品',
+    missingFacts,
+    value: signals.sampleTimingChinese,
+    checkedFacts,
+  });
+  collectEvidenceFact({
+    content,
+    label: '下一步动作',
+    missingFacts,
+    value: signals.nextActionChinese,
+    checkedFacts,
+  });
 
   const ok = checks.nonEmptyFile && missingFacts.length === 0;
   return {
