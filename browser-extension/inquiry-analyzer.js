@@ -269,6 +269,25 @@
   }
 
   /**
+   * 把 WhatsApp 消息方向转成赢单分析里的中文称呼。
+   *
+   * @param {unknown} role - WhatsApp 消息方向，通常是 buyer / seller。
+   * @returns {string} 展示在聊天记录里的角色名称。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function normalizeWhatsAppRole(role) {
+    if (role === "buyer") {
+      return "客户";
+    }
+
+    if (role === "seller") {
+      return "我方";
+    }
+
+    return "未知";
+  }
+
+  /**
    * 把国际站聊天记录格式化成适合发送给 AI 的完整上下文。
    *
    * 为什么要在这里倒序：
@@ -316,6 +335,47 @@
         lines.push(`翻译：${translated}`);
       }
 
+      lines.push("");
+    });
+
+    return lines.join("\n").trim();
+  }
+
+  /**
+   * 把 WhatsApp Web 聊天记录格式化成适合发送给 AI 的完整上下文。
+   *
+   * 为什么不倒序：
+   * - WhatsApp Web 当前消息 DOM 是按屏幕从上到下排列。
+   * - 上方是更早消息，下方是更新消息，正好符合 AI 阅读上下文的顺序。
+   *
+   * @param {Array<{ role?: string, sender?: string, time?: string, original?: string }>} records - 从 WhatsApp DOM 抽取的消息，顺序通常是最早到最新。
+   * @param {{ sourceTitle?: string, sourceUrl?: string, loadRounds?: number, reachedStableEnd?: boolean }} [metadata] - 页面来源和历史回溯状态。
+   * @returns {string} 可直接发给 AI 的聊天记录文本。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function formatWhatsAppChatRecords(records, metadata = {}) {
+    const safeRecords = Array.isArray(records) ? records : [];
+    const orderedRecords = safeRecords.filter((record) => normalizeText(record && record.original));
+    const lines = [
+      "【WhatsApp聊天记录】",
+      `来源：${normalizeText(metadata.sourceTitle) || "WhatsApp Web"}`,
+      `链接：${normalizeText(metadata.sourceUrl) || "未提供"}`,
+      `共读取 ${orderedRecords.length} 条消息`,
+      `回溯轮次：${Number(metadata.loadRounds || 0)}`,
+      `回溯状态：${metadata.reachedStableEnd ? "连续多轮没有新增消息，已尽量回溯到最早记录。" : "达到保护上限或仍可能存在更早记录。"}`,
+      "顺序：从最早到最新",
+      ""
+    ];
+
+    orderedRecords.forEach((record) => {
+      const role = normalizeWhatsAppRole(record.role);
+      const sender = normalizeText(record.sender);
+      const time = normalizeText(record.time) || "时间未知";
+      const original = normalizeText(record.original);
+      const displayName = role === "客户" && sender ? `${role} ${sender}` : role;
+
+      lines.push(`[${time}] ${displayName}：`);
+      lines.push(`原文：${original}`);
       lines.push("");
     });
 
@@ -456,6 +516,7 @@
   globalScope.YingdanInquiryAnalyzer = {
     analyzeInquiry,
     formatAlibabaChatRecords,
+    formatWhatsAppChatRecords,
     shouldContinueAlibabaHistoryLoad,
     normalizeText
   };

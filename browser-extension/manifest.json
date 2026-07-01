@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "赢单询盘分析助手",
   "description": "在外贸询盘页面中提取选中文本或页面内容，并生成询盘等级、信息缺口和首回邮件建议。",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",

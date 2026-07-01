@@ -4,6 +4,8 @@
 
 本项目用于逆向复刻线上「赢单外贸成交顾问」界面，产出一个可以直接打开、演示、提交 git、交给开发同事继续实现的静态前端原型。
 
+当前目录还包含一个「赢单询盘分析助手」Chrome 浏览器插件内测包，用于把网页里的客户询盘抓取到右侧分析面板，并通过 Coze 生成询盘分析和回复建议。它是独立于主原型页面的内测交付物，不是 GitHub Pages 静态原型的一部分。
+
 当前版本重点复刻销售准备和客户Kass两块核心工作台，包括：
 
 - 左侧固定导航。
@@ -15,7 +17,7 @@
 - `销售准备 > 了解公司`：公司资料维护、左侧资料模块、右侧编辑器、AI 提炼结果、上传文档反馈。
 - `销售准备 > 产品&市场`：产品与市场全景表、分类筛选、产品表格、选中行、产品侧边摘要、上传/导出反馈。
 - `销售准备 > 案例知识库`：资料分类、快捷筛选、搜索框、案例卡片和空态。
-- `客户Kass`：复刻 `/customer-kass/A` 这种分组页结构，包括左侧 A/B 分组、分组客户列表、客户档案、跟进流程图、客户跟进记录、右下角 Kass AI 助手按钮和展开浮窗。
+- `客户Kass`：复刻 `/customer-kass/A` 这种分组页结构，包括 A/B 分组、分组顶部「今日该推进」提醒、客户列表、客户档案、跟进流程图、客户跟进记录、右下角 Kass AI 助手按钮和展开浮窗。
 - 抽屉、toast、菜单展开和阶段切换动效。
 - 本地 SVG 导航图标，来源为 `/Users/garden/Desktop/1/vinco-icons`，已复制到 `assets/icons/`。
 - 侧边栏历史搜索、历史项编辑/删除图标、顶部历史下拉。
@@ -30,7 +32,7 @@
 - `后台管理 > 代理` 分组：经销代理总览，含拉新数、付费数、累计分成和状态。
 - `后台管理 > 邀请码管理`：生成邀请码表单、预览提示和邀请码列表，用于表达销售同事发放试用福利的原型流程。
 
-本项目只复刻界面结构和交互手感，不接真实接口，不写入真实客户资料，不复制线上历史记录和账号隐私。
+主原型只复刻界面结构和交互手感，不接真实接口，不写入真实客户资料，不复制线上历史记录和账号隐私。浏览器插件内测包是例外：它当前会调用 Coze 接口验证真实询盘分析链路，但仍只能作为内部测试包使用。
 
 ## 项目负责人和工作方式
 
@@ -55,6 +57,20 @@ index.html
 
 浏览器直接打开即可查看。如果需要更稳定地测试本地资源，也可以在本目录启动一个静态服务器。
 
+浏览器插件入口是：
+
+```text
+browser-extension/manifest.json
+```
+
+内测分发包是：
+
+```text
+yingdan-inquiry-extension-v0.2.0.zip
+```
+
+同事测试插件时，解压 zip 后在 Chrome 的 `chrome://extensions` 里开启开发者模式，选择「加载已解压的扩展程序」，再选解压后的插件目录。
+
 线上预览地址：
 
 ```text
@@ -71,9 +87,17 @@ reverse-yingdan/
   AGENTS.md
   AI板块统计.md
   index.html
+  package.json
+  yingdan-inquiry-extension-v0.2.0.zip
   assets/
     icons/
     generated/
+  browser-extension/
+    manifest.json
+    background.js
+    content-script.js
+    inquiry-analyzer.js
+    icons/
   coze-workflows/
   src/
     app.js
@@ -89,18 +113,32 @@ reverse-yingdan/
 - `src/app.js`：渲染函数、hash 路由、事件绑定、抽屉、toast、弹层、账号弹层、后台管理和状态切换。
 - `assets/icons/`：本地 SVG 图标。后续新增图标时优先复制进这里，再在 `src/data.js` 引用相对路径。
 - `assets/generated/`：当前原型使用的本地视觉素材。
+- `browser-extension/manifest.json`：Chrome MV3 插件清单，定义 action、background service worker、content script、权限和图标。
+- `browser-extension/background.js`：插件后台逻辑，负责右键菜单、点击插件图标打开分析面板、调用 Coze `/v3/chat`、解析 SSE、保存本地 conversation/user id。
+- `browser-extension/content-script.js`：注入网页的右侧询盘分析面板，负责抓取页面文本、展示「开始分析」、发送追问、渲染安全 Markdown。
+- `browser-extension/inquiry-analyzer.js`：本地询盘提取和初步分析 helper，content script 依赖它做文本归一化和页面内容判断。
+- `browser-extension/icons/`：插件图标，当前来自 `/Users/garden/YD/logo/logo1.svg`，已处理透明底。
+- `yingdan-inquiry-extension-v0.2.0.zip`：当前内部测试用插件压缩包。
+- `package.json`：轻量仓库元信息；当前没有正式构建链路。
 - `AI板块统计.md`：统计客户Kass、销售准备等区域的 AI 能力现状和后续整理建议。
 - `coze-workflows/`：扣子工作流资料库，记录工作流用途、schema、调用函数、字段映射和验证状态。
 
 ## 当前技术栈
 
-当前使用 `HTML + CSS + 原生 JavaScript`。
+主原型当前使用 `HTML + CSS + 原生 JavaScript`。
 
 选择理由：
 
 - 优点：不用构建工具，方便直接打开和 git 交付。
 - 优点：适合逆向 UI 原型，开发同事能快速看结构和业务数据。
 - 缺点：后续如果要做大量真实业务状态、接口和权限，建议再迁移到 React 或 Vue。
+
+浏览器插件当前使用 Chrome Manifest V3 + 原生 JavaScript：
+
+- 优点：不需要构建工具，方便打 zip 给同事加载已解压扩展。
+- 优点：可以直接在客户询盘所在网页上打开右侧面板，贴近真实业务动作。
+- 缺点：当前内测版有内置 Coze 测试 Token，不能作为公开上架版本。
+- 缺点：`host_permissions` 覆盖 `http://*/*` 和 `https://*/*`，公开上架前需要重新评估最小权限、隐私政策和登录方案。
 
 ## 状态和数据结构
 
@@ -148,6 +186,19 @@ reverse-yingdan/
 - `ADMIN_INVITE_ROWS`：后台邀请码列表数据。
 - `ADMIN_CHARACTER_ROWS` / `ADMIN_MODEL_ROWS`：后台 AI 人设和模型管理表格数据。
 - `UPGRADE_PLANS` / `USAGE_RECORDS`：账号用量和升级支付原型数据。
+
+浏览器插件状态主要在 Chrome local storage 中维护：
+
+- `cozeUserId`：当前浏览器插件实例的 Coze 用户 ID。
+- `cozeConversationId`：连续追问时复用的 Coze 会话 ID。
+- `cozeApiToken`：用户手动覆盖的 Coze Token；如果没有有效 `pat_` Token，内测版会走内置测试 Token。
+
+浏览器插件内部消息名：
+
+- `YD_OPEN_ANALYZER`：background 通知 content script 打开右侧分析面板。
+- `YD_COZE_CHAT`：content script 请求 background 调用 Coze。
+- `YD_GET_PAGE_CONTEXT`：background 或 content script 获取当前网页可分析文本。
+- `YD_SAVE_COZE_TOKEN` / `YD_GET_COZE_SETTINGS` / `YD_RESET_COZE_CONVERSATION`：保留的设置和会话管理消息，当前主 UI 不暴露 Token 输入。
 
 ## URL 路由
 
@@ -209,10 +260,11 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 改左侧导航：优先改 `src/data.js` 的 `NAV_GROUPS`。
 - 改销售准备标签：优先改 `src/data.js` 的 `SALES_TABS`。
 - 改外贸流程阶段：优先改 `src/data.js` 的 `TRADE_STAGES`。
+- 改外贸流程 Flow 页面结构：优先改 `src/app.js` 的 `renderFlowView()`、`renderFlowMaterialPreviews()`、`renderFlowVideoCard()` 和 `renderFlowAiCard()`；当前已删除「我在该阶段的客户」mini 列表，不再维护 `FLOW_STAGE_CUSTOMERS`。
 - 改了解公司资料模块：优先改 `src/data.js` 的 `COMPANY_MODULES`。
 - 改产品与市场表格：优先改 `src/data.js` 的 `PRODUCT_ROWS`。
 - 改案例知识库：优先改 `src/data.js` 的 `CASE_CATEGORIES` 和 `CASE_ITEMS`。
-- 改客户Kass：优先改 `src/data.js` 的 `KASS_GROUPS` 和 `KASS_FLOW_STAGES`。
+- 改客户Kass：优先改 `src/data.js` 的 `KASS_GROUPS` 和 `KASS_FLOW_STAGES`。如果改分组顶部「今日该推进」，看 `src/app.js` 的 `buildKassTodayReminder()` / `renderKassGroupTodayCard()` 和 `src/styles.css` 的 `.kass-today-*` / `.kass-group-today-*`。
 - 改账号弹层、邀请码兑换、团队/企业切换：优先改 `src/app.js` 的 `renderAccountSettingsPopup()`、`renderInviteRedeemModal()` 和相关事件绑定。
 - 改后台菜单：优先改 `src/data.js` 的 `ADMIN_NAV_ITEMS`，再看 `src/app.js` 的后台路由映射。
 - 改后台 User Preview 指标和表格字段：优先改 `src/data.js` 的 `ADMIN_USER_PREVIEW_*` 数据；交互改 `src/app.js` 的 `renderAdminUserPreview()`、`renderUserPreviewReportBuilder()`、`bindUserPreviewReportControls()`。
@@ -222,12 +274,15 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 改后台 AI 人设/模型管理：优先改 `src/data.js` 的 `ADMIN_CHARACTER_ROWS`、`ADMIN_MODEL_ROWS`；弹窗和表格行为改 `src/app.js`。
 - 改界面样式和动效：改 `src/styles.css`。
 - 改点击行为、抽屉、toast：改 `src/app.js`。
+- 改浏览器插件：优先改 `browser-extension/content-script.js` 的面板体验、`browser-extension/background.js` 的 Coze 调用和消息分发、`browser-extension/inquiry-analyzer.js` 的本地询盘判断、`browser-extension/manifest.json` 的权限和图标声明。改完要重新打包 `yingdan-inquiry-extension-v0.2.0.zip`。
 
 ## 哪些地方别碰
 
 - 不要写入真实 Token、Cookie、手机号、邮箱或客户隐私。
+- 不要把浏览器插件里的内测 Coze Token 值复述到文档、聊天回复、截图说明或公开材料里。当前内置 Token 只是为了内部测试；公开上架前必须改成赢单登录或后端代理换取 Token。
 - 不要把真实线上历史记录复制到 `HISTORY_ITEMS`。
 - 不要在原型里接真实删除、发送、保存、导出接口。
+- 不要把 `browser-extension/` 当作正式生产插件直接上架 Chrome Web Store；上架前必须先做权限收敛、隐私说明、登录/鉴权改造和 Token 移除。
 - 后台刷新数据、导出报表、生成邀请码、AI 人设保存、AI 模型保存、账号团队/企业切换都必须保持为原型反馈。
 - 不要在页面里写开发说明；说明写在 `CONTEXT.md` 或代码注释中。
 
@@ -238,11 +293,11 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 1. 打开 `index.html`。
 2. 检查左侧导航是否可展开和切换。
 3. 检查 `销售准备 > 外贸流程` 是否默认展示。
-4. 点击 12 个阶段，确认右侧详情随之切换。
+4. 点击 12 个阶段，确认右侧详情随之切换，并确认右侧不再出现「我在该阶段的客户」mini 列表。
 5. 点击 `了解公司`，切换公司资料模块，确认右侧编辑器随之切换。
 6. 点击 `产品&市场`，选择不同产品行，确认下方摘要随之切换。
 7. 点击 `案例知识库`，切换资料分类、标签和搜索词，确认案例列表变化。
-8. 展开 `客户Kass`，点击 `A` 或 `B`，确认分组页、客户档案、跟进流程图和客户跟进记录出现。
+8. 展开 `客户Kass`，点击 `A` 或 `B`，确认分组页、顶部「今日该推进」、客户档案、跟进流程图和客户跟进记录出现。
 9. 点击右下角 `Kass AI 助手` 圆形按钮，确认浮窗展开，包含当前客户、客户等级、阶段、跟进条数、加载会话记录和禁用输入区。
 10. 点击 `教学视频`、`导出文件`、`历史`，确认抽屉或 toast 正常出现。
 11. 点击账号卡，确认账号弹层、邀请兑换、团队/企业飞出层、用量明细跳转和退出登录原型反馈正常。
@@ -254,3 +309,12 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 17. 进入 `#/admin/invite-code`，检查生成邀请码表单和邀请码列表。
 18. 进入 `#/admin/knowledge-base`、`#/admin/ai-character`、`#/admin/ai-model`，确认后台菜单切换和表格布局正常。
 19. 调整到窄屏，确认文字不重叠、不溢出。
+
+浏览器插件验证方式：
+
+1. 语法检查：`node --check browser-extension/content-script.js`、`node --check browser-extension/background.js`、`node --check browser-extension/inquiry-analyzer.js`。
+2. 清单检查：`python3 -m json.tool browser-extension/manifest.json >/dev/null`。
+3. 打包检查：重新生成 zip 后执行 `unzip -t yingdan-inquiry-extension-v0.2.0.zip >/dev/null`。
+4. 回归检查：确认 `browser-extension/` 里没有 `default_popup`、`popup.html`、`popup.js`、`popup.css`、`补充产品/底线`、`Coze 连接`、`开启新会话` 这些旧弹窗残留。
+5. 浏览器检查：在当前 Chrome 扩展管理页点击重新加载插件，打开含客户询盘的网页，点击插件图标后应先出现右侧面板和「开始分析」按钮；只有用户点击「开始分析」后才调用 Coze。
+6. Markdown 检查：Coze 返回的标题、列表、加粗、代码块和链接应按安全 Markdown 渲染，不显示裸露的 `###` 或 `**`。

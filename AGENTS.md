@@ -37,6 +37,7 @@
 - 默认以前端静态原型为主：`HTML` + `CSS` + 原生 `JavaScript`。
 - 当前主原型已拆成 `index.html` + `src/data.js` + `src/app.js` + `src/styles.css`。不要再把大段样式或脚本塞回 `index.html`。
 - `index.html` 只负责页面骨架、样式引用和脚本引用；业务数据改 `src/data.js`，交互和路由改 `src/app.js`，视觉和响应式改 `src/styles.css`。
+- 浏览器插件内测包在 `browser-extension/`，使用 Chrome Manifest V3 + 原生 JavaScript。它和主静态原型是两个交付物：改原型时优先看 `src/`，改插件时优先看 `browser-extension/`。
 - 新增赢单页面或子流程时，优先接入现有 hash 路由和 `src/` 结构。只有做完全独立、临时对比用的原型时，才单独创建语义清楚的 `.html` 文件。
 - 只有当交互明显复杂、状态很多、需要组件复用时，才考虑引入框架。
 - 创建正式前后端项目或复杂功能前，必须先询问用户：
@@ -61,23 +62,38 @@ React/Vue 等框架：
 - 优点：适合复杂页面、复用组件、多状态交互。
 - 缺点：需要构建环境，原型交付成本更高。
 
+Chrome Manifest V3 插件：
+
+- 优点：可以直接在客户询盘网页上打开赢单分析侧边面板，适合内部快速试用。
+- 优点：不需要构建工具，打 zip 后同事可以用 Chrome「加载已解压的扩展程序」安装。
+- 缺点：公开上架前必须处理权限、隐私政策、登录鉴权和 Token 安全。
+
 Python 后端：
 
 - 优点：适合快速接 API、处理文件、生成数据和调试 AI 工作流。
 - 缺点：如果只是做 UI 原型，会显得过重。
 
-## 当前真实文件结构（2026-06-11 扫描）
+## 当前真实文件结构（2026-06-18 扫描）
 
-当前项目下共有 136 个文件。后续定位问题时，先按下面优先级读取，不要把历史备份或工作树副本当成当前主工程。
+当前项目下已有主静态原型、浏览器插件内测包、扣子工作流资料库和历史备份。后续定位问题时，先按下面优先级读取，不要把历史备份或工作树副本当成当前主工程。
 
 活跃主工程：
 
 - `index.html`：当前唯一页面入口，只挂载 `#app`，并引用 `src/styles.css`、`src/data.js`、`src/app.js`。
-- `src/data.js`：静态业务数据，包括左侧导航、历史记录、销售准备标签、12 个外贸成交阶段、外贸流程客户映射、套餐、用量记录、公司资料模块、产品表、案例库、客户Kass 分组和阶段。
-- `src/app.js`：页面状态、hash 路由、整页渲染、事件绑定、toast、抽屉、弹层、模拟生成、外贸流程 Flow、客户Kass、用量页和支付页。
+- `src/data.js`：静态业务数据，包括左侧导航、历史记录、销售准备标签、12 个外贸成交阶段、套餐、用量记录、公司资料模块、产品表、案例库、客户Kass 分组和阶段。
+- `src/app.js`：页面状态、hash 路由、整页渲染、事件绑定、toast、抽屉、弹层、模拟生成、外贸流程 Flow、客户Kass、客户Kass「今日该推进」、用量页和支付页。
 - `src/styles.css`：全部样式、响应式规则、动效、外贸流程 Flow、客户Kass、聊天输入、弹层、用量页和支付页样式。
 - `assets/icons/`：左侧导航和功能入口 SVG 图标。
 - `assets/generated/`：当前原型内使用的本地 SVG 视觉素材。
+
+浏览器插件内测包：
+
+- `browser-extension/manifest.json`：Chrome MV3 清单，定义 action、background、content script、权限、图标。
+- `browser-extension/background.js`：插件后台逻辑，负责右键菜单、点击插件图标打开分析面板、调用 Coze `/v3/chat`、解析 SSE、保存 conversation/user id。
+- `browser-extension/content-script.js`：注入网页的右侧询盘分析面板，负责抓取网页文本、展示「开始分析」、发送追问、渲染安全 Markdown。
+- `browser-extension/inquiry-analyzer.js`：本地询盘文本提取和初步分析 helper。
+- `browser-extension/icons/`：插件图标，当前来自 `/Users/garden/YD/logo/logo1.svg`，应保持透明底。
+- `yingdan-inquiry-extension-v0.2.0.zip`：当前内部测试用插件压缩包。
 
 项目资料和交接文件：
 
@@ -86,11 +102,13 @@ Python 后端：
 - `coze-workflows/`：扣子工作流资料库，不是页面原型代码。收到调用链接、函数、input schema、output schema 或节点画布时优先维护这里。
 - `coze-workflows/_node-reference/`：扣子节点参考库，只是节点能力索引；`workflow-7645250322341134390.md` 的 `edges` 为空，不是可直接执行的完整业务流程。
 - `coze-workflows/_template/`：新增工作流目录时复制的模板。
+- `package.json`：轻量仓库元信息；当前没有正式构建链路。
 
 默认不要作为主工程编辑目标：
 
 - `backups/`：历史备份，只用于查旧实现或回看某次改动前状态，不主动修改。
 - `.claude/worktrees/`：Claude 工作树副本，默认不作为当前主工程事实来源；除非用户明确要求处理这个 worktree。
+- `.claude/` 和 `audits/`：工具运行或审计输出目录，默认不主动修改、不主动提交。
 - `.DS_Store`：系统文件，不读取业务含义，不写入规则。
 
 ## 当前应用理解
@@ -111,6 +129,8 @@ Python 后端：
 
 当前主应用不是生产系统，也不接真实接口。页面中的发送、上传、导出、删除、保存、支付、复制、AI 生成等动作都必须保持为原型反馈或模拟状态，不能产生真实副作用。
 
+当前浏览器插件内测包是例外：它会真实调用 Coze 用于验证询盘分析效果，但它不是公开上架版本。公开上架前必须去掉内置 Token，改成赢单登录或后端代理鉴权，并重新评估 Chrome 权限和隐私说明。
+
 整体界面结构：
 
 - 左侧为固定侧边栏，承载导航、客户入口、历史记录和账号信息。
@@ -122,6 +142,16 @@ Python 后端：
 - `#/ask` 顶部右侧有一个透明圆形后台入口，hover 才轻微显色，点击进入后台管理。
 - 后台管理是同一个静态原型里的另一套壳，包含首页、知识库管理、用户总表（即原 User Preview 看板）、邀请码管理、AI 人设管理和 AI 模型管理。
 - 账号弹层包含邀请兑换入口、用量明细、订单记录、帮助、设置、关于和团队/企业空间切换飞出层；这些动作均为原型反馈。
+- `销售准备 > 外贸流程` 右侧已删除「我在该阶段的客户」mini 列表；Flow 只保留问 AI、资料/表格预览、教学视频和阶段详情。
+- `客户Kass > A/B` 分组顶部有「今日该推进」提醒，依据客户跟进记录聚合优先级、缺记录状态和下一步动作。
+
+浏览器插件当前交互：
+
+- 点击插件图标或右键选中文本菜单，会打开当前网页右侧的赢单询盘分析面板。
+- 面板打开后不会自动分析，必须先点击「开始分析」。
+- AI 回复按安全 Markdown 渲染，支持标题、列表、加粗、代码、引用、链接等常用格式。
+- 底部输入框用于连续追问，background 会尽量复用 `cozeConversationId`。
+- 当前没有 `default_popup`，也没有旧版 popup 页；不要把已删除的 `补充产品/底线`、`Coze 连接`、Token 输入区、`开启新会话` 再加回来，除非用户明确要求。
 
 核心导航分组：
 
@@ -159,7 +189,7 @@ Python 后端：
 | `#/admin/invite-code` | 后台管理 > 邀请码管理 |
 | `#/admin/ai-character` | 后台管理 > AI 人设管理 |
 | `#/admin/ai-model` | 后台管理 > AI 模型管理 |
-| `#/sales-prep/flow` | 销售准备 > 外贸流程 Flow，问 AI、阶段客户、资料预览和教学视频 |
+| `#/sales-prep/flow` | 销售准备 > 外贸流程 Flow，问 AI、资料预览和教学视频 |
 | `#/sales-prep/company` | 销售准备 > 了解公司 |
 | `#/sales-prep/market` | 销售准备 > 产品&市场 |
 | `#/sales-prep/cases` | 销售准备 > 案例知识库 |
@@ -222,6 +252,13 @@ Python 后端：
 - `sessionStorage.reverse-yingdan-prefill-ask`：只用于从外贸流程 Flow 的问 AI 动作跳回 `#/ask` 时预填问题。
 - 不要把真实客户资料、真实聊天、真实账号信息或真实支付信息写入浏览器存储。
 - 账号邀请兑换、后台邀请码生成、后台导出报表、后台刷新数据、账号团队/企业切换都只做原型反馈，不写后端、不落本地存储。
+
+浏览器插件本地存储：
+
+- `cozeUserId`：当前浏览器插件实例的 Coze 用户 ID。
+- `cozeConversationId`：连续追问时复用的 Coze 会话 ID。
+- `cozeApiToken`：用户手动覆盖的 Coze Token；当前内测版没有公开 Token 输入 UI。
+- 不要把内置 Coze Token 具体值写进 `CONTEXT.md`、`AGENTS.md`、README、提交信息或聊天回复。
 
 ## 功能区域命名约定
 
@@ -290,6 +327,10 @@ Python 后端：
 - `销售准备 > 产品&市场 > 产品营销海报库`
 - `销售准备 > 外贸流程 > 问 AI 顾问`
 - `客户Kass > A 分组 > 客户档案`
+- `客户Kass > A 分组 > 今日该推进`
+- `客户Kass > B 分组 > 今日该推进`
+- `浏览器插件 > 询盘分析侧边面板 > 开始分析`
+- `浏览器插件 > 询盘分析侧边面板 > 连续追问`
 - `账号/用量/升级 > 用量明细 > 最近记录`
 - `账号弹层 > 邀请兑换积分`
 - `账号弹层 > 团队/企业空间切换`
@@ -311,6 +352,7 @@ Python 后端：
 - `结果预览区`：点击发送或 AI 生成后出现的结果内容。
 - `抽屉`：右侧滑出的面板，例如历史、教学视频。
 - `弹窗`：居中弹出的面板，例如附件、账号设置、客户编辑。
+- `插件侧边面板`：浏览器插件注入到网页右侧的 Shadow DOM 面板，不属于主原型工作区。
 
 ### 需求描述格式
 
@@ -370,6 +412,34 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 - `客户Kass > 客户档案 > 跟进节点识别`：草稿，workflow ID 待提供，未验证。
 
 工作流状态冲突时，以对应目录下的 `workflow.md`、`input.schema.json`、`output.schema.json` 和 `call-function.md` 为准，再更新 `coze-workflows/README.md`。
+
+## 浏览器插件维护规则
+
+`browser-extension/` 是「赢单询盘分析助手」Chrome 插件内测包，不是主静态原型页面。
+
+文件分工：
+
+- 改插件面板 UI、Markdown 渲染、开始分析按钮、连续追问：优先改 `browser-extension/content-script.js`。
+- 改 Coze 调用、SSE 解析、Chrome message、右键菜单、点击插件图标行为：优先改 `browser-extension/background.js`。
+- 改本地询盘抽取和启发式判断：优先改 `browser-extension/inquiry-analyzer.js`。
+- 改权限、图标、content script 注入：优先改 `browser-extension/manifest.json`。
+
+产品规则：
+
+- 点击插件图标只打开侧边面板，不自动分析。
+- 用户必须在侧边面板里点击「开始分析」才发起 Coze 调用。
+- 右键菜单也只打开侧边面板并带入选中文本，不自动分析。
+- AI 输出必须使用安全 Markdown 渲染：先转义 HTML，再开放有限 Markdown 语法，禁止直接信任外部返回的 HTML。
+- 插件图标必须保持透明底；不要再生成带白底的图标。
+- 内测 zip 给同事用即可；公开 Chrome Web Store 上架前必须移除内置 Token，补赢单登录或后端代理，并重审权限、隐私政策和合规说明。
+
+插件验证：
+
+- 语法：`node --check browser-extension/content-script.js`、`node --check browser-extension/background.js`、`node --check browser-extension/inquiry-analyzer.js`。
+- manifest：`python3 -m json.tool browser-extension/manifest.json >/dev/null`。
+- 打包：`unzip -t yingdan-inquiry-extension-v0.2.0.zip >/dev/null`。
+- 残留检查：确认没有 `default_popup`、`popup.html`、`popup.js`、`popup.css`、`补充产品/底线`、`Coze 连接`、`开启新会话`。
+- 浏览器检查：优先用用户当前 Chrome 重新加载扩展验证，不要为了这个插件再开临时 Playwright Chrome。
 
 ## 核心页面与业务含义
 
@@ -560,6 +630,7 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 
 - 优先编辑现有文件。
 - 当前主原型优先编辑 `src/data.js`、`src/app.js`、`src/styles.css`，不要把主流程重新写成大体量单文件 HTML。
+- 当前浏览器插件优先编辑 `browser-extension/` 下的现有文件；打包时更新 `yingdan-inquiry-extension-v0.2.0.zip`。
 - 如果是完全独立的临时原型，才创建一个语义清楚的 `.html` 文件。
 - 如果原型包含多条用户流程，可以按功能创建多个 `.html` 文件，但不要过度拆分。
 - 不主动创建新的文档文件，除非用户明确要求，或项目规则要求维护 `CONTEXT.md`。
@@ -568,6 +639,7 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 - `backups/` 只用于查历史，不主动改里面的旧 HTML。
 - `.claude/worktrees/` 是工具生成的工作树副本，不要把其中的文件当作当前主工程来更新。
 - `coze-workflows/` 虽然在 `.gitignore` 中，但它是本地工作流资料库；用户提供扣子资料时仍然要按规则维护。
+- `browser-extension/` 目前是内测交付物；如果要提交或发布，必须先确认是否要把内置 Token 改造掉，至少不要在文档或提交信息里暴露具体 Token 值。
 - 新增 SVG 图标优先放 `assets/icons/`，新增原型视觉素材优先放 `assets/generated/`，并在 `src/data.js` 或 `src/app.js` 用相对路径引用。
 
 ## 代码风格
@@ -588,6 +660,7 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 
 - 如果原型只有静态布局，可以不强行做复杂日志系统。
 - 如果加入 JavaScript 交互，应在关键操作处使用清晰的 `console.log`、`console.warn` 或 `console.error`，方便调试。
+- 浏览器插件里的日志统一带 `[赢单插件]` 前缀，方便在网页控制台或扩展 service worker 日志里筛选。
 - 如果后续增加 Python 脚本或后端服务，必须使用 Python 标准库 `logging` 模块记录关键操作、状态变化和异常信息。
 
 ## 浏览器验证
@@ -606,7 +679,9 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 - 如果改了支付页，额外检查 `#/upgrade/pay/pro`、`#/upgrade/pay/pro/checkout`、`#/upgrade/pay/pro/done`。
 - 如果改了后台 User Preview，额外检查时间范围按钮、功能调用总看板、用户字段报表默认字段、字段展开/收起、手机号列和时间字段格式。
 - 如果改了账号弹层，额外检查邀请兑换、团队/企业飞出层、用量明细跳转和退出登录的原型反馈。
-- 如果改了外贸流程 Flow，重点检查阶段切换、问 AI 展开、资料预览卡和阶段客户入口。
+- 如果改了外贸流程 Flow，重点检查阶段切换、问 AI 展开、资料预览卡和教学视频；当前不应再出现阶段客户 mini 列表。
+- 如果改了客户Kass，重点检查 A/B 分组、顶部「今日该推进」、客户档案、跟进流程图、跟进记录和右下角 Kass AI 助手。
+- 如果改了浏览器插件，额外检查 Chrome 扩展重新加载、点击插件图标打开侧边面板、点击「开始分析」后才调用 Coze、连续追问、Markdown 渲染、zip 完整性。
 - 桌面和窄屏下文字是否重叠或溢出。
 - 不要点击发送、删除、保存账号设置等可能产生真实副作用的动作，除非用户明确确认。
 
@@ -616,6 +691,7 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 - 不要复述或扩散浏览器中看到的用户历史内容。
 - 不要点击删除历史、删除客户、修改账号设置等高风险操作。
 - 不要在原型中写入真实 API Key 或真实登录态。
+- 浏览器插件当前有内置 Coze 内测 Token，这是临时测试例外；不要在文档、回复、提交信息、截图注释中复述具体值。公开上架或给外部用户前必须移除。
 - 表单提交、发送消息、上传文件、删除数据、修改权限等动作，在真实网页里执行前必须再次确认。
 
 ## Excel 交付规则
