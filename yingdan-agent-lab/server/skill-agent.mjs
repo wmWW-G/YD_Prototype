@@ -2523,12 +2523,49 @@ function resolveCustomerWriteSlug(input = {}) {
 
 function extractCustomerSlugFromConfirmationText(text = '') {
   const value = String(text || '').trim();
-  const explicitMatch = value.match(/(?:客户档案|客户|customer|slug|保存到|写入到|写入)\s*[:：]?\s*([A-Za-z0-9][A-Za-z0-9_-]{1,80})/i);
+  const explicitMatch = value.match(/(?:客户档案|客户|customer|slug|保存到|写入到|写入)\s*[:：]?\s*([A-Za-z0-9][A-Za-z0-9 _-]{1,120})/i);
   if (explicitMatch) {
-    return normalizeCustomerSlugForAgent(explicitMatch[1]);
+    return normalizeCustomerTargetForAgent(explicitMatch[1]);
   }
   const slugCandidates = value.match(/[A-Za-z0-9][A-Za-z0-9_-]{1,80}/g) || [];
-  return normalizeCustomerSlugForAgent(slugCandidates.find((candidate) => /[-_]/.test(candidate)) || '');
+  const explicitSlug = normalizeCustomerTargetForAgent(slugCandidates.find((candidate) => /[-_]/.test(candidate)) || '');
+  if (explicitSlug) {
+    return explicitSlug;
+  }
+  return normalizeCustomerTargetForAgent(value);
+}
+
+/**
+ * normalizeCustomerTargetForAgent 把用户说的客户目标转成内部客户档案 slug。
+ *
+ * 作用：
+ * - 用户不应该知道 `global-sourcing-inc` 这种内部标识。
+ * - 允许他说 `Global Sourcing Inc` 这类可读公司名,系统自动转成 `global-sourcing-inc`。
+ * - 已经是 slug 的输入继续按 slug 处理,避免破坏确认链路。
+ *
+ * 参数：
+ * - customerTarget：用户在保存确认里提供的客户档案名称或标识。
+ *
+ * 返回值：合法 customer slug；无法识别时返回空字符串。
+ * 可能抛出的异常：无。
+ */
+function normalizeCustomerTargetForAgent(customerTarget = '') {
+  const value = String(customerTarget || '')
+    .trim()
+    .replace(/^[\s:：]+|[\s,，。.;；!！?？]+$/g, '');
+  const directSlug = normalizeCustomerSlugForAgent(value);
+
+  if (directSlug && !/\s/.test(value)) {
+    return directSlug.toLowerCase();
+  }
+
+  const readableSlug = value
+    .replace(/&/g, ' and ')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+
+  return normalizeCustomerSlugForAgent(readableSlug);
 }
 
 function normalizeCustomerSlugForAgent(customerSlug = '') {

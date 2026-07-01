@@ -2,6 +2,10 @@
 
 ## 2026-07-01
 
+- 修复自然公司名保存目标被截断:
+  - 复现问题:当前线程已有 `客户推进分析.md` 时,用户说 `保存到客户档案 Global Sourcing Inc`;后端会把目标截成 `Global`,确认后可能写入错误客户目录,不像真实 agent 会理解用户说的是公司名。
+  - 已修复:保存确认会把可读英文客户名规范化成内部客户标识,例如 `Global Sourcing Inc` → `global-sourcing-inc`;已有 slug 输入仍可直接识别,且仍必须等用户确认后才写入客户 memory。
+  - 新增红绿回归测试 `runNewConversationAgent normalizes a readable customer name from a natural save request`。
 - 修复自然保存请求丢失目标客户:
   - 复现问题:当前线程已有 `客户推进分析.md` 时,用户说 `保存到客户档案 global-sourcing-inc`;后端会弹写入确认,但确认卡没有携带 `global-sourcing-inc`,用户点 `确认写入` 后还会被追问一次客户档案标识。
   - 已修复:写入客户档案确认卡会从自然语言保存请求里提取明确客户标识,仍然先等待用户确认;确认后再写入对应客户 memory,不会默认写入演示客户。
