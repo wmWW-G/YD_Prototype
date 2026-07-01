@@ -174,6 +174,87 @@ test('agent session store writes a readable JSON file with the latest artifact s
   }
 });
 
+test('agent session store clears prior artifact when a new waiting task owns fresh context', async () => {
+  const fixture = await withSessionStore();
+
+  try {
+    const sessionId = 'agent-session-20260701T130000-clear-artifact';
+    await fixture.store.saveTurn({
+      sessionId,
+      userText: '客户已读不回，产品是家具，帮我做7天跟进计划',
+      response: {
+        ok: true,
+        kind: 'goal-run',
+        sessionId,
+        status: 'completed',
+        summary: '已生成客户推进分析。',
+        taskTitle: '客户推进分析',
+        period: { start: '2026-06-01', end: '2026-06-07' },
+        artifact: {
+          type: 'markdown',
+          name: '客户推进分析.md',
+          outputPath: '/tmp/客户推进分析.md',
+        },
+        messages: [
+          {
+            id: 'assistant-old-artifact',
+            role: 'assistant',
+            content: '已生成客户推进分析。',
+            createdAt: '2026-07-01T13:00:00.000Z',
+            artifact: {
+              type: 'markdown',
+              name: '客户推进分析.md',
+              outputPath: '/tmp/客户推进分析.md',
+            },
+          },
+        ],
+      },
+    });
+
+    await fixture.store.saveTurn({
+      sessionId,
+      userText: '重新开始，写一封开发信',
+      response: {
+        ok: true,
+        kind: 'needs-input',
+        sessionId,
+        status: 'waiting',
+        taskTitle: '开发信草稿',
+        context: {
+          pendingTask: {
+            skillName: '开发信草稿',
+            originalText: '重新开始，写一封开发信',
+            missing: ['客户名称或客户类型', '产品或核心卖点', '目标市场'],
+          },
+        },
+        messages: [
+          {
+            id: 'assistant-new-waiting',
+            role: 'assistant',
+            content: '开发信草稿还需要补充资料。',
+            createdAt: '2026-07-01T13:01:00.000Z',
+          },
+        ],
+      },
+    });
+
+    const session = await fixture.store.read(sessionId);
+    const latestAssistantMessage = [...session.messages].reverse().find((message) => message.role === 'assistant');
+
+    assert.equal(session.status, 'waiting');
+    assert.equal(session.taskTitle, '开发信草稿');
+    assert.equal(session.artifact, null);
+    assert.equal(session.skillAgentResult, null);
+    assert.equal(session.context.artifact, undefined);
+    assert.equal(session.context.pendingTask.skillName, '开发信草稿');
+    assert.deepEqual(session.period, {});
+    assert.equal(session.summary, '');
+    assert.equal(latestAssistantMessage.artifact, undefined);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('agent session store lists recent sessions as safe thread summaries', async () => {
   const fixture = await withSessionStore();
 

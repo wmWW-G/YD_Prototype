@@ -92,6 +92,9 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 新对话空态只能用业务任务口吻引导,例如“今天想推进哪件外贸成交任务？”;不要写“无需配置流程 / 不用选流程 / 不用填配置”这类解释产品机制的说明文案。
 - 新对话 composer 默认必须为空;示例任务只能放在示例按钮或 placeholder 里,不能预填进输入框,避免第一屏像 demo 表单而不是用户主动交代任务的 agent thread。
 - `server/agent-session-store.mjs`:后端保存新对话 session 文件,前端刷新或只传 `sessionId` 时可以恢复 pending task、pending confirmation、artifact 和消息。
+- `server/agent-session-store.mjs` 保存新回合时必须区分“历史消息里的旧产物”和“当前可续接产物”:如果本轮 response 显式携带新的 `context` 且里面没有 artifact,说明当前任务已经切到新的 waiting/needs-input 状态,必须清掉 session 顶层 `artifact`、`skillAgentResult`、`period` 和旧 summary;历史消息仍可保留旧产物卡,但前端恢复后不能把旧文件当成当前任务继续修改或导出。
+- 前端请求 context 和 `server/agent-request-context.mjs` 必须遵守同一条当前产物规则:只要后端 session context 已经接管了当前状态,就不能从前端本地 `skillAgentResult` 或 client context 回捞旧 artifact / period。新 waiting 任务没有 artifact 时,旧文件只能留在历史消息卡里,不能继续显示为输入区当前产物,也不能参与下一句保存/导出确认。
+- 前端 SSE / 网络异常兜底同样不能保留旧产物:进入本地 recoverable waiting 时,只保留 pendingTask 等待信息,必须清掉 `artifact`、`period` 和 `skillAgentResult`;否则下一句 `保存一下 / 导出文件` 会误绑异常前的旧文件。
 - `GET /api/agent/session/:sessionId`:前端恢复线程的后端接口;localStorage 只作为兜底,不再是唯一连续性来源。
 - `GET /api/agent/sessions`:前端最近任务列表接口,按更新时间倒序返回最多 50 条安全摘要;只包含 sessionId、taskTitle、status、kind、preview、artifactName、createdAt、updatedAt。
 - pending task 续跑:用户第一次说得太模糊时返回 `needs-input`;补一句话后,后端会用“原始任务 + 新补充”恢复执行文本,并从原 `needs-input:<skillId>` checkpoint 继续。内部可以恢复 Skill 和 plan,但 run log、最终 process、活动流和 SSE 首条可见进度都不能像新任务一样重播 `识别任务 / 核对资料 / 拆解任务`;如果 policy 允许,展示 `继续执行 / 生成材料 / 整理发现 / 检查结果 / 完成`;如果 policy 需要确认,展示 `继续执行 / 核对权限 / 等待确认`。
@@ -144,6 +147,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - `server/agent-artifact-export.mjs`:导出确认后才会把当前 session 产物复制到 `workbench/exports/<sessionId>/`;未确认时只返回确认卡,不会生成导出副本。用户说 `下载文件`、`下载`、`导出`、`保存一下到桌面`、`保存当前文件到桌面` 或 `保存一下并下载文件` 也属于导出意图,不能当成普通追问、客户档案保存或泛泛任务。
 - 空线程不能直接导出或保存:如果当前 session 没有 artifact,用户说 `导出文件` 或 `保存到客户档案` 时返回 `needs-input`,提示先生成或选择业务产物,不能弹确认卡假装可执行。这类空副作用请求也不能创建 pending task;用户下一句给出完整业务任务时,应按干净的新任务执行,不能把 `导出文件`、`保存一下` 拼进任务来源或生成内容。
 - 首轮完整业务任务里如果同时带 `保存一下` 或 `导出文件`,后端必须先生成安全业务产物,再停在保存/导出确认。比如 `帮我生成报价单并导出文件，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai` 应先生成 `报价单.xlsx`,随后进入 `导出文件前需要确认`;如果同一句缺数量、单价或贸易条款,则继续追问缺失字段,不能提示“还没有可导出的业务产物”。
+- 旧线程已有 artifact 时也要先判断本轮是不是新的业务产物任务:如果用户说 `帮我生成报价单并导出文件...` 或 `帮我生成报价单并保存一下...`,不能因为 session 里挂着旧 `客户推进分析.md` 就直接确认导出/保存旧文件;必须先生成本轮新的 `报价单.xlsx`,再进入导出/保存确认。只有 `导出文件`、`导出报价单`、`导出一份报价单`、`保存当前`、`保存当前文件`、`把当前报价单写入客户档案` 这类纯当前产物动作才直接对当前 artifact 弹确认。
 - 缺资料等待态里如果用户补资料时顺手说 `保存一下` 或 `导出文件`,后端必须先判断补充后原 pending task 是否已经能生成安全业务产物。资料已足够时,先沿用原始任务生成草稿、分析或表格产物,再进入保存/导出确认;资料仍不够时才返回 `needs-input-followup` 并保留原 pending task。不能因为保存/导出的前置条件不满足,就把 `客户问MOQ和交期，帮我回一下` 这类原始任务丢掉或改成一条全新的保存请求。
 - 如果同一轮里先生成了安全产物、随后因为保存/导出进入确认等待,SSE 公开进度必须过滤本轮 Runtime 的 `run.completed`,最后以 `核对权限 / 等待确认` 收束。前台不能先显示“完成”再显示“等待确认”,否则用户会误以为副作用动作已经执行或任务状态来回跳。
 - 同一轮先生成产物再等待保存/导出确认时,最终助手消息里的「本次操作记录」也必须在 `检查结果` 后追加第二次 `核对权限`,再进入 `等待确认`。不能只修流式进度,否则用户回看线程时会像是检查结果后突然要求确认。

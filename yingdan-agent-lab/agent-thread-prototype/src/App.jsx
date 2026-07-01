@@ -33,6 +33,12 @@ import {
 import { mergeStreamingProgressItem } from './agentThreadProgress.js';
 import { deriveAgentThreadTaskTitle } from './agentThreadTitle.js';
 import { getNewConversationComposerState } from './agentThreadComposerState.js';
+import {
+  buildAgentRequestContext,
+  buildRecoverableWaitingContext,
+  getCurrentAgentArtifact,
+  pickNextSkillAgentResult,
+} from './agentThreadContext.js';
 
 const navItems = [
   { label: '新对话', icon: PenLine },
@@ -1011,15 +1017,7 @@ export function App() {
         body: JSON.stringify({
           message: currentDraft,
           sessionId: agentSessionId || undefined,
-          context: {
-            ...agentTaskContext,
-            ...(skillAgentResult
-              ? {
-                  artifact: skillAgentResult.artifact,
-                  period: skillAgentResult.period,
-                }
-              : {}),
-          },
+          context: buildAgentRequestContext(agentTaskContext, skillAgentResult),
         }),
       });
 
@@ -1047,10 +1045,8 @@ export function App() {
         const recoverableContext = buildRecoverablePendingTaskContext(currentDraft);
         setSkillAgentStatus('waiting');
         setSkillAgentError('');
-        setAgentTaskContext((currentContext) => ({
-          ...currentContext,
-          pendingTask: currentContext.pendingTask || recoverableContext.pendingTask,
-        }));
+        setAgentTaskContext((currentContext) => buildRecoverableWaitingContext(currentContext, recoverableContext));
+        setSkillAgentResult(null);
         setAgentThreadTaskTitle((currentTitle) => currentTitle || '本次外贸任务');
         setAgentThreadMessages((currentMessages) => [...currentMessages, buildLocalThreadMessage('assistant', message, { tone: 'warning' })]);
         setToast('等待补充后继续');
@@ -1065,9 +1061,7 @@ export function App() {
       const assistantMessages = (payload.messages || []).filter((message) => message.role === 'assistant');
       setAgentSessionId(payload.sessionId || agentSessionId);
       setAgentTaskContext(payload.context || (payload.artifact ? { artifact: payload.artifact, period: payload.period } : agentTaskContext));
-      if (payload.artifact) {
-        setSkillAgentResult(payload);
-      }
+      setSkillAgentResult((currentResult) => pickNextSkillAgentResult(payload, currentResult));
       const nextTaskTitle = deriveAgentThreadTaskTitle(payload, agentThreadTaskTitle);
       setAgentThreadTaskTitle(nextTaskTitle || '');
       setAgentThreadMessages((currentMessages) => [...currentMessages, ...assistantMessages]);
@@ -1091,10 +1085,8 @@ export function App() {
       const recoverableContext = buildRecoverablePendingTaskContext(currentDraft);
       setSkillAgentStatus('waiting');
       setSkillAgentError('');
-      setAgentTaskContext((currentContext) => ({
-        ...currentContext,
-        pendingTask: currentContext.pendingTask || recoverableContext.pendingTask,
-      }));
+      setAgentTaskContext((currentContext) => buildRecoverableWaitingContext(currentContext, recoverableContext));
+      setSkillAgentResult(null);
       setAgentThreadTaskTitle((currentTitle) => currentTitle || '本次外贸任务');
       setAgentThreadMessages((currentMessages) => [
         ...currentMessages,
@@ -1219,7 +1211,7 @@ export function App() {
           <NewConversationView
           agentError={skillAgentError}
           agentStatus={skillAgentStatus}
-          currentArtifact={skillAgentResult?.artifact || agentTaskContext?.artifact || null}
+          currentArtifact={getCurrentAgentArtifact(agentTaskContext, skillAgentResult)}
           draft={newConversationDraft}
           expandedProcessMessageId={expandedProcessMessageId}
           inputRef={newConversationInputRef}

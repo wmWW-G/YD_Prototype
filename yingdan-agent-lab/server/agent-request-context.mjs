@@ -22,11 +22,24 @@ export function mergeAgentRequestContext(input = {}) {
     return clientContext;
   }
 
-  return {
+  const context = {
     ...clientContext,
     ...serverContext,
-    artifact: serverContext.artifact || clientContext.artifact,
     pendingConfirmation: serverContext.pendingConfirmation,
     pendingTask: serverContext.pendingTask,
   };
+
+  if (Object.prototype.hasOwnProperty.call(serverContext, 'artifact')) {
+    context.artifact = serverContext.artifact;
+  } else {
+    delete context.artifact;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(serverContext, 'period')) {
+    context.period = serverContext.period;
+  } else {
+    delete context.period;
+  }
+
+  return context;
 }

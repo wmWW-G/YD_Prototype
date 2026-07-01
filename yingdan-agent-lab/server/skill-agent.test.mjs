@@ -2447,6 +2447,211 @@ test('runNewConversationAgent generates a first-turn quotation artifact before a
   assert.match(runtimeText, /单价USD 35/);
 });
 
+test('runNewConversationAgent generates a new matched artifact before export when an old artifact already exists', async () => {
+  let runtimeText = '';
+  let runtimeCalled = false;
+  const oldArtifact = {
+    type: 'markdown',
+    name: '旧客户推进分析.md',
+    outputPath: '/tmp/旧客户推进分析.md',
+  };
+
+  const response = await runNewConversationAgent({
+    text: '帮我生成报价单并导出文件，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai',
+    sessionId: 'agent-session-20260701T120000-old-artifact-export',
+    context: {
+      artifact: oldArtifact,
+    },
+    session: {
+      context: {
+        artifact: oldArtifact,
+      },
+    },
+    registry: createQuotationRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeCalled = true;
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'quotation-sheet',
+            reason: '用户要生成新的报价单并导出。',
+          },
+          skill: {
+            id: 'quotation-sheet',
+            displayName: '报价单',
+            adapter: 'quotation-sheet',
+            artifactType: 'xlsx',
+          },
+          result: {
+            ok: true,
+            mode: 'quotation-sheet',
+            outputPath: '/tmp/报价单.xlsx',
+            artifactName: '报价单.xlsx',
+          },
+          artifact: {
+            type: 'xlsx',
+            name: '报价单.xlsx',
+            outputPath: '/tmp/报价单.xlsx',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(runtimeCalled, true);
+  assert.equal(response.kind, 'confirmation-required');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '报价单');
+  assert.equal(response.artifact.name, '报价单.xlsx');
+  assert.equal(response.context.artifact.name, '报价单.xlsx');
+  assert.equal(response.context.pendingConfirmation.type, 'export_file');
+  assert.equal(response.context.pendingConfirmation.originalText, runtimeText);
+  assert.match(runtimeText, /帮我生成报价单并导出文件/);
+  assert.doesNotMatch(JSON.stringify(response), /旧客户推进分析/);
+});
+
+test('runNewConversationAgent treats pure quotation export wording as current artifact export', async () => {
+  const oldArtifact = {
+    type: 'xlsx',
+    name: '已有报价单.xlsx',
+    outputPath: '/tmp/已有报价单.xlsx',
+  };
+  const cases = ['导出报价单', '导出一份报价单'];
+
+  for (const [index, text] of cases.entries()) {
+    const response = await runNewConversationAgent({
+      text,
+      sessionId: `agent-session-20260701T121000-export-current-quotation-${index}`,
+      context: {
+        artifact: oldArtifact,
+      },
+      session: {
+        context: {
+          artifact: oldArtifact,
+        },
+      },
+      registry: createQuotationRegistry(),
+      skillRuntime: {
+        async runGoal() {
+          throw new Error('runtime should not regenerate a quotation for pure export wording');
+        },
+      },
+    });
+
+    assert.equal(response.kind, 'confirmation-required');
+    assert.equal(response.status, 'waiting');
+    assert.equal(response.context.artifact.name, '已有报价单.xlsx');
+    assert.equal(response.context.pendingConfirmation.type, 'export_file');
+    assert.equal(response.context.pendingConfirmation.originalText, text);
+    assert.equal(response.artifact, undefined);
+  }
+});
+
+test('runNewConversationAgent treats current quotation customer write wording as current artifact save', async () => {
+  const oldArtifact = {
+    type: 'xlsx',
+    name: '已有报价单.xlsx',
+    outputPath: '/tmp/已有报价单.xlsx',
+  };
+
+  const response = await runNewConversationAgent({
+    text: '把当前报价单写入客户档案',
+    sessionId: 'agent-session-20260701T121500-save-current-quotation',
+    context: {
+      artifact: oldArtifact,
+    },
+    session: {
+      context: {
+        artifact: oldArtifact,
+      },
+    },
+    registry: createQuotationRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not regenerate a quotation for current customer write wording');
+      },
+    },
+  });
+
+  assert.equal(response.kind, 'confirmation-required');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.context.artifact.name, '已有报价单.xlsx');
+  assert.equal(response.context.pendingConfirmation.type, 'customer_write');
+  assert.equal(response.context.pendingConfirmation.originalText, '把当前报价单写入客户档案');
+  assert.equal(response.artifact, undefined);
+});
+
+test('runNewConversationAgent generates a new matched artifact before customer save when an old artifact already exists', async () => {
+  let runtimeText = '';
+  let runtimeCalled = false;
+  const oldArtifact = {
+    type: 'markdown',
+    name: '旧客户推进分析.md',
+    outputPath: '/tmp/旧客户推进分析.md',
+  };
+
+  const response = await runNewConversationAgent({
+    text: '帮我生成报价单并保存一下，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai',
+    sessionId: 'agent-session-20260701T122000-old-artifact-save',
+    context: {
+      artifact: oldArtifact,
+    },
+    session: {
+      context: {
+        artifact: oldArtifact,
+      },
+    },
+    registry: createQuotationRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeCalled = true;
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'quotation-sheet',
+            reason: '用户要生成新的报价单并保存。',
+          },
+          skill: {
+            id: 'quotation-sheet',
+            displayName: '报价单',
+            adapter: 'quotation-sheet',
+            artifactType: 'xlsx',
+          },
+          result: {
+            ok: true,
+            mode: 'quotation-sheet',
+            outputPath: '/tmp/报价单.xlsx',
+            artifactName: '报价单.xlsx',
+          },
+          artifact: {
+            type: 'xlsx',
+            name: '报价单.xlsx',
+            outputPath: '/tmp/报价单.xlsx',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(runtimeCalled, true);
+  assert.equal(response.kind, 'confirmation-required');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '报价单');
+  assert.equal(response.artifact.name, '报价单.xlsx');
+  assert.equal(response.context.artifact.name, '报价单.xlsx');
+  assert.equal(response.context.pendingConfirmation.type, 'customer_write');
+  assert.equal(response.context.pendingConfirmation.originalText, runtimeText);
+  assert.match(runtimeText, /帮我生成报价单并保存一下/);
+  assert.doesNotMatch(JSON.stringify(response), /旧客户推进分析/);
+});
+
 test('runNewConversationAgent generates a first-turn quotation artifact before asking to save it', async () => {
   let runtimeText = '';
 

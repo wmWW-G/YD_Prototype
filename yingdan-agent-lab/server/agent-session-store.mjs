@@ -119,23 +119,26 @@ export function createAgentSessionStore(options = {}) {
       };
       const response = input.response || {};
       const now = new Date().toISOString();
-      const context = Object.prototype.hasOwnProperty.call(response, 'context')
+      const responseOwnsContext = Object.prototype.hasOwnProperty.call(response, 'context');
+      const context = responseOwnsContext
         ? response.context || {}
         : input.requestContext || previous.context || {};
       const messages = mergeTurnMessages(previous.messages || [], input.userText, response.messages || []);
       const taskTitle = pickTaskTitle(response, previous);
+      const artifact = pickSessionArtifact({ context, previous, response, responseOwnsContext });
+      const skillAgentResult = pickSessionSkillAgentResult({ context, previous, response, responseOwnsContext });
       const state = {
         ...previous,
-        artifact: response.artifact || previous.artifact || null,
+        artifact,
         context,
         expandedProcessMessageId: findLatestProcessMessageId(messages) || previous.expandedProcessMessageId || '',
         kind: response.kind || previous.kind || '',
         messages,
-        period: response.period || previous.period || {},
+        period: pickSessionPeriod({ context, previous, response, responseOwnsContext }),
         sessionId: safeSessionId,
-        skillAgentResult: response.artifact ? toStoredAgentResult(response) : previous.skillAgentResult || null,
+        skillAgentResult,
         status: response.status || previous.status || 'waiting',
-        summary: response.summary || previous.summary || '',
+        summary: response.summary || (responseOwnsContext ? '' : previous.summary || ''),
         taskTitle,
         updatedAt: now,
       };
@@ -342,6 +345,78 @@ function dedupeMessages(messages = []) {
 function findLatestProcessMessageId(messages = []) {
   const processMessage = [...messages].reverse().find((message) => message?.activity || message?.process);
   return processMessage?.id || '';
+}
+
+/**
+ * pickSessionArtifact 选择本轮保存后的当前产物。
+ *
+ * 作用：
+ * - response.context 明确存在时,说明本轮 Agent 已经接管线程上下文。
+ * - 如果这个新上下文没有 artifact,必须清掉旧产物,避免新 waiting 任务刷新后还显示旧文件。
+ * - 如果 response 连 context 都没有,才按兼容逻辑沿用上一轮产物。
+ *
+ * 参数：
+ * - input.response：本轮 Agent 响应。
+ * - input.context：本轮要保存的上下文。
+ * - input.previous：上一版 session。
+ * - input.responseOwnsContext：本轮响应是否显式携带 context。
+ *
+ * 返回值：当前 session 产物对象；没有产物时返回 null。
+ * 可能抛出的异常：无。
+ */
+function pickSessionArtifact(input = {}) {
+  if (input.response?.artifact) {
+    return input.response.artifact;
+  }
+  if (input.responseOwnsContext) {
+    return input.context?.artifact || null;
+  }
+  return input.previous?.artifact || null;
+}
+
+/**
+ * pickSessionSkillAgentResult 选择可恢复的最近产物结果。
+ *
+ * 作用：
+ * - 前台恢复时会用 skillAgentResult.artifact 作为“正在接着哪份产物”的依据。
+ * - 新 waiting 任务显式清掉 artifact 时,这里也必须清掉旧 result。
+ * - 当前产物只是进入确认等待时,仍可沿用上一轮 result,避免确认卡丢失产物标题。
+ *
+ * 参数同 pickSessionArtifact。
+ *
+ * 返回值：可恢复的产物结果；没有当前产物时返回 null。
+ * 可能抛出的异常：无。
+ */
+function pickSessionSkillAgentResult(input = {}) {
+  if (input.response?.artifact) {
+    return toStoredAgentResult(input.response);
+  }
+  if (input.responseOwnsContext) {
+    return input.context?.artifact ? input.previous?.skillAgentResult || null : null;
+  }
+  return input.previous?.skillAgentResult || null;
+}
+
+/**
+ * pickSessionPeriod 选择本轮保存后的业务周期。
+ *
+ * 作用：
+ * - 和 artifact 一样,新上下文接管但没有 period 时不能沿用旧周期。
+ * - 防止新 waiting 任务显示上一份产物的时间范围。
+ *
+ * 参数同 pickSessionArtifact。
+ *
+ * 返回值：period 对象；没有周期时返回空对象。
+ * 可能抛出的异常：无。
+ */
+function pickSessionPeriod(input = {}) {
+  if (input.response?.period) {
+    return input.response.period;
+  }
+  if (input.responseOwnsContext) {
+    return input.context?.period || {};
+  }
+  return input.previous?.period || {};
 }
 
 function toStoredAgentResult(response = {}) {

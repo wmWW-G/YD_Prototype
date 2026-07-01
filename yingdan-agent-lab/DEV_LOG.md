@@ -2,6 +2,23 @@
 
 ## 2026-07-01
 
+- 修复前端和请求合并层回灌旧产物:
+  - sub agent 复核发现:session store 虽然已在新 waiting 任务中清掉旧 artifact,但前端仍会把旧 `skillAgentResult.artifact` 拼进下一轮请求,`server/agent-request-context.mjs` 也会在 server context 无 artifact 时回退使用 client artifact,导致 `重新开始，写一封开发信` 这种新任务可能继续误绑 `旧客户推进分析.md`。
+  - 已修复:新增 `agent-thread-prototype/src/agentThreadContext.js`,统一控制前端请求 context、输入区当前产物展示和 payload 后的 `skillAgentResult` 更新;新 waiting / confirmation context 无 artifact 时清空当前产物指针。
+  - 后端合并层同步改为 server context 接管后不再从 client context 回捞 artifact / period;旧产物只保留在历史消息卡里,不再参与下一句保存或导出确认。
+  - 新增回归测试 `mergeAgentRequestContext does not reattach stale client artifact to a fresh server waiting task`、`buildAgentRequestContext does not attach a stale artifact while a fresh task is waiting` 和前端 wiring 测试 `New Conversation uses context helpers to avoid reusing stale artifacts in fresh waiting tasks`。
+- 修复前端 recoverable waiting 异常兜底残留旧产物:
+  - sub agent 二次复核发现:streamError / 网络异常分支仍用 `{ ...currentContext, pendingTask }`,如果异常前 context 有旧 artifact / period,本地等待态会继续把旧文件当成当前产物。
+  - 已修复:新增 `buildRecoverableWaitingContext()`,异常兜底只保留 pendingTask 等待信息,主动删除 artifact / period,并同步清空 `skillAgentResult`;输入区和下一轮请求都不会再看到旧产物。
+  - 新增回归测试 `buildRecoverableWaitingContext removes stale artifact data from local waiting fallback` 和 `buildRecoverableWaitingContext preserves an existing pending task but still clears artifact data`,并加严前端源码测试禁止异常分支继续使用 `...currentContext`。
+- 修复新 waiting 任务恢复时继续挂旧产物:
+  - 复现问题:同一 session 里先生成 `客户推进分析.md`,再说 `重新开始，写一封开发信` 进入缺资料等待时,session store 会继续把上一轮 artifact、skillAgentResult、period 和 summary 兜底带回来;刷新或打开历史后,新任务仍像是在接着旧文件。
+  - 已修复:如果本轮 response 显式携带新的 `context` 且没有 artifact,session store 把当前产物指针清空,只保留历史消息中的旧产物卡片;没有新 context 的兼容 follow-up 仍可沿用旧上下文。
+  - 新增回归测试 `agent session store clears prior artifact when a new waiting task owns fresh context`。
+- 修复旧产物干扰新任务保存/导出:
+  - 复现问题:同一线程里已有 `旧客户推进分析.md` 时,用户再说 `帮我生成报价单并导出文件...` 或 `帮我生成报价单并保存一下...`,后端会因为当前 session 已有 artifact 而直接进入导出/保存确认,没有先生成本轮新的 `报价单.xlsx`。
+  - 已修复:保存/导出命中风险动作时,如果本轮同时明确匹配新的业务产物生成意图,先跑 Runtime 生成新产物,再把新产物带入导出/保存确认;纯 `导出报价单`、`导出一份报价单`、`把当前报价单写入客户档案` 仍按当前 artifact 弹确认,不会误触发重新生成。
+  - 新增回归测试 `runNewConversationAgent generates a new matched artifact before export when an old artifact already exists`、`runNewConversationAgent generates a new matched artifact before customer save when an old artifact already exists`、`runNewConversationAgent treats pure quotation export wording as current artifact export` 和 `runNewConversationAgent treats current quotation customer write wording as current artifact save`。
 - 修复缺资料等待态里补资料同时要求保存/导出的续跑断点:
   - 复现问题:先说 `帮我生成报价单` 进入缺资料等待后,再补 `产品太阳能路灯，导出文件` 或 `产品太阳能路灯，保存一下`,后端会掉进“还没有可导出/可保存的业务产物”兜底,而不是继续询问报价单仍缺的数量、单价和贸易条款。
   - 已修复:有 pending task 且本轮命中保存/导出时,先用原任务 + 所有补充重新匹配业务 Skill;如果仍缺业务字段,返回 `needs-input-followup` 并追问真实缺字段,不弹空产物兜底,也不清掉 pending task。

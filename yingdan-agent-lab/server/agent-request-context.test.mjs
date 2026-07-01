@@ -72,3 +72,32 @@ test('mergeAgentRequestContext prefers server pending confirmation over stale cl
   assert.equal(context.pendingConfirmation.runtime.resumeFrom, 'policy:artifact.export_file');
   assert.equal(JSON.stringify(context).includes('skill-runtime-stale-confirmation'), false);
 });
+
+test('mergeAgentRequestContext does not reattach stale client artifact to a fresh server waiting task', () => {
+  const context = mergeAgentRequestContext({
+    clientContext: {
+      artifact: {
+        name: '旧客户推进分析.md',
+        type: 'markdown',
+      },
+      period: {
+        from: '2026-06-01',
+        to: '2026-06-07',
+      },
+    },
+    serverContext: {
+      pendingTask: {
+        missing: ['产品或核心卖点'],
+        originalText: '重新开始，写一封开发信',
+      },
+    },
+  });
+
+  assert.deepEqual(context.pendingTask, {
+    missing: ['产品或核心卖点'],
+    originalText: '重新开始，写一封开发信',
+  });
+  assert.equal(Object.prototype.hasOwnProperty.call(context, 'artifact'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(context, 'period'), false);
+  assert.equal(JSON.stringify(context).includes('旧客户推进分析'), false);
+});

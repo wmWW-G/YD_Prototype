@@ -94,11 +94,16 @@ test('New Conversation recoverable failures keep the original task for the next 
   const catchBlock = await readFunctionBlockSource('handleRunNewConversationAgent', '} catch (error) {', '} finally {');
 
   assert.equal(source.includes('buildRecoverablePendingTaskContext(currentDraft)'), true);
+  assert.equal(source.includes('buildRecoverableWaitingContext(currentContext, recoverableContext)'), true);
   assert.equal(source.includes('ensureRecoverableAgentSessionId()'), true);
   assert.equal(streamBlock.includes('setAgentTaskContext((currentContext)'), true);
   assert.equal(catchBlock.includes('setAgentTaskContext((currentContext)'), true);
-  assert.equal(streamBlock.includes('pendingTask'), true);
-  assert.equal(catchBlock.includes('pendingTask'), true);
+  assert.equal(streamBlock.includes('buildRecoverableWaitingContext(currentContext, recoverableContext)'), true);
+  assert.equal(catchBlock.includes('buildRecoverableWaitingContext(currentContext, recoverableContext)'), true);
+  assert.equal(streamBlock.includes('setSkillAgentResult(null)'), true);
+  assert.equal(catchBlock.includes('setSkillAgentResult(null)'), true);
+  assert.equal(streamBlock.includes('...currentContext'), false);
+  assert.equal(catchBlock.includes('...currentContext'), false);
 });
 
 test('New Conversation artifact preview failures stay in business language', async () => {
@@ -198,7 +203,7 @@ test('New Conversation composer keeps pending confirmation in a confirmation con
   assert.equal(threadSource.includes('title={composerContextLabel}'), true);
   assert.equal(threadSource.includes('{sendButtonLabel}'), true);
   assert.equal(threadSource.includes('aria-label={sendButtonLabel}'), true);
-  assert.equal(source.includes('currentArtifact={skillAgentResult?.artifact || agentTaskContext?.artifact || null}'), true);
+  assert.equal(source.includes('getCurrentAgentArtifact(agentTaskContext, skillAgentResult)'), true);
 });
 
 test('New Conversation follows the latest thread activity while the agent works', async () => {
@@ -278,6 +283,18 @@ test('New Conversation uses a first confirmation title as the task title without
 
   assert.equal(appSource.includes("import { deriveAgentThreadTaskTitle } from './agentThreadTitle.js';"), true);
   assert.equal(runSource.includes('deriveAgentThreadTaskTitle(payload, agentThreadTaskTitle)'), true);
+});
+
+test('New Conversation uses context helpers to avoid reusing stale artifacts in fresh waiting tasks', async () => {
+  const appSource = await readFile(appSourcePath, 'utf8');
+  const runSource = await readFunctionSource('handleRunNewConversationAgent');
+  const workspaceSource = await readFunctionSource('renderWorkspace');
+
+  assert.equal(appSource.includes("from './agentThreadContext.js';"), true);
+  assert.equal(runSource.includes('buildAgentRequestContext(agentTaskContext, skillAgentResult)'), true);
+  assert.equal(runSource.includes('pickNextSkillAgentResult(payload, currentResult)'), true);
+  assert.equal(runSource.includes('artifact: skillAgentResult.artifact'), false);
+  assert.equal(workspaceSource.includes('getCurrentAgentArtifact(agentTaskContext, skillAgentResult)'), true);
 });
 
 test('New Conversation can start a fresh business task without carrying the old session', async () => {

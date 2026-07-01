@@ -144,6 +144,46 @@ export async function runNewConversationAgent(options = {}) {
 
   const riskyAction = detectRiskyAction(text);
   if (riskyAction) {
+    if (!context.pendingTask && shouldGenerateNewArtifactBeforeRiskConfirmation({ match, riskyAction, text })) {
+      const missingContext = detectMissingBusinessContext({ match, text });
+      if (missingContext.missing.length === 0) {
+        const bufferedRuntimeEvents = [];
+        const collectRuntimeEvent = async (event) => {
+          bufferedRuntimeEvents.push(event);
+        };
+        const generatedResponse = await runMatchedSkillGoal({
+          checkPolicy: options.checkPolicy,
+          projectRoot,
+          sessionId: options.sessionId,
+          skillRuntime: options.skillRuntime,
+          onRuntimeEvent: collectRuntimeEvent,
+          text,
+        });
+
+        if (generatedResponse.ok !== false && generatedResponse.kind !== 'confirmation-required' && generatedResponse.artifact) {
+          return buildPostArtifactRiskConfirmationResponse({
+            onRuntimeEvent: options.onRuntimeEvent,
+            response: generatedResponse,
+            runtimeEvents: bufferedRuntimeEvents,
+            riskyAction,
+            text,
+          });
+        }
+
+        await emitBufferedRuntimeEvents(options.onRuntimeEvent, bufferedRuntimeEvents);
+        return generatedResponse;
+      }
+
+      return buildNeedsInputResponse({
+        missing: missingContext.missing,
+        matchedSkill: match.skill,
+        onRuntimeEvent: options.onRuntimeEvent,
+        projectRoot,
+        sessionId: options.sessionId,
+        text,
+      });
+    }
+
     const missingArtifact = missingArtifactForRiskyAction({ context, riskyAction });
     if (missingArtifact) {
       if (context.pendingTask) {
@@ -999,6 +1039,35 @@ function missingArtifactForRiskyAction(input = {}) {
   };
   const missing = requirements[type];
   return missing ? { missing } : null;
+}
+
+/**
+ * shouldGenerateNewArtifactBeforeRiskConfirmation 判断旧线程已有产物时是否仍要先生成本轮新产物。
+ *
+ * 作用：
+ * - 如果用户说“生成报价单并导出”,即使当前线程挂着旧文件,也应该先生成新报价单。
+ * - 如果用户只说“导出文件 / 保存当前”,则继续按当前产物进入确认卡。
+ * - 这样既保护旧产物操作确认,也避免把新任务误当成旧文件导出。
+ *
+ * 参数：
+ * - input.match：当前文本匹配到的业务 Skill。
+ * - input.riskyAction：当前命中的风险动作。
+ * - input.text：用户本轮原始输入。
+ *
+ * 返回值：true 表示先生成新产物,再进入保存/导出确认。
+ * 可能抛出的异常：无。
+ */
+function shouldGenerateNewArtifactBeforeRiskConfirmation(input = {}) {
+  if (!shouldGenerateArtifactBeforeRiskConfirmation(input)) {
+    return false;
+  }
+  const text = stripRiskyActionText(input.text || '', input.riskyAction).toLowerCase();
+  const asksForNewArtifact =
+    /(?:帮我|请|麻烦)?(?:生成|做|整理|准备|写)(?:一|1)?(?:个|份|张)?/.test(text) ||
+    /(?:帮我|请|麻烦)?出(?:一|1|个|份|张)/.test(text) ||
+    /客户(?:问|要|要求|需要)[^，。,.!?！？]{0,18}(?:报价|pi|proforma|回复|回信|方案|计划)/i.test(text) ||
+    /报价给|(?:^|[，。,.!?！？\s])出(?:一|1)?(?:个|份|张)?报价单|make\s+(?:a\s+)?(?:quote|quotation|pi)|generate\s+(?:a\s+)?(?:quote|quotation|pi)/i.test(text);
+  return asksForNewArtifact;
 }
 
 /**
