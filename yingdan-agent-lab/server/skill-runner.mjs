@@ -1218,9 +1218,8 @@ function extractQuotationQuantity(text = '') {
  */
 function extractQuotationPrice(text = '') {
   const value = String(text || '');
-  const explicit = value.match(/(?:单价|底价|目标价|价格|报价)\s*(?:是|为|:|：)?\s*((?:usd|us\$|\$|rmb|¥|人民币|美元|美金)?\s*\d+(?:\.\d+)?\s*(?:usd|美元|美金|rmb|人民币|元)?)/i);
-  const fallback = value.match(/((?:usd|us\$|\$|rmb|¥)\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:usd|美元|美金|rmb|人民币|元))/i);
-  return (explicit?.[1] || fallback?.[1] || '').replace(/\s+/g, '').trim();
+  const explicit = value.match(/(?:单价|底价|目标价|价格|报价)\s*(?:是|为|:|：|,|，)?\s*((?:usd|us\$|\$|rmb|¥|人民币|美元|美金)?\s*\d+(?:\.\d+)?\s*(?:usd|美元|美金|rmb|人民币|元)?)/i);
+  return (explicit?.[1] || '').replace(/\s+/g, '').trim();
 }
 
 /**
@@ -1238,7 +1237,12 @@ function extractQuotationTradeTerm(text = '') {
   if (!match) {
     return '';
   }
-  return `${match[1].toUpperCase()}${String(match[2] || '').trim()}`.trim();
+  const term = match[1].toUpperCase();
+  const location = String(match[2] || '').trim();
+  if (!location) {
+    return term;
+  }
+  return /^[A-Za-z]/.test(location) ? `${term} ${location}` : `${term}${location}`;
 }
 
 /**
@@ -1354,7 +1358,7 @@ workbook.save(output_path)
 
 function extractProductName(text = '') {
   const value = String(text || '').trim();
-  const match = value.match(/产品(?:是|为|:|：)?\s*([^，。；,;\n]+)/);
+  const match = value.match(/产品(?:是|为|:|：|,|，)?\s*([^，。；,;\n]+)/);
   if (!match?.[1]) {
     return '';
   }

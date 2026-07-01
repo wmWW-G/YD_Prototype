@@ -199,13 +199,19 @@ from openpyxl import load_workbook
 
 workbook = load_workbook(${JSON.stringify(inputPath)}, data_only=True)
 values = []
+quote_rows = {}
 for sheet_name in workbook.sheetnames:
     sheet = workbook[sheet_name]
     for row in sheet.iter_rows(values_only=True):
         for cell in row:
             if cell is not None:
                 values.append(str(cell))
-print(json.dumps({"sheets": workbook.sheetnames, "values": values}, ensure_ascii=False))
+if "报价单" in workbook.sheetnames:
+    quote_sheet = workbook["报价单"]
+    for label, value in quote_sheet.iter_rows(min_row=2, max_col=2, values_only=True):
+        if label:
+            quote_rows[str(label)] = "" if value is None else str(value)
+print(json.dumps({"sheets": workbook.sheetnames, "values": values, "quoteRows": quote_rows}, ensure_ascii=False))
 `);
   return JSON.parse(output);
 }
@@ -886,6 +892,42 @@ test('createSkillRuntime generates a validated XLSX quotation sheet when quote t
     assert.equal(workbook.values.some((value) => String(value).includes('500套')), true);
     assert.equal(workbook.values.some((value) => String(value).includes('20美元')), true);
     assert.equal(workbook.values.some((value) => String(value).includes('FOB深圳')), true);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime reads quotation fields from referenced CSV-style lines', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: [
+        '帮我做报价单',
+        '',
+        '引用资料：',
+        '',
+        '【报价信息.csv】',
+        '产品,太阳能路灯',
+        '数量,500套',
+        '单价,USD 35',
+        '贸易条款,FOB Shanghai',
+      ].join('\n'),
+    });
+    const workbook = await inspectXlsxWorkbook(result.artifact.outputPath);
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'quotation-sheet');
+    assert.equal(result.artifact.type, 'xlsx');
+    assert.equal(workbook.quoteRows['产品'], '太阳能路灯');
+    assert.equal(workbook.quoteRows['数量'], '500套');
+    assert.equal(workbook.quoteRows['单价/报价'], 'USD35');
+    assert.equal(workbook.quoteRows['贸易条款'], 'FOB Shanghai');
   } finally {
     await fixture.cleanup();
   }

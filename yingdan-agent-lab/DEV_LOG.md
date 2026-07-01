@@ -742,3 +742,11 @@
   - `server/skill-agent.mjs` 只在观望表达附近有客户、买家、采购商、对方等主体或明确转述动词时,才把 `先看看 / 再考虑 / 之后再说 / 暂缓 / 待定 / 还没决定` 等中英文表达纳入当前卡点信号。
   - `server/skill-runner.mjs` 同步只把客户侧观望提炼成 `客户观望/决策拖延`,并在客户推进判断里给出对应业务解释。
   - 已执行目标测试 `node --test server/skill-agent.test.mjs --test-name-pattern "user wait-and-see|later-decision|wait-and-see|customer hesitation"`、`node --test server/skill-runtime.test.mjs --test-name-pattern "customer hesitation"`、全量 `npm test`(231 个测试通过) 和 `npm run build:web`。
+- 让报价单读取引用资料里的 CSV 字段：
+  - 复现问题:用户只说 `帮我做报价单`,但引用资料里已有 `产品,太阳能路灯 / 数量,500套 / 单价,USD 35 / 贸易条款,FOB Shanghai`,入口缺资料 gate 仍停在 `needs-input`,继续追问 `单价或报价区间`。
+  - 新增红灯测试 `runNewConversationAgent uses referenced CSV quotation details instead of asking for unit price`,要求引用资料里的 CSV 行齐全时直接进入 `quotation-sheet`,不再要求用户把单价重新手打一遍。
+  - 新增 Runtime 覆盖 `createSkillRuntime reads quotation fields from referenced CSV-style lines`,确保真实 `报价单.xlsx` 写入太阳能路灯、500套、USD35 和 FOB Shanghai。
+  - sub agent 复审指出两处阻塞:Runtime 测试扫全表会被 `任务来源` 假通过,以及裸 `USD 35` 可能把样品费/运费误当单价。
+  - 已加严 Runtime 测试为报价单行级断言,逐项核对 `产品 / 数量 / 单价/报价 / 贸易条款`;`server/skill-runner.mjs` 同步支持 `产品,太阳能路灯` 并保留 `FOB Shanghai` 的英文空格。
+  - 新增反例测试 `runNewConversationAgent does not treat referenced sample fee as quotation unit price` 和 `runNewConversationAgent does not treat referenced suffix-currency sample fee as quotation unit price`,确保 `样品费,USD 35`、`样品费,35 USD` 都只会继续追问 `单价或报价区间`。
+  - `server/skill-agent.mjs` 的报价缺资料识别现在支持 `字段,值` / `字段，值` 这种 CSV 常见分隔符;`USD 35`、`35 USD` 这类货币金额只有在 `单价/价格/报价` 字段后才算报价单单价。

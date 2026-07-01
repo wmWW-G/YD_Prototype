@@ -643,8 +643,8 @@ function detectBusinessSignals(text = '') {
   const inquiryPattern = /询盘|邮件|聊天|客户说|客户问|问了|问|需求|投诉|异议|报价|回复|回信|沉默|订单|inquiry|rfq|reply/i;
   const currentIssuePattern = /(?:客户|买家|采购商|客人|对方)(?:说|问|提到|要求|抱怨|投诉|反馈)|问了.+|问.*(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|质量|售后)|投诉|抱怨|异议|沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|卡点|嫌贵|太贵|贵了|价格(?:太)?高|砍价|压价|还价|议价|让价|降价|折扣|报价|价格|底价|moq|起订|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量(?:不行|问题|投诉)?|货有问题|售后|认证|quantity|price|quote|small\s+(?:trial\s+)?order|trial\s+order|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights|too\s+expensive|price\s+too\s+high|discount|payment\s+terms|credit\s+terms|quality\s+(?:issue|complaint|problem)|after[-\s]?sales/i;
   const customerPattern = /采购商|买家|对方|公司|联系人|进口商|批发商|零售商|经销商|代理商|客户(?:名称|类型|是|叫)|客户(?:说|问|提到).+|buyer|customer\s+(?:is|type|name)|client\s+(?:is|type|name)|importer|distributor|wholesaler|retailer/i;
-  const quantityPattern = /(?:数量|qty|quantity)\s*[:：]?\s*\d+|\d+\s*(?:套|件|个|箱|台|pcs|pieces|units?|cartons?)/i;
-  const priceTermPattern = /(?:单价|底价|目标价|价格|报价)\s*(?:是|为|:|：)?\s*(?:usd|us\$|\$|rmb|¥|人民币|美元|美金)?\s*\d+|\d+(?:\.\d+)?\s*(?:usd|美元|美金|rmb|人民币|元)/i;
+  const quantityPattern = /(?:数量|qty|quantity)\s*(?:是|为|:|：|,|，)?\s*\d+|\d+\s*(?:套|件|个|箱|台|pcs|pieces|units?|cartons?)/i;
+  const priceTermPattern = /(?:单价|底价|目标价|价格|报价)\s*(?:是|为|:|：|,|，)?\s*(?:usd|us\$|\$|rmb|¥|人民币|美元|美金)?\s*\d+(?:\.\d+)?\s*(?:usd|美元|美金|rmb|人民币|元)?/i;
   const tradeTermPattern = /\b(?:fob|cif|exw|ddp|dap|cfr)\b|美元|美金|人民币|usd|rmb|us\$|\$|¥|贸易条款|付款条款|目的港|港口/i;
   const genericCustomerOnly = /^帮?我?(分析|处理|推进|判断|整理)?(一下)?(这个|该个|该)?(客户|买家|采购商|客人)(怎么)?(推进|跟进|分析|成交|优先级|机会|意向|有没有机会成交)?(一下)?$/u.test(compact) ||
     /^(分析|判断)(一下)?(这个|该个|该)?(客户|买家|采购商|客人)(有没有机会成交|优先级|机会|意向)?$/u.test(compact);

@@ -1609,6 +1609,116 @@ test('runNewConversationAgent asks for product details before generating a quota
   assert.deepEqual(response.messages[0].needsInput.items, ['产品资料', '数量', '单价或报价区间', '币种和贸易条款']);
 });
 
+test('runNewConversationAgent uses referenced CSV quotation details instead of asking for unit price', async () => {
+  let runtimeText = '';
+  const response = await runNewConversationAgent({
+    text: [
+      '帮我做报价单',
+      '',
+      '引用资料：',
+      '',
+      '【报价信息.csv】',
+      '产品,太阳能路灯',
+      '数量,500套',
+      '单价,USD 35',
+      '贸易条款,FOB Shanghai',
+    ].join('\n'),
+    registry: createQuotationRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'quotation-sheet',
+            reason: '用户引用了报价信息 CSV,需要生成报价单。',
+          },
+          skill: {
+            id: 'quotation-sheet',
+            displayName: '报价单',
+            adapter: 'quotation-sheet',
+            artifactType: 'xlsx',
+          },
+          result: {
+            ok: true,
+            mode: 'quotation-sheet',
+            outputPath: '/tmp/报价单.xlsx',
+            artifactName: '报价单.xlsx',
+          },
+          artifact: {
+            type: 'xlsx',
+            name: '报价单.xlsx',
+            outputPath: '/tmp/报价单.xlsx',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.taskTitle, '报价单');
+  assert.equal(response.artifact.name, '报价单.xlsx');
+  assert.match(runtimeText, /报价信息\.csv/);
+  assert.match(runtimeText, /单价,USD 35/);
+});
+
+test('runNewConversationAgent does not treat referenced sample fee as quotation unit price', async () => {
+  const response = await runNewConversationAgent({
+    text: [
+      '帮我做报价单',
+      '',
+      '引用资料：',
+      '',
+      '【报价信息.csv】',
+      '产品,太阳能路灯',
+      '数量,500套',
+      '样品费,USD 35',
+      '贸易条款,FOB Shanghai',
+    ].join('\n'),
+    registry: createQuotationRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not generate a quotation sheet when the only amount is a sample fee');
+      },
+    },
+  });
+
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '报价单');
+  assert.deepEqual(response.messages[0].needsInput.items, ['单价或报价区间']);
+});
+
+test('runNewConversationAgent does not treat referenced suffix-currency sample fee as quotation unit price', async () => {
+  const response = await runNewConversationAgent({
+    text: [
+      '帮我做报价单',
+      '',
+      '引用资料：',
+      '',
+      '【报价信息.csv】',
+      '产品,太阳能路灯',
+      '数量,500套',
+      '样品费,35 USD',
+      '贸易条款,FOB Shanghai',
+    ].join('\n'),
+    registry: createQuotationRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not generate a quotation sheet when the only suffix-currency amount is a sample fee');
+      },
+    },
+  });
+
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '报价单');
+  assert.deepEqual(response.messages[0].needsInput.items, ['单价或报价区间']);
+});
+
 test('runNewConversationAgent asks for product context before replying to MOQ and lead time questions', async () => {
   const response = await runNewConversationAgent({
     text: '客户问MOQ和交期，帮我回一下',
