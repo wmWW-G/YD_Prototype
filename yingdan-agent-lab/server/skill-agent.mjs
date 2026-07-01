@@ -687,7 +687,7 @@ function detectBusinessSignals(text = '') {
   const tradeTermPattern = /\b(?:fob|cif|exw|ddp|dap|cfr)\b|美元|美金|人民币|usd|rmb|us\$|\$|¥|贸易条款|付款条款|目的港|港口/i;
   const genericCustomerOnly = /^帮?我?(分析|处理|推进|判断|整理)?(一下)?(这个|该个|该)?(客户|买家|采购商|客人)(怎么)?(推进|跟进|分析|成交|优先级|机会|意向|有没有机会成交)?(一下)?$/u.test(compact) ||
     /^(分析|判断)(一下)?(这个|该个|该)?(客户|买家|采购商|客人)(有没有机会成交|优先级|机会|意向)?$/u.test(compact);
-  const currentIssue = currentIssuePattern.test(lower) || isCustomerHesitationIssue(value);
+  const currentIssue = currentIssuePattern.test(lower) || isCustomerHesitationIssue(value) || isCustomerPurchaseIntent(value);
   const customerActorWithIssue = /客户|买家|采购商|客人|对方|buyer|customer|client/i.test(lower) && currentIssue;
   const exclusiveAgencyIssue = /独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights/.test(lower);
   const followupCadenceRequested = /7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|weekly/.test(lower) &&
@@ -711,6 +711,32 @@ function detectBusinessSignals(text = '') {
     quantity: quantityPattern.test(value),
     tradeTerm: tradeTermPattern.test(value),
   };
+}
+
+/**
+ * isCustomerPurchaseIntent 判断一句话是否在说客户侧采购意向。
+ *
+ * 作用：
+ * - `客户想购买500套太阳能灯` 已经是明确推进卡点,不应继续追问“当前卡点”。
+ * - 只识别客户/买家/采购商等主体附近的购买、采购、下单、订购表达。
+ * - 不把“购买/买/订购 套餐、积分、额度”当客户意向,这类仍交给 paid action 保护。
+ *
+ * 参数：
+ * - text：用户本轮输入文本。
+ *
+ * 返回值：boolean,true 表示客户已经表达采购或下单意向。
+ * 可能抛出的异常：无。
+ */
+function isCustomerPurchaseIntent(text = '') {
+  const value = String(text || '').toLowerCase();
+  const paidObjectPattern = /(?:购买|采购(?!商)|下单|订购|买(?!家))[^，。,.!?！？]{0,8}(?:套餐|积分|点数|额度|付费服务|收费服务)/;
+  if (paidObjectPattern.test(value)) {
+    return false;
+  }
+  const customerActor = '(?:客户|买家|采购商|客人|对方|buyer|customer|client)';
+  // `买(?!家)` 防止把“买家”这个身份名词误当成“购买”动作。
+  const purchaseVerb = '(?:想|要|准备|计划|考虑|打算|有意向)?(?:购买|采购(?!商)|下单|订购|买(?!家)|place\\s+an?\\s+order|purchase|buy)';
+  return new RegExp(`${customerActor}[^，。,.!?！？]{0,12}${purchaseVerb}`, 'i').test(value);
 }
 
 /**
@@ -746,7 +772,7 @@ function detectRiskyAction(text = '') {
         /扣[^，。,.!?！？]{0,8}(?:点数|额度|费用|积分)/,
         /消耗[^，。,.!?！？]{0,8}(?:点数|额度|积分)/,
         /调用[^，。,.!?！？]{0,12}(?:付费|收费)[^，。,.!?！？]{0,8}(?:接口|数据|能力|工具)?/,
-        /购买(?:套餐|积分|点数|额度|付费服务|收费服务)/,
+        /(?:购买|采购(?!商)|下单|订购|买(?!家))[^，。,.!?！？]{0,8}(?:套餐|积分|点数|额度|付费服务|收费服务)/,
       ],
       title: '付费能力需要你确认',
       body: '这一步可能产生费用或消耗点数。确认前我不会调用付费能力,可以先整理免费资料和待确认清单。',

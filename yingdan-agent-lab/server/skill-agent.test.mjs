@@ -457,6 +457,24 @@ test('runNewConversationAgent asks for concrete context before generic customer 
   assert.match(response.messages[0].content, /询盘、聊天记录或当前卡点/);
 });
 
+test('runNewConversationAgent does not treat buyer noun as purchase intent', async () => {
+  const response = await runNewConversationAgent({
+    text: '客户是德国买家，帮我做客户分析',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not run when buyer is only a customer identity noun');
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.deepEqual(response.messages[0].needsInput.items, ['询盘、聊天记录或当前卡点']);
+});
+
 test('runNewConversationAgent does not treat a hollow inquiry mention as enough customer analysis context', async () => {
   const response = await runNewConversationAgent({
     text: '客户是德国采购商，有个询盘，帮我做客户分析',
@@ -1112,6 +1130,52 @@ test('runNewConversationAgent treats buyer wait-and-see wording as a concrete fo
   assert.equal(response.artifact.name, '客户推进分析.md');
   assert.match(runtimeText, /买家说先看看/);
   assert.match(runtimeText, /产品是太阳能灯/);
+});
+
+test('runNewConversationAgent treats customer purchase intent as concrete follow-up context', async () => {
+  let runtimeText = '';
+  const response = await runNewConversationAgent({
+    text: '客户想购买500套太阳能灯，帮我做下一步推进计划',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'customer-followup-plan',
+            reason: '用户要分析客户采购意向后的推进动作。',
+          },
+          skill: {
+            id: 'customer-followup-plan',
+            displayName: '客户推进分析',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/客户推进分析.md',
+            artifactName: '客户推进分析.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: '/tmp/客户推进分析.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.equal(response.artifact.name, '客户推进分析.md');
+  assert.match(runtimeText, /客户想购买500套太阳能灯/);
+  assert.doesNotMatch(response.messages[0].content, /需要更多业务资料/);
 });
 
 test('runNewConversationAgent does not treat user wait-and-see wording as customer evidence', async () => {
@@ -3033,6 +3097,9 @@ test('runNewConversationAgent stops and asks before natural paid actions', async
     '用收费接口查一下客户，花钱也可以',
     '消耗额度也行，帮我查这个客户',
     '调用会消耗积分的工具找客户',
+    '客户想买套餐，帮我做下一步推进计划',
+    '客户想买积分，帮我做下一步推进计划',
+    '客户想订购额度，帮我做下一步推进计划',
   ];
 
   for (const [index, text] of cases.entries()) {

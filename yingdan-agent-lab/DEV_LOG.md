@@ -756,3 +756,10 @@
   - 新增反例测试 `runNewConversationAgent asks for missing quotation fields before first-turn export confirmation`,确保同句里任务资料不完整时继续追问 `数量 / 单价或报价区间 / 币种和贸易条款`,不提示“还没有可导出的业务产物”。
   - sub agent 评审结论 Ready,未发现 Critical/Important;按其 Minor 建议补充 `runNewConversationAgent generates a first-turn quotation artifact before asking to save it`,直接覆盖首轮 `生成报价单并保存一下` 的 `customer_write` 确认路径。
   - `server/skill-agent.mjs` 新增 `shouldGenerateArtifactBeforeRiskConfirmation()`,只允许 `customer_write` 和 `export_file` 在已匹配完整业务任务时先生成安全产物;外发、付费和外部调用仍然先确认。
+- 识别客户采购意向为推进卡点：
+  - 复现问题:`客户想购买500套太阳能灯，帮我做下一步推进计划` 已有客户主体、数量、产品和推进目标,但入口仍返回 `needs-input`,真实 `客户推进分析.md` 也只识别 `数量: 500套`,没有识别 `太阳能灯` 或 `客户关注点`。
+  - 新增红灯测试 `runNewConversationAgent treats customer purchase intent as concrete follow-up context`,要求这类输入直接生成 `客户推进分析.md`,不继续追问当前卡点。
+  - 新增 Runtime 测试 `createSkillRuntime carries purchase intent into customer follow-up artifacts`,要求产物包含 `产品: 太阳能灯`、`客户关注点: 采购意向/购买意向` 和 `数量: 500套`。
+  - 实现时先发现 `采购` 正则误伤 `德国采购商`,导致空壳客户分析被放行、产品被抽成 `商`;已收窄为 `采购(?!商)`,并用旧有空壳客户分析/观望语气/显式重开测试回归保护。
+  - sub agent 复核继续指出 `买` 会误伤 `买家`,且 `客户想买套餐/积分/额度` 会被当成外贸采购意向。已补红灯测试 `runNewConversationAgent does not treat buyer noun as purchase intent`、`createSkillRuntime does not infer purchase intent from buyer noun`,并把平台套餐/积分/额度统一收敛到付费确认。
+  - 产品抽取同步清理 `太阳能灯500套` 这类尾部数量,并拒绝把套餐、积分、额度这类平台付费对象写成客户产品。

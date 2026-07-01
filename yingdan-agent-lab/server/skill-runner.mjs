@@ -991,6 +991,9 @@ function buildCustomerFollowupSignalSentence(concerns = []) {
   if (concerns.includes('客户观望/决策拖延')) {
     return '客户正在观望或拖延决策,这通常说明采购优先级、内部确认或风险顾虑还没有被打开;下一步应先给一个低压力推进理由,确认客户当前优先级和卡住点。';
   }
+  if (concerns.includes('采购意向/购买意向')) {
+    return '客户已经表达采购或下单意向,这通常说明下一步应围绕订单规模、规格、交期、付款和报价边界做快速确认,避免直接跳到成交判断。';
+  }
   if (concerns.includes('付款/账期压力')) {
     return '客户正在要求更宽松的付款或账期条件,这通常说明他在评估采购风险和现金流压力;下一步应先确认客户信用、订单规模和我方可接受的付款边界。';
   }
@@ -1033,6 +1036,32 @@ function isCustomerHesitationIssue(text = '') {
   const quotedByCustomer = new RegExp(`${customerActor}[^，。,.!?！？]{0,8}${speechVerb}[^，。,.!?！？]{0,16}${hesitation}`, 'i');
   const stateOnCustomer = new RegExp(`${customerActor}[^，。,.!?！？]{0,8}(?:还在|正在|一直|仍在|比较)?${hesitation}`, 'i');
   return quotedByCustomer.test(value) || stateOnCustomer.test(value);
+}
+
+/**
+ * isCustomerPurchaseIntent 判断用户输入是否描述客户侧采购意向。
+ *
+ * 作用：
+ * - `客户想购买500套太阳能灯` 应写入客户推进依据,不能只当成数量。
+ * - 只看客户/买家/采购商等主体附近的购买、采购、下单、订购表达。
+ * - 排除“购买/买/订购 套餐、积分、额度”,避免和平台付费动作混淆。
+ *
+ * 参数：
+ * - text：用户本轮任务文本。
+ *
+ * 返回值：boolean,true 表示客户已经表达采购或下单意向。
+ * 可能抛出的异常：无。
+ */
+function isCustomerPurchaseIntent(text = '') {
+  const value = String(text || '').toLowerCase();
+  const paidObjectPattern = /(?:购买|采购(?!商)|下单|订购|买(?!家))[^，。,.!?！？]{0,8}(?:套餐|积分|点数|额度|付费服务|收费服务)/;
+  if (paidObjectPattern.test(value)) {
+    return false;
+  }
+  const customerActor = '(?:客户|买家|采购商|客人|对方|buyer|customer|client)';
+  // `买(?!家)` 防止把“买家”这个身份名词误当成“购买”动作。
+  const purchaseVerb = '(?:想|要|准备|计划|考虑|打算|有意向)?(?:购买|采购(?!商)|下单|订购|买(?!家)|place\\s+an?\\s+order|purchase|buy)';
+  return new RegExp(`${customerActor}[^，。,.!?！？]{0,12}${purchaseVerb}`, 'i').test(value);
 }
 
 /**
@@ -1113,6 +1142,9 @@ function extractBusinessSignals(userText = '') {
   }
   if (isCustomerHesitationIssue(text)) {
     concerns.push({ chinese: '客户观望/决策拖延', english: 'buyer hesitation/decision delay' });
+  }
+  if (isCustomerPurchaseIntent(text)) {
+    concerns.push({ chinese: '采购意向/购买意向', english: 'purchase intent' });
   }
   if (/认证|certification|certificate|ce|fda/.test(lower)) {
     concerns.push({ chinese: '认证', english: 'certification' });
@@ -1358,16 +1390,23 @@ workbook.save(output_path)
 
 function extractProductName(text = '') {
   const value = String(text || '').trim();
-  const match = value.match(/产品(?:是|为|:|：|,|，)?\s*([^，。；,;\n]+)/);
-  if (!match?.[1]) {
+  const explicit = value.match(/产品(?:是|为|:|：|,|，)?\s*([^，。；,;\n]+)/);
+  const purchase = value.match(/(?:客户|买家|采购商|客人|对方)[^，。,.!?！？]{0,12}(?:想|要|准备|计划|考虑|打算|有意向)?(?:购买|采购(?!商)|下单|订购|买(?!家))\s*(?:\d+(?:\.\d+)?\s*(?:套|件|个|箱|台|pcs|pieces|units?|cartons?)?)?\s*([^，。；,;\n]+)/i);
+  const known = value.match(/(太阳能路灯|太阳能灯|LED\s*灯|led\s*灯|家具|服装|电池|设备|机器|配件)/i);
+  const rawProduct = explicit?.[1] || purchase?.[1] || known?.[1] || '';
+  if (!rawProduct) {
     return '';
   }
-  return match[1]
+  const cleaned = rawProduct
     .replace(/^(是|为)\s*/, '')
-    .split(/\s*(?:想|希望|下周|本周|这周|先拿|先要|需要|客户问|买家问|问|询问|咨询|重点|主要|moq|MOQ|起订|交期|lead\s*time|delivery|价格|报价|样品|sample)/i)[0]
+    .split(/\s*(?:想|希望|下周|本周|这周|先拿|先要|需要|客户问|买家问|问|询问|咨询|重点|主要|moq|MOQ|起订|交期|lead\s*time|delivery|价格|报价|样品|sample|帮我|下一步|推进|计划|怎么|如何)/i)[0]
     .replace(/\s*(重点|主要|客户|买家|采购商).*$/, '')
-    .trim()
-    .slice(0, 40);
+    .replace(/\s*\d+(?:\.\d+)?\s*(?:套|件|个|箱|台|pcs|pieces|units?|cartons?)\s*$/i, '')
+    .trim();
+  if (/^(套餐|积分|点数|额度|付费服务|收费服务)$/.test(cleaned)) {
+    return '';
+  }
+  return cleaned.slice(0, 40);
 }
 
 function translateProductName(productName = '') {

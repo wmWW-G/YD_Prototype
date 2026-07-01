@@ -677,6 +677,80 @@ test('createSkillRuntime carries customer hesitation into customer follow-up art
   }
 });
 
+test('createSkillRuntime carries purchase intent into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户想购买500套太阳能灯，帮我做下一步推进计划',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.match(content, /产品: 太阳能灯/);
+    assert.match(content, /客户关注点: 采购意向\/购买意向/);
+    assert.match(content, /500套/);
+    assert.match(content, /采购意向|购买意向|订单规模|数量/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime strips trailing quantity from purchase intent product names', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户想购买太阳能灯500套，帮我做下一步推进计划',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.match(content, /产品: 太阳能灯/);
+    assert.doesNotMatch(content, /产品: 太阳能灯500套/);
+    assert.match(content, /数量: 500套/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime does not infer purchase intent from buyer noun', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户是德国买家，询盘问MOQ和交期，帮我做下一步推进计划',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.match(content, /客户关注点: .*MOQ.*交期/);
+    assert.doesNotMatch(content, /客户关注点: 采购意向\/购买意向/);
+    assert.doesNotMatch(content, /产品: 家/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime turns a seven-day follow-up request into a day-by-day plan', async () => {
   const fixture = await withRegistryProject();
 
