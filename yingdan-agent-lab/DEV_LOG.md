@@ -18,6 +18,15 @@
   - 风险点:即使后端恢复 payload 已净化,旧 localStorage、异常 payload 或旧摘要对象仍可能把 `quotation-sheet-skill-runtime-...xlsx`、`runId`、`action.executed` 或 `tool_call` 带进页面 h1、历史列表、composer chip / placeholder、产物卡、预览标题或展开的 `本次操作记录 / 执行过程`。
   - 已修复:新增 `agentThreadDisplayText.js`,由 `agentThreadComposerState.js`、`agentThreadTitle.js` 和 `App.jsx` 展示层共同复用;报价单类内部名显示为 `报价单.xlsx`,未知内部任务标题显示为 `本次任务`,运行记录里的内部 action/detail 会退成业务化兜底文案,正常业务标题里偶然提到 `schema` 不再被过度降级。
   - 新增回归测试 `getNewConversationComposerState hides runtime artifact names from the composer`、`getNewConversationComposerState hides runtime task titles from the composer`、`deriveAgentThreadTaskTitle hides raw runtime task titles from the page heading` 和正常 `schema` 标题保留用例。
+- 补齐缺资料卡和确认卡的前端兜底净化:
+  - 风险点:后端正常会净化,但旧 session、旧 localStorage 或异常 payload 仍可能把 `tool_call`、`outputPath`、`policy.checked`、`artifact.export_file`、`checkpointPath` 带进缺资料清单或确认按钮。
+  - 已修复:`agentThreadDisplayText.js` 新增 `sanitizeAgentNeedsInputForDisplay()` 和 `sanitizeAgentConfirmationForDisplay()`;`MissingInputChecklist` 和 `AgentThreadMessage` 在渲染标题、提示、列表项、正文和按钮前统一生成安全展示对象。
+  - 新增回归测试 `sanitizeAgentNeedsInputForDisplay hides runtime text from missing input cards`、`sanitizeAgentConfirmationForDisplay hides runtime text from confirmation cards` 和前端 wiring 测试 `New Conversation sanitizes missing-input and confirmation cards before display`。
+- 修复确认按钮净化后无法续跑:
+  - sub agent 复查指出 Important:如果导出/写入确认卡的按钮文案被前端降级成 `确认继续`,点击后后端不会按 `export_file / customer_write` 的确认候选词继续,可能变成普通 follow-up 并清掉 pending confirmation。
+  - 已修复:公开确认卡 payload 新增安全 `confirmActionText / cancelActionText`,不暴露 `confirmation.type`;前端按钮显示仍用净化后的 `confirmLabel / cancelLabel`,点击时回传 `确认导出`、`确认写入`、`先生成草稿` 或 `确认继续` 这类后端已接受的业务确认词。
+  - 同步收紧服务端确认卡净化:`run_id`、`output_path`、`checkpointPath`、`export_file`、`customer_write` 等字段变体和裸 action token 不会在确认卡标题、正文或按钮残留;若展示字段被清空,前端展示层继续用业务 fallback。
+  - 新增回归测试 `sanitizeAgentResultForFrontend keeps safe confirmation action text without exposing type` 和 `sanitizeAgentConfirmationForDisplay keeps safe display separate from backend confirmation text`。
 - 补齐 XLSX 真实交付链的 LibreOffice 重存:
   - sub agent 评估指出 Important:当前 `validateXlsxArtifact()` 只做 unzip/openpyxl/残留扫描,没有执行 AGENTS 要求的 LibreOffice headless 重存。
   - 已修复:`validateXlsxArtifact()` 现在先用 bundled `soffice --headless` 重存 XLSX,再清理 `xl/tables/`、`xl/drawings/`、tableParts 和 drawing relationships 残留,最后执行 `unzip -t`、`openpyxl.load_workbook()` 和包内残留扫描;任一步失败都会返回 `ok:false`。

@@ -36,6 +36,8 @@ import { getNewConversationComposerState } from './agentThreadComposerState.js';
 import {
   safeAgentInlineLabel,
   sanitizeAgentActivityItemForDisplay,
+  sanitizeAgentConfirmationForDisplay,
+  sanitizeAgentNeedsInputForDisplay,
   sanitizeAgentProcessStepForDisplay,
   scrubAgentArtifactDisplayName,
 } from './agentThreadDisplayText.js';
@@ -2055,6 +2057,9 @@ function AgentThreadMessage({
   const isUser = message.role === 'user';
   const timeline = message.activity || message.process;
   const timelineLabel = message.activity ? '本次操作记录' : '执行过程';
+  const safeConfirmation = message.confirmation
+    ? sanitizeAgentConfirmationForDisplay(message.confirmation)
+    : null;
 
   return (
     <article className={`agent-message ${isUser ? 'user' : 'assistant'} ${message.tone || ''}`}>
@@ -2085,19 +2090,19 @@ function AgentThreadMessage({
           <MissingInputChecklist needsInput={message.needsInput} />
         ) : null}
 
-        {message.confirmation ? (
+        {safeConfirmation ? (
           <div className="confirmation-card inline-confirmation-card">
             <div>
-              <strong>{message.confirmation.title}</strong>
-              <span>{message.confirmation.body}</span>
+              <strong>{safeConfirmation.title}</strong>
+              <span>{safeConfirmation.body}</span>
             </div>
             {isConfirmationActionable ? (
               <div className="confirmation-card-actions">
-                <button type="button" className="secondary" onClick={() => onConfirmAction(message.confirmation.cancelLabel || '取消这一步')}>
-                  {message.confirmation.cancelLabel || '取消'}
+                <button type="button" className="secondary" onClick={() => onConfirmAction(safeConfirmation.cancelActionText || '取消这一步')}>
+                  {safeConfirmation.cancelLabel || '取消'}
                 </button>
-                <button type="button" onClick={() => onConfirmAction(message.confirmation.confirmLabel || '确认继续')}>
-                  {message.confirmation.confirmLabel || '确认继续'}
+                <button type="button" onClick={() => onConfirmAction(safeConfirmation.confirmActionText || '确认继续')}>
+                  {safeConfirmation.confirmLabel || '确认继续'}
                 </button>
               </div>
             ) : (
@@ -2144,7 +2149,8 @@ function AgentThreadMessage({
  * 可能抛出的异常：不主动抛异常。
  */
 function MissingInputChecklist({ needsInput = {} }) {
-  const items = Array.isArray(needsInput.items) ? needsInput.items.filter(Boolean) : [];
+  const safeNeedsInput = sanitizeAgentNeedsInputForDisplay(needsInput);
+  const items = Array.isArray(safeNeedsInput.items) ? safeNeedsInput.items.filter(Boolean) : [];
   if (!items.length) {
     return null;
   }
@@ -2154,13 +2160,13 @@ function MissingInputChecklist({ needsInput = {} }) {
       <header>
         <ListChecks size={16} />
         <div>
-          <strong>{needsInput.title || '缺少资料'}</strong>
-          <span>{needsInput.hint || '直接补一句话即可,我会接着这次任务继续。'}</span>
+          <strong>{safeNeedsInput.title || '缺少资料'}</strong>
+          <span>{safeNeedsInput.hint || '直接补一句话即可,我会接着这次任务继续。'}</span>
         </div>
       </header>
       <ul>
-        {items.map((item) => (
-          <li key={item}>
+        {items.map((item, index) => (
+          <li key={`${item}-${index}`}>
             <Check size={14} />
             <span>{item}</span>
           </li>

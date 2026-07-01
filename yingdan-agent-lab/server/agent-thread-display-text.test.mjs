@@ -3,6 +3,8 @@ import test from 'node:test';
 
 import {
   sanitizeAgentActivityItemForDisplay,
+  sanitizeAgentConfirmationForDisplay,
+  sanitizeAgentNeedsInputForDisplay,
   sanitizeAgentProcessStepForDisplay,
   scrubAgentArtifactDisplayName,
 } from '../agent-thread-prototype/src/agentThreadDisplayText.js';
@@ -46,6 +48,86 @@ test('sanitizeAgentProcessStepForDisplay hides runtime process text from restore
   assert.equal(step.phase, '处理');
   assert.equal(step.label, '处理任务');
   assert.equal(step.detail, '已隐藏内部执行细节。');
+});
+
+test('sanitizeAgentNeedsInputForDisplay hides runtime text from missing input cards', () => {
+  const needsInput = sanitizeAgentNeedsInputForDisplay({
+    title: 'needs-input skill-runtime-20260630 runId',
+    hint: 'resume from outputPath workbench/artifacts/run-1',
+    items: [
+      '客户官网',
+      'tool_call query_customer',
+      'manifestPath=/Users/garden/workbench/artifacts/manifest.json',
+    ],
+  });
+
+  const publicText = JSON.stringify(needsInput);
+  assert.equal(publicText.includes('skill-runtime'), false);
+  assert.equal(publicText.includes('runId'), false);
+  assert.equal(publicText.includes('tool_call'), false);
+  assert.equal(publicText.includes('manifestPath'), false);
+  assert.equal(publicText.includes('/Users/garden'), false);
+  assert.deepEqual(needsInput.items, ['客户官网', '需要补充的业务资料', '需要补充的业务资料']);
+  assert.equal(needsInput.title, '需要补充资料');
+  assert.equal(needsInput.hint, '直接补一句话即可,我会接着这次任务继续。');
+});
+
+test('sanitizeAgentConfirmationForDisplay hides runtime text from confirmation cards', () => {
+  const confirmation = sanitizeAgentConfirmationForDisplay({
+    type: 'export_file',
+    title: 'policy.checked artifact.export_file run_id=skill-runtime-raw',
+    body: 'checkpointPath=/Users/garden/workbench/runs/run.checkpoint.json',
+    confirmLabel: '确认 tool_call export_file',
+    cancelLabel: '取消 output_path workbench/exports/file.xlsx',
+  });
+
+  const publicText = JSON.stringify(confirmation);
+  assert.equal(publicText.includes('policy.checked'), false);
+  assert.equal(publicText.includes('artifact.export_file'), false);
+  assert.equal(publicText.includes('skill-runtime'), false);
+  assert.equal(publicText.includes('checkpointPath'), false);
+  assert.equal(publicText.includes('tool_call'), false);
+  assert.equal(publicText.includes('output_path'), false);
+  assert.equal(confirmation.title, '这一步需要确认');
+  assert.equal(confirmation.body, '确认前不会保存、导出、外发或扣费。');
+  assert.equal(confirmation.confirmLabel, '确认导出');
+  assert.equal(confirmation.cancelLabel, '取消');
+  assert.equal(confirmation.confirmActionText, '确认导出');
+  assert.equal(confirmation.cancelActionText, '取消这一步');
+});
+
+test('sanitizeAgentConfirmationForDisplay keeps safe display separate from backend confirmation text', () => {
+  assert.equal(
+    sanitizeAgentConfirmationForDisplay({ type: 'customer_write', confirmLabel: 'tool_call customer.write_memory' }).confirmActionText,
+    '确认写入',
+  );
+  assert.equal(
+    sanitizeAgentConfirmationForDisplay({ type: 'external_send', confirmLabel: 'outputPath workbench/mail.json' }).confirmActionText,
+    '先生成草稿',
+  );
+  assert.equal(
+    sanitizeAgentConfirmationForDisplay({ type: 'runtime_policy', confirmLabel: 'artifact.export_file' }).confirmActionText,
+    '确认继续',
+  );
+  assert.equal(
+    sanitizeAgentConfirmationForDisplay({ confirmLabel: 'tool_call export', confirmActionText: '确认导出' }).confirmActionText,
+    '确认导出',
+  );
+});
+
+test('sanitizeAgentConfirmationForDisplay hides bare snake_case action tokens', () => {
+  const confirmation = sanitizeAgentConfirmationForDisplay({
+    type: 'customer_write',
+    body: '这一步会执行 customer_write。',
+    confirmLabel: '确认 tool_call customer_write',
+    title: 'policy.checked customer_write',
+  });
+
+  const publicText = JSON.stringify(confirmation);
+  assert.equal(publicText.includes('customer_write'), false);
+  assert.equal(publicText.includes('tool_call'), false);
+  assert.equal(confirmation.confirmLabel, '确认写入');
+  assert.equal(confirmation.confirmActionText, '确认写入');
 });
 
 test('scrubAgentArtifactDisplayName keeps normal business artifact names', () => {

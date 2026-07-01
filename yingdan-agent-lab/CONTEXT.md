@@ -98,7 +98,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - `GET /api/agent/session/:sessionId`:前端恢复线程的后端接口;localStorage 只作为兜底,不再是唯一连续性来源。
 - `GET /api/agent/sessions`:前端最近任务列表接口,按更新时间倒序返回最多 50 条安全摘要;只包含 sessionId、taskTitle、status、kind、preview、artifactName、createdAt、updatedAt。
 - `GET /api/agent/session/:sessionId` 恢复 payload 里的消息正文、summary、taskTitle 和 artifact name 也必须净化;即使后端 session 文件保存了 `quotation-sheet-skill-runtime-...xlsx`、本机路径或 runtime action 名,前台也只能看到 `报价单.xlsx`、`修订版表格` 这类业务化文案。
-- 前端标题栏、历史列表、输入区、产物卡、预览面板和展开的运行记录也必须有最后一道展示净化:即使旧 localStorage、异常 payload 或旧 session 摘要里带有 `skill-runtime`、`workbench/`、`runId`、`outputPath`、`action.executed` 或 `tool_call`,页面 h1、composer 上下文 chip、placeholder、历史摘要、产物名称、`本次操作记录` 和 `执行过程` 都只能显示 `报价单.xlsx`、`业务材料.md`、`本次任务` 或业务化兜底文案,不能把内部文件名和工具字段穿透给用户。正常业务标题里偶然提到 `schema` 这类词时不要过度降级,除非同时命中明确 runtime 字段。
+- 前端标题栏、历史列表、输入区、产物卡、预览面板、缺资料卡、确认卡和展开的运行记录也必须有最后一道展示净化:即使旧 localStorage、异常 payload 或旧 session 摘要里带有 `skill-runtime`、`workbench/`、`runId`、`outputPath`、`action.executed` 或 `tool_call`,页面 h1、composer 上下文 chip、placeholder、历史摘要、产物名称、缺资料标题/条目/提示、确认标题/正文/按钮、`本次操作记录` 和 `执行过程` 都只能显示 `报价单.xlsx`、`业务材料.md`、`本次任务` 或业务化兜底文案,不能把内部文件名和工具字段穿透给用户。正常业务标题里偶然提到 `schema` 这类词时不要过度降级,除非同时命中明确 runtime 字段。
 - pending task 续跑:用户第一次说得太模糊时返回 `needs-input`;补一句话后,后端会用“原始任务 + 新补充”恢复执行文本,并从原 `needs-input:<skillId>` checkpoint 继续。内部可以恢复 Skill 和 plan,但 run log、最终 process、活动流和 SSE 首条可见进度都不能像新任务一样重播 `识别任务 / 核对资料 / 拆解任务`;如果 policy 允许,展示 `继续执行 / 生成材料 / 整理发现 / 检查结果 / 完成`;如果 policy 需要确认,展示 `继续执行 / 核对权限 / 等待确认`。
 - pending task 必须累积多轮补充:用户分多句补客户、询盘、产品、下一步目标时,后端用“原始任务 + 全部 supplements + 当前输入”重新匹配和执行,不能只保留最后一句补充。
 - 同一线程里的新匹配任务也要能沿用最近真实用户资料:例如先生成 `开发信草稿.md`,上一轮用户已经说清 `德国采购商 / 太阳能路灯 / MOQ和交期`;下一句 `再做一个客户下一步推进计划` 应把这些用户说过的事实带入 `客户推进分析`,不能像失忆一样重新追问。只允许复用最近用户消息里的事实,不能把 Agent 生成的推测、内部 runId、路径或 tool 信息当作业务事实;复用后仍缺资料时继续追问。用户明确说 `另一个客户 / 新客户 / 换个买家` 时必须视为新客户对象,不能套用上一位客户的国家、产品和问题。用户明确说 `重新开始 / 从头开始 / 新任务 / 不要沿用上一个任务` 时也必须切断旧线程事实、旧 pending task、旧确认卡和旧产物上下文;如果新任务本身缺客户资料或当前卡点,应回到 `needs-input / waiting`,而不是把上一轮客户资料粘过去。但 `不要重新开始 / 先别从头开始` 这类否定重开话术表示继续当前任务,不能误清上下文。
@@ -171,6 +171,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 用户明确取消导出、保存、外发或付费确认时,只取消该风险动作,不能清掉当前 artifact 或任务上下文;下一句“继续优化/调整”仍应按同一任务续改。
 - Runtime policy 层返回 `customer.write_memory`、`artifact.export_file` 或 `paid_api.call` 等确认卡时,也遵守同一条上下文规则:确认卡可以等待,但当前业务产物不能从 response、session context 或取消后的 context 里消失。
 - 前台确认卡只能让最新待确认动作可点击;确认、取消或后续消息出现后,历史确认卡必须显示为已处理状态,不能继续露出可执行按钮。
+- 确认卡的展示文案和点击后回传给 Agent 的文案必须分开:展示字段可以被净化或降级成 `确认继续`,但按钮点击时要使用公开 payload 里的安全 `confirmActionText / cancelActionText`,例如导出回传 `确认导出`,写入客户档案回传 `确认写入`,外发草稿回传 `先生成草稿`。不要把 `confirmation.type` 暴露给前台,也不要把净化后的 fallback 当作真实确认动作传回去。
 - 新对话线程必须自动跟随最新进展:用户消息、Agent 消息、流式进度和产物预览出现时,视图应滚到当前任务位置,避免用户手动找“现在进行到哪一步”。
 - 新对话 `引用资料` 不能是空按钮:第一阶段支持选择 `.txt/.md/.csv` 文本资料,把内容以 `引用资料：` 的自然语言块追加进当前输入框并随下一次任务一起发送;单份资料会截断在前 6000 字符并提示已截断。不支持的 PDF/XLSX 等文件必须提示先转成 `txt/md/csv` 或直接粘贴关键内容,不能把二进制内容塞进输入框,也不能假装已经解析。
 - 风险动作确认也必须有过程感:外发、保存、导出和扣费类请求在返回确认卡前,流式进度和最终助手消息都要包含 `识别任务 / 核对权限 / 等待确认`。

@@ -535,10 +535,75 @@ test('sanitizeAgentResultForFrontend hides confirmation machine types from publi
   assert.deepEqual(result.messages[0].confirmation, {
     body: '这一步会把内容发给客户。',
     cancelLabel: '取消这一步',
+    cancelActionText: '取消这一步',
     confirmLabel: '先生成草稿',
+    confirmActionText: '先生成草稿',
     title: '外发前需要你确认',
   });
   assert.equal(JSON.stringify(result).includes('external_send'), false);
+});
+
+test('sanitizeAgentResultForFrontend keeps safe confirmation action text without exposing type', () => {
+  const result = sanitizeAgentResultForFrontend({
+    ok: true,
+    kind: 'confirmation-required',
+    sessionId: 'agent-session-20260630T010100-confirm',
+    status: 'waiting',
+    messages: [
+      {
+        role: 'assistant',
+        content: '导出文件前需要你确认。',
+        confirmation: {
+          body: 'checkpointPath=/Users/garden/workbench/runs/run.checkpoint.json',
+          cancelLabel: '取消 outputPath workbench/exports/file.xlsx',
+          confirmLabel: 'tool_call artifact.export_file',
+          title: 'policy.checked artifact.export_file run_id=skill-runtime-raw',
+          type: 'export_file',
+        },
+      },
+    ],
+  });
+
+  const confirmation = result.messages[0].confirmation;
+  const publicText = JSON.stringify(confirmation);
+  assert.equal(publicText.includes('export_file'), false);
+  assert.equal(publicText.includes('tool_call'), false);
+  assert.equal(publicText.includes('outputPath'), false);
+  assert.equal(publicText.includes('skill-runtime'), false);
+  assert.equal(/run[_-]?id/iu.test(publicText), false);
+  assert.equal(publicText.includes('checkpointPath'), false);
+  assert.equal(confirmation.confirmActionText, '确认导出');
+  assert.equal(confirmation.cancelActionText, '取消这一步');
+});
+
+test('sanitizeAgentResultForFrontend hides bare snake_case action tokens from confirmation labels', () => {
+  const result = sanitizeAgentResultForFrontend({
+    ok: true,
+    kind: 'confirmation-required',
+    sessionId: 'agent-session-20260630T010200-confirm',
+    status: 'waiting',
+    messages: [
+      {
+        role: 'assistant',
+        content: '写入客户档案前需要你确认。',
+        confirmation: {
+          body: '这一步会写入 customer_write。',
+          cancelLabel: '取消 output_path workbench/customer.json',
+          confirmLabel: '确认 tool_call customer_write',
+          title: 'policy.checked customer_write',
+          type: 'customer_write',
+        },
+      },
+    ],
+  });
+
+  const confirmation = result.messages[0].confirmation;
+  const publicText = JSON.stringify(confirmation);
+  assert.equal(publicText.includes('customer_write'), false);
+  assert.equal(publicText.includes('tool_call'), false);
+  assert.equal(publicText.includes('output_path'), false);
+  assert.equal(confirmation.confirmLabel, '确认写入');
+  assert.equal(confirmation.confirmActionText, '确认写入');
 });
 
 test('sanitizeAgentResultForFrontend keeps structured missing inputs for the agent thread', () => {

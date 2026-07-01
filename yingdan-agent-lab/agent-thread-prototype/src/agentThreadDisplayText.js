@@ -14,7 +14,7 @@
  */
 export function looksLikeInternalRuntimeText(value = '') {
   const text = String(value || '');
-  return /skill-runtime|workbench[\\/]|\/Users\/|run[_\s-]?id|skill[_\s-]?id|output[_\s-]?path|manifest[_\s-]?path|checkpoint[_\s-]?path|run[_\s-]?log[_\s-]?path|tool[_\s-]?call|(?:goal|skill|policy|action|artifact)\./iu.test(text);
+  return /skill-runtime|workbench[\\/]|\/Users\/|run[_\s-]?id|skill[_\s-]?id|output[_\s-]?path|manifest[_\s-]?path|checkpoint[_\s-]?path|run[_\s-]?log[_\s-]?path|tool[_\s-]?call|(?:goal|skill|policy|action|artifact)\.|(?:customer_write|export_file|external_send|paid_call|runtime_policy|risky_action)/iu.test(text);
 }
 
 /**
@@ -161,4 +161,105 @@ export function sanitizeAgentProcessStepForDisplay(step = {}) {
       maxLength: 80,
     }),
   };
+}
+
+/**
+ * sanitizeAgentNeedsInputForDisplay 净化缺资料卡片的可见文本。
+ *
+ * 作用：
+ * - 缺资料卡会直接告诉用户下一句该补什么,不能出现 runId、tool_call 或本地路径。
+ * - 后端已做主净化,这里防御旧 session、旧 localStorage 或异常 payload。
+ * - 只返回前端展示需要的字段,避免把内部恢复信息误带入 UI。
+ *
+ * 参数：
+ * - needsInput：后端或本地恢复出的缺资料卡对象。
+ *
+ * 返回值：只包含 title、hint、items 的安全展示对象。
+ * 可能抛出的异常：无。
+ */
+export function sanitizeAgentNeedsInputForDisplay(needsInput = {}) {
+  const items = Array.isArray(needsInput.items) ? needsInput.items.filter(Boolean) : [];
+  return {
+    title: safeAgentInlineLabel(needsInput.title || '缺少资料', {
+      fallback: '需要补充资料',
+      maxLength: 32,
+    }),
+    hint: safeAgentInlineLabel(needsInput.hint || '直接补一句话即可,我会接着这次任务继续。', {
+      fallback: '直接补一句话即可,我会接着这次任务继续。',
+      maxLength: 72,
+    }),
+    items: items.map((item) => safeAgentInlineLabel(item, {
+      fallback: '需要补充的业务资料',
+      maxLength: 40,
+    })),
+  };
+}
+
+/**
+ * sanitizeAgentConfirmationForDisplay 净化确认卡片的可见文本。
+ *
+ * 作用：
+ * - 保存、导出、外发和扣费确认必须让用户看懂业务后果,不能露出 policy/action/runtime 字段。
+ * - 按钮文案也要净化,因为按钮会被当作下一句确认文本传回 Agent。
+ * - 只返回前端展示和按钮需要的字段,内部 runtime 继续留在后端 session context。
+ *
+ * 参数：
+ * - confirmation：后端返回或历史恢复出的确认卡对象。
+ *
+ * 返回值：只包含 title、body、confirmLabel、cancelLabel 的安全展示对象。
+ * 可能抛出的异常：无。
+ */
+export function sanitizeAgentConfirmationForDisplay(confirmation = {}) {
+  const confirmActionText = safeAgentInlineLabel(
+    confirmation.confirmActionText || confirmationActionTextForType(confirmation.type),
+    {
+      fallback: confirmationActionTextForType(confirmation.type),
+      maxLength: 18,
+    },
+  );
+  return {
+    title: safeAgentInlineLabel(confirmation.title || '这一步需要确认', {
+      fallback: '这一步需要确认',
+      maxLength: 36,
+    }),
+    body: safeAgentInlineLabel(confirmation.body || '确认前不会保存、导出、外发或扣费。', {
+      fallback: '确认前不会保存、导出、外发或扣费。',
+      maxLength: 90,
+    }),
+    confirmLabel: safeAgentInlineLabel(confirmation.confirmLabel || '确认继续', {
+      fallback: confirmActionText,
+      maxLength: 18,
+    }),
+    cancelLabel: safeAgentInlineLabel(confirmation.cancelLabel || '取消', {
+      fallback: '取消',
+      maxLength: 18,
+    }),
+    confirmActionText,
+    cancelActionText: '取消这一步',
+  };
+}
+
+/**
+ * confirmationActionTextForType 返回点击确认按钮时传回 Agent 的稳定业务文案。
+ *
+ * 作用：
+ * - 展示文案可以因为防泄漏被降级成“确认继续”,但导出/写入等后端确认逻辑需要更具体的业务词。
+ * - 这里不返回任何后端 runtime 字段,只返回后端已经接受的自然业务确认词。
+ *
+ * 参数：
+ * - type：确认卡类型,例如 export_file、customer_write、external_send。
+ *
+ * 返回值：用户点击确认按钮时传回同一条 Agent 线程的安全业务文案。
+ * 可能抛出的异常：无。
+ */
+function confirmationActionTextForType(type = '') {
+  const actionTextByType = {
+    customer_write: '确认写入',
+    export_file: '确认导出',
+    external_send: '先生成草稿',
+    paid_call: '确认继续',
+    runtime_policy: '确认继续',
+    risky_action: '确认继续',
+  };
+  return actionTextByType[type] || '确认继续';
 }

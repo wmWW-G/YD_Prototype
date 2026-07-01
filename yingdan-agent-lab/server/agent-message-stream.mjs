@@ -788,11 +788,41 @@ function sanitizeConfirmation(confirmation = null) {
   }
 
   return compactObject({
-    body: scrubUserVisibleText(confirmation.body),
-    cancelLabel: scrubUserVisibleText(confirmation.cancelLabel),
-    confirmLabel: scrubUserVisibleText(confirmation.confirmLabel),
-    title: scrubUserVisibleText(confirmation.title),
+    body: safeDisplayText(confirmation.body),
+    cancelActionText: '取消这一步',
+    cancelLabel: safeCancellationLabel(confirmation.cancelLabel),
+    confirmActionText: safeConfirmationActionTextForType(confirmation.type),
+    confirmLabel: safeConfirmationLabel(confirmation.confirmLabel, confirmation.type),
+    title: safeDisplayText(confirmation.title),
   });
+}
+
+function safeConfirmationLabel(value = '', type = '') {
+  const label = safeDisplayText(value);
+  if (!label || label === '确认') {
+    return safeConfirmationActionTextForType(type);
+  }
+  return label;
+}
+
+function safeCancellationLabel(value = '') {
+  const label = safeDisplayText(value);
+  if (!label || label === '取消') {
+    return '取消这一步';
+  }
+  return label;
+}
+
+function safeConfirmationActionTextForType(type = '') {
+  const actionTextByType = {
+    customer_write: '确认写入',
+    export_file: '确认导出',
+    external_send: '先生成草稿',
+    paid_call: '确认继续',
+    runtime_policy: '确认继续',
+    risky_action: '确认继续',
+  };
+  return actionTextByType[type] || '确认继续';
 }
 
 /**
@@ -906,7 +936,9 @@ function scrubUserVisibleText(value = '') {
     })
     .replace(/\bskill-runtime-[A-Za-z0-9T_-]+\b/giu, '')
     .replace(/\b(?:goal|skill|plan|policy|action|artifact|observation|run)\.[A-Za-z0-9_.-]+\b/giu, '')
-    .replace(/\b(?:schema|tool[_\s-]?call|toolCall|runId|skillId|outputPath|manifestPath|checkpointPath|runLogPath)\b/giu, '')
+    .replace(/\b(?:customer_write|export_file|external_send|paid_call|runtime_policy|risky_action)\b/giu, '')
+    .replace(/\b(?:schema|tool[_\s-]?call|toolCall|run[_\s-]?id|skill[_\s-]?id|output[_\s-]?path|manifest[_\s-]?path|checkpoint[_\s-]?path|run[_\s-]?log[_\s-]?path)\b/giu, '')
+    .replace(/^[\s:=：-]+|[\s:=：-]+$/gu, '')
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/\s+([，。,.!?！？；;])/g, '$1')
     .replace(/(?:当前任务文件){2,}/g, '当前任务文件')
@@ -948,7 +980,11 @@ function safeDisplayText(value = '') {
   if (!value || looksLikeInternalRuntimeName(value)) {
     return undefined;
   }
-  return scrubUserVisibleText(value);
+  const text = scrubUserVisibleText(value);
+  if (!text || looksLikeInternalRuntimeName(text) || /^[\s:=：,，.。;；!?！？-]+$/u.test(text)) {
+    return undefined;
+  }
+  return text;
 }
 
 function looksLikeInternalRuntimeName(value = '') {

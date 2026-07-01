@@ -302,6 +302,26 @@ test('New Conversation sanitizes restored runtime names in visible chrome and ar
   assert.equal(runPanelSource.includes('agentArtifactDisplayName(agentResult?.artifact)'), true);
 });
 
+test('New Conversation sanitizes missing-input and confirmation cards before display', async () => {
+  const source = await readFile(appSourcePath, 'utf8');
+  const messageSource = await readFunctionSource('AgentThreadMessage');
+  const missingInputSource = await readFunctionSource('MissingInputChecklist');
+
+  assert.equal(source.includes('sanitizeAgentNeedsInputForDisplay'), true);
+  assert.equal(source.includes('sanitizeAgentConfirmationForDisplay'), true);
+  assert.equal(messageSource.includes('sanitizeAgentConfirmationForDisplay(message.confirmation)'), true);
+  assert.equal(messageSource.includes('safeConfirmation.title'), true);
+  assert.equal(messageSource.includes('safeConfirmation.body'), true);
+  assert.equal(messageSource.includes('safeConfirmation.confirmLabel'), true);
+  assert.equal(messageSource.includes('safeConfirmation.cancelLabel'), true);
+  assert.equal(messageSource.includes('safeConfirmation.confirmActionText'), true);
+  assert.equal(messageSource.includes('safeConfirmation.cancelActionText'), true);
+  assert.equal(missingInputSource.includes('sanitizeAgentNeedsInputForDisplay(needsInput)'), true);
+  assert.equal(missingInputSource.includes('safeNeedsInput.title'), true);
+  assert.equal(missingInputSource.includes('safeNeedsInput.hint'), true);
+  assert.equal(missingInputSource.includes('safeNeedsInput.items'), true);
+});
+
 test('New Conversation sanitizes expanded activity and process records before display', async () => {
   const activitySource = await readFunctionSource('ActivityStream');
   const processSource = await readFunctionSource('ExecutionProcess');
