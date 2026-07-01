@@ -184,7 +184,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 即使用户在自然语言里写了“调用付费数据”“扣费也可以”,新对话也必须先进入 `付费能力需要你确认` 的等待态;确认前不能调用付费能力,前台运行中提示也要持续明确包含导出、保存、外发、扣费都会停下来问,不能因为流式进度出现就消失。
 - 付费/扣费识别只针对平台能力或外部收费工具,例如 `收费接口`、`付费接口`、`花钱也可以`、`消耗额度/积分/点数`、`购买套餐/积分/额度`、`买套餐/积分/额度`、`订购额度`。外贸客户的采购意向不是平台扣费动作,例如 `客户说想购买500套太阳能灯` 应继续进入客户推进分析,不能因为出现 `购买` 就弹付费确认。
 - 付费确认不是任务终点:用户确认 `确认继续` 后,后端必须用原始请求和确认期间 supplements 继续匹配业务任务;资料足够时继续生成客户分析、邮件草稿、报价单等产物,资料不足时回到 `needs-input`。不能只回复一句“已确认”就结束。
-- `server/agent-customer-memory.mjs`:写入客户档案确认后,只把当前 session 绑定产物的摘要写入 `workbench/customers/<customerSlug>/memory.md`,并追加 `diary/agent-saves.jsonl`。`customerSlug` 必须来自当前客户上下文或用户明确补充;没有客户绑定时必须继续追问写入哪个客户档案,不能默认写入 `global-sourcing-inc`。
+- `server/agent-customer-memory.mjs`:写入客户档案确认后,只把当前 session 绑定产物的摘要写入 `workbench/customers/<customerSlug>/memory.md`,并追加 `diary/agent-saves.jsonl`。`customerSlug` 必须来自当前客户上下文或用户明确补充;如果用户在保存请求里已写明 `保存到客户档案 global-sourcing-inc`,确认卡要带上这个客户标识,但仍必须等用户确认后才写入;没有客户绑定时必须继续追问写入哪个客户档案,不能默认写入 `global-sourcing-inc`。
 - 保存确认成功后会清掉 `pendingConfirmation`,但保留 artifact、customerSlug 和 lastCustomerSave;用户再补一句「继续优化」会进入同任务 follow-up,不会重复保存。
 - 保存确认成功后的公开 `context.lastCustomerSave` 只能包含客户标识和可读摘要,不能把 `memoryPath`、`diaryPath`、`memory.md`、`agent-saves.jsonl` 或任何本地绝对路径返回给前台;后端 session 文件和内部日志可以保留排查用路径,但 HTTP result、SSE result 和 session 恢复 payload 必须净化。
 - 保存、导出、外发等确认卡标题只是暂停点标题,不能污染业务任务标题。比如 `客户推进分析.md` 生成后用户说 `保存到客户档案`,确认卡可显示 `写入客户档案前需要确认`;用户确认写入后,即时 result 和 `GET /api/agent/session/:sessionId` 恢复标题都应回到 `客户推进分析`,不能变成 `本次外贸任务` 或继续停在确认卡标题。
@@ -508,6 +508,8 @@ npm run acceptance:alibaba-inquiry-meeting:real
 → 如果当前已有业务产物,返回 confirmation-required / customer_write;如果还没有产物,返回 needs-input,提示先生成客户分析、跟进计划或邮件草稿
 输入: 保存当前文件
 → 如果当前已有业务产物,返回 confirmation-required / customer_write,不能误判为导出
+输入: 保存到客户档案 global-sourcing-inc
+→ 如果当前已有业务产物,返回 confirmation-required / customer_write,确认卡带 `global-sourcing-inc` 作为目标客户,但不立刻写入
 输入: 确认写入
 → 如果当前线程已有明确 customerSlug,追加 workbench/customers/<customerSlug>/memory.md 和 diary/agent-saves.jsonl
 → 如果当前线程没有明确 customerSlug,继续等待用户补充客户档案名称或客户标识,不能默认写入 global-sourcing-inc

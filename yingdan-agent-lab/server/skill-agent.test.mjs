@@ -5136,6 +5136,59 @@ test('runNewConversationAgent asks for a customer target before saving when no c
   }
 });
 
+test('runNewConversationAgent uses an explicit customer target from a natural save request', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-save-explicit-customer-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '客户推进分析.md');
+  const customerDir = path.join(projectRoot, 'workbench', 'customers', 'global-sourcing-inc');
+  const memoryPath = path.join(customerDir, 'memory.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await mkdir(customerDir, { recursive: true });
+    await writeFile(memoryPath, '# Global Sourcing Inc. Memory\n\n- Existing memory.\n', 'utf8');
+    await writeFile(artifactPath, '# 客户推进分析\n\n## 下一步跟进行动\n\n1. 先确认MOQ和交期。\n', 'utf8');
+
+    const first = await runNewConversationAgent({
+      text: '保存到客户档案 global-sourcing-inc',
+      sessionId: 'agent-session-20260701T180000-save-explicit-customer',
+      context: {
+        artifact: {
+          type: 'markdown',
+          name: '客户推进分析.md',
+          outputPath: artifactPath,
+        },
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+
+    const second = await runNewConversationAgent({
+      text: '确认写入',
+      sessionId: first.sessionId,
+      context: first.context,
+      session: {
+        sessionId: first.sessionId,
+        context: first.context,
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+    const memory = await readFile(memoryPath, 'utf8');
+
+    assert.equal(first.kind, 'confirmation-required');
+    assert.equal(first.context.pendingConfirmation.type, 'customer_write');
+    assert.equal(first.context.pendingConfirmation.customerSlug, 'global-sourcing-inc');
+    assert.equal(first.context.pendingConfirmation.awaitingCustomerSlug, undefined);
+    assert.equal(second.kind, 'confirmation-accepted');
+    assert.equal(second.context.customerSlug, 'global-sourcing-inc');
+    assert.match(memory, /Agent 保存: 客户推进分析/);
+    assert.match(memory, /先确认MOQ和交期/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('runNewConversationAgent asks before casually saving the current artifact', async () => {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-casual-save-confirm-'));
   const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');

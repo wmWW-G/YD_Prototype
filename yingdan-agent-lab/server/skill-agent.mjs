@@ -1636,6 +1636,9 @@ async function buildRiskConfirmationResponse(input = {}) {
  */
 function buildRiskConfirmationObject(input = {}) {
   const riskyAction = input.riskyAction || {};
+  const customerSlug = riskyAction.type === 'customer_write'
+    ? extractCustomerSlugFromConfirmationText(input.text)
+    : '';
   return {
     type: riskyAction.type || 'risky_action',
     title: riskyAction.title || '这一步需要你确认',
@@ -1643,6 +1646,7 @@ function buildRiskConfirmationObject(input = {}) {
     confirmLabel: riskyAction.confirmLabel || '确认继续',
     cancelLabel: '取消这一步',
     originalText: input.text || '',
+    ...(customerSlug ? { customerSlug } : {}),
   };
 }
 
