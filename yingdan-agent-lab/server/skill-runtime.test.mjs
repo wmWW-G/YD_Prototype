@@ -497,6 +497,33 @@ test('createSkillRuntime decomposes a complex deal request into strategy, quote 
   }
 });
 
+test('createSkillRuntime carries explicit concession and agency trial terms into composite deal drafts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '德国客户嫌贵但想做独家代理，产品是太阳能灯，最多只能让3%，独代先给3个月试运行，帮我判断成交策略、写邮件、做报价边界和7天跟进计划',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+    const quoteBoundary = extractMarkdownSectionForRuntimeTest(content, '报价边界');
+    const emailDraft = extractMarkdownSectionForRuntimeTest(content, '英文邮件草稿');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.match(quoteBoundary, /最多让\s*3%/);
+    assert.match(quoteBoundary, /3个月试运行/);
+    assert.match(emailDraft, /maximum 3% concession/);
+    assert.match(emailDraft, /3-month agency trial period/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime treats importer wording as a composite deal request instead of a single reply draft', async () => {
   const fixture = await withRegistryProject();
 
@@ -532,6 +559,12 @@ test('createSkillRuntime treats importer wording as a composite deal request ins
     await fixture.cleanup();
   }
 });
+
+function extractMarkdownSectionForRuntimeTest(markdown = '', heading = '') {
+  const escapedHeading = String(heading).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(^## ${escapedHeading}\\s*\\n)([\\s\\S]*?)(?=^##\\s+|(?![\\s\\S]))`, 'm');
+  return markdown.match(pattern)?.[2] || '';
+}
 
 test('createSkillRuntime fails markdown business artifacts that do not cover user-provided facts', async () => {
   const fixture = await withRegistryProject();

@@ -1149,6 +1149,19 @@ function buildCompositeDealSections({ signals = {}, userText = '' } = {}) {
   const concerns = Array.isArray(signals.concernsChinese) ? signals.concernsChinese : [];
   const hasPricePressure = concerns.includes('议价/折扣压力');
   const hasAgencyRequest = concerns.includes('独家代理/渠道合作');
+  const concessionLimit = signals.concessionLimit || extractConcessionLimit(userText);
+  const agencyTrialPeriod = signals.agencyTrialPeriod || extractAgencyTrialPeriod(userText);
+  const explicitQuoteBoundaries = [
+    concessionLimit ? `- 让步上限: 价格让步最多让 ${concessionLimit};超过该范围必须重新确认。` : '',
+    agencyTrialPeriod ? `- 独代试运行: 独代先给${agencyTrialPeriod}试运行,试运行后再评估正式授权。` : '',
+  ].filter(Boolean);
+  const emailBoundaryParts = [
+    concessionLimit ? `a maximum ${concessionLimit} concession` : '',
+    agencyTrialPeriod ? `a ${formatAgencyTrialPeriodForEnglish(agencyTrialPeriod)} agency trial period` : '',
+  ].filter(Boolean);
+  const explicitEmailBoundary = emailBoundaryParts.length
+    ? `For the first step, we can discuss ${joinEnglishList(emailBoundaryParts)} only after the trial order details and agency conditions are clear.`
+    : '';
 
   return [
     '## 复合任务拆解',
@@ -1174,6 +1187,7 @@ function buildCompositeDealSections({ signals = {}, userText = '' } = {}) {
     `- 报价对象: ${product}`,
     `- 市场/客户: ${market}`,
     '- 可先给“条件报价”框架: 数量越明确、付款越稳、试单越快,可讨论的支持越具体。',
+    ...explicitQuoteBoundaries,
     '- 不能直接承诺最低价、独家授权或固定折扣;正式报价必须等数量、规格、贸易条款、目的港和价格底线确认。',
     '- 可交换条件: 数量阶梯、样品费抵扣、付款方式、首单试运行、区域保护期限和年度销量承诺。',
     '',
@@ -1188,6 +1202,8 @@ function buildCompositeDealSections({ signals = {}, userText = '' } = {}) {
     'Before we confirm any exclusive arrangement, I suggest we first align on the target territory, expected annual volume, initial trial order, and the support you need from our side.',
     '',
     'For pricing, I can prepare options based on quantity, payment terms, and delivery requirements, so we keep the offer realistic without compromising product quality or long-term cooperation.',
+    '',
+    explicitEmailBoundary,
     '',
     'Would you like to start with a trial order and then review exclusive agency conditions after the first market feedback?',
     '',
@@ -1275,8 +1291,12 @@ function extractBusinessSignals(userText = '') {
   const priceTerm = extractQuotationPrice(text);
   const tradeTerm = extractQuotationTradeTerm(text);
   const paymentTerm = extractPaymentTerm(text);
+  const concessionLimit = extractConcessionLimit(text);
+  const agencyTrialPeriod = extractAgencyTrialPeriod(text);
   const nextAction = detectNextActionGoal(text);
   return {
+    agencyTrialPeriod,
+    concessionLimit,
     countryChinese: country.chinese,
     countryEnglish: country.english,
     concernsChinese: [...new Set(concerns.map((item) => item.chinese))],
@@ -1312,6 +1332,8 @@ function buildBusinessFactLines(signals = {}) {
     signals.priceTerm ? `- 价格: ${signals.priceTerm}` : '',
     signals.tradeTerm ? `- 贸易条款: ${signals.tradeTerm}` : '',
     signals.paymentTerm ? `- 付款条件: ${signals.paymentTerm}` : '',
+    signals.concessionLimit ? `- 让步上限: 最多让 ${signals.concessionLimit}` : '',
+    signals.agencyTrialPeriod ? `- 独代试运行: ${signals.agencyTrialPeriod}` : '',
     signals.sampleTimingChinese ? `- 样品: ${signals.sampleTimingChinese}` : '',
     signals.nextActionChinese ? `- 下一步动作: ${signals.nextActionChinese}` : '',
   ].filter(Boolean);
@@ -1449,6 +1471,69 @@ function extractPaymentTerm(text = '') {
 
   const explicit = value.match(/(?:付款条件|付款方式|账期|payment\s*terms?)\s*(?:是|为|:|：)?\s*([^，。；,;\n]+)/i);
   return String(explicit?.[1] || '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * extractConcessionLimit 抽取用户明确给出的价格让步上限。
+ *
+ * 作用：
+ * - 复合成交材料不能只写“可让步范围待确认”。
+ * - 如果用户已经说 `最多只能让3%`,初稿就要把这个硬边界写进报价边界和证据。
+ *
+ * 参数：
+ * - text：用户输入文本。
+ *
+ * 返回值：让步上限,例如 `3%`;未识别时返回空字符串。
+ * 可能抛出的异常：无。
+ */
+function extractConcessionLimit(text = '') {
+  const value = String(text || '');
+  const explicit = value.match(/(?:最多(?:只能|可|可以)?让|最高让|让步上限|让步范围|最多可让|最多可以让)\s*(\d+(?:\.\d+)?\s*%)/i);
+  if (explicit?.[1]) {
+    return explicit[1].replace(/\s+/g, '');
+  }
+
+  const nearby = value.match(/(\d+(?:\.\d+)?\s*%)[^，。,.!?！？]{0,8}(?:以内|之内|上限|封顶)/i);
+  return nearby?.[1] ? nearby[1].replace(/\s+/g, '') : '';
+}
+
+/**
+ * extractAgencyTrialPeriod 抽取独家代理试运行周期。
+ *
+ * 作用：
+ * - `独代先给3个月试运行` 是成交策略的关键边界,不能只藏在任务来源里。
+ * - 只在代理/独代语境附近识别周期,避免普通交期或账期被误当成代理试运行。
+ *
+ * 参数：
+ * - text：用户输入文本。
+ *
+ * 返回值：周期文本,例如 `3个月`;未识别时返回空字符串。
+ * 可能抛出的异常：无。
+ */
+function extractAgencyTrialPeriod(text = '') {
+  const value = String(text || '');
+  const agencyFirst = value.match(/(?:独代|独家代理|代理)[^，。,.!?！？]{0,16}?(\d+\s*个?月)[^，。,.!?！？]{0,8}(?:试运行|试用|试代理|trial)/i);
+  if (agencyFirst?.[1]) {
+    return agencyFirst[1].replace(/\s+/g, '');
+  }
+
+  const periodFirst = value.match(/(\d+\s*个?月)[^，。,.!?！？]{0,10}(?:独代|独家代理|代理)[^，。,.!?！？]{0,8}(?:试运行|试用|试代理|trial)/i);
+  return periodFirst?.[1] ? periodFirst[1].replace(/\s+/g, '') : '';
+}
+
+/**
+ * formatAgencyTrialPeriodForEnglish 把中文月份周期转成英文邮件里的复合形容词。
+ *
+ * 参数：
+ * - period：中文周期,例如 `3个月`。
+ *
+ * 返回值：英文周期,例如 `3-month`;无法识别时返回原值。
+ * 可能抛出的异常：无。
+ */
+function formatAgencyTrialPeriodForEnglish(period = '') {
+  const value = String(period || '').trim();
+  const monthMatch = value.match(/^(\d+(?:\.\d+)?)(?:个)?月$/);
+  return monthMatch ? `${monthMatch[1]}-month` : value;
 }
 
 /**
@@ -2108,6 +2193,20 @@ async function verifyBusinessMarkdownArtifact({ artifact = {}, fileStat = {}, ru
     label: '付款条件',
     missingFacts,
     value: signals.paymentTerm,
+    checkedFacts,
+  });
+  collectEvidenceFact({
+    content,
+    label: '让步上限',
+    missingFacts,
+    value: signals.concessionLimit,
+    checkedFacts,
+  });
+  collectEvidenceFact({
+    content,
+    label: '独代试运行',
+    missingFacts,
+    value: signals.agencyTrialPeriod,
     checkedFacts,
   });
   collectEvidenceFact({
