@@ -609,6 +609,30 @@ function businessContextRequirementsForSkill(skillId = '') {
   return requirements[skillId] || [];
 }
 
+/**
+ * isCustomerHesitationIssue 判断观望/拖延是否来自客户原话。
+ *
+ * 作用：
+ * - `客户说再考虑一下`、`买家说先看看` 是有效当前卡点,可以进入客户推进分析。
+ * - `我先看看`、`之后再说` 可能是用户自己的操作语气,不能当成客户证据。
+ * - 这里要求观望词附近有客户/买家/对方作为主语,或有明确的“说/表示/回复”等转述动作。
+ *
+ * 参数：
+ * - text：用户本轮输入文本。
+ *
+ * 返回值：boolean, true 表示这是客户侧观望/拖延决策信号。
+ * 可能抛出的异常：无。
+ */
+function isCustomerHesitationIssue(text = '') {
+  const value = String(text || '').toLowerCase();
+  const customerActor = '(?:客户|买家|采购商|客人|对方|buyer|customer|client)';
+  const speechVerb = '(?:说|表示|回复|提到|反馈|讲|一直说|总说|说要|说想|says?|said|replied|mentioned)';
+  const hesitation = '(?:观望|犹豫|再考虑|考虑一下|先看看|再看看|之后再说|以后再说|回头再说|暂缓|待定|还没决定|wait\\s+and\\s+see|still\\s+considering|not\\s+decided|undecided|hesitat(?:e|ing|ion))';
+  const quotedByCustomer = new RegExp(`${customerActor}[^，。,.!?！？]{0,8}${speechVerb}[^，。,.!?！？]{0,16}${hesitation}`, 'i');
+  const stateOnCustomer = new RegExp(`${customerActor}[^，。,.!?！？]{0,8}(?:还在|正在|一直|仍在|比较)?${hesitation}`, 'i');
+  return quotedByCustomer.test(value) || stateOnCustomer.test(value);
+}
+
 function detectBusinessSignals(text = '') {
   const value = String(text || '');
   const lower = value.toLowerCase();
@@ -617,14 +641,14 @@ function detectBusinessSignals(text = '') {
   const productPattern = /产品|规格|型号|卖点|报价|价格|底价|moq|起订|小批量|小单|试单|交期|lead\s*time|delivery|样品|sample|包装|付款|账期|赊账|月结|付款条件|付款方式|质量|售后|库存|认证|材质|尺寸|quantity|price|quote|payment\s+terms|credit\s+terms/i;
   const explicitProductPattern = /产品|规格|型号|卖点|包装|库存|认证|材质|尺寸|型号|太阳能|路灯|灯|家具|服装|电池|设备|机器|配件|solar|light|lamp|battery|machine|equipment|product|model|spec/i;
   const inquiryPattern = /询盘|邮件|聊天|客户说|客户问|问了|问|需求|投诉|异议|报价|回复|回信|沉默|订单|inquiry|rfq|reply/i;
-  const currentIssuePattern = /客户(?:说|问|提到|要求|抱怨|投诉|反馈)|问了.+|问.*(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|质量|售后)|投诉|抱怨|异议|沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|卡点|嫌贵|太贵|贵了|价格(?:太)?高|砍价|压价|还价|议价|让价|降价|折扣|报价|价格|底价|moq|起订|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量(?:不行|问题|投诉)?|货有问题|售后|认证|quantity|price|quote|small\s+(?:trial\s+)?order|trial\s+order|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights|too\s+expensive|price\s+too\s+high|discount|payment\s+terms|credit\s+terms|quality\s+(?:issue|complaint|problem)|after[-\s]?sales/i;
+  const currentIssuePattern = /(?:客户|买家|采购商|客人|对方)(?:说|问|提到|要求|抱怨|投诉|反馈)|问了.+|问.*(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|质量|售后)|投诉|抱怨|异议|沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|卡点|嫌贵|太贵|贵了|价格(?:太)?高|砍价|压价|还价|议价|让价|降价|折扣|报价|价格|底价|moq|起订|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量(?:不行|问题|投诉)?|货有问题|售后|认证|quantity|price|quote|small\s+(?:trial\s+)?order|trial\s+order|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights|too\s+expensive|price\s+too\s+high|discount|payment\s+terms|credit\s+terms|quality\s+(?:issue|complaint|problem)|after[-\s]?sales/i;
   const customerPattern = /采购商|买家|对方|公司|联系人|进口商|批发商|零售商|经销商|代理商|客户(?:名称|类型|是|叫)|客户(?:说|问|提到).+|buyer|customer\s+(?:is|type|name)|client\s+(?:is|type|name)|importer|distributor|wholesaler|retailer/i;
   const quantityPattern = /(?:数量|qty|quantity)\s*[:：]?\s*\d+|\d+\s*(?:套|件|个|箱|台|pcs|pieces|units?|cartons?)/i;
   const priceTermPattern = /(?:单价|底价|目标价|价格|报价)\s*(?:是|为|:|：)?\s*(?:usd|us\$|\$|rmb|¥|人民币|美元|美金)?\s*\d+|\d+(?:\.\d+)?\s*(?:usd|美元|美金|rmb|人民币|元)/i;
   const tradeTermPattern = /\b(?:fob|cif|exw|ddp|dap|cfr)\b|美元|美金|人民币|usd|rmb|us\$|\$|¥|贸易条款|付款条款|目的港|港口/i;
   const genericCustomerOnly = /^帮?我?(分析|处理|推进|判断|整理)?(一下)?(这个|该个|该)?(客户|买家|采购商|客人)(怎么)?(推进|跟进|分析|成交|优先级|机会|意向|有没有机会成交)?(一下)?$/u.test(compact) ||
     /^(分析|判断)(一下)?(这个|该个|该)?(客户|买家|采购商|客人)(有没有机会成交|优先级|机会|意向)?$/u.test(compact);
-  const currentIssue = currentIssuePattern.test(lower);
+  const currentIssue = currentIssuePattern.test(lower) || isCustomerHesitationIssue(value);
   const customerActorWithIssue = /客户|买家|采购商|客人|对方|buyer|customer|client/i.test(lower) && currentIssue;
   const exclusiveAgencyIssue = /独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights/.test(lower);
   const followupCadenceRequested = /7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|weekly/.test(lower) &&

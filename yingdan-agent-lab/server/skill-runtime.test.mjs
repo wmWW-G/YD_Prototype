@@ -646,6 +646,31 @@ test('createSkillRuntime carries no-reply status into customer follow-up artifac
   }
 });
 
+test('createSkillRuntime carries customer hesitation into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户说再考虑一下，产品是家具，怎么跟',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.match(content, /产品: 家具/);
+    assert.match(content, /客户关注点: 客户观望\/决策拖延/);
+    assert.match(content, /决策|优先级|推进理由|低压力/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime turns a seven-day follow-up request into a day-by-day plan', async () => {
   const fixture = await withRegistryProject();
 

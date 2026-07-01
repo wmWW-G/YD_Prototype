@@ -733,3 +733,12 @@
   - `agent-thread-prototype/src/styles.css` 补齐产物卡动作按钮并排和 disabled 状态,避免执行中按钮看起来仍可操作。
   - sub agent 阻塞型评审结论:Ready,未发现绕过确认、误导下载或破坏线程续跑的问题。
   - 已执行 `node --test server/frontend-copy.test.mjs --test-name-pattern "artifact card"`、`node --test server/frontend-copy.test.mjs server/agent-thread-composer-state.test.mjs server/agent-thread-progress.test.mjs server/agent-thread-status.test.mjs server/agent-thread-title.test.mjs`、导出确认相关 `server/skill-agent.test.mjs` 目标集和 `npm run build:web`。
+- 继续补客户观望/决策拖延口语：
+  - 复现问题:`买家说先看看，产品是太阳能灯，下一步怎么办` 已能匹配客户推进,但缺资料 gate 仍误判缺当前卡点;`客户说再考虑一下，产品是家具，怎么跟` 生成的 `客户推进分析.md` 也没有把观望/拖延写入 `客户关注点`。
+  - 新增红灯测试 `runNewConversationAgent treats buyer wait-and-see wording as a concrete follow-up issue`,要求这类观望话术已有产品时直接生成客户推进分析,不再追问当前卡点。
+  - 新增红灯测试 `createSkillRuntime carries customer hesitation into customer follow-up artifacts`,要求产物依据里出现 `客户关注点: 客户观望/决策拖延`,并给出低压力推进、确认优先级和卡住点的下一步。
+  - sub agent 评审指出过宽风险:`我先看看`、`之后再说` 可能是用户自己的语气,不能被当成客户原话后直接生成推进分析。
+  - 新增反例测试 `runNewConversationAgent does not treat user wait-and-see wording as customer evidence` 和 `runNewConversationAgent does not treat later-decision wording as enough without product context`,确保这类输入继续 `needs-input / waiting` 追问当前卡点。
+  - `server/skill-agent.mjs` 只在观望表达附近有客户、买家、采购商、对方等主体或明确转述动词时,才把 `先看看 / 再考虑 / 之后再说 / 暂缓 / 待定 / 还没决定` 等中英文表达纳入当前卡点信号。
+  - `server/skill-runner.mjs` 同步只把客户侧观望提炼成 `客户观望/决策拖延`,并在客户推进判断里给出对应业务解释。
+  - 已执行目标测试 `node --test server/skill-agent.test.mjs --test-name-pattern "user wait-and-see|later-decision|wait-and-see|customer hesitation"`、`node --test server/skill-runtime.test.mjs --test-name-pattern "customer hesitation"`、全量 `npm test`(231 个测试通过) 和 `npm run build:web`。

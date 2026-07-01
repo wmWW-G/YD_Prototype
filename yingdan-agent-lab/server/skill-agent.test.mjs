@@ -1022,6 +1022,130 @@ test('runNewConversationAgent treats no-reply wording as a concrete customer fol
   assert.match(runtimeText, /产品太阳能灯/);
 });
 
+test('runNewConversationAgent treats customer hesitation as a concrete follow-up issue', async () => {
+  let runtimeText = '';
+  const response = await runNewConversationAgent({
+    text: '客户说再考虑一下，产品是家具，怎么跟',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'customer-followup-plan',
+            reason: '用户要处理客户观望和决策拖延的跟进场景。',
+          },
+          skill: {
+            id: 'customer-followup-plan',
+            displayName: '客户推进分析',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/客户推进分析.md',
+            artifactName: '客户推进分析.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: '/tmp/客户推进分析.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.equal(response.artifact.name, '客户推进分析.md');
+  assert.match(runtimeText, /客户说再考虑一下/);
+  assert.match(runtimeText, /产品是家具/);
+});
+
+test('runNewConversationAgent treats buyer wait-and-see wording as a concrete follow-up issue', async () => {
+  let runtimeText = '';
+  const response = await runNewConversationAgent({
+    text: '买家说先看看，产品是太阳能灯，下一步怎么办',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'customer-followup-plan',
+            reason: '用户要处理买家观望和决策拖延的跟进场景。',
+          },
+          skill: {
+            id: 'customer-followup-plan',
+            displayName: '客户推进分析',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/客户推进分析.md',
+            artifactName: '客户推进分析.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: '/tmp/客户推进分析.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.equal(response.artifact.name, '客户推进分析.md');
+  assert.match(runtimeText, /买家说先看看/);
+  assert.match(runtimeText, /产品是太阳能灯/);
+});
+
+test('runNewConversationAgent does not treat user wait-and-see wording as customer evidence', async () => {
+  const response = await runNewConversationAgent({
+    text: '客户是德国采购商，我先看看，帮我做客户分析',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not run when wait-and-see wording is from the user, not the customer');
+      },
+    },
+  });
+
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.deepEqual(response.messages[0].needsInput.items, ['询盘、聊天记录或当前卡点']);
+});
+
+test('runNewConversationAgent does not treat later-decision wording as enough without product context', async () => {
+  const response = await runNewConversationAgent({
+    text: '客户是德国采购商，之后再说，帮我判断客户优先级',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not run on ambiguous later-decision wording without product or customer quote context');
+      },
+    },
+  });
+
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.deepEqual(response.messages[0].needsInput.items, ['询盘、聊天记录或当前卡点']);
+});
+
 test('runNewConversationAgent treats payment-term pressure as a concrete customer follow-up issue', async () => {
   let runtimeText = '';
   const response = await runNewConversationAgent({

@@ -988,6 +988,9 @@ function buildCustomerFollowupSignalSentence(concerns = []) {
   if (concerns.includes('客户沉默/未回复')) {
     return '客户暂时未回复,这通常说明需要调整跟进节奏和触达理由;下一步应先补齐客户背景、上次沟通内容和可推进的低压力话题。';
   }
+  if (concerns.includes('客户观望/决策拖延')) {
+    return '客户正在观望或拖延决策,这通常说明采购优先级、内部确认或风险顾虑还没有被打开;下一步应先给一个低压力推进理由,确认客户当前优先级和卡住点。';
+  }
   if (concerns.includes('付款/账期压力')) {
     return '客户正在要求更宽松的付款或账期条件,这通常说明他在评估采购风险和现金流压力;下一步应先确认客户信用、订单规模和我方可接受的付款边界。';
   }
@@ -1007,6 +1010,29 @@ function buildCustomerFollowupSignalSentence(concerns = []) {
     return '客户想做独家代理或渠道合作,这通常说明不能先口头承诺代理权;下一步应先确认区域边界、销量承诺、价格体系和试运行条件,再决定是否进入正式授权谈判。';
   }
   return `客户已经在问${concerns.join('、')},这通常说明他开始评估供应条件,下一步应先补齐采购约束,再决定是否报价。`;
+}
+
+/**
+ * isCustomerHesitationIssue 判断观望/拖延是否属于客户侧信号。
+ *
+ * 作用：
+ * - 只有客户、买家、采购商、对方等主体说“再考虑 / 先看看 / 之后再说”时,才写入客户关注点。
+ * - 用户自己的“我先看看”不能被写成客户观望,否则会污染产物依据。
+ *
+ * 参数：
+ * - text：用户本轮任务文本。
+ *
+ * 返回值：boolean, true 表示客户侧观望/决策拖延。
+ * 可能抛出的异常：无。
+ */
+function isCustomerHesitationIssue(text = '') {
+  const value = String(text || '').toLowerCase();
+  const customerActor = '(?:客户|买家|采购商|客人|对方|buyer|customer|client)';
+  const speechVerb = '(?:说|表示|回复|提到|反馈|讲|一直说|总说|说要|说想|says?|said|replied|mentioned)';
+  const hesitation = '(?:观望|犹豫|再考虑|考虑一下|先看看|再看看|之后再说|以后再说|回头再说|暂缓|待定|还没决定|wait\\s+and\\s+see|still\\s+considering|not\\s+decided|undecided|hesitat(?:e|ing|ion))';
+  const quotedByCustomer = new RegExp(`${customerActor}[^，。,.!?！？]{0,8}${speechVerb}[^，。,.!?！？]{0,16}${hesitation}`, 'i');
+  const stateOnCustomer = new RegExp(`${customerActor}[^，。,.!?！？]{0,8}(?:还在|正在|一直|仍在|比较)?${hesitation}`, 'i');
+  return quotedByCustomer.test(value) || stateOnCustomer.test(value);
 }
 
 /**
@@ -1084,6 +1110,9 @@ function extractBusinessSignals(userText = '') {
   }
   if (/沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|no\s+reply|not\s+replying|no\s+response/.test(lower)) {
     concerns.push({ chinese: '客户沉默/未回复', english: 'customer silence/no reply' });
+  }
+  if (isCustomerHesitationIssue(text)) {
+    concerns.push({ chinese: '客户观望/决策拖延', english: 'buyer hesitation/decision delay' });
   }
   if (/认证|certification|certificate|ce|fda/.test(lower)) {
     concerns.push({ chinese: '认证', english: 'certification' });
