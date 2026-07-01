@@ -1892,6 +1892,165 @@ test('runNewConversationAgent generates a waiting task artifact before asking to
   assert.match(runtimeText, /询盘回复草稿/);
 });
 
+test('runNewConversationAgent generates a first-turn quotation artifact before asking to export it', async () => {
+  let runtimeText = '';
+  const progressEvents = [];
+
+  const response = await runNewConversationAgent({
+    text: '帮我生成报价单并导出文件，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai',
+    registry: createQuotationRegistry(),
+    onRuntimeEvent: async (event) => {
+      progressEvents.push(event.type);
+    },
+    skillRuntime: {
+      async runGoal({ text, onRuntimeEvent }) {
+        runtimeText = text;
+        for (const event of [
+          { type: 'goal.received', status: 'complete' },
+          { type: 'skill.loaded', status: 'complete' },
+          { type: 'plan.created', status: 'complete' },
+          { type: 'action.executed', status: 'complete' },
+          { type: 'artifact.verified', status: 'complete' },
+          { type: 'run.completed', status: 'complete' },
+        ]) {
+          await onRuntimeEvent(event);
+        }
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'quotation-sheet',
+            reason: '用户要生成报价单。',
+          },
+          skill: {
+            id: 'quotation-sheet',
+            displayName: '报价单',
+            adapter: 'quotation-sheet',
+            artifactType: 'xlsx',
+          },
+          result: {
+            ok: true,
+            mode: 'quotation-sheet',
+            outputPath: '/tmp/报价单.xlsx',
+            artifactName: '报价单.xlsx',
+          },
+          artifact: {
+            type: 'xlsx',
+            name: '报价单.xlsx',
+            outputPath: '/tmp/报价单.xlsx',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.kind, 'confirmation-required');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '报价单');
+  assert.equal(response.artifact.name, '报价单.xlsx');
+  assert.equal(response.context.artifact.name, '报价单.xlsx');
+  assert.equal(response.context.pendingConfirmation.type, 'export_file');
+  const assistantMessage = response.messages.find((message) => message.role === 'assistant' && message.confirmation);
+  assert.equal(assistantMessage.confirmation.title, '导出文件前需要确认');
+  assert.match(assistantMessage.content, /导出前需要你确认/);
+  assert.deepEqual(response.progress.slice(-3).map((item) => item.label), ['检查结果', '核对权限', '等待确认']);
+  assert.deepEqual(assistantMessage.process.steps.slice(-3).map((item) => item.label), ['检查结果', '核对权限', '等待确认']);
+  assert.deepEqual(progressEvents, [
+    'goal.received',
+    'skill.loaded',
+    'plan.created',
+    'action.executed',
+    'artifact.verified',
+    'policy.checked',
+    'run.waiting',
+  ]);
+  assert.match(runtimeText, /生成报价单/);
+  assert.match(runtimeText, /产品太阳能路灯/);
+  assert.match(runtimeText, /单价USD 35/);
+});
+
+test('runNewConversationAgent generates a first-turn quotation artifact before asking to save it', async () => {
+  let runtimeText = '';
+
+  const response = await runNewConversationAgent({
+    text: '帮我生成报价单并保存一下，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai',
+    registry: createQuotationRegistry(),
+    skillRuntime: {
+      async runGoal({ text, onRuntimeEvent }) {
+        runtimeText = text;
+        for (const event of [
+          { type: 'goal.received', status: 'complete' },
+          { type: 'skill.loaded', status: 'complete' },
+          { type: 'plan.created', status: 'complete' },
+          { type: 'action.executed', status: 'complete' },
+          { type: 'artifact.verified', status: 'complete' },
+          { type: 'run.completed', status: 'complete' },
+        ]) {
+          await onRuntimeEvent(event);
+        }
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'quotation-sheet',
+            reason: '用户要生成报价单。',
+          },
+          skill: {
+            id: 'quotation-sheet',
+            displayName: '报价单',
+            adapter: 'quotation-sheet',
+            artifactType: 'xlsx',
+          },
+          result: {
+            ok: true,
+            mode: 'quotation-sheet',
+            outputPath: '/tmp/报价单.xlsx',
+            artifactName: '报价单.xlsx',
+          },
+          artifact: {
+            type: 'xlsx',
+            name: '报价单.xlsx',
+            outputPath: '/tmp/报价单.xlsx',
+          },
+        };
+      },
+    },
+  });
+
+  const assistantMessage = response.messages.find((message) => message.role === 'assistant' && message.confirmation);
+
+  assert.equal(response.kind, 'confirmation-required');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.artifact.name, '报价单.xlsx');
+  assert.equal(response.context.pendingConfirmation.type, 'customer_write');
+  assert.equal(assistantMessage.confirmation.title, '写入客户档案前需要确认');
+  assert.match(assistantMessage.content, /保存前需要你确认/);
+  assert.deepEqual(response.progress.slice(-2).map((item) => item.label), ['核对权限', '等待确认']);
+  assert.match(runtimeText, /生成报价单/);
+  assert.match(runtimeText, /保存一下/);
+});
+
+test('runNewConversationAgent asks for missing quotation fields before first-turn export confirmation', async () => {
+  const response = await runNewConversationAgent({
+    text: '帮我生成报价单并导出文件，产品太阳能路灯',
+    registry: createQuotationRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not generate an incomplete quotation before export');
+      },
+    },
+  });
+
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '报价单');
+  assert.equal(response.context.pendingTask.skillId, 'quotation-sheet');
+  assert.deepEqual(response.messages[0].needsInput.items, ['数量', '单价或报价区间', '币种和贸易条款']);
+  assert.doesNotMatch(response.messages[0].content, /还没有可导出的业务产物/);
+});
+
 test('runNewConversationAgent executes a matched email draft when business context is enough', async () => {
   let runtimeText = '';
   const response = await runNewConversationAgent({

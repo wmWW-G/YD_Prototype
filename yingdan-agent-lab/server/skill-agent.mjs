@@ -189,6 +189,45 @@ export async function runNewConversationAgent(options = {}) {
           text,
         });
       }
+      if (shouldGenerateArtifactBeforeRiskConfirmation({ match, riskyAction })) {
+        const missingContext = detectMissingBusinessContext({ match, text });
+        if (missingContext.missing.length === 0) {
+          const bufferedRuntimeEvents = [];
+          const collectRuntimeEvent = async (event) => {
+            bufferedRuntimeEvents.push(event);
+          };
+          const generatedResponse = await runMatchedSkillGoal({
+            checkPolicy: options.checkPolicy,
+            projectRoot,
+            sessionId: options.sessionId,
+            skillRuntime: options.skillRuntime,
+            onRuntimeEvent: collectRuntimeEvent,
+            text,
+          });
+
+          if (generatedResponse.ok !== false && generatedResponse.kind !== 'confirmation-required' && generatedResponse.artifact) {
+            return buildPostArtifactRiskConfirmationResponse({
+              onRuntimeEvent: options.onRuntimeEvent,
+              response: generatedResponse,
+              runtimeEvents: bufferedRuntimeEvents,
+              riskyAction,
+              text,
+            });
+          }
+
+          await emitBufferedRuntimeEvents(options.onRuntimeEvent, bufferedRuntimeEvents);
+          return generatedResponse;
+        }
+
+        return buildNeedsInputResponse({
+          missing: missingContext.missing,
+          matchedSkill: match.skill,
+          onRuntimeEvent: options.onRuntimeEvent,
+          projectRoot,
+          sessionId: options.sessionId,
+          text,
+        });
+      }
       return buildNeedsInputResponse({
         missing: missingArtifact.missing,
         onRuntimeEvent: options.onRuntimeEvent,
@@ -784,6 +823,29 @@ function missingArtifactForRiskyAction(input = {}) {
   };
   const missing = requirements[type];
   return missing ? { missing } : null;
+}
+
+/**
+ * shouldGenerateArtifactBeforeRiskConfirmation 判断是否可以先做安全产物再等确认。
+ *
+ * 作用：
+ * - 用户常会第一句话就说“生成报价单并导出”,这时导出前确实没有现成 artifact。
+ * - 如果同一句话已经匹配到完整业务任务,Agent 应先生成报价单/草稿这类安全产物。
+ * - 只有保存到客户档案、导出文件这类“依赖产物”的动作走这个路径。
+ * - 外发、付费、调用外部系统仍保持先确认,避免用户误以为已经产生外部副作用。
+ *
+ * 参数：
+ * - input.match：当前文本的业务 Skill 匹配结果。
+ * - input.riskyAction：当前文本命中的风险动作。
+ *
+ * 返回值：boolean，true 表示可先生成安全业务产物,再进入确认等待。
+ * 可能抛出的异常：无。
+ */
+function shouldGenerateArtifactBeforeRiskConfirmation(input = {}) {
+  if (!input.match?.matched) {
+    return false;
+  }
+  return ['customer_write', 'export_file'].includes(input.riskyAction?.type || '');
 }
 
 function isConfirmationMessage(text = '', pendingConfirmation = {}) {

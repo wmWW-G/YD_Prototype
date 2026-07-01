@@ -750,3 +750,9 @@
   - 已加严 Runtime 测试为报价单行级断言,逐项核对 `产品 / 数量 / 单价/报价 / 贸易条款`;`server/skill-runner.mjs` 同步支持 `产品,太阳能路灯` 并保留 `FOB Shanghai` 的英文空格。
   - 新增反例测试 `runNewConversationAgent does not treat referenced sample fee as quotation unit price` 和 `runNewConversationAgent does not treat referenced suffix-currency sample fee as quotation unit price`,确保 `样品费,USD 35`、`样品费,35 USD` 都只会继续追问 `单价或报价区间`。
   - `server/skill-agent.mjs` 的报价缺资料识别现在支持 `字段,值` / `字段，值` 这种 CSV 常见分隔符;`USD 35`、`35 USD` 这类货币金额只有在 `单价/价格/报价` 字段后才算报价单单价。
+- 补齐首轮任务与导出同句的确认闭环：
+  - 复现问题:用户第一句话说 `帮我生成报价单并导出文件，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai` 时,系统因为当前没有 artifact 直接返回 `needs-input`,像是在问“要导出什么”,而不是先完成安全的报价单生成。
+  - 新增红灯测试 `runNewConversationAgent generates a first-turn quotation artifact before asking to export it`,要求首轮完整业务任务先生成 `报价单.xlsx`,再进入 `导出文件前需要确认`,并且 SSE 进度过滤 `run.completed`,最后收束为 `核对权限 / 等待确认`。
+  - 新增反例测试 `runNewConversationAgent asks for missing quotation fields before first-turn export confirmation`,确保同句里任务资料不完整时继续追问 `数量 / 单价或报价区间 / 币种和贸易条款`,不提示“还没有可导出的业务产物”。
+  - sub agent 评审结论 Ready,未发现 Critical/Important;按其 Minor 建议补充 `runNewConversationAgent generates a first-turn quotation artifact before asking to save it`,直接覆盖首轮 `生成报价单并保存一下` 的 `customer_write` 确认路径。
+  - `server/skill-agent.mjs` 新增 `shouldGenerateArtifactBeforeRiskConfirmation()`,只允许 `customer_write` 和 `export_file` 在已匹配完整业务任务时先生成安全产物;外发、付费和外部调用仍然先确认。
