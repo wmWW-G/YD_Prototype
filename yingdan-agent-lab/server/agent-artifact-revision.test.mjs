@@ -206,6 +206,95 @@ test('reviseMarkdownArtifactForFollowup supports day five follow-up scripts', as
   }
 });
 
+test('reviseMarkdownArtifactForFollowup drafts a standalone WhatsApp follow-up message', async () => {
+  const fixture = await withRevisionProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '客户推进分析.md');
+    await writeFile(
+      artifactPath,
+      [
+        '# 客户推进分析',
+        '',
+        '## 依据',
+        '',
+        '- 产品: 家具',
+        '- 客户关注点: 客户沉默/未回复',
+        '',
+        '## 7天跟进节奏',
+        '',
+        '- 第1天: 发一条轻量提醒,围绕家具补充一个有用信息点。',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = await reviseMarkdownArtifactForFollowup({
+      projectRoot: fixture.projectRoot,
+      instruction: '写一条 WhatsApp 跟进消息，语气自然一点',
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+        },
+      },
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.match(updated, /WhatsApp Follow-up Message/i);
+    assert.match(updated, /Hi \{\{Customer Name\}\}/);
+    assert.match(updated, /furniture/i);
+    assert.match(updated, /外发前仍需确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('reviseMarkdownArtifactForFollowup does not infer WhatsApp from Taiwan in email requests', async () => {
+  const fixture = await withRevisionProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '客户推进分析.md');
+    await writeFile(
+      artifactPath,
+      [
+        '# 客户推进分析',
+        '',
+        '## 依据',
+        '',
+        '- 产品: 家具',
+        '- 客户关注点: Taiwan 客户沉默/未回复',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = await reviseMarkdownArtifactForFollowup({
+      projectRoot: fixture.projectRoot,
+      instruction: '写一条 Email 内容给 Taiwan 客户',
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+        },
+      },
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.doesNotMatch(updated, /WhatsApp Follow-up Message/i);
+    assert.match(updated, /Email Follow-up Message/i);
+    assert.match(updated, /Taiwan/i);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('reviseMarkdownArtifactForFollowup rejects artifacts outside generated artifact roots', async () => {
   const fixture = await withRevisionProject();
 

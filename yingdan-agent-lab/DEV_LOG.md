@@ -2,6 +2,13 @@
 
 ## 2026-07-01
 
+- 补齐自然 WhatsApp 跟进消息续改:
+  - 复现问题:当前线程已有 `客户推进分析.md` 时,用户自然说 `写一条 WhatsApp 跟进消息，语气自然一点`,后端会因为 `WhatsApp` 误进入外发确认;即使绕过确认,Markdown 续改器也只记录要求,不会写出可检查文案。
+  - 已修复:渠道草稿识别新增 `消息 / 内容 / message / copy / script` 等自然表达;没有指定第几天时,续改器会生成独立 `WhatsApp Follow-up Message` 或 `Email Follow-up Message` 草稿,并保留产品语境和外发前确认提醒。
+  - 新增红绿回归测试 `runNewConversationAgent treats a WhatsApp follow-up message request as draft follow-up, not external send`、`reviseMarkdownArtifactForFollowup drafts a standalone WhatsApp follow-up message`;同时把 `写一条 WhatsApp 跟进消息，然后发送给客户` 和 `写一条 WhatsApp 跟进消息，发一下` 加入外发确认保护用例。
+  - sub agent 复查指出 Important:英文 `send this to the customer` 仍可能漏过确认,`帮我分析这段 WhatsApp 消息内容` 会被过度识别成续写草稿,并且 `/wa/` 会误命中 `Taiwan`。
+  - 已修复:外发显式意图新增 `send this to the customer / send this email to the buyer` 等英文表达;渠道草稿必须有创作/修改意图,分析已有消息内容会跳过同产物续写兜底;`wa` 改为单词边界,不会从 `Taiwan` 推断 WhatsApp。
+  - 新增回归测试 `runNewConversationAgent does not rewrite analysis requests for existing WhatsApp message content as follow-up drafts`、`reviseMarkdownArtifactForFollowup does not infer WhatsApp from Taiwan in email requests`,并把两个英文外发句加入确认保护用例。
 - 修复客户档案保存默认错绑演示客户:
   - sub agent 评估指出 Critical:没有明确客户绑定时,`保存到客户档案` 确认后会默认写入 `global-sourcing-inc`,可能把真实任务材料错绑到演示客户。
   - 已修复:`saveAgentArtifactToCustomerMemory()` 不再默认 customerSlug;`customer_write` 确认分支在缺少客户绑定时继续等待用户补充客户档案名称或客户标识,不会写入任何 memory。

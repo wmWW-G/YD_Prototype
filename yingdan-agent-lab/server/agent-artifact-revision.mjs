@@ -382,18 +382,26 @@ function sanitizeInstruction(value = '') {
  */
 function buildChannelScriptAdditions({ currentContent = '', instruction = '' } = {}) {
   const lower = String(instruction || '').toLowerCase();
-  const asksForWhatsApp = /whatsapp|wa|站内信|即时消息/.test(lower);
+  const asksForWhatsApp = /whatsapp|\bwa\b|站内信|即时消息/.test(lower);
   const asksForEmail = /邮件|email|mail/.test(lower);
   const asksForEnglish = /英文|english/.test(lower);
-  const mentionsScript = /话术|文案|script|copy|message/.test(lower);
+  const mentionsScript = /话术|文案|消息|内容|跟进|script|copy|message|follow[-\s]?up|followup/.test(lower);
   const requestedDays = extractRequestedFollowupDays(instruction);
 
-  if (!requestedDays.length || !mentionsScript || (!asksForWhatsApp && !asksForEmail)) {
+  if (!mentionsScript || (!asksForWhatsApp && !asksForEmail)) {
     return [];
   }
 
   const product = extractProductFromMarkdown(currentContent);
   const englishProduct = translateRevisionProduct(product);
+  if (!requestedDays.length) {
+    return buildStandaloneChannelMessageAdditions({
+      asksForEmail,
+      asksForWhatsApp,
+      englishProduct,
+    });
+  }
+
   const channelLabel = [
     asksForWhatsApp ? 'WhatsApp' : '',
     asksForEmail ? 'Email' : '',
@@ -423,6 +431,55 @@ function buildChannelScriptAdditions({ currentContent = '', instruction = '' } =
         '{{Your Name}}',
       );
     }
+  }
+
+  return additions;
+}
+
+/**
+ * buildStandaloneChannelMessageAdditions 生成不绑定具体第几天的渠道跟进消息。
+ *
+ * 作用：
+ * - 用户自然说“写一条 WhatsApp 跟进消息”时,仍然要得到可直接检查的草稿。
+ * - 不要求用户知道系统内部按“第 N 天话术”处理,减少原型使用门槛。
+ * - 这里仍只写草稿内容;是否外发继续交给上层确认机制。
+ *
+ * 参数：
+ * - asksForEmail：boolean,是否需要邮件草稿。
+ * - asksForWhatsApp：boolean,是否需要 WhatsApp/即时消息草稿。
+ * - englishProduct：string,已经翻译或清洗后的产品名,用于让草稿有业务上下文。
+ *
+ * 返回值：Markdown 行数组。
+ * 可能抛出的异常：无。
+ */
+function buildStandaloneChannelMessageAdditions({ asksForEmail = false, asksForWhatsApp = false, englishProduct = 'the product' } = {}) {
+  const channelLabel = [
+    asksForWhatsApp ? 'WhatsApp' : '',
+    asksForEmail ? 'Email' : '',
+  ].filter(Boolean).join(' 和 ');
+  const additions = [
+    `- 已补充 ${channelLabel} 跟进消息草稿,仅作为草稿,不会自动外发。`,
+  ];
+
+  if (asksForWhatsApp) {
+    additions.push(
+      '#### WhatsApp Follow-up Message',
+      buildWhatsAppScript({ day: 1, englishProduct }),
+    );
+  }
+
+  if (asksForEmail) {
+    additions.push(
+      '#### Email Follow-up Message',
+      `Subject: Quick follow-up on ${englishProduct}`,
+      '',
+      'Hi {{Customer Name}},',
+      '',
+      buildEmailBody({ day: 1, englishProduct }),
+      '',
+      'Best regards,',
+      '{{Your Name}}',
+    );
   }
 
   return additions;

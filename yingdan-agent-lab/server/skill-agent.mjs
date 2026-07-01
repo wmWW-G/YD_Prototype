@@ -426,7 +426,7 @@ export async function runNewConversationAgent(options = {}) {
     });
   }
 
-  if (options.sessionId && !startsFreshTask && !match.matched) {
+  if (options.sessionId && !startsFreshTask && !match.matched && !isChannelReferenceOnlyRequest(text)) {
     return buildAgentFollowupResponse({
       context,
       onRuntimeEvent: options.onRuntimeEvent,
@@ -964,6 +964,25 @@ function isCustomerPurchaseIntent(text = '') {
 }
 
 /**
+ * hasExplicitExternalSendIntent 判断一句话是否明确要求外发。
+ *
+ * 作用：
+ * - `WhatsApp / Email` 只是渠道名,不等于发送。
+ * - 但 `send this to the customer`、`发一下`、`发送给客户` 这类表达必须先停在确认卡。
+ * - 该函数只识别明确外发动词,避免把“分析 WhatsApp 消息内容”误当外发。
+ *
+ * 参数：
+ * - text：用户本轮输入文本。
+ *
+ * 返回值：boolean,true 表示存在明确外发意图。
+ * 可能抛出的异常：无。
+ */
+function hasExplicitExternalSendIntent(text = '') {
+  const value = String(text || '').toLowerCase();
+  return /外发|直接(?:发|发送)|现在(?:发|发送)|立即(?:发|发送)|马上(?:发|发送)|帮我(?:发|发送)|(?:然后|再|并)?发送(?:给|到)?(?:客户|买家|采购商|客人)?|(?:然后|再|并)?发(?:一下|下|过去)(?:吧)?|发出|发(?:送)?给|(?:然后|再|并|直接|现在|立即|马上|帮我)\s*发(?:客户|买家|采购商|客人)|发到|发送到|寄给|send\s+(?:to|email|it|now)|send\s+(?:this|it|the\s+(?:message|email|draft)|this\s+(?:message|email|draft))?\s*(?:to|over\s+to)\s+(?:the\s+)?(?:customer|buyer|client|prospect)|send\s+(?:this\s+)?email\s+to\s+(?:the\s+)?(?:customer|buyer|client|prospect)|(?:whatsapp|email|message)\s+(?:the\s+)?(?:customer|buyer|client|prospect)|发邮件(?:给|到)/.test(value);
+}
+
+/**
  * detectRiskyAction 识别新对话里需要先确认的高风险动作。
  *
  * 作用：
@@ -1020,8 +1039,13 @@ function detectRiskyAction(text = '') {
   ];
 
   return rules.find((rule) => {
-    if (rule.type === 'external_send' && isChannelDraftOnlyRequest(text)) {
-      return false;
+    if (rule.type === 'external_send') {
+      if (hasExplicitExternalSendIntent(text)) {
+        return true;
+      }
+      if (isChannelDraftOnlyRequest(text) || isChannelReferenceOnlyRequest(text)) {
+        return false;
+      }
     }
     const hasKeyword = rule.keywords.some((keyword) => value.includes(keyword));
     const hasPattern = (rule.patterns || []).some((pattern) => pattern.test(value));
@@ -1045,19 +1069,46 @@ function detectRiskyAction(text = '') {
  */
 function isChannelDraftOnlyRequest(text = '') {
   const value = String(text).toLowerCase();
-  const mentionsChannel = /whatsapp|wa\b|邮件|email|mail|站内信|即时消息/.test(value);
+  const mentionsChannel = /whatsapp|\bwa\b|邮件|email|mail|站内信|即时消息/.test(value);
   if (!mentionsChannel) {
     return false;
   }
 
-  const asksForDraftVersion = /话术|文案|草稿|模板|版本|两版|多版|改成|写成|整理成|生成[^，。,.!?！？]{0,8}版|subject|标题/.test(value);
+  const hasDraftFormatIntent = /话术|文案|草稿|模板|版本|两版|多版|改成|写成|整理成|copy|script|生成[^，。,.!?！？]{0,8}版|subject|标题/.test(value);
+  const hasMessageObject = /消息|内容|message/.test(value);
+  const hasCreationIntent = /写|准备|生成|起草|拟|编辑|优化|润色|修改|改成|写成|整理成|补|write|prepare|compose|create|generate|draft|rewrite|polish/.test(value);
+  const hasAnalysisIntent = /分析|解读|总结|判断|评估|查看|看看|看下|看一下|review|analy[sz]e|summari[sz]e|interpret/.test(value);
+  const asksForDraftVersion = hasDraftFormatIntent || (hasMessageObject && hasCreationIntent && !hasAnalysisIntent);
   if (!asksForDraftVersion) {
     return false;
   }
 
-  const explicitSendIntent =
-    /外发|直接(?:发|发送)|现在(?:发|发送)|立即(?:发|发送)|马上(?:发|发送)|帮我(?:发|发送)|(?:然后|再|并)?发送(?:给|到)?(?:客户|买家|采购商|客人)?|发出|发(?:送)?给|(?:然后|再|并|直接|现在|立即|马上|帮我)\s*发(?:客户|买家|采购商|客人)|发到|发送到|寄给|send\s+(?:to|email|it|now)|发邮件(?:给|到)/.test(value);
-  return !explicitSendIntent;
+  return !hasExplicitExternalSendIntent(value);
+}
+
+/**
+ * isChannelReferenceOnlyRequest 判断渠道词是不是在描述已有消息或聊天记录。
+ *
+ * 作用：
+ * - `帮我分析这段 WhatsApp 消息内容` 是分析已有材料,不是写草稿,也不是外发。
+ * - 这类请求不能因为出现 `WhatsApp` 就弹外发确认,也不能续写成跟进消息草稿。
+ *
+ * 参数：
+ * - text：用户本轮输入文本。
+ *
+ * 返回值：boolean,true 表示只是引用已有渠道消息内容。
+ * 可能抛出的异常：无。
+ */
+function isChannelReferenceOnlyRequest(text = '') {
+  const value = String(text || '').toLowerCase();
+  const mentionsChannel = /whatsapp|\bwa\b|邮件|email|mail|站内信|即时消息/.test(value);
+  if (!mentionsChannel || hasExplicitExternalSendIntent(value)) {
+    return false;
+  }
+
+  const hasAnalysisIntent = /分析|解读|总结|判断|评估|查看|看看|看下|看一下|review|analy[sz]e|summari[sz]e|interpret/.test(value);
+  const hasReferenceObject = /这段|这些|消息|内容|原文|聊天|记录|截图|conversation|chat|message|thread/.test(value);
+  return hasAnalysisIntent && hasReferenceObject;
 }
 
 function missingArtifactForRiskyAction(input = {}) {

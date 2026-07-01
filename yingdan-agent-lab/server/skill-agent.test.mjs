@@ -3602,6 +3602,66 @@ test('runNewConversationAgent treats channel script versions as current artifact
   }
 });
 
+test('runNewConversationAgent treats a WhatsApp follow-up message request as draft follow-up, not external send', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-whatsapp-message-followup-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '客户推进分析.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(
+      artifactPath,
+      [
+        '# 客户推进分析',
+        '',
+        '## 依据',
+        '',
+        '- 产品: 家具',
+        '- 客户关注点: 客户沉默/未回复',
+        '',
+        '## 7天跟进节奏',
+        '',
+        '- 第1天: 发一条轻量提醒。',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const response = await runNewConversationAgent({
+      text: '写一条 WhatsApp 跟进消息，语气自然一点',
+      sessionId: 'agent-session-20260701T101000-whatsapp-message-followup',
+      context: {
+        artifact: {
+          type: 'markdown',
+          name: '客户推进分析.md',
+          outputPath: artifactPath,
+        },
+      },
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+        },
+      },
+      registry: createEmailAndFollowupRegistry(),
+      projectRoot,
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'followup');
+    assert.equal(response.status, 'completed');
+    assert.equal(response.context.pendingConfirmation, undefined);
+    assert.match(updated, /WhatsApp Follow-up Message/i);
+    assert.match(updated, /furniture/i);
+    assert.match(updated, /外发前仍需确认/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('runNewConversationAgent still asks before sending drafted channel script versions', async () => {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-channel-script-send-confirm-'));
   const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
@@ -3624,6 +3684,10 @@ test('runNewConversationAgent still asks before sending drafted channel script v
     '把第1天/第3天话术写成英文 WhatsApp 和邮件两版，然后发客户',
     '把第1天/第3天话术写成英文 WhatsApp 和邮件两版，send it',
     '把第1天/第3天话术写成英文 WhatsApp 和邮件两版，send now',
+    '写一条 WhatsApp 跟进消息，然后发送给客户',
+    '写一条 WhatsApp 跟进消息，发一下',
+    'write a WhatsApp message and send this to the customer',
+    'please send this email to the buyer',
   ];
 
   try {
@@ -3803,6 +3867,55 @@ test('runNewConversationAgent does not treat customer development wording as sen
     assert.equal(response.context.pendingConfirmation, undefined);
     assert.match(updated, /Day 1 WhatsApp/);
     assert.match(updated, /Day 1 Email/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('runNewConversationAgent does not rewrite analysis requests for existing WhatsApp message content as follow-up drafts', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-whatsapp-message-analysis-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '客户推进分析.md');
+  const originalContent = [
+    '# 客户推进分析',
+    '',
+    '## 依据',
+    '',
+    '- 产品: 家具',
+    '- 客户关注点: 客户沉默/未回复',
+  ].join('\n');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(artifactPath, originalContent, 'utf8');
+
+    const response = await runNewConversationAgent({
+      text: '帮我分析这段 WhatsApp 消息内容',
+      sessionId: 'agent-session-20260701T103000-whatsapp-message-analysis',
+      context: {
+        artifact: {
+          type: 'markdown',
+          name: '客户推进分析.md',
+          outputPath: artifactPath,
+        },
+      },
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+        },
+      },
+      registry: createEmailAndFollowupRegistry(),
+      projectRoot,
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+
+    assert.notEqual(response.kind, 'followup');
+    assert.notEqual(response.kind, 'confirmation-required');
+    assert.equal(updated, originalContent);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
