@@ -3265,6 +3265,65 @@ test('runNewConversationAgent carries prior thread facts into a new matched task
   assert.doesNotMatch(runtimeText, /开发信/);
 });
 
+test('runNewConversationAgent ignores confirmation chatter while carrying prior business facts', async () => {
+  const registry = createEmailAndFollowupRegistry();
+  let runtimeText = '';
+
+  const response = await runNewConversationAgent({
+    text: '再做一个客户下一步推进计划',
+    sessionId: 'agent-session-confirmation-chatter',
+    context: {},
+    session: {
+      messages: [
+        { role: 'user', content: '客户是德国采购商，产品太阳能路灯，重点问MOQ和交期，帮我写开发信发给客户' },
+        { role: 'assistant', content: '外发前需要你确认。' },
+        { role: 'user', content: '先生成草稿' },
+        { role: 'assistant', content: '已生成开发信草稿。' },
+        { role: 'user', content: '确认继续' },
+      ],
+    },
+    registry,
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'customer-followup-plan',
+            reason: '用户在同一线程里继续要求客户推进计划。',
+          },
+          skill: {
+            id: 'customer-followup-plan',
+            displayName: '客户推进分析',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/客户推进分析.md',
+            artifactName: '客户推进分析.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: '/tmp/客户推进分析.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.artifact.name, '客户推进分析.md');
+  assert.match(runtimeText, /德国采购商/);
+  assert.match(runtimeText, /太阳能路灯/);
+  assert.match(runtimeText, /MOQ和交期/);
+  assert.doesNotMatch(runtimeText, /发给|外发|发送|先生成草稿|确认继续/);
+});
+
 test('runNewConversationAgent does not carry prior customer facts when the user asks about another customer', async () => {
   const registry = createEmailAndFollowupRegistry();
   const firstText = '帮我准备一封跟进开发信，客户是德国采购商，产品太阳能路灯，重点问MOQ和交期';

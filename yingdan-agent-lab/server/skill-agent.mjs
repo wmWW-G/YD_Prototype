@@ -691,13 +691,93 @@ function extractRecentUserThreadFacts(session = {}) {
  * 可能抛出的异常：无。
  */
 function cleanThreadFactText(value = '') {
-  const text = extractBusinessFactSegment(String(value || ''))
+  const text = stripOperationalThreadFactText(extractBusinessFactSegment(String(value || '')))
     .replace(/产出类型\s*[:：]/g, '')
     .replace(/补充资料\s*[:：]/g, '；')
     .replace(/(?:帮我|请|麻烦)?(?:准备|生成|写|做|整理)?(?:一封|一个|一下)?(?:跟进)?(?:开发信|开发邮件|邮件|草稿)[，,;；。.]*/g, '')
+    .replace(/[，,;；]\s*(?:客户|买家|采购商|客人|对方|他|她|他们|buyer|customer|client)\s*$/iu, '')
     .replace(/\s+/g, ' ')
     .trim();
-  return text.length > 500 ? `${text.slice(0, 497)}...` : text;
+  const cleaned = stripOperationalThreadFactText(text);
+  if (isOperationalThreadFactOnly(cleaned)) {
+    return '';
+  }
+  return cleaned.length > 500 ? `${cleaned.slice(0, 497)}...` : cleaned;
+}
+
+/**
+ * stripOperationalThreadFactText 清理同线程里的“操作话”,只留下业务事实。
+ *
+ * 作用：
+ * - 用户确认外发、导出、保存或说“先生成草稿”时,这些话属于 UI/Runtime 操作,不是客户资料。
+ * - 下一轮“再做客户推进计划”只能复用客户、产品、询盘和卡点,不能把确认口令带进产物输入。
+ *
+ * 参数：
+ * - value：从用户历史消息里截出的事实候选文本。
+ *
+ * 返回值：去掉外发/确认/草稿等操作碎片后的文本。
+ * 可能抛出的异常：无。
+ */
+function stripOperationalThreadFactText(value = '') {
+  let text = stripExternalSendText(String(value || ''));
+
+  for (const pattern of [
+    /(?:^|[，,;；。.\s]+)(?:先)?(?:生成|写|出|做)?(?:一封|一个|一下)?(?:开发信|邮件|询盘回复)?草稿(?:格式|版本)?(?=$|[，,;；。.\s]+)/giu,
+    /(?:^|[，,;；。.\s]+)(?:确认|可以|继续|好的|好|嗯|行|ok|okay)(?:继续|生成草稿|生成|保存|导出|发送|外发|执行)?(?=$|[，,;；。.\s]+)/giu,
+    /(?:^|[，,;；。.\s]+)(?:保存一下|保存下|导出文件|导出|下载文件|下载|外发|发送|发出去)(?=$|[，,;；。.\s]+)/giu,
+    /(?:^|[，,;；。.\s]+)(?:先|继续)(?=$|[，,;；。.\s]+)/giu,
+  ]) {
+    text = text.replace(pattern, '；');
+  }
+
+  return normalizeBusinessFactSeparators(text);
+}
+
+/**
+ * isOperationalThreadFactOnly 判断候选事实是否只剩操作口令。
+ *
+ * 作用：
+ * - `确认继续`、`先生成草稿` 这类历史消息不应该参与后续任务匹配。
+ * - 如果文本里还有客户、产品、询盘等业务锚点,就不在这里丢弃。
+ *
+ * 参数：
+ * - value：已初步清理的候选事实。
+ *
+ * 返回值：只剩操作话时返回 true。
+ * 可能抛出的异常：无。
+ */
+function isOperationalThreadFactOnly(value = '') {
+  const compact = String(value || '').replace(/\s+/g, '');
+  if (!compact) {
+    return true;
+  }
+  const businessAnchor = /客户|买家|采购商|产品|询盘|问|说|要求|抱怨|投诉|价格|报价|moq|交期|leadtime|delivery|sample|样品|付款|账期|质量|售后|德国|美国|巴西|buyer|customer|client|product|inquiry/i;
+  if (businessAnchor.test(compact)) {
+    return false;
+  }
+  return /^(?:先|继续|确认继续|确认|可以|好的|好|ok|okay|生成草稿|先生成草稿|保存|导出|下载|发送|外发)$/iu.test(compact);
+}
+
+/**
+ * normalizeBusinessFactSeparators 统一清理事实片段中的分隔符。
+ *
+ * 作用：
+ * - 多轮替换后可能留下 `；；`、行首逗号或行尾标点。
+ * - 这里把文本收束成适合拼进 Runtime 目标的一行自然语言。
+ *
+ * 参数：
+ * - value：待清理文本。
+ *
+ * 返回值：清理后的单行文本。
+ * 可能抛出的异常：无。
+ */
+function normalizeBusinessFactSeparators(value = '') {
+  return String(value || '')
+    .replace(/[，,;；。.\s]+$/g, '')
+    .replace(/^[，,;；。.\s]+/g, '')
+    .replace(/[，,;；。.]\s*[，,;；。.]+/g, '；')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 /**
