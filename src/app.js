@@ -5182,6 +5182,8 @@ function renderCustomerKassView() {
 
   return `
     <section class="kass-directory workbench-enter">
+      ${renderKassGroupTodayCard(group)}
+
       <aside class="kass-directory-list" aria-label="客户Kass客户列表">
         <header class="kass-directory-head">
           <div>
@@ -5244,6 +5246,99 @@ function renderCustomerKassView() {
       </button>
       ${renderKassAssistant(customer)}
     </section>
+  `;
+}
+
+/**
+ * 根据客户跟进记录生成今日推进提醒。
+ *
+ * 为什么只看跟进记录：
+ * - 用户已经明确：今日提醒应该来自真实跟进内容，而不是销售准备里的标准流程。
+ * - 未来接后端时，这里可以直接替换为“读取该客户跟进记录 → AI 提炼下一步”的结果。
+ * - 当前样例客户没有跟进记录时，提醒用户先补记录，这是更真实的空状态。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {{ source: string, priority: string, title: string, reason: string, action: string, chips: string[], sourceNote: string }} 今日推进提醒。
+ * @throws {Error} 本函数不主动抛异常；缺少跟进记录时返回补记录提醒。
+ */
+function buildKassTodayReminder(customer) {
+  const records = customer.followupRecords || customer.followups || [];
+  const latestRecord = records[0] || null;
+
+  if (!latestRecord) {
+    return {
+      source: `客户跟进记录 ${customer.records || 0} 条`,
+      priority: "高",
+      title: "先补一条跟进记录",
+      reason: "这位客户还没有跟进记录。先补原始询盘、上次沟通结果和约定下一步。",
+      action: "新增首次跟进记录",
+      chips: ["原始询盘", "上次沟通结果", "约定下一步"],
+      sourceNote: "依据：暂无跟进记录，今天先把客户上下文补齐。"
+    };
+  }
+
+  return {
+    source: latestRecord.time || "最近一条跟进记录",
+    priority: latestRecord.priority || "中",
+    title: latestRecord.nextAction || "确认下一步动作",
+    reason: latestRecord.summary || "最近记录里已经出现下一步线索，今天应优先处理这条客户。",
+    action: latestRecord.nextAction || "补充下一步动作",
+    chips: latestRecord.tags || ["跟进记录", "下一步动作"],
+    sourceNote: `判断依据：${latestRecord.text || latestRecord.summary || "最近跟进记录"}`
+  };
+}
+
+/**
+ * 渲染客户 Kass 分组层级的今日推进提醒。
+ *
+ * 为什么放在分组层级：
+ * - A/B 是客户分层，不是某个客户详情。
+ * - 今日该推进要先回答“这一组客户里今天先处理谁”，再让用户点进具体客户。
+ *
+ * @param {typeof KASS_GROUPS[number]} group - 当前客户 Kass 分组。
+ * @returns {string} 分组今日推进 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassGroupTodayCard(group) {
+  const reminders = group.customers.map((customer) => ({
+    customer,
+    reminder: buildKassTodayReminder(customer)
+  }));
+  const highCount = reminders.filter(({ reminder }) => reminder.priority === "高").length;
+  const noRecordCount = group.customers.filter((customer) => (customer.records || 0) === 0).length;
+
+  return `
+    <article class="kass-today-card kass-group-today-card" aria-label="${escapeHtml(group.label)}级今日该推进">
+      <header>
+        <div>
+          <h3><span class="orange-bar"></span>${escapeHtml(group.label)}级今日该推进</h3>
+          <p>按这一组客户的跟进记录汇总</p>
+        </div>
+        <span class="kass-group-today-count">${group.customers.length} 个客户</span>
+      </header>
+
+      <div class="kass-group-today-metrics" aria-label="分组推进概览">
+        <span><strong>${highCount}</strong> 高优先级</span>
+        <span><strong>${noRecordCount}</strong> 缺记录</span>
+      </div>
+
+      ${reminders.length ? `
+        <div class="kass-group-today-list">
+          ${reminders.map(({ customer, reminder }) => `
+            <button class="kass-group-today-item" type="button" data-customer="${escapeHtml(customer.id)}" aria-label="查看${escapeHtml(customer.name)}今日推进">
+              <span class="kass-group-today-title">
+                <em>${escapeHtml(reminder.priority)}</em>
+                <strong>${escapeHtml(customer.name)}</strong>
+              </span>
+              <span class="kass-group-today-action">${escapeHtml(reminder.title)}</span>
+              <span class="kass-group-today-source">${escapeHtml(reminder.source)}</span>
+            </button>
+          `).join("")}
+        </div>
+      ` : `
+        <div class="kass-today-empty-state">这一组暂无客户，新增客户后再生成今日推进。</div>
+      `}
+    </article>
   `;
 }
 

@@ -2284,6 +2284,7 @@ button:disabled {
 }
 
 .kass-info-card,
+.kass-today-card,
 .kass-flow-card,
 .kass-record-card {
   min-width: 0;
@@ -2295,6 +2296,7 @@ button:disabled {
 }
 
 .kass-info-card header,
+.kass-today-card header,
 .kass-flow-card header,
 .kass-record-card header {
   display: flex;
@@ -2304,6 +2306,7 @@ button:disabled {
 }
 
 .kass-info-card h3,
+.kass-today-card h3,
 .kass-flow-card h3,
 .kass-record-card h3 {
   display: flex;
@@ -2314,11 +2317,187 @@ button:disabled {
 }
 
 .kass-info-card p,
+.kass-today-card p,
 .kass-flow-card p,
 .kass-record-card p {
   margin: 0;
   color: var(--muted);
   line-height: 1.65;
+}
+
+.kass-today-card {
+  display: grid;
+  gap: 12px;
+  border-color: #f0d9c7;
+  background:
+    linear-gradient(90deg, rgba(255, 92, 0, 0.06), rgba(255, 255, 255, 0.96) 46%),
+    #fffdfb;
+  box-shadow: none;
+}
+
+.kass-group-today-count {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #fff2e9;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.kass-group-today-card {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(170px, 0.45fr) minmax(320px, 1.5fr);
+  align-items: center;
+  margin-top: 0;
+  padding: 12px 16px;
+}
+
+.kass-group-today-card header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.kass-group-today-card h3 {
+  margin-bottom: 4px;
+  font-size: 18px;
+}
+
+.kass-group-today-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.kass-group-today-metrics span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-left: 2px solid rgba(255, 92, 0, 0.28);
+  color: #756a60;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.kass-group-today-metrics strong {
+  margin-right: 4px;
+  color: var(--accent);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.kass-group-today-list {
+  display: flex;
+  gap: 14px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 1px 0 1px 14px;
+  border-left: 1px solid #efd9c8;
+  scrollbar-width: thin;
+}
+
+.kass-group-today-item {
+  flex: 0 0 min(360px, 100%);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 3px;
+  align-items: center;
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.18s, transform 0.18s;
+}
+
+.kass-group-today-item:hover {
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.kass-group-today-title {
+  display: flex;
+  align-items: center;
+  grid-row: 1 / span 2;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kass-group-today-title strong {
+  overflow: hidden;
+  color: #1a1614;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kass-group-today-title em {
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.kass-group-today-action,
+.kass-group-today-source {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kass-group-today-action {
+  color: #5f5650;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.kass-group-today-source {
+  color: #9a8d82;
+  font-size: 12px;
+}
+
+.kass-today-empty-state {
+  padding: 16px;
+  border: 1px dashed #e8d3c0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #7b7067;
+}
+
+@media (max-width: 980px) {
+  .kass-group-today-card {
+    grid-template-columns: 1fr;
+  }
+
+  .kass-group-today-list {
+    overflow: visible;
+  }
+
+  .kass-group-today-item {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 1180px) {
+  .kass-directory {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
 }
 
 .kass-rating-card {
@@ -3513,9 +3692,14 @@ button:disabled {
 
   .company-layout,
   .case-layout,
+  .kass-directory,
   .kass-view,
   .kass-grid {
     grid-template-columns: 1fr;
+  }
+
+  .kass-directory {
+    min-height: 0;
   }
 
   .case-search-box {
