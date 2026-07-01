@@ -114,6 +114,15 @@ test('New Conversation artifact preview failures stay in business language', asy
   assert.equal(source.includes('文件预览失败：'), false);
 });
 
+test('New Conversation artifact previews open the clicked message artifact', async () => {
+  const previewSource = await readFunctionSource('handlePreviewAgentArtifact');
+  const messageSource = await readFunctionSource('AgentThreadMessage');
+
+  assert.equal(previewSource.includes('options.messageId'), true);
+  assert.equal(previewSource.includes("params.set('messageId', options.messageId)"), true);
+  assert.equal(messageSource.includes('onPreviewArtifact(message.artifact, { messageId: message.id })'), true);
+});
+
 test('New Conversation xlsx previews render workbook sheets as structured artifact content', async () => {
   const source = await readFile(appSourcePath, 'utf8');
 

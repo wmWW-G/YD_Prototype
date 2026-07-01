@@ -54,6 +54,59 @@ test('readAgentArtifactPreview returns markdown artifact content from the sessio
   }
 });
 
+test('readAgentArtifactPreview opens the artifact attached to the requested message', async () => {
+  const fixture = await withPreviewProject();
+
+  try {
+    const oldArtifactPath = path.join(fixture.artifactRoot, '开发信草稿-旧版.md');
+    const newArtifactPath = path.join(fixture.artifactRoot, '开发信草稿-新版.md');
+    await writeFile(oldArtifactPath, '# 开发信草稿\n\nOld draft content.\n', 'utf8');
+    await writeFile(newArtifactPath, '# 开发信草稿\n\nNew draft content.\n', 'utf8');
+
+    const preview = await readAgentArtifactPreview({
+      messageId: 'assistant-old-draft',
+      projectRoot: fixture.projectRoot,
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '开发信草稿-新版.md',
+            outputPath: newArtifactPath,
+          },
+        },
+        messages: [
+          {
+            id: 'assistant-old-draft',
+            role: 'assistant',
+            artifact: {
+              type: 'markdown',
+              name: '开发信草稿-旧版.md',
+              outputPath: oldArtifactPath,
+            },
+          },
+          {
+            id: 'assistant-new-draft',
+            role: 'assistant',
+            artifact: {
+              type: 'markdown',
+              name: '开发信草稿-新版.md',
+              outputPath: newArtifactPath,
+            },
+          },
+        ],
+      },
+    });
+
+    assert.equal(preview.ok, true);
+    assert.equal(preview.name, '开发信草稿-旧版.md');
+    assert.match(preview.content, /Old draft content/);
+    assert.doesNotMatch(preview.content, /New draft content/);
+    assert.equal(preview.outputPath, undefined);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('readAgentArtifactPreview returns safe evidence quality for markdown business artifacts', async () => {
   const fixture = await withPreviewProject();
 

@@ -1141,11 +1141,12 @@ export function App() {
    *
    * 参数：
    * - artifact：消息卡片上的产物摘要对象。
+   * - options.messageId：可选,用于让后端打开这条消息当时绑定的产物。
    *
    * 返回值：Promise<void>。
    * 可能抛出的异常：函数内部捕获网络和接口异常，并展示为预览错误。
    */
-  async function handlePreviewAgentArtifact(artifact = {}) {
+  async function handlePreviewAgentArtifact(artifact = {}, options = {}) {
     if (!agentSessionId) {
       setToast('这次任务还没有可预览的文件');
       return;
@@ -1155,7 +1156,12 @@ export function App() {
     setArtifactPreview({ open: true, status: 'loading', artifact, content: '', error: '' });
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/agent/session/${encodeURIComponent(agentSessionId)}/artifact`);
+      const params = new URLSearchParams();
+      if (options.messageId) {
+        params.set('messageId', options.messageId);
+      }
+      const query = params.toString();
+      const response = await fetch(`${API_BASE_URL}/api/agent/session/${encodeURIComponent(agentSessionId)}/artifact${query ? `?${query}` : ''}`);
       const payload = await response.json();
       if (!response.ok || payload.ok === false) {
         setArtifactPreview({ open: true, status: 'error', artifact, content: '', error: previewErrorMessage });
@@ -2119,7 +2125,7 @@ function AgentThreadMessage({
               <span>{artifactStatusText(message.artifact)}</span>
             </div>
             <div className="artifact-card-actions">
-              <button type="button" disabled={isArtifactActionDisabled} onClick={() => onPreviewArtifact(message.artifact)}>
+              <button type="button" disabled={isArtifactActionDisabled} onClick={() => onPreviewArtifact(message.artifact, { messageId: message.id })}>
                 <Search size={15} />
                 查看
               </button>

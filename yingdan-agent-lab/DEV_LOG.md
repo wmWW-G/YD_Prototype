@@ -2,6 +2,10 @@
 
 ## 2026-07-01
 
+- 修复旧产物卡查看会打开最新产物:
+  - sub agent 只读评估指出 Important:线程里先生成旧 `开发信草稿.md`,再续改出新版后,点击旧消息卡的 `查看` 会调用最新 session artifact,打开新版内容。
+  - 已修复:前端点击产物卡时传 `messageId`;后端只从 session.messages 中该消息绑定的 artifact 定位预览文件,并继续限制路径必须在 `workbench/artifacts/` 或 `workbench/exports/` 下,不接受前端直接传 outputPath。
+  - 新增红绿回归测试 `readAgentArtifactPreview opens the artifact attached to the requested message`,并补前端源码测试 `New Conversation artifact previews open the clicked message artifact`。
 - 修复等待确认时完整新任务被旧确认卡吞掉:
   - sub agent 只读评估指出 Critical:外发确认卡等待时,用户输入 `帮我生成报价单，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai`;旧逻辑会把这句完整新任务塞进 `external_send` 的 supplements,继续提示外发确认。
   - 已修复:pendingConfirmation 分支会先让确认/取消/补资料服务当前卡片;如果本轮文本已经明确匹配到新的 Skill 任务,则切断旧确认卡和旧任务上下文,按新任务进入 Runtime。

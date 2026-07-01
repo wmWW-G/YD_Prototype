@@ -322,7 +322,11 @@ app.get('/api/agent/session/:sessionId/artifact', async (request, response) => {
       });
       return;
     }
-    const preview = await readAgentArtifactPreview({ projectRoot, session });
+    const preview = await readAgentArtifactPreview({
+      messageId: request.query.messageId,
+      projectRoot,
+      session,
+    });
     response.json(preview);
   } catch (error) {
     sendError(response, error);

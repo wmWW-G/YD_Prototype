@@ -22,16 +22,18 @@ print(json.dumps({"sheetCount": len(sheets), "sheets": sheets}, ensure_ascii=Fal
 `;
 
 /**
- * readAgentArtifactPreview 读取当前 Agent session 的最新产物预览。
+ * readAgentArtifactPreview 读取当前 Agent session 的产物预览。
  *
  * 作用：
  * - 给前端“查看文件”提供真实内容,让 Markdown 草稿和客户分析能在任务线程里打开。
- * - 只读取 session 里记录的最新产物,并且路径必须位于 `workbench/artifacts/` 或 `workbench/exports/` 下。
+ * - 默认读取 session 里记录的最新产物;传入 messageId 时读取该消息卡片绑定的产物。
+ * - 路径必须位于 `workbench/artifacts/` 或 `workbench/exports/` 下。
  * - 对 XLSX 等二进制产物只返回可读摘要,不把二进制内容塞进前端。
  *
  * 参数：
  * - input.projectRoot：项目根目录。
  * - input.session：agent-session-store 读出的 session 对象。
+ * - input.messageId：可选,点击历史消息产物卡时用于定位当时那份 artifact。
  *
  * 返回值：Promise<object>,包含 ok/name/type/content 等字段。
  * 可能抛出的异常：文件不存在、路径越界或读取失败时抛出带 code/status 的错误。
@@ -39,7 +41,7 @@ print(json.dumps({"sheetCount": len(sheets), "sheets": sheets}, ensure_ascii=Fal
 export async function readAgentArtifactPreview(input = {}) {
   const projectRoot = input.projectRoot || process.cwd();
   const session = input.session || {};
-  const artifact = findLatestArtifact(session);
+  const artifact = findPreviewArtifact({ messageId: input.messageId, session });
 
   if (!artifact?.outputPath) {
     throw createPreviewError('ARTIFACT_NOT_FOUND', '这次任务还没有可预览的产物。', 404);
@@ -92,15 +94,32 @@ export async function readAgentArtifactPreview(input = {}) {
 }
 
 /**
- * findLatestArtifact 从 session 里取最新产物。
+ * findPreviewArtifact 从 session 里取本次应预览的产物。
+ *
+ * 作用：
+ * - 用户点击旧消息卡片时,用 messageId 找到该消息当时绑定的 artifact。
+ * - 没传 messageId 时仍保持旧行为,读取当前 session 最新产物。
+ * - 不接受前端直接传 outputPath,避免绕过 session 绑定关系读取任意文件。
  *
  * 参数：
- * - session：agent-session-store 持久化的线程状态。
+ * - input.messageId：消息 ID,可为空。
+ * - input.session：agent-session-store 持久化的线程状态。
  *
  * 返回值：artifact 对象或 null。
  * 可能抛出的异常：无。
  */
-function findLatestArtifact(session = {}) {
+function findPreviewArtifact(input = {}) {
+  const session = input.session || {};
+  const messageId = String(input.messageId || '').trim();
+  if (messageId) {
+    const messages = Array.isArray(session.messages) ? session.messages : [];
+    const matchedMessage = messages.find((message) => String(message?.id || '') === messageId);
+    if (matchedMessage?.artifact) {
+      return matchedMessage.artifact;
+    }
+    return null;
+  }
+
   return session.context?.artifact || session.artifact || session.skillAgentResult?.artifact || null;
 }
 

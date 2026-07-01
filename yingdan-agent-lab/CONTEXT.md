@@ -148,7 +148,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 即时 Agent result 只返回助手消息;用户消息由前端用用户原始输入本地追加。后端为了续接任务拼出的 `产出类型: ...；补充资料: ...` 这类内部恢复文本不能进入公开 result messages,否则前台会像在展示系统拼接记录而不是自然 agent thread。刷新恢复时再从 session store 返回真实用户消息。
 - 业务产物本身也不能泄露内部恢复文本:Markdown 里的 `任务来源 / 用户目标 / 用户补充` 应还原成自然业务资料,不能出现 `产出类型`、`补充资料`、`原始需求` 这类 Runtime 拼接痕迹。比如缺产品等待后,用户补 `产品太阳能路灯，发给客户`,确认只生成草稿后,`询盘回复草稿.md` 的任务来源应类似 `客户问MOQ和交期，帮我回一下；产品太阳能路灯，发给客户`。
 - `GET /api/agent/session/:sessionId` 是前台恢复接口,也必须返回净化 session;后端 session 文件可以保留真实路径和 pendingConfirmation,但 HTTP 恢复 payload 不返回这些内部执行字段。
-- `server/agent-artifact-preview.mjs` 和 `GET /api/agent/session/:sessionId/artifact`:只允许预览当前 session 绑定的 `workbench/artifacts/` 产物;Markdown 草稿/客户分析可在前台线程内打开,XLSX 返回工作簿摘要。
+- `server/agent-artifact-preview.mjs` 和 `GET /api/agent/session/:sessionId/artifact`:只允许预览当前 session 绑定的 `workbench/artifacts/` 产物;Markdown 草稿/客户分析可在前台线程内打开,XLSX 返回工作簿摘要。前端点击某条历史消息里的产物卡时必须带 `messageId`,后端按该消息绑定的 artifact 预览当时那份文件;不带 `messageId` 时才回退到当前 session 最新产物。预览接口不能接受前端直接传本地 outputPath。
 - 产物预览 payload 的 `name` 也必须净化;历史 session 里即使保存了 `quotation-sheet-skill-runtime-...xlsx` 这种内部 basename,前台查看文件时也只能显示 `报价单.xlsx`、`修订版表格.xlsx` 等业务化名称。
 - Markdown 业务产物预览必须把 Runtime 的 `validation.evidence` 转成安全的 `quality` 摘要,前台显示 `依据检查 / 已覆盖 / 待复核` 和已核对的业务事实;事实必须先收敛成 `product / market / concern / quantity / price / trade_term / payment / sample / next_action` 这类业务白名单结构,不能直接渲染自由字符串。不能暴露 validation 原文、runId、run_id、checkpoint、outputPath、output_path、本地路径、schema、JSON、tool call、tool_call、toolCall 或 `workbench/artifacts`。
 - XLSX 的 `查看文件` 不能只提示“表格文件已生成”;预览 payload 至少要包含工作表数量、sheet 名、行数和列数,让用户能在 agent thread 里确认真实产物结构。
