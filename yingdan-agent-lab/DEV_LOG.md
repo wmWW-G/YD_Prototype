@@ -2,6 +2,10 @@
 
 ## 2026-07-01
 
+- 补齐 `优惠 / 便宜点` 这类自然议价口语:
+  - 复现问题:`客户要优惠，产品是家具，怎么谈` 已有产品和议价卡点,但入口仍返回 `needs-input`,追问客户名称和当前卡点;Runtime 产物也不会把 `优惠` 提炼成 `客户关注点: 议价/折扣压力`。
+  - 已修复:入口和 Runtime 统一把 `优惠 / 便宜点 / better price / lower price` 归入议价压力;已有产品时直接生成客户推进分析,缺产品时仍先追问产品或核心卖点。
+  - 新增红绿回归测试 `runNewConversationAgent treats discount request wording as a concrete negotiation issue`,并扩展 `createSkillRuntime carries negotiation pressure into customer follow-up artifacts` 覆盖 `客户要优惠`。
 - 修复询盘回复重复追问已给出的客户问题:
   - 复现问题:`客户砍价，帮我回一下` 已经说明客户卡点,但缺资料 gate 仍追问 `询盘原文或客户问题`;`客户砍价，产品是家具，帮我回一下` 已有产品后仍停在等待态。
   - 已修复:入口把已识别出的具体客户卡点也视为询盘回复的客户问题;缺产品时只追问 `产品资料或报价边界`,产品已给足时直接进入 `询盘回复草稿.md`。

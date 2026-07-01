@@ -778,16 +778,16 @@ test('createSkillRuntime carries negotiation pressure into customer follow-up ar
       checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
     });
 
-    const result = await runtime.runGoal({
-      text: '客户砍价，产品是家具，怎么谈',
-    });
-    const content = await readFile(result.artifact.outputPath, 'utf8');
+    for (const text of ['客户砍价，产品是家具，怎么谈', '客户要优惠，产品是家具，怎么谈']) {
+      const result = await runtime.runGoal({ text });
+      const content = await readFile(result.artifact.outputPath, 'utf8');
 
-    assert.equal(result.ok, true);
-    assert.equal(result.skill.id, 'customer-followup-plan');
-    assert.match(content, /产品: 家具/);
-    assert.match(content, /客户关注点: 议价\/折扣压力/);
-    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+      assert.equal(result.ok, true);
+      assert.equal(result.skill.id, 'customer-followup-plan');
+      assert.match(content, /产品: 家具/);
+      assert.match(content, /客户关注点: 议价\/折扣压力/);
+      assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+    }
   } finally {
     await fixture.cleanup();
   }

@@ -1137,7 +1137,7 @@ function extractBusinessSignals(userText = '') {
   if (/交期|lead\s*time|delivery|发货时间/.test(lower)) {
     concerns.push({ chinese: '交期', english: 'lead time' });
   }
-  if (/砍价|压价|还价|议价|让价|降价|折扣|discount|price\s+cut|price\s+reduction/.test(lower)) {
+  if (/砍价|压价|还价|议价|让价|降价|折扣|优惠|便宜点|discount|better\s+price|lower\s+price|price\s+cut|price\s+reduction/.test(lower)) {
     concerns.push({ chinese: '议价/折扣压力', english: 'price negotiation pressure' });
   }
   if (/价格|报价|price|target price/.test(lower)) {

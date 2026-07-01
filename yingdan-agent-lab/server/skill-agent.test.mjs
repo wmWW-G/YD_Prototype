@@ -975,6 +975,52 @@ test('runNewConversationAgent treats discount pressure as a concrete customer ne
   assert.match(runtimeText, /产品是太阳能灯/);
 });
 
+test('runNewConversationAgent treats discount request wording as a concrete negotiation issue', async () => {
+  let runtimeText = '';
+  const response = await runNewConversationAgent({
+    text: '客户要优惠，产品是家具，怎么谈',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'customer-followup-plan',
+            reason: '用户要处理客户优惠要求。',
+          },
+          skill: {
+            id: 'customer-followup-plan',
+            displayName: '客户推进分析',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/客户推进分析.md',
+            artifactName: '客户推进分析.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: '/tmp/客户推进分析.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.equal(response.artifact.name, '客户推进分析.md');
+  assert.match(runtimeText, /客户要优惠/);
+  assert.match(runtimeText, /产品是家具/);
+});
+
 test('runNewConversationAgent treats read-with-no-reply as a concrete customer follow-up issue', async () => {
   let runtimeText = '';
   const response = await runNewConversationAgent({
