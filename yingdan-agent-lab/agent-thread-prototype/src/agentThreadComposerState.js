@@ -1,4 +1,5 @@
 import { isAgentThreadWaiting } from './agentThreadStatus.js';
+import { safeAgentInlineLabel, scrubAgentArtifactDisplayName } from './agentThreadDisplayText.js';
 
 /**
  * getNewConversationComposerState 把新对话运行态翻译成前台输入区状态。
@@ -101,7 +102,10 @@ function artifactDisplayName(artifact = null) {
   if (!artifact || typeof artifact !== 'object') {
     return '';
   }
-  return safeInlineLabel(artifact.name || artifact.workbookName || artifact.fileName || '');
+  return safeAgentInlineLabel(scrubAgentArtifactDisplayName({
+    name: artifact.name || artifact.workbookName || artifact.fileName || '',
+    type: artifact.type || '',
+  }));
 }
 
 /**
@@ -147,9 +151,5 @@ function createComposerPlaceholder({
  * 可能抛出的异常：无。
  */
 function safeInlineLabel(value = '') {
-  const text = String(value || '').replace(/\s+/g, ' ').trim();
-  if (text.length <= 28) {
-    return text;
-  }
-  return `${text.slice(0, 27)}...`;
+  return safeAgentInlineLabel(value);
 }

@@ -34,6 +34,12 @@ import { mergeStreamingProgressItem } from './agentThreadProgress.js';
 import { deriveAgentThreadTaskTitle } from './agentThreadTitle.js';
 import { getNewConversationComposerState } from './agentThreadComposerState.js';
 import {
+  safeAgentInlineLabel,
+  sanitizeAgentActivityItemForDisplay,
+  sanitizeAgentProcessStepForDisplay,
+  scrubAgentArtifactDisplayName,
+} from './agentThreadDisplayText.js';
+import {
   buildAgentRequestContext,
   buildRecoverableWaitingContext,
   getCurrentAgentArtifact,
@@ -1681,6 +1687,7 @@ function NewConversationView({
   onToggleHistory,
   onToggleProcess,
 }) {
+  const displayTaskTitle = safeAgentInlineLabel(taskTitle || '', { maxLength: 36 });
   const {
     canStartFreshTask,
     composerContextLabel,
@@ -1761,7 +1768,7 @@ function NewConversationView({
             <img src="/assets/yingdan-mark.svg" alt="赢单" />
             <div>
               <span>赢单任务台</span>
-              <h1>{taskTitle || '外贸任务'}</h1>
+              <h1>{displayTaskTitle || '外贸任务'}</h1>
             </div>
           </div>
           <div className="agent-thread-actions">
@@ -1803,19 +1810,12 @@ function NewConversationView({
               {agentSessionHistory.length ? (
                 <div className="thread-history-list">
                   {agentSessionHistory.map((item) => (
-                    <button
-                      type="button"
-                      className={item.sessionId === sessionId ? 'active' : ''}
+                    <HistorySessionButton
+                      item={item}
                       key={item.sessionId}
-                      onClick={() => onOpenHistorySession(item.sessionId)}
-                    >
-                      <span>{item.taskTitle || '外贸任务'}</span>
-                      <strong>{item.preview || item.artifactName || '继续这次任务'}</strong>
-                      <small>
-                        {historyStatusLabel(item)}
-                        {item.artifactName ? ` · ${item.artifactName}` : ''}
-                      </small>
-                    </button>
+                      onOpenHistorySession={onOpenHistorySession}
+                      sessionId={sessionId}
+                    />
                   ))}
                 </div>
               ) : (
@@ -1941,6 +1941,47 @@ function NewConversationView({
 }
 
 /**
+ * HistorySessionButton 渲染最近任务列表里的单条任务。
+ *
+ * 作用：
+ * - 历史列表可能来自后端摘要,也可能来自旧 localStorage 或异常恢复。
+ * - 展示前必须再做一次前端净化,避免 runId、路径或 runtime 文件名穿透到 UI。
+ *
+ * 参数：
+ * - item：最近任务摘要对象。
+ * - onOpenHistorySession：打开历史任务的回调。
+ * - sessionId：当前选中的 session id。
+ *
+ * 返回值：React 按钮。
+ * 可能抛出的异常：不主动抛异常。
+ */
+function HistorySessionButton({ item = {}, onOpenHistorySession, sessionId = '' }) {
+  const taskTitle = safeAgentInlineLabel(item.taskTitle || '外贸任务', { maxLength: 36 });
+  const artifactName = item.artifactName
+    ? scrubAgentArtifactDisplayName({ name: item.artifactName, type: item.artifactType || '' })
+    : '';
+  const preview = safeAgentInlineLabel(item.preview || artifactName || '继续这次任务', {
+    fallback: artifactName || '继续这次任务',
+    maxLength: 48,
+  });
+
+  return (
+    <button
+      type="button"
+      className={item.sessionId === sessionId ? 'active' : ''}
+      onClick={() => onOpenHistorySession(item.sessionId)}
+    >
+      <span>{taskTitle}</span>
+      <strong>{preview}</strong>
+      <small>
+        {historyStatusLabel(item)}
+        {artifactName ? ` · ${artifactName}` : ''}
+      </small>
+    </button>
+  );
+}
+
+/**
  * historyStatusLabel 把后端线程状态转成业务可读文案。
  *
  * 参数：
@@ -1963,6 +2004,26 @@ function historyStatusLabel(item = {}) {
     return '处理中';
   }
   return '任务线程';
+}
+
+/**
+ * agentArtifactDisplayName 返回前台可展示的产物名称。
+ *
+ * 作用：
+ * - 消息产物卡、预览面板和运行状态卡都通过这里展示产物名。
+ * - 防止旧缓存或异常 payload 把 runtime 文件名、路径或工具字段显示给用户。
+ *
+ * 参数：
+ * - artifact：产物摘要对象。
+ *
+ * 返回值：安全的业务产物名。
+ * 可能抛出的异常：无。
+ */
+function agentArtifactDisplayName(artifact = {}) {
+  return scrubAgentArtifactDisplayName({
+    name: artifact?.name || artifact?.workbookName || artifact?.fileName || '',
+    type: artifact?.type || '',
+  });
 }
 
 /**
@@ -2049,7 +2110,7 @@ function AgentThreadMessage({
           <div className="skill-artifact-card thread-artifact-card">
             <FileText size={18} />
             <div>
-              <strong>{message.artifact.name || message.artifact.workbookName}</strong>
+              <strong>{agentArtifactDisplayName(message.artifact)}</strong>
               <span>{artifactStatusText(message.artifact)}</span>
             </div>
             <div className="artifact-card-actions">
@@ -2147,7 +2208,7 @@ function artifactStatusText(artifact = {}) {
  */
 function ArtifactPreviewPanel({ preview, onClose }) {
   const artifact = preview.artifact || {};
-  const title = artifact.name || '任务产物';
+  const title = agentArtifactDisplayName(artifact) || '任务产物';
   const meta = [artifact.type ? artifact.type.toUpperCase() : '', formatBytes(artifact.sizeBytes)]
     .filter(Boolean)
     .join(' · ');
@@ -2386,9 +2447,11 @@ function formatBytes(value) {
  * 可能抛出的异常：不主动抛异常。
  */
 function ActivityStream({ items }) {
+  const safeItems = items.map(sanitizeAgentActivityItemForDisplay);
+
   return (
     <div className="activity-stream">
-      {items.map((item, index) => (
+      {safeItems.map((item, index) => (
         <div className={`activity-item ${item.kind} ${item.status || ''}`} key={`${item.kind}-${item.title}-${index}`}>
           <span className="activity-rail" aria-hidden="true">
             {item.status === 'complete' ? <Check size={11} /> : null}
@@ -2421,9 +2484,11 @@ function ActivityStream({ items }) {
  * 可能抛出的异常：不主动抛异常。
  */
 function ExecutionProcess({ steps }) {
+  const safeSteps = steps.map(sanitizeAgentProcessStepForDisplay);
+
   return (
     <div className="progress-strip skill-progress-strip">
-      {steps.map((item, index) => (
+      {safeSteps.map((item, index) => (
         <div className={`progress-step ${item.status}`} key={`${item.label}-${item.phase || 'step'}-${index}`}>
           <span className="progress-dot" aria-hidden="true">
             {item.status === 'complete' ? <Check size={12} /> : null}
@@ -2500,21 +2565,26 @@ function SkillAgentRunPanel({ agentError, agentResult, agentStatus, progressItem
 
   const stateText = agentStatus === 'running' ? '执行中' : agentStatus === 'completed' ? '已完成' : '失败';
   const stateClass = agentStatus === 'completed' ? 'complete' : 'pending';
-  const taskTitle = agentResult?.taskTitle || '本次外贸任务';
-  const artifactName = agentResult?.artifact?.workbookName || agentResult?.artifact?.name || '业务产物';
+  const taskTitle = safeAgentInlineLabel(agentResult?.taskTitle || '本次外贸任务', { maxLength: 36 });
+  const artifactName = agentArtifactDisplayName(agentResult?.artifact) || '业务产物';
+  const summary = safeAgentInlineLabel(agentResult?.summary || '正在识别任务、核对资料并生成业务材料', {
+    fallback: '正在识别任务、核对资料并生成业务材料',
+    maxLength: 90,
+  });
+  const safeProgressItems = progressItems.map(sanitizeAgentProcessStepForDisplay);
 
   return (
     <section className="skill-agent-panel" aria-label="外贸任务执行状态">
       <div className="progress-head">
         <div>
           <strong>{taskTitle}</strong>
-          <span>{agentResult?.summary || '正在识别任务、核对资料并生成业务材料'}</span>
+          <span>{summary}</span>
         </div>
         <span className={`progress-state ${stateClass}`}>{stateText}</span>
       </div>
 
       <div className="progress-strip skill-progress-strip">
-        {progressItems.map((item) => (
+        {safeProgressItems.map((item) => (
           <div className={`progress-step ${item.status}`} key={item.label}>
             <span className="progress-dot" aria-hidden="true">
               {item.status === 'complete' ? <Check size={12} /> : null}
@@ -3118,12 +3188,17 @@ function ProgressSummary({ analysisError, analysisRunId, analysisStatus, items, 
     );
   }
 
-  const activeItem = items.find((item) => item.status === 'pending') || items.at(-1);
+  const safeItems = items.map(sanitizeAgentProcessStepForDisplay);
+  const activeItem = safeItems.find((item) => item.status === 'pending') || safeItems.at(-1);
   const statusText = analysisStatus === 'running'
     ? '正在调用 DeepSeek flash'
     : isConfirmed
       ? '已保存客户摘要'
       : '结果已生成，等待确认保存';
+  const safeStatusText = safeAgentInlineLabel(statusText, {
+    fallback: '正在处理当前询盘。',
+    maxLength: 90,
+  });
   const stateText = analysisStatus === 'running' ? '分析中' : isConfirmed ? '已完成' : '待确认';
 
   return (
@@ -3131,7 +3206,7 @@ function ProgressSummary({ analysisError, analysisRunId, analysisStatus, items, 
       <div className="progress-head">
         <div>
           <strong>处理进度</strong>
-          <span>{statusText}</span>
+          <span>{safeStatusText}</span>
         </div>
         <span className={isConfirmed ? 'progress-state complete' : 'progress-state pending'}>
           {stateText}
@@ -3139,7 +3214,7 @@ function ProgressSummary({ analysisError, analysisRunId, analysisStatus, items, 
       </div>
 
       <div className="progress-strip" aria-label="处理进度">
-        {items.map((item) => (
+        {safeItems.map((item) => (
           <div className={`progress-step ${item.status}`} key={item.label}>
             <span className="progress-dot" aria-hidden="true">
               {item.status === 'complete' ? <Check size={12} /> : null}

@@ -14,10 +14,15 @@
   - sub agent 复查指出 Important:主恢复 payload 已净化,但用户点 `查看文件` 时 `readAgentArtifactPreview()` 仍直接返回 raw `artifact.name`,可能显示 `quotation-sheet-skill-runtime-...xlsx`。
   - 已修复:预览接口返回的 `name` 也会转成业务化名称,例如报价单类内部文件名显示为 `报价单.xlsx`。
   - 新增回归测试 `readAgentArtifactPreview scrubs runtime artifact names from preview payloads`。
+- 补齐前端标题栏、历史列表、输入区、产物卡、预览面板和展开运行记录的内部名称兜底净化:
+  - 风险点:即使后端恢复 payload 已净化,旧 localStorage、异常 payload 或旧摘要对象仍可能把 `quotation-sheet-skill-runtime-...xlsx`、`runId`、`action.executed` 或 `tool_call` 带进页面 h1、历史列表、composer chip / placeholder、产物卡、预览标题或展开的 `本次操作记录 / 执行过程`。
+  - 已修复:新增 `agentThreadDisplayText.js`,由 `agentThreadComposerState.js`、`agentThreadTitle.js` 和 `App.jsx` 展示层共同复用;报价单类内部名显示为 `报价单.xlsx`,未知内部任务标题显示为 `本次任务`,运行记录里的内部 action/detail 会退成业务化兜底文案,正常业务标题里偶然提到 `schema` 不再被过度降级。
+  - 新增回归测试 `getNewConversationComposerState hides runtime artifact names from the composer`、`getNewConversationComposerState hides runtime task titles from the composer`、`deriveAgentThreadTaskTitle hides raw runtime task titles from the page heading` 和正常 `schema` 标题保留用例。
 - 补齐 XLSX 真实交付链的 LibreOffice 重存:
   - sub agent 评估指出 Important:当前 `validateXlsxArtifact()` 只做 unzip/openpyxl/残留扫描,没有执行 AGENTS 要求的 LibreOffice headless 重存。
   - 已修复:`validateXlsxArtifact()` 现在先用 bundled `soffice --headless` 重存 XLSX,再清理 `xl/tables/`、`xl/drawings/`、tableParts 和 drawing relationships 残留,最后执行 `unzip -t`、`openpyxl.load_workbook()` 和包内残留扫描;任一步失败都会返回 `ok:false`。
   - 更新回归测试 `validateXlsxArtifact verifies zip, openpyxl, required sheets, and residual table or drawing parts`,新增 `checks.libreOffice` 和 `checks.cleanup` 断言。
+  - 继续补强回归证据:`validateXlsxArtifact cleans table and drawing remnants before final inspection` 会先把测试工作簿污染成含 `xl/tables/`、`xl/drawings/`、tableParts 和 drawing relationship 的脏包,再确认 cleanup 后包内残留为空;`validateXlsxArtifact fails closed when LibreOffice resave is unavailable` 用 fake python 和 fake unzip marker 确认 soffice 不可用时不会继续跑 cleanup、unzip 或 openpyxl。
 - 修复导出确认后同任务续改断点:
   - 复现问题:确认 `导出文件` 后,session 当前 artifact 会指向 `workbench/exports/<sessionId>/...` 的导出副本;用户接着说 `继续优化一下` 时,续改器只允许修改 `workbench/artifacts/` 下的原始产物,会把本该连续的 agent thread 卡断。
   - 已修复:Markdown 和 XLSX 续改器遇到带 `exportedFrom` 的导出副本时,先回到原始 `workbench/artifacts/` 产物继续修改;导出副本保持不变,修改后的新版本需要用户再次确认导出。

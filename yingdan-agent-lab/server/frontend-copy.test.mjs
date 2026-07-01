@@ -274,7 +274,54 @@ test('New Conversation keeps the recognized business task title in the thread he
   assert.equal(appSource.includes('setAgentThreadTaskTitle'), true);
   assert.equal(source.includes('taskTitle={agentThreadTaskTitle}'), true);
   assert.equal(threadSource.includes('taskTitle,'), true);
-  assert.equal(threadSource.includes("<h1>{taskTitle || '外贸任务'}</h1>"), true);
+  assert.equal(threadSource.includes('displayTaskTitle'), true);
+  assert.equal(threadSource.includes("<h1>{displayTaskTitle || '外贸任务'}</h1>"), true);
+});
+
+test('New Conversation sanitizes restored runtime names in visible chrome and artifacts', async () => {
+  const source = await readFile(appSourcePath, 'utf8');
+  const historySource = await readFunctionSource('HistorySessionButton');
+  const messageSource = await readFunctionSource('AgentThreadMessage');
+  const previewSource = await readFunctionSource('ArtifactPreviewPanel');
+  const runPanelSource = await readFunctionSource('SkillAgentRunPanel');
+
+  assert.equal(source.includes("from './agentThreadDisplayText.js'"), true);
+  assert.equal(source.includes('safeAgentInlineLabel'), true);
+  assert.equal(source.includes('scrubAgentArtifactDisplayName'), true);
+  assert.equal(source.includes('sanitizeAgentActivityItemForDisplay'), true);
+  assert.equal(source.includes('sanitizeAgentProcessStepForDisplay'), true);
+  assert.equal(source.includes('function agentArtifactDisplayName'), true);
+  assert.equal(historySource.includes('safeAgentInlineLabel(item.taskTitle'), true);
+  assert.equal(historySource.includes('scrubAgentArtifactDisplayName'), true);
+  assert.equal(historySource.includes('item.preview || artifactName'), true);
+  assert.equal(messageSource.includes('agentArtifactDisplayName(message.artifact)'), true);
+  assert.equal(messageSource.includes('message.artifact.name || message.artifact.workbookName'), false);
+  assert.equal(previewSource.includes('agentArtifactDisplayName(artifact)'), true);
+  assert.equal(previewSource.includes("artifact.name || '任务产物'"), false);
+  assert.equal(runPanelSource.includes('safeAgentInlineLabel(agentResult?.taskTitle'), true);
+  assert.equal(runPanelSource.includes('agentArtifactDisplayName(agentResult?.artifact)'), true);
+});
+
+test('New Conversation sanitizes expanded activity and process records before display', async () => {
+  const activitySource = await readFunctionSource('ActivityStream');
+  const processSource = await readFunctionSource('ExecutionProcess');
+
+  assert.equal(activitySource.includes('items.map(sanitizeAgentActivityItemForDisplay)'), true);
+  assert.equal(activitySource.includes('safeItems.map'), true);
+  assert.equal(processSource.includes('steps.map(sanitizeAgentProcessStepForDisplay)'), true);
+  assert.equal(processSource.includes('safeSteps.map'), true);
+});
+
+test('New Conversation sanitizes legacy progress panels before display', async () => {
+  const runPanelSource = await readFunctionSource('SkillAgentRunPanel');
+  const progressSummarySource = await readFunctionSource('ProgressSummary');
+
+  assert.equal(runPanelSource.includes('progressItems.map(sanitizeAgentProcessStepForDisplay)'), true);
+  assert.equal(runPanelSource.includes('safeProgressItems.map'), true);
+  assert.equal(runPanelSource.includes('safeAgentInlineLabel(agentResult?.summary'), true);
+  assert.equal(progressSummarySource.includes('items.map(sanitizeAgentProcessStepForDisplay)'), true);
+  assert.equal(progressSummarySource.includes('safeItems.map'), true);
+  assert.equal(progressSummarySource.includes('safeAgentInlineLabel(statusText'), true);
 });
 
 test('New Conversation uses a first confirmation title as the task title without replacing an existing task', async () => {

@@ -1,3 +1,5 @@
+import { safeAgentInlineLabel, scrubAgentArtifactDisplayName } from './agentThreadDisplayText.js';
+
 /**
  * deriveAgentThreadTaskTitle 从响应、session 或本地状态里提取业务任务标题。
  *
@@ -26,19 +28,68 @@ export function deriveAgentThreadTaskTitle(source = {}, fallbackTitle = '') {
   );
 
   if (isConfirmationTitle) {
-    return fallbackTitle;
+    return safeTaskTitle(fallbackTitle);
   }
 
-  return (
-    sourceTitle ||
-    source.skillAgentResult?.taskTitle ||
-    source.context?.pendingTask?.skillName ||
-    source.artifact?.workbookName ||
-    source.artifact?.name ||
-    source.skillAgentResult?.artifact?.workbookName ||
-    source.skillAgentResult?.artifact?.name ||
-    fallbackTitle ||
-    latestConfirmationTitle ||
-    ''
-  );
+  return firstSafeTaskTitle([
+    { value: sourceTitle },
+    { value: source.skillAgentResult?.taskTitle },
+    { value: source.context?.pendingTask?.skillName },
+    { value: source.artifact?.workbookName || source.artifact?.name, artifact: source.artifact },
+    {
+      value: source.skillAgentResult?.artifact?.workbookName || source.skillAgentResult?.artifact?.name,
+      artifact: source.skillAgentResult?.artifact,
+    },
+    { value: fallbackTitle },
+    { value: latestConfirmationTitle },
+  ]);
+}
+
+/**
+ * firstSafeTaskTitle 从候选标题里选择第一个业务可读标题。
+ *
+ * 作用：
+ * - 标题栏会直接显示这个值,所以必须防御旧缓存里的 runtime 信息。
+ * - 内部 taskTitle 命中“本次任务”时,继续看后面是否有更具体的业务 artifact 名。
+ *
+ * 参数：
+ * - candidates：候选标题数组,每项可带 artifact 摘要。
+ *
+ * 返回值：业务可读标题；没有候选时返回空字符串。
+ * 可能抛出的异常：无。
+ */
+function firstSafeTaskTitle(candidates = []) {
+  let internalFallback = '';
+  for (const candidate of candidates) {
+    if (!candidate?.value) {
+      continue;
+    }
+    const safeTitle = candidate.artifact
+      ? safeTaskTitle(scrubAgentArtifactDisplayName({
+        name: candidate.value,
+        type: candidate.artifact.type || '',
+      }))
+      : safeTaskTitle(candidate.value);
+
+    if (safeTitle && safeTitle !== '本次任务') {
+      return safeTitle;
+    }
+    if (safeTitle) {
+      internalFallback = safeTitle;
+    }
+  }
+  return internalFallback;
+}
+
+/**
+ * safeTaskTitle 清理标题栏可展示文本。
+ *
+ * 参数：
+ * - value：任意标题候选。
+ *
+ * 返回值：安全短标题。
+ * 可能抛出的异常：无。
+ */
+function safeTaskTitle(value = '') {
+  return safeAgentInlineLabel(value, { maxLength: 36 });
 }

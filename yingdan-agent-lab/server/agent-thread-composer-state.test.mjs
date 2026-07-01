@@ -116,3 +116,47 @@ test('getNewConversationComposerState truncates long task labels for the compose
   assert.equal(state.composerContextLabel.length <= 36, true);
   assert.match(state.composerPlaceholder, /^继续补充 .+\.{3} 的要求，或追问这次任务\.\.\.$/);
 });
+
+test('getNewConversationComposerState hides runtime artifact names from the composer', () => {
+  const state = getNewConversationComposerState({
+    agentStatus: 'completed',
+    currentArtifact: {
+      name: 'quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx',
+      type: 'xlsx',
+    },
+    messages: [{ id: 'm-done' }],
+    sessionId: 'agent-session-runtime-name',
+    taskTitle: '报价单',
+  });
+
+  assert.equal(state.composerContextLabel, '正在接着：报价单.xlsx');
+  assert.equal(state.composerPlaceholder, '继续修改 报价单.xlsx，或补一句新的要求...');
+  assert.equal(JSON.stringify(state).includes('skill-runtime'), false);
+  assert.equal(JSON.stringify(state).includes('quotation-sheet'), false);
+});
+
+test('getNewConversationComposerState hides runtime task titles from the composer', () => {
+  const state = getNewConversationComposerState({
+    agentStatus: 'waiting',
+    messages: [{ id: 'm-needs-input', needsInput: { items: ['产品资料'] } }],
+    sessionId: 'agent-session-runtime-title',
+    taskTitle: 'skill-runtime-20260630-raw runId outputPath schema tool_call',
+  });
+
+  assert.equal(state.composerContextLabel, '当前任务：本次任务');
+  assert.equal(state.composerPlaceholder, '继续补充 本次任务 的要求，或追问这次任务...');
+  assert.equal(JSON.stringify(state).includes('skill-runtime'), false);
+  assert.equal(JSON.stringify(state).includes('tool_call'), false);
+});
+
+test('getNewConversationComposerState keeps normal business titles that mention schema', () => {
+  const state = getNewConversationComposerState({
+    agentStatus: 'waiting',
+    messages: [{ id: 'm-needs-input', needsInput: { items: ['文件说明'] } }],
+    sessionId: 'agent-session-normal-schema-title',
+    taskTitle: '客户要求提供 schema 说明',
+  });
+
+  assert.equal(state.composerContextLabel, '当前任务：客户要求提供 schema 说明');
+  assert.equal(state.composerPlaceholder, '继续补充 客户要求提供 schema 说明 的要求，或追问这次任务...');
+});
