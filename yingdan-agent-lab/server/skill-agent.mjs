@@ -1198,6 +1198,10 @@ function isConfirmationMessage(text = '', pendingConfirmation = {}) {
     return false;
   }
 
+  if (isStandaloneNaturalConfirmation(value)) {
+    return true;
+  }
+
   const confirmLabel = normalizeConfirmationText(pendingConfirmation.confirmLabel || '');
   if (confirmLabel && matchesConfirmationCandidate(value, confirmLabel)) {
     return true;
@@ -1246,6 +1250,51 @@ function matchesConfirmationCandidate(value = '', candidate = '') {
     return true;
   }
   return hasNaturalConfirmationPrefix(value) && value.includes(candidate);
+}
+
+/**
+ * isStandaloneNaturalConfirmation 判断“可以 / 好的 / 继续吧”这类短回复是否确认当前卡片。
+ *
+ * 作用：
+ * - Agent 线程里用户经常不复述按钮文案,只回一句“可以”或“继续吧”。
+ * - 这只在已经有 pendingConfirmation 时被调用,所以不会把普通新任务里的“继续”误当确认。
+ * - 只接受极短、独立的确认词；“继续优化”“可以更正式一点”这类长句仍交给补充/续改逻辑。
+ *
+ * 参数：
+ * - value：已经过 normalizeConfirmationText 清洗的用户回复。
+ *
+ * 返回值：boolean,true 表示可按当前确认卡继续执行。
+ * 可能抛出的异常：无。
+ */
+function isStandaloneNaturalConfirmation(value = '') {
+  const lowerValue = String(value || '').toLowerCase();
+  if (!lowerValue || hasNegativeConfirmationCue(lowerValue) || hasTentativeConfirmationCue(lowerValue)) {
+    return false;
+  }
+
+  const exactConfirmations = [
+    '可以',
+    '可以的',
+    '好',
+    '好的',
+    '行',
+    '行的',
+    '同意',
+    '确认',
+    '没问题',
+    '继续',
+    '继续吧',
+    '继续执行',
+    '那就继续',
+    '开始吧',
+    '执行吧',
+    '走吧',
+    'ok',
+    'okay',
+    'yes',
+    'sure',
+  ];
+  return exactConfirmations.includes(lowerValue);
 }
 
 /**

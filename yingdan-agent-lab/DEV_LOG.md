@@ -876,3 +876,9 @@
   - `server/agent-message-stream.mjs` 现在会在确认/取消按钮命中 `当前任务文件` 时回退到动作级文案;`agentThreadDisplayText.js` 只在确认卡按钮路径处理该占位词。
   - 已执行目标测试 `node --test server/agent-message-stream.test.mjs --test-name-pattern "safe confirmation action text|bare snake_case action tokens"` 和 `node --test server/agent-thread-display-text.test.mjs --test-name-pattern "scrubbed task-file placeholders|confirmation cards"`。
   - sub agent 只读复查指出 confirm 按钮缺少同类断言,且前端全局识别 `当前任务文件` 误伤面偏大。已补后端/前端 confirmLabel + cancelLabel 双向断言,并把前端处理收窄到确认卡按钮路径。
+- 支持确认卡下的极短自然确认话术：
+  - 复现问题:保存、导出、外发、付费确认卡已经能处理按钮和 `可以，先生成草稿 / 好的，确认导出`,但用户只回 `可以`、`继续吧` 时,外发会继续停在确认卡,导出甚至会被误当成普通 follow-up。
+  - 新增红灯测试 `runNewConversationAgent accepts short natural wording for export confirmation` 和 `runNewConversationAgent accepts short natural wording for external-send confirmation`,覆盖导出和外发两条高风险确认链路。
+  - `server/skill-agent.mjs` 新增 `isStandaloneNaturalConfirmation()`,只在已有 pending confirmation 时接受极短确认词,例如 `可以 / 好的 / 继续吧 / 没问题 / ok`;不放宽 `继续优化`、`可以更正式一点` 或 `好像...` 这类长句,避免误触发风险动作。
+  - 已执行 `node --test server/skill-agent.test.mjs --test-name-pattern "short natural wording"`。
+  - sub agent 只读复查指出实现也覆盖保存和付费,但正向测试只钉住导出/外发。已补 `runNewConversationAgent accepts short natural wording for paid action confirmation` 和 `runNewConversationAgent accepts short natural wording for customer memory save confirmation`。

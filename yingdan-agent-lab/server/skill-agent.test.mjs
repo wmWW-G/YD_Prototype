@@ -3950,6 +3950,63 @@ test('runNewConversationAgent continues the original business task after paid ac
   assert.match(runtimeText, /产品太阳能灯/);
 });
 
+test('runNewConversationAgent accepts short natural wording for paid action confirmation', async () => {
+  const first = await runNewConversationAgent({
+    text: '客户是德国采购商，询盘问MOQ和交期，产品太阳能灯，调用收费接口也可以，做下一步推进计划',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not run before paid action confirmation');
+      },
+    },
+  });
+  let runtimeText = '';
+  const second = await runNewConversationAgent({
+    text: '好的',
+    sessionId: first.sessionId,
+    context: first.context,
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'customer-followup-plan',
+            reason: '用户短确认后继续客户推进分析任务。',
+          },
+          skill: {
+            id: 'customer-followup-plan',
+            displayName: '客户推进分析',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/客户推进分析.md',
+            artifactName: '客户推进分析.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: '/tmp/客户推进分析.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(first.kind, 'confirmation-required');
+  assert.equal(first.context.pendingConfirmation.type, 'paid_call');
+  assert.equal(second.kind, 'confirmation-accepted');
+  assert.equal(second.artifact.name, '客户推进分析.md');
+  assert.match(runtimeText, /客户是德国采购商/);
+  assert.doesNotMatch(runtimeText, /好的/);
+});
+
 test('runNewConversationAgent records supplements while still waiting for risky confirmation', async () => {
   const first = await runNewConversationAgent({
     text: '把这封开发信发给客户',
@@ -4234,6 +4291,58 @@ test('runNewConversationAgent exports the current artifact only after confirmati
     assert.match(second.artifact.outputPath, /workbench\/exports\/agent-session-20260629T151500-export/);
     assert.equal(exportedContent, '# 客户推进分析\n\n下一步跟进计划。\n');
     assert.match(second.messages[0].content, /已确认导出/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('runNewConversationAgent accepts short natural wording for export confirmation', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-export-short-confirm-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '客户推进分析.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(artifactPath, '# 客户推进分析\n\n下一步跟进计划。\n', 'utf8');
+
+    const first = await runNewConversationAgent({
+      text: '导出文件',
+      sessionId: 'agent-session-20260701T150000-export-short-confirm',
+      context: {
+        artifact: {
+          type: 'markdown',
+          name: '客户推进分析.md',
+          outputPath: artifactPath,
+        },
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+
+    const second = await runNewConversationAgent({
+      text: '继续吧',
+      sessionId: first.sessionId,
+      context: first.context,
+      session: {
+        sessionId: first.sessionId,
+        taskTitle: '客户推进分析',
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+        },
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+
+    assert.equal(first.kind, 'confirmation-required');
+    assert.equal(first.context.pendingConfirmation.type, 'export_file');
+    assert.equal(second.kind, 'confirmation-accepted');
+    assert.match(second.messages[0].content, /已确认导出/);
+    assert.match(second.artifact.outputPath, /workbench\/exports\/agent-session-20260701T150000-export-short-confirm/);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
@@ -4550,6 +4659,66 @@ test('runNewConversationAgent saves current artifact summary to customer memory 
     assert.equal(Object.hasOwn(second.context, 'pendingConfirmation'), false);
     assert.equal(second.context.artifact.name, '客户推进分析.md');
     assert.equal(second.messages[0].artifact.name, '客户推进分析.md');
+    assert.match(second.messages[0].content, /已确认保存/);
+    assert.match(memory, /Agent 保存: 客户推进分析/);
+    assert.match(memory, /先确认MOQ和交期/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('runNewConversationAgent accepts short natural wording for customer memory save confirmation', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-save-short-confirm-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const customerDir = path.join(projectRoot, 'workbench', 'customers', 'global-sourcing-inc');
+  const artifactPath = path.join(artifactDir, '客户推进分析.md');
+  const memoryPath = path.join(customerDir, 'memory.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await mkdir(customerDir, { recursive: true });
+    await writeFile(memoryPath, '# Global Sourcing Inc. Memory\n\n- Existing memory.\n', 'utf8');
+    await writeFile(artifactPath, '# 客户推进分析\n\n## 下一步跟进行动\n\n1. 先确认MOQ和交期。\n', 'utf8');
+
+    const first = await runNewConversationAgent({
+      text: '保存到客户档案',
+      sessionId: 'agent-session-20260701T153000-save-short-confirm',
+      context: {
+        artifact: {
+          type: 'markdown',
+          name: '客户推进分析.md',
+          outputPath: artifactPath,
+        },
+        customerSlug: 'global-sourcing-inc',
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+
+    const second = await runNewConversationAgent({
+      text: '没问题',
+      sessionId: first.sessionId,
+      context: first.context,
+      session: {
+        sessionId: first.sessionId,
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+          customerSlug: 'global-sourcing-inc',
+        },
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+    const memory = await readFile(memoryPath, 'utf8');
+
+    assert.equal(first.kind, 'confirmation-required');
+    assert.equal(first.context.pendingConfirmation.type, 'customer_write');
+    assert.equal(second.kind, 'confirmation-accepted');
+    assert.equal(second.context.customerSlug, 'global-sourcing-inc');
     assert.match(second.messages[0].content, /已确认保存/);
     assert.match(memory, /Agent 保存: 客户推进分析/);
     assert.match(memory, /先确认MOQ和交期/);
@@ -5108,6 +5277,58 @@ test('runNewConversationAgent accepts natural external-send confirmation wording
   assert.equal(second.kind, 'confirmation-accepted');
   assert.equal(second.artifact.name, '询盘回复草稿.md');
   assert.match(runtimeText, /客户发来询盘/);
+});
+
+test('runNewConversationAgent accepts short natural wording for external-send confirmation', async () => {
+  const first = await runNewConversationAgent({
+    text: '客户发来询盘，帮我回一封邮件发给客户，产品太阳能路灯',
+    registry: createEmailAndInquiryReplyRegistry(),
+  });
+  let runtimeText = '';
+
+  const second = await runNewConversationAgent({
+    text: '可以',
+    sessionId: first.sessionId,
+    context: first.context,
+    registry: createEmailAndInquiryReplyRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'inquiry-reply-draft',
+            reason: '用户用短确认话术继续询盘回复草稿。',
+          },
+          skill: {
+            id: 'inquiry-reply-draft',
+            displayName: '询盘回复草稿',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/询盘回复草稿.md',
+            artifactName: '询盘回复草稿.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '询盘回复草稿.md',
+            outputPath: '/tmp/询盘回复草稿.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(first.kind, 'confirmation-required');
+  assert.equal(second.kind, 'confirmation-accepted');
+  assert.equal(second.artifact.name, '询盘回复草稿.md');
+  assert.match(runtimeText, /客户发来询盘/);
+  assert.doesNotMatch(runtimeText, /可以/);
 });
 
 test('runNewConversationAgent treats natural negative external-send wording as cancellation', async () => {
