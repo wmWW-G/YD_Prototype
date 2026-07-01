@@ -869,3 +869,10 @@
   - 新增 Runtime 测试 `createSkillRuntime writes bare quotation currency amounts into XLSX`,并用行级断言确认报价单写入 `产品=太阳能路灯`、`数量=500套`、`单价/报价=35美金`、`贸易条款=FOB上海`。
   - 实现时只在报价/PI 意图下接受裸货币金额,并继续排除 `样品费 / 运费 / shipping / freight` 附近的金额,避免把费用项误当报价单单价。
   - sub agent 复核指出 `shipping cost USD 35` / `freight cost USD 35` 会因前置上下文窗口过短被误当单价;已补回归测试并扩大费用标签识别窗口,确保这类金额继续触发 `单价或报价区间` 追问,Runtime 行级单价保持 `待确认`。
+- 清理确认卡按钮里的任务文件占位词：
+  - 复现问题:后端已经能把 `outputPath workbench/exports/file.xlsx` 这类内部路径洗成 `当前任务文件.xlsx`,但取消按钮仍可能显示成 `取消 当前任务文件.xlsx`,看起来像文件系统操作而不是自然 Agent 对话。
+  - 新增红灯断言到 `sanitizeAgentResultForFrontend keeps safe confirmation action text without exposing type` 和 `sanitizeAgentResultForFrontend hides bare snake_case action tokens from confirmation labels`,要求公开 payload 的 `cancelLabel` 降级为 `取消这一步`。
+  - 新增前端回归测试 `sanitizeAgentConfirmationForDisplay hides scrubbed task-file placeholders from buttons`,防止旧 localStorage 或异常 payload 把 `当前任务文件` 显示进确认按钮。
+  - `server/agent-message-stream.mjs` 现在会在确认/取消按钮命中 `当前任务文件` 时回退到动作级文案;`agentThreadDisplayText.js` 只在确认卡按钮路径处理该占位词。
+  - 已执行目标测试 `node --test server/agent-message-stream.test.mjs --test-name-pattern "safe confirmation action text|bare snake_case action tokens"` 和 `node --test server/agent-thread-display-text.test.mjs --test-name-pattern "scrubbed task-file placeholders|confirmation cards"`。
+  - sub agent 只读复查指出 confirm 按钮缺少同类断言,且前端全局识别 `当前任务文件` 误伤面偏大。已补后端/前端 confirmLabel + cancelLabel 双向断言,并把前端处理收窄到确认卡按钮路径。

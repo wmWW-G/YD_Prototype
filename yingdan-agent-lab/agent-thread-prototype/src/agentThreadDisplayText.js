@@ -226,17 +226,39 @@ export function sanitizeAgentConfirmationForDisplay(confirmation = {}) {
       fallback: '确认前不会保存、导出、外发或扣费。',
       maxLength: 90,
     }),
-    confirmLabel: safeAgentInlineLabel(confirmation.confirmLabel || '确认继续', {
+    confirmLabel: safeAgentConfirmationButtonLabel(confirmation.confirmLabel || '确认继续', {
       fallback: confirmActionText,
       maxLength: 18,
     }),
-    cancelLabel: safeAgentInlineLabel(confirmation.cancelLabel || '取消', {
+    cancelLabel: safeAgentConfirmationButtonLabel(confirmation.cancelLabel || '取消', {
       fallback: '取消',
       maxLength: 18,
     }),
     confirmActionText,
     cancelActionText: '取消这一步',
   };
+}
+
+/**
+ * safeAgentConfirmationButtonLabel 专门清理确认卡按钮文案。
+ *
+ * 作用：
+ * - “当前任务文件”是后端把本地路径洗掉后的占位词,不应该出现在按钮里。
+ * - 这个兜底只用于确认卡按钮,避免把普通业务说明里偶然出现的同样文字误伤。
+ *
+ * 参数：
+ * - value：原始按钮文案。
+ * - options：与 safeAgentInlineLabel 相同,包含 fallback 和 maxLength。
+ *
+ * 返回值：安全的确认卡按钮文案。
+ * 可能抛出的异常：无。
+ */
+function safeAgentConfirmationButtonLabel(value = '', options = {}) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (/当前任务文件(?:\.[A-Za-z0-9]+)?/iu.test(text)) {
+    return safeAgentInlineLabel(options.fallback || '确认继续', options);
+  }
+  return safeAgentInlineLabel(text, options);
 }
 
 /**

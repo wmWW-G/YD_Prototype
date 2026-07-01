@@ -574,6 +574,7 @@ test('sanitizeAgentResultForFrontend keeps safe confirmation action text without
   assert.equal(publicText.includes('checkpointPath'), false);
   assert.equal(confirmation.confirmActionText, '确认导出');
   assert.equal(confirmation.cancelActionText, '取消这一步');
+  assert.equal(confirmation.cancelLabel, '取消这一步');
 });
 
 test('sanitizeAgentResultForFrontend hides bare snake_case action tokens from confirmation labels', () => {
@@ -604,6 +605,37 @@ test('sanitizeAgentResultForFrontend hides bare snake_case action tokens from co
   assert.equal(publicText.includes('output_path'), false);
   assert.equal(confirmation.confirmLabel, '确认写入');
   assert.equal(confirmation.confirmActionText, '确认写入');
+  assert.equal(confirmation.cancelLabel, '取消这一步');
+});
+
+test('sanitizeAgentResultForFrontend hides scrubbed task-file placeholders from confirmation buttons', () => {
+  const result = sanitizeAgentResultForFrontend({
+    ok: true,
+    kind: 'confirmation-required',
+    sessionId: 'agent-session-20260630T010300-confirm',
+    status: 'waiting',
+    messages: [
+      {
+        role: 'assistant',
+        content: '导出文件前需要你确认。',
+        confirmation: {
+          body: '这一步会生成一份导出副本。',
+          cancelLabel: '取消 当前任务文件.xlsx',
+          confirmLabel: '确认 当前任务文件.xlsx',
+          title: '导出文件前需要确认',
+          type: 'export_file',
+        },
+      },
+    ],
+  });
+
+  const confirmation = result.messages[0].confirmation;
+  const publicText = JSON.stringify(confirmation);
+  assert.equal(publicText.includes('当前任务文件'), false);
+  assert.equal(confirmation.confirmLabel, '确认导出');
+  assert.equal(confirmation.confirmActionText, '确认导出');
+  assert.equal(confirmation.cancelLabel, '取消这一步');
+  assert.equal(confirmation.cancelActionText, '取消这一步');
 });
 
 test('sanitizeAgentResultForFrontend keeps structured missing inputs for the agent thread', () => {

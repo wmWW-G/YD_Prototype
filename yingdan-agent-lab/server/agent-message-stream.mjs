@@ -799,7 +799,7 @@ function sanitizeConfirmation(confirmation = null) {
 
 function safeConfirmationLabel(value = '', type = '') {
   const label = safeDisplayText(value);
-  if (!label || label === '确认') {
+  if (!label || label === '确认' || hasScrubbedTaskFilePlaceholder(label)) {
     return safeConfirmationActionTextForType(type);
   }
   return label;
@@ -807,10 +807,16 @@ function safeConfirmationLabel(value = '', type = '') {
 
 function safeCancellationLabel(value = '') {
   const label = safeDisplayText(value);
-  if (!label || label === '取消') {
+  if (!label || label === '取消' || hasScrubbedTaskFilePlaceholder(label)) {
     return '取消这一步';
   }
   return label;
+}
+
+function hasScrubbedTaskFilePlaceholder(value = '') {
+  // 路径先被 scrubUserVisibleText 洗成“当前任务文件”后,仍不适合出现在按钮里。
+  // 按钮只表达业务动作,不要显示文件占位名,否则用户会以为要操作某个奇怪文件。
+  return /当前任务文件/iu.test(String(value || ''));
 }
 
 function safeConfirmationActionTextForType(type = '') {

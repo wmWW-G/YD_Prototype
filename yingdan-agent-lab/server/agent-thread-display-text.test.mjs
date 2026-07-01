@@ -96,6 +96,23 @@ test('sanitizeAgentConfirmationForDisplay hides runtime text from confirmation c
   assert.equal(confirmation.cancelActionText, '取消这一步');
 });
 
+test('sanitizeAgentConfirmationForDisplay hides scrubbed task-file placeholders from buttons', () => {
+  const confirmation = sanitizeAgentConfirmationForDisplay({
+    type: 'export_file',
+    title: '导出文件前需要确认',
+    body: '这一步会生成导出副本。',
+    confirmLabel: '确认 当前任务文件.xlsx',
+    cancelLabel: '取消 当前任务文件.xlsx',
+  });
+
+  const publicText = JSON.stringify(confirmation);
+  assert.equal(publicText.includes('当前任务文件'), false);
+  assert.equal(confirmation.confirmLabel, '确认导出');
+  assert.equal(confirmation.cancelLabel, '取消');
+  assert.equal(confirmation.confirmActionText, '确认导出');
+  assert.equal(confirmation.cancelActionText, '取消这一步');
+});
+
 test('sanitizeAgentConfirmationForDisplay keeps safe display separate from backend confirmation text', () => {
   assert.equal(
     sanitizeAgentConfirmationForDisplay({ type: 'customer_write', confirmLabel: 'tool_call customer.write_memory' }).confirmActionText,
