@@ -717,7 +717,12 @@ function detectMissingBusinessContext(input = {}) {
   }
 
   const signals = detectBusinessSignals(text);
-  const missing = requiredSignals.filter((requirement) => !signals[requirement.signal]).map((requirement) => requirement.label);
+  let missing = requiredSignals.filter((requirement) => !signals[requirement.signal]).map((requirement) => requirement.label);
+  if (skill.id === 'quotation-sheet' && signals.priceTerm) {
+    // 报价单里 `单价20美元` 已经说明了币种和单价,但还没有说明 FOB/CIF/EXW 等贸易条款。
+    // 这里把追问从宽泛的“币种和贸易条款”收窄成“贸易条款”,避免用户重复补已经给过的币种。
+    missing = missing.map((label) => label === '币种和贸易条款' ? '贸易条款' : label);
+  }
   const strongSignalCount = [signals.market, signals.product, signals.inquiry, signals.customerSpecific].filter(Boolean).length;
 
   if (skill.id === 'cold-email-draft' && !signals.product) {
@@ -850,7 +855,7 @@ function detectBusinessSignals(text = '') {
   const customerPattern = /采购商|买家|对方|公司|联系人|进口商|批发商|零售商|经销商|代理商|客户(?:名称|类型|是|叫)|客户(?:说|问|提到).+|buyer|customer\s+(?:is|type|name)|client\s+(?:is|type|name)|importer|distributor|wholesaler|retailer/i;
   const quantityPattern = /(?:数量|qty|quantity)\s*(?:是|为|:|：|,|，)?\s*\d+|\d+\s*(?:套|件|个|箱|台|pcs|pieces|units?|cartons?)/i;
   const priceTerm = hasQuotationPriceTerm(value);
-  const tradeTermPattern = /\b(?:fob|cif|exw|ddp|dap|cfr)\b|美元|美金|人民币|usd|rmb|us\$|\$|¥|贸易条款|付款条款|目的港|港口/i;
+  const tradeTermPattern = /\b(?:fob|cif|exw|ddp|dap|cfr)\b|贸易条款|付款条款|目的港|港口/i;
   const genericCustomerOnly = /^帮?我?(分析|处理|推进|判断|整理)?(一下)?(这个|该个|该)?(客户|买家|采购商|客人)(怎么)?(推进|跟进|分析|成交|优先级|机会|意向|有没有机会成交)?(一下)?$/u.test(compact) ||
     /^(分析|判断)(一下)?(这个|该个|该)?(客户|买家|采购商|客人)(有没有机会成交|优先级|机会|意向)?$/u.test(compact);
   const currentIssue = currentIssuePattern.test(lower) || isCustomerHesitationIssue(value) || isCustomerPurchaseIntent(value);

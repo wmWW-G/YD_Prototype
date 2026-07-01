@@ -2,6 +2,10 @@
 
 ## 2026-07-01
 
+- 修复报价单把币种误当贸易条款:
+  - 复现问题:`客户问报价，产品太阳能路灯，数量500套，单价20美元，帮我做报价单` 已经给了单价和币种,但没有 `FOB/CIF/EXW`、目的港或港口;入口会直接跑 Runtime,可能生成贸易条款为 `待确认` 的报价单。
+  - 已修复:报价单缺资料 gate 把币种和贸易条款分开识别;`单价20美元` 只满足单价/币种,缺真实贸易条款时继续进入 `needs-input / waiting`,并只追问 `贸易条款`。
+  - 新增红绿回归测试 `runNewConversationAgent asks for trade term when quotation price only has currency`;同时保留 `35美金，FOB上海` 这类字段齐全口语报价直接生成 XLSX。
 - 补齐自然 WhatsApp 跟进消息续改:
   - 复现问题:当前线程已有 `客户推进分析.md` 时,用户自然说 `写一条 WhatsApp 跟进消息，语气自然一点`,后端会因为 `WhatsApp` 误进入外发确认;即使绕过确认,Markdown 续改器也只记录要求,不会写出可检查文案。
   - 已修复:渠道草稿识别新增 `消息 / 内容 / message / copy / script` 等自然表达;没有指定第几天时,续改器会生成独立 `WhatsApp Follow-up Message` 或 `Email Follow-up Message` 草稿,并保留产品语境和外发前确认提醒。

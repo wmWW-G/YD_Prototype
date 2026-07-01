@@ -1873,6 +1873,25 @@ test('runNewConversationAgent asks for unit price before generating a quotation 
   assert.deepEqual(response.messages[0].needsInput.items, ['单价或报价区间', '币种和贸易条款']);
 });
 
+test('runNewConversationAgent asks for trade term when quotation price only has currency', async () => {
+  const response = await runNewConversationAgent({
+    text: '客户问报价，产品太阳能路灯，数量500套，单价20美元，帮我做报价单',
+    registry: createQuotationRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not generate a quotation sheet without trade term');
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '报价单');
+  assert.equal(response.context.pendingTask.skillId, 'quotation-sheet');
+  assert.deepEqual(response.messages[0].needsInput.items, ['贸易条款']);
+});
+
 test('runNewConversationAgent asks for product details before generating a quotation sheet', async () => {
   const response = await runNewConversationAgent({
     text: '客户要报价，帮我做报价单',
