@@ -874,7 +874,8 @@ function detectBusinessSignals(text = '') {
     exclusiveAgencyIssue,
     productDependentIssue,
     followupCadenceRequested,
-    inquiry: inquiryPattern.test(lower),
+    // 询盘回复不一定带“询盘/问”两个字；“客户砍价，帮我回一下”已经给出了客户问题。
+    inquiry: inquiryPattern.test(lower) || currentIssue,
     market: marketPattern.test(lower),
     priceTerm,
     product: productPattern.test(lower),

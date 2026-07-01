@@ -2129,6 +2129,71 @@ test('runNewConversationAgent asks for product context before replying to MOQ an
   assert.deepEqual(response.messages[0].needsInput.items, ['产品资料或报价边界']);
 });
 
+test('runNewConversationAgent asks only for product context before replying to haggling', async () => {
+  const response = await runNewConversationAgent({
+    text: '客户砍价，帮我回一下',
+    registry: createInquiryReplyRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not write a haggling reply before product context is available');
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '询盘回复草稿');
+  assert.equal(response.context.pendingTask.skillId, 'inquiry-reply-draft');
+  assert.deepEqual(response.messages[0].needsInput.items, ['产品资料或报价边界']);
+});
+
+test('runNewConversationAgent treats haggling as inquiry reply context when product is present', async () => {
+  let runtimeText = '';
+  const response = await runNewConversationAgent({
+    text: '客户砍价，产品是家具，帮我回一下',
+    registry: createInquiryReplyRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'inquiry-reply-draft',
+            reason: '用户要回复客户砍价问题。',
+          },
+          skill: {
+            id: 'inquiry-reply-draft',
+            displayName: '询盘回复草稿',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/询盘回复草稿.md',
+            artifactName: '询盘回复草稿.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '询盘回复草稿.md',
+            outputPath: '/tmp/询盘回复草稿.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.taskTitle, '询盘回复草稿');
+  assert.equal(response.artifact.name, '询盘回复草稿.md');
+  assert.match(runtimeText, /客户砍价/);
+  assert.match(runtimeText, /产品是家具/);
+});
+
 test('runNewConversationAgent treats certification requirements as inquiry reply context', async () => {
   const cases = [
     {

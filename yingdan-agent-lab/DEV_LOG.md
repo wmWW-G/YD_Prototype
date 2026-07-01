@@ -2,6 +2,10 @@
 
 ## 2026-07-01
 
+- 修复询盘回复重复追问已给出的客户问题:
+  - 复现问题:`客户砍价，帮我回一下` 已经说明客户卡点,但缺资料 gate 仍追问 `询盘原文或客户问题`;`客户砍价，产品是家具，帮我回一下` 已有产品后仍停在等待态。
+  - 已修复:入口把已识别出的具体客户卡点也视为询盘回复的客户问题;缺产品时只追问 `产品资料或报价边界`,产品已给足时直接进入 `询盘回复草稿.md`。
+  - 新增红绿回归测试 `runNewConversationAgent asks only for product context before replying to haggling` 和 `runNewConversationAgent treats haggling as inquiry reply context when product is present`。
 - 收紧价格异议推进分析的缺资料 gate:
   - 复现问题:`客户嫌贵，怎么谈` 没有产品或核心卖点,后端仍直接生成 `客户推进分析.md`,容易变成泛泛谈判建议。
   - 已修复:`嫌贵 / 太贵 / 价格高 / 砍价 / 折扣 / discount` 这类议价压力在客户推进分析中被视为需要产品上下文的卡点;缺产品时进入 `needs-input / waiting`,只追问 `产品或核心卖点`。
