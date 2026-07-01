@@ -1191,6 +1191,22 @@ export function App() {
   }
 
   /**
+   * handleRequestAgentArtifactExport 请求导出当前任务产物。
+   *
+   * 作用：
+   * - 让用户在产物卡上直接点“导出”,不用猜应该输入哪句话。
+   * - 这里不直接下载文件,而是把“导出文件”交回同一条 Agent 线程。
+   * - 后端会先进入导出确认态,确认后才复制真实文件到 workbench/exports。
+   *
+   * 参数：无。
+   * 返回值：Promise<void>。
+   * 可能抛出的异常：内部复用 handleRunNewConversationAgent,异常会被该函数转成线程提示。
+   */
+  async function handleRequestAgentArtifactExport() {
+    await handleRunNewConversationAgent('导出文件');
+  }
+
+  /**
    * 按当前主导航渲染工作区。
    *
    * 参数：无。
@@ -1217,6 +1233,7 @@ export function App() {
           onConfirmAction={handleRunNewConversationAgent}
           onCloseArtifactPreview={handleCloseArtifactPreview}
           onPreviewArtifact={handlePreviewAgentArtifact}
+          onRequestArtifactExport={handleRequestAgentArtifactExport}
           onRunAgent={handleRunNewConversationAgent}
           onOpenHistorySession={handleOpenAgentSessionFromHistory}
           onRefreshHistory={handleRefreshAgentSessionHistory}
@@ -1636,6 +1653,7 @@ function WorkspaceHeader({ title, subtitle, chips = [], action }) {
  * - onPreviewArtifact：打开产物预览的回调函数。
  * - onOpenHistorySession：从历史里打开一条任务线程。
  * - onRefreshHistory：刷新最近任务线程列表。
+ * - onRequestArtifactExport：请求导出当前产物的回调函数,会先进入确认链路。
  * - onRunAgent：执行 Agent 的回调函数。
  * - onStartNewTask：清空当前线程并开始全新任务的回调函数。
  * - onPrototypeAction：原型反馈回调函数。
@@ -1664,6 +1682,7 @@ function NewConversationView({
   onPreviewArtifact,
   onOpenHistorySession,
   onRefreshHistory,
+  onRequestArtifactExport,
   onRunAgent,
   onStartNewTask,
   onPrototypeAction,
@@ -1831,12 +1850,14 @@ function NewConversationView({
 
           {messages.map((message) => (
             <AgentThreadMessage
+              isArtifactActionDisabled={isRunning}
               isConfirmationActionable={Boolean(hasActionableConfirmation && message.id === latestMessageId)}
               isProcessExpanded={expandedProcessMessageId === message.id}
               key={message.id}
               message={message}
               onConfirmAction={onConfirmAction}
               onPreviewArtifact={onPreviewArtifact}
+              onRequestArtifactExport={onRequestArtifactExport}
               onToggleProcess={onToggleProcess}
             />
           ))}
@@ -1953,17 +1974,28 @@ function historyStatusLabel(status = '') {
  * AgentThreadMessage 渲染新对话线程里的一条消息。
  *
  * 参数：
+ * - isArtifactActionDisabled：Agent 执行中是否暂停产物查看/导出按钮。
  * - isConfirmationActionable：这条消息里的确认卡是否仍是当前待处理动作。
  * - isProcessExpanded：当前消息执行过程是否展开。
  * - message：线程消息对象。
  * - onConfirmAction：确认卡片按钮回调函数。
  * - onPreviewArtifact：打开产物预览的回调函数。
+ * - onRequestArtifactExport：请求导出产物的回调函数,必须走 Agent 确认链路。
  * - onToggleProcess：展开或收起执行过程的回调函数。
  *
  * 返回值：React 消息节点。
  * 可能抛出的异常：不主动抛异常。
  */
-function AgentThreadMessage({ isConfirmationActionable, isProcessExpanded, message, onConfirmAction, onPreviewArtifact, onToggleProcess }) {
+function AgentThreadMessage({
+  isArtifactActionDisabled,
+  isConfirmationActionable,
+  isProcessExpanded,
+  message,
+  onConfirmAction,
+  onPreviewArtifact,
+  onRequestArtifactExport,
+  onToggleProcess,
+}) {
   const isUser = message.role === 'user';
   const timeline = message.activity || message.process;
   const timelineLabel = message.activity ? '本次操作记录' : '执行过程';
@@ -2025,10 +2057,16 @@ function AgentThreadMessage({ isConfirmationActionable, isProcessExpanded, messa
               <strong>{message.artifact.name || message.artifact.workbookName}</strong>
               <span>{artifactStatusText(message.artifact)}</span>
             </div>
-            <button type="button" onClick={() => onPreviewArtifact(message.artifact)}>
-              <Download size={15} />
-              查看文件
-            </button>
+            <div className="artifact-card-actions">
+              <button type="button" disabled={isArtifactActionDisabled} onClick={() => onPreviewArtifact(message.artifact)}>
+                <Search size={15} />
+                查看
+              </button>
+              <button type="button" disabled={isArtifactActionDisabled} onClick={() => onRequestArtifactExport(message.artifact)}>
+                <Download size={15} />
+                导出
+              </button>
+            </div>
           </div>
         ) : null}
       </div>

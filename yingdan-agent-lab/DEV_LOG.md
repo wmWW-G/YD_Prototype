@@ -726,3 +726,10 @@
   - sub agent 二次复核指出 JSON `/api/agent/message` 的 `ok:false` 分支还没有用合并后的 request context。已新增 `server/index-source.test.mjs`,并让 JSON route 像 SSE route 一样先 `resolveAgentMessageRequest()`,再把同一个 `requestContext` 传给 `executeAgentMessage()`、recoverable result 和 `saveTurn()`。
   - sub agent 三次复核指出显式 `重新开始 / 新任务` 在旧 pending session 中仍可能先显示 `继续执行`。已复用 `shouldStartWithFreshCustomerContext()` 判断,让 SSE 首条 progress 和 recoverable result 在显式重开时回到 `识别任务`;新增测试覆盖 explicit restart + pending runtime 的首屏和失败兜底。
   - 已执行目标集 `node --test server/agent-message-stream.test.mjs server/agent-request-context.test.mjs server/agent-thread-progress.test.mjs server/agent-session-store.test.mjs server/index-source.test.mjs server/skill-agent.test.mjs --test-name-pattern "explicit restart|merged request context|continue-execution|records runtime resume|Runtime policy ask|ignores pending"`、语法检查、`git diff --check`、`npm test`(224 个测试通过)和 `npm run build:web`。
+- 给新对话产物卡补导出确认入口：
+  - 新增红灯测试 `New Conversation artifact cards request export through the agent confirmation loop`,要求产物卡的 `导出` 不使用 `href/download`,而是回到同一条 Agent 线程发送 `导出文件`,由后端进入导出确认。
+  - 新增红灯测试 `New Conversation artifact card actions pause while the agent is running`,防止 Agent 执行中旧产物卡还能触发预览或导出并发动作。
+  - `agent-thread-prototype/src/App.jsx` 新增 `handleRequestAgentArtifactExport()`,产物卡现在提供 `查看` 和 `导出` 两个动作;`查看` 只打开预览,`导出` 只请求确认链路,确认后才由后端复制真实文件到 `workbench/exports`。
+  - `agent-thread-prototype/src/styles.css` 补齐产物卡动作按钮并排和 disabled 状态,避免执行中按钮看起来仍可操作。
+  - sub agent 阻塞型评审结论:Ready,未发现绕过确认、误导下载或破坏线程续跑的问题。
+  - 已执行 `node --test server/frontend-copy.test.mjs --test-name-pattern "artifact card"`、`node --test server/frontend-copy.test.mjs server/agent-thread-composer-state.test.mjs server/agent-thread-progress.test.mjs server/agent-thread-status.test.mjs server/agent-thread-title.test.mjs`、导出确认相关 `server/skill-agent.test.mjs` 目标集和 `npm run build:web`。

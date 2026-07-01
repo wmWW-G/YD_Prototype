@@ -1348,10 +1348,22 @@ button {
   font-size: 12px;
 }
 
+.thread-artifact-card .artifact-card-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .thread-artifact-card.skill-artifact-card button {
   color: #333740;
   background: #f2f3f4;
   border: 1px solid #e5e7e9;
+}
+
+.thread-artifact-card.skill-artifact-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .thread-scroll-anchor {

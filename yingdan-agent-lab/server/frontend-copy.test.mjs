@@ -132,6 +132,30 @@ test('New Conversation artifact previews render business evidence quality checks
   assert.equal(source.includes('missingFacts'), true);
 });
 
+test('New Conversation artifact cards request export through the agent confirmation loop', async () => {
+  const source = await readFile(appSourcePath, 'utf8');
+  const messageSource = await readFunctionSource('AgentThreadMessage');
+  const threadSource = await readNewConversationSource();
+
+  assert.equal(source.includes('handleRequestAgentArtifactExport'), true);
+  assert.equal(source.includes("handleRunNewConversationAgent('导出文件')"), true);
+  assert.equal(source.includes('onRequestArtifactExport={handleRequestAgentArtifactExport}'), true);
+  assert.equal(threadSource.includes('onRequestArtifactExport,'), true);
+  assert.equal(messageSource.includes('onRequestArtifactExport(message.artifact)'), true);
+  assert.equal(messageSource.includes('导出'), true);
+  assert.equal(messageSource.includes('href='), false);
+  assert.equal(messageSource.includes('download='), false);
+});
+
+test('New Conversation artifact card actions pause while the agent is running', async () => {
+  const messageSource = await readFunctionSource('AgentThreadMessage');
+  const threadSource = await readNewConversationSource();
+
+  assert.equal(threadSource.includes('isArtifactActionDisabled={isRunning}'), true);
+  assert.equal(messageSource.includes('isArtifactActionDisabled'), true);
+  assert.equal(messageSource.includes('disabled={isArtifactActionDisabled}'), true);
+});
+
 test('New Conversation missing business inputs render as a checklist in the thread', async () => {
   const source = await readFile(appSourcePath, 'utf8');
 
