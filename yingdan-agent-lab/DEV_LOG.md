@@ -2,6 +2,14 @@
 
 ## 2026-07-01
 
+- 补齐「新对话」复合成交任务拆解:
+  - 复现问题:`德国客户嫌贵但想做独家代理，产品是太阳能灯，帮我判断成交策略、写邮件、做报价边界和7天跟进计划` 这类一句话多目标请求会被 `写邮件` 抢路由成单一开发信,不像 Codex / Claude Code 会先理解任务再拆步骤执行。
+  - 已修复:registry 遇到客户、价格异议、独家代理、成交策略、报价边界、邮件和 7 天跟进等多个意图时优先进入 `customer-followup-plan`;Runtime 计划显示 `拆解复合任务`,Markdown 产物补 `复合任务拆解 / 成交策略 / 报价边界 / 英文邮件草稿 / 7天跟进节奏`。
+  - 新增红绿回归测试 `createSkillRuntime decomposes a complex deal request into strategy, quote boundary, email, and follow-up sections`,确认产品、德国市场、议价压力和独家代理诉求都进入依据,且不会退回 `客户关注点还需要从询盘原文里确认`。
+- 补齐 `太贵 / 嫌贵 / 价格太高` 的 Runtime 议价提炼:
+  - 复现问题:`客户说太贵了，产品是家具，帮我写两版WhatsApp跟进话术` 能进入客户推进分析,但产物依据仍写 `客户关注点还需要从询盘原文里确认`,没有吸收用户已经给出的价格异议。
+  - 已修复:Runtime 把 `太贵 / 嫌贵 / 价格太高 / too expensive / price too high` 归入 `客户关注点: 议价/折扣压力`;同时收窄 `运费太贵` 边界,只归入 `物流/运费压力`,不额外混成产品议价压力。
+  - 扩展红绿回归测试 `createSkillRuntime carries negotiation pressure into customer follow-up artifacts`,覆盖 `客户说太贵了` 这类自然话术,并复跑运费压力用例防止误伤。
 - 补齐 `优惠 / 便宜点` 这类自然议价口语:
   - 复现问题:`客户要优惠，产品是家具，怎么谈` 已有产品和议价卡点,但入口仍返回 `needs-input`,追问客户名称和当前卡点;Runtime 产物也不会把 `优惠` 提炼成 `客户关注点: 议价/折扣压力`。
   - 已修复:入口和 Runtime 统一把 `优惠 / 便宜点 / better price / lower price` 归入议价压力;已有产品时直接生成客户推进分析,缺产品时仍先追问产品或核心卖点。

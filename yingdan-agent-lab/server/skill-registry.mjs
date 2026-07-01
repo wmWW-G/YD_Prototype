@@ -207,6 +207,7 @@ function scoreGoalMatcher(input = {}) {
   const hasReplyIntent = /怎么回|回复|回信|reply|回一下|回客户|帮.*回/.test(text);
   const hasEmailIntent = /邮件|email|mail/.test(text);
   const hasOutboundSendIntent = /发给|发送给|外发|send\s+to|send/.test(text);
+  const hasCompositeDealIntent = isCompositeDealIntent(text);
   // 报价、报价邮件、回复客户、外发给客户是四个不同动作；这里只给“生成报价单”类说法加分。
   const hasQuotationSheetIntent =
     /报价单|做报价|生成报价|整理报价|报价给|客户问报价|客户要报价|pi|proforma/.test(text) &&
@@ -223,6 +224,9 @@ function scoreGoalMatcher(input = {}) {
   }
   if (skill.id === 'customer-followup-plan' && !hasEmailDraftIntent && /下一步|推进|怎么推进|咋办|怎么办|推进计划|跟进计划|跟进|回访|优先跟|客户分析|客户画像|优先级|机会|意向|判断/.test(text)) {
     score += 0.1;
+  }
+  if (skill.id === 'customer-followup-plan' && hasCompositeDealIntent) {
+    score += 0.28;
   }
   if (skill.id === 'inquiry-reply-draft' && /询盘|回复|回信|怎么回|reply|回一下|回客户/.test(text)) {
     score += 0.12;
@@ -274,4 +278,34 @@ function normalizeGoalText(text = '') {
   }
 
   return `${raw}${additions.join('')}`.replace(/\s+/g, '');
+}
+
+/**
+ * isCompositeDealIntent 判断用户是否在一次请求里要求多个成交动作。
+ *
+ * 作用：
+ * - `判断成交策略、写邮件、做报价边界和 7 天跟进计划` 不是普通开发信。
+ * - 这类请求应优先交给客户推进分析拆解,再在产物里生成多个执行段。
+ *
+ * 参数：
+ * - text：用户原始输入。
+ *
+ * 返回值：boolean,true 表示这是复合成交任务。
+ * 可能抛出的异常：无。
+ */
+function isCompositeDealIntent(text = '') {
+  const value = String(text || '').toLowerCase();
+  const hasCustomerContext = /客户|买家|采购商|客人|对方|buyer|customer|client/.test(value);
+  if (!hasCustomerContext) {
+    return false;
+  }
+
+  const intentChecks = [
+    /成交策略|推进策略|怎么谈|谈判策略|判断|策略|deal\s+strategy/.test(value),
+    /报价边界|报价策略|价格边界|价格底线|让步边界|quote\s+boundary|pricing\s+boundary/.test(value),
+    /写(?:一封)?邮件|写信|邮件草稿|英文邮件|email\s+draft|write\s+(?:an?\s+)?email/.test(value),
+    /7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|跟进计划|follow[-\s]?up\s+plan/.test(value),
+    /独家代理|独代|代理权|嫌贵|太贵|价格(?:太)?高|discount|exclusive\s+(?:agent|agency|distributor)/.test(value),
+  ];
+  return intentChecks.filter(Boolean).length >= 3;
 }

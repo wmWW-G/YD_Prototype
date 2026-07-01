@@ -139,7 +139,7 @@ export function createSkillRuntime(options = {}) {
       return buildFailedResult({ loopSteps, runId, runLogPath, state });
     }
 
-    state.plan = buildPlan(state.skill, state.goal);
+    state.plan = buildPlan(state.skill, state.goal, text);
     await recordRunEvent({
       type: 'plan.created',
       status: 'complete',
@@ -328,7 +328,7 @@ export function createSkillRuntime(options = {}) {
     }
 
     state.loadedSkill = await state.adapter.load({ projectRoot, runId, skill: state.skill });
-    state.plan = checkpoint.plan || buildPlan(state.skill, state.goal);
+    state.plan = checkpoint.plan || buildPlan(state.skill, state.goal, text);
     if (state.loadedSkill?.hasExecutable === false) {
       state.status = 'failed';
       await recordRunEvent({ type: 'run.failed', status: 'failed', reason: 'SKILL_NOT_EXECUTABLE', skillId: state.skill.id });
@@ -472,7 +472,7 @@ export function createSkillRuntime(options = {}) {
     }
 
     state.loadedSkill = await state.adapter.load({ projectRoot, runId, skill: state.skill });
-    state.plan = checkpoint.plan || buildPlan(state.skill, state.goal);
+    state.plan = checkpoint.plan || buildPlan(state.skill, state.goal, text);
     if (state.loadedSkill?.hasExecutable === false) {
       state.status = 'failed';
       await recordRunEvent({ type: 'run.failed', status: 'failed', reason: 'SKILL_NOT_EXECUTABLE', skillId: state.skill.id });
@@ -892,6 +892,7 @@ function buildBusinessDraftMarkdown({ skill, userText }) {
       ? buildCustomerFollowupSignalSentence(signals.concernsChinese)
       : '当前信息足以先做推进框架,但不足以给出确定成交结论。应先把客户意向、采购约束和下一步动作拆开处理。';
     const cadenceSection = buildFollowupCadenceSection({ signals, userText });
+    const compositeDealSections = buildCompositeDealSections({ signals, userText });
 
     return [
       `# ${title}`,
@@ -930,6 +931,7 @@ function buildBusinessDraftMarkdown({ skill, userText }) {
       '3. 高意向客户准备报价区间和样品方案;待澄清客户先发 3 个关键问题。',
       '4. 把确认后的摘要写入客户档案前,需要用户确认。',
       '',
+      ...compositeDealSections,
       ...cadenceSection,
     ].join('\n');
   }
@@ -1120,6 +1122,81 @@ function buildFollowupCadenceSection({ signals = {}, userText = '' } = {}) {
   ];
 }
 
+/**
+ * buildCompositeDealSections 为一句话多目标成交任务生成可交付的拆解段落。
+ *
+ * 作用：
+ * - 用户可能一句话同时要成交策略、报价边界、邮件和 7 天跟进计划。
+ * - 这类任务不能被压扁成一封普通开发信,否则体验不像 Codex/Claude Code 的“理解任务后拆步骤执行”。
+ * - 这里只生成本地草稿,不会承诺价格、不会自动外发、不会写入真实客户档案。
+ *
+ * 参数：
+ * - signals：extractBusinessSignals() 提取出的产品、国家、客户关注点等业务事实。
+ * - userText：用户原始输入,用于判断是否真的是复合成交任务。
+ *
+ * 返回值：Markdown 行数组；不是复合成交任务时返回空数组。
+ * 可能抛出的异常：无。
+ */
+function buildCompositeDealSections({ signals = {}, userText = '' } = {}) {
+  if (!isCompositeDealRequest(userText)) {
+    return [];
+  }
+
+  const product = signals.productChinese || '该产品';
+  const productEnglish = signals.productEnglish || product;
+  const market = signals.countryChinese || '该客户市场';
+  const marketEnglish = signals.countryEnglish || market;
+  const concerns = Array.isArray(signals.concernsChinese) ? signals.concernsChinese : [];
+  const hasPricePressure = concerns.includes('议价/折扣压力');
+  const hasAgencyRequest = concerns.includes('独家代理/渠道合作');
+
+  return [
+    '## 复合任务拆解',
+    '',
+    '- 子任务1: 先判断成交策略,把价格异议、代理诉求和真实采购意向分开处理。',
+    '- 子任务2: 再整理报价边界,只给谈判框架,不替用户承诺底价或外发报价。',
+    '- 子任务3: 生成一封英文邮件草稿,外发前仍需用户确认客户名称、价格和附件。',
+    '- 子任务4: 配合 7 天跟进节奏推进,客户回复后再更新下一步动作。',
+    '',
+    '## 成交策略',
+    '',
+    `- 主线: 先围绕${product}确认${market}客户的目标渠道、首单数量、应用场景和采购时间,再讨论价格或代理权。`,
+    hasPricePressure
+      ? '- 价格异议: 不直接降价,先拆分产品价值、数量阶梯、付款条件、贸易条款和总到手成本。'
+      : '- 价格异议: 如果客户继续压价,先要求明确目标数量、目标价和竞品依据。',
+    hasAgencyRequest
+      ? '- 独家代理: 不先口头承诺独家,要求客户给出区域边界、年度销量、试运行周期和渠道投入。'
+      : '- 渠道合作: 先按普通合作推进,等客户证明渠道能力后再讨论更强绑定条件。',
+    '- 判断标准: 如果客户愿意补数量、目标价、渠道计划和试单时间,优先级上调;如果只要求低价或独家,先保持谨慎。',
+    '',
+    '## 报价边界',
+    '',
+    `- 报价对象: ${product}`,
+    `- 市场/客户: ${market}`,
+    '- 可先给“条件报价”框架: 数量越明确、付款越稳、试单越快,可讨论的支持越具体。',
+    '- 不能直接承诺最低价、独家授权或固定折扣;正式报价必须等数量、规格、贸易条款、目的港和价格底线确认。',
+    '- 可交换条件: 数量阶梯、样品费抵扣、付款方式、首单试运行、区域保护期限和年度销量承诺。',
+    '',
+    '## 英文邮件草稿',
+    '',
+    `Subject: ${productEnglish} cooperation options for ${marketEnglish} market`,
+    '',
+    'Hi {{Customer Name}},',
+    '',
+    `Thank you for your interest in ${productEnglish}. I understand that price competitiveness and agency cooperation are both important for your market.`,
+    '',
+    'Before we confirm any exclusive arrangement, I suggest we first align on the target territory, expected annual volume, initial trial order, and the support you need from our side.',
+    '',
+    'For pricing, I can prepare options based on quantity, payment terms, and delivery requirements, so we keep the offer realistic without compromising product quality or long-term cooperation.',
+    '',
+    'Would you like to start with a trial order and then review exclusive agency conditions after the first market feedback?',
+    '',
+    'Best regards,',
+    '{{Your Name}}',
+    '',
+  ];
+}
+
 function extractBusinessSignals(userText = '') {
   const text = String(userText || '');
   const lower = text.toLowerCase();
@@ -1137,7 +1214,9 @@ function extractBusinessSignals(userText = '') {
   if (/交期|lead\s*time|delivery|发货时间/.test(lower)) {
     concerns.push({ chinese: '交期', english: 'lead time' });
   }
-  if (/砍价|压价|还价|议价|让价|降价|折扣|优惠|便宜点|discount|better\s+price|lower\s+price|price\s+cut|price\s+reduction/.test(lower)) {
+  const hasLogisticsCostPressure = /运费|物流|运输费|运输成本|海运费|空运费|freight|shipping\s+cost|logistics\s+cost/.test(lower);
+  const hasProductPricePressure = /嫌贵|太贵|贵了|价格(?:太)?高|too\s+expensive|price\s+too\s+high/.test(lower) && !hasLogisticsCostPressure;
+  if (hasProductPricePressure || /砍价|压价|还价|议价|让价|降价|折扣|优惠|便宜点|discount|better\s+price|lower\s+price|price\s+cut|price\s+reduction/.test(lower)) {
     concerns.push({ chinese: '议价/折扣压力', english: 'price negotiation pressure' });
   }
   if (/价格|报价|price|target price/.test(lower)) {
@@ -1155,7 +1234,7 @@ function extractBusinessSignals(userText = '') {
   } else if (/样品|sample/.test(lower)) {
     concerns.push({ chinese: '样品', english: 'samples' });
   }
-  if (/运费|物流|运输费|运输成本|海运费|空运费|freight|shipping\s+cost|logistics\s+cost/.test(lower)) {
+  if (hasLogisticsCostPressure) {
     concerns.push({ chinese: '物流/运费压力', english: 'logistics/shipping cost pressure' });
   }
   if (/沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|no\s+reply|not\s+replying|no\s+response/.test(lower)) {
@@ -1662,7 +1741,20 @@ function buildWaitingResult({ action, checkpoint, checkpointPath, decision, loop
   };
 }
 
-function buildPlan(skill, goal) {
+function buildPlan(skill, goal, userText = '') {
+  if (skill.id === 'customer-followup-plan' && isCompositeDealRequest(userText)) {
+    return {
+      title: `${skill.displayName || skill.id}执行计划`,
+      steps: [
+        { id: 'understand_goal', label: '识别任务', detail: '确认这是客户成交复合任务,不是单一邮件或单一报价。' },
+        { id: 'check_context', label: '核对资料', detail: '核对客户、产品、市场、价格异议、代理诉求和跟进目标。' },
+        { id: 'decompose_deal', label: '拆解复合任务', detail: '拆成成交策略、报价边界、英文邮件草稿和 7 天跟进计划。' },
+        { id: 'write_package', label: '生成材料', detail: '生成复合成交方案 Markdown,并保留外发前确认边界。' },
+        { id: 'verify_result', label: '检查结果', detail: '确认用户给出的关键事实进入依据,且没有自动外发或承诺价格。' },
+      ],
+    };
+  }
+
   if (Array.isArray(skill.plan) && skill.plan.length > 0) {
     return {
       title: `${skill.displayName || skill.id}执行计划`,
@@ -1681,6 +1773,37 @@ function buildPlan(skill, goal) {
       { id: 'verify_artifact', label: '校验产物', detail: '确认产物可以交付。' },
     ],
   };
+}
+
+/**
+ * isCompositeDealRequest 判断用户是否在一次请求里要求多个成交动作。
+ *
+ * 作用：
+ * - `写邮件` 单独出现时通常应该去开发信或询盘回复。
+ * - `成交策略 + 报价边界 + 邮件 + 7 天跟进` 同时出现时,应该由客户推进 Runtime 拆成多产物段落。
+ * - 这个判断只用于选择计划和产物结构,不会暴露给用户成为配置项。
+ *
+ * 参数：
+ * - text：用户原始输入。
+ *
+ * 返回值：boolean,true 表示这是复合成交任务。
+ * 可能抛出的异常：无。
+ */
+function isCompositeDealRequest(text = '') {
+  const value = String(text || '').toLowerCase();
+  const hasCustomerContext = /客户|买家|采购商|客人|对方|buyer|customer|client/.test(value);
+  if (!hasCustomerContext) {
+    return false;
+  }
+
+  const intentChecks = [
+    /成交策略|推进策略|怎么谈|谈判策略|判断|策略|deal\s+strategy/.test(value),
+    /报价边界|报价策略|价格边界|价格底线|让步边界|quote\s+boundary|pricing\s+boundary/.test(value),
+    /写(?:一封)?邮件|写信|邮件草稿|英文邮件|email\s+draft|write\s+(?:an?\s+)?email/.test(value),
+    /7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|跟进计划|follow[-\s]?up\s+plan/.test(value),
+    /独家代理|独代|代理权|嫌贵|太贵|价格(?:太)?高|discount|exclusive\s+(?:agent|agency|distributor)/.test(value),
+  ];
+  return intentChecks.filter(Boolean).length >= 3;
 }
 
 function toLoopStep(action, title, detail, observation, status, nextAction) {
