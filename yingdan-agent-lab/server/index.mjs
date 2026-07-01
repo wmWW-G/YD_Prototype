@@ -12,6 +12,7 @@ import {
   sanitizeAgentResultForFrontend,
   sanitizeAgentSessionForFrontend,
 } from './agent-message-stream.mjs';
+import { mergeAgentRequestContext } from './agent-request-context.mjs';
 import { createAgentSessionStore } from './agent-session-store.mjs';
 import { createRuntime, loadEnvFile } from './runtime.mjs';
 import { runNewConversationAgent } from './skill-agent.mjs';
@@ -67,23 +68,21 @@ function sendError(response, error) {
  * executeAgentMessage 执行一次新对话消息并保存 session。
  *
  * 作用：
- * - 普通 JSON 接口和流式接口共用同一套读取 session、合并 context、执行 Agent、保存回合逻辑。
+ * - 普通 JSON 接口和流式接口共用同一套合并 context、执行 Agent、保存回合逻辑。
+ * - 流式接口可以先解析上下文再发第一条进度,避免续跑任务误显示“识别任务”。
  * - 可选 `onRuntimeEvent` 会接收 Runtime 真实事件,供 SSE 进度流使用。
  *
  * 参数：
  * - body：Express request.body。
  * - onRuntimeEvent：可选 Runtime 事件回调。
+ * - resolvedRequest：可选的已解析请求上下文,避免同一轮重复读 session。
  *
  * 返回值：Promise<object>,即 runNewConversationAgent 的结果。
  * 可能抛出的异常：底层 Runtime、文件读写或 session 保存失败时抛出。
  */
-async function executeAgentMessage(body = {}, onRuntimeEvent = null) {
-  const sessionId = body?.sessionId || '';
-  const storedSession = sessionId ? await agentSessionStore.read(sessionId) : null;
-  const requestContext = mergeAgentRequestContext({
-    clientContext: body?.context || {},
-    serverContext: storedSession?.context || {},
-  });
+async function executeAgentMessage(body = {}, onRuntimeEvent = null, resolvedRequest = null) {
+  const resolved = resolvedRequest || await resolveAgentMessageRequest(body);
+  const { requestContext, sessionId, storedSession } = resolved;
   const result = await runNewConversationAgent({
     checkPolicy: (action) => runtime.checkPolicy(action),
     text: body?.message || '',
@@ -107,35 +106,31 @@ async function executeAgentMessage(body = {}, onRuntimeEvent = null) {
 }
 
 /**
- * mergeAgentRequestContext 合并前端上下文和后端 session 上下文。
+ * resolveAgentMessageRequest 读取已有 session 并合并本轮上下文。
  *
  * 作用：
- * - 前端只拿到净化后的 artifact 摘要,不能覆盖后端保存的真实 outputPath。
- * - pendingConfirmation / pendingTask 这类暂停恢复状态必须以后端 session 为准。
- * - 没有后端 session 时,仍允许前端传入旧版本地 context 作为兜底。
+ * - 让后端 session 里的 pendingTask / pendingConfirmation 成为续跑判断的权威来源。
+ * - 流式接口在执行 Agent 前就能知道这是新任务还是 checkpoint 续跑。
+ * - 前端传来的净化 context 仍可作为无 session 时的兜底。
  *
  * 参数：
- * - input.clientContext：前端请求体里的 context。
- * - input.serverContext：session store 里读出的 context。
+ * - body：Express request.body。
  *
- * 返回值：用于本轮 runNewConversationAgent 的上下文。
- * 可能抛出的异常：无。
+ * 返回值：包含 sessionId、storedSession 和 requestContext 的对象。
+ * 可能抛出的异常：读取 session 文件失败时会抛出底层文件异常。
  */
-function mergeAgentRequestContext(input = {}) {
-  const clientContext = input.clientContext || {};
-  const serverContext = input.serverContext || {};
-  const hasServerContext = Object.keys(serverContext).length > 0;
-
-  if (!hasServerContext) {
-    return clientContext;
-  }
+async function resolveAgentMessageRequest(body = {}) {
+  const sessionId = body?.sessionId || '';
+  const storedSession = sessionId ? await agentSessionStore.read(sessionId) : null;
+  const requestContext = mergeAgentRequestContext({
+    clientContext: body?.context || {},
+    serverContext: storedSession?.context || {},
+  });
 
   return {
-    ...clientContext,
-    ...serverContext,
-    artifact: serverContext.artifact || clientContext.artifact,
-    pendingConfirmation: serverContext.pendingConfirmation,
-    pendingTask: serverContext.pendingTask || clientContext.pendingTask,
+    requestContext,
+    sessionId,
+    storedSession,
   };
 }
 
@@ -168,15 +163,17 @@ app.post('/api/inquiry/analyze', async (request, response) => {
 
 app.post('/api/agent/message', async (request, response) => {
   try {
-    const result = await executeAgentMessage(request.body);
+    const resolvedRequest = await resolveAgentMessageRequest(request.body);
+    const result = await executeAgentMessage(request.body, null, resolvedRequest);
     if (result.ok === false) {
       const recoverableResult = buildRecoverableAgentErrorResult({
+        context: resolvedRequest.requestContext,
         error: result,
         sessionId: result.sessionId || request.body?.sessionId,
         userText: request.body?.message,
       });
       await agentSessionStore.saveTurn({
-        requestContext: request.body?.context || {},
+        requestContext: resolvedRequest.requestContext,
         response: recoverableResult,
         sessionId: recoverableResult.sessionId,
         userText: request.body?.message || '',
@@ -186,17 +183,23 @@ app.post('/api/agent/message', async (request, response) => {
     }
     response.json(sanitizeAgentResultForFrontend(result));
   } catch (error) {
+    let requestContext = request.body?.context || {};
+    try {
+      const storedSession = request.body?.sessionId ? await agentSessionStore.read(request.body.sessionId) : null;
+      requestContext = mergeAgentRequestContext({
+        clientContext: request.body?.context || {},
+        serverContext: storedSession?.context || {},
+      });
+    } catch {
+      requestContext = request.body?.context || {};
+    }
     const result = buildRecoverableAgentErrorResult({
+      context: requestContext,
       error,
       sessionId: request.body?.sessionId,
       userText: request.body?.message,
     });
     try {
-      const storedSession = request.body?.sessionId ? await agentSessionStore.read(request.body.sessionId) : null;
-      const requestContext = mergeAgentRequestContext({
-        clientContext: request.body?.context || {},
-        serverContext: storedSession?.context || {},
-      });
       await agentSessionStore.saveTurn({
         requestContext,
         response: result,
@@ -216,25 +219,31 @@ app.post('/api/agent/message/stream', async (request, response) => {
   response.setHeader('Connection', 'keep-alive');
   response.flushHeaders?.();
   const dedupeProgressEvent = createConsecutiveProgressDeduper();
-
-  writeSse(response, 'progress', createInitialAgentStreamProgress());
+  let resolvedRequest = null;
 
   try {
+    resolvedRequest = await resolveAgentMessageRequest(request.body);
+    writeSse(response, 'progress', createInitialAgentStreamProgress({
+      context: resolvedRequest.requestContext,
+      text: request.body?.message || '',
+    }));
+
     const result = await executeAgentMessage(request.body, async (runtimeEvent) => {
       const streamEvent = dedupeProgressEvent(runtimeEventToStreamEvent(runtimeEvent));
       if (streamEvent) {
         writeSse(response, streamEvent.event, streamEvent.data);
       }
-    });
+    }, resolvedRequest);
 
     if (result.ok === false) {
       const recoverableResult = buildRecoverableAgentErrorResult({
+        context: resolvedRequest?.requestContext,
         error: result,
         sessionId: result.sessionId || request.body?.sessionId,
         userText: request.body?.message,
       });
       await agentSessionStore.saveTurn({
-        requestContext: request.body?.context || {},
+        requestContext: resolvedRequest?.requestContext || request.body?.context || {},
         response: recoverableResult,
         sessionId: recoverableResult.sessionId,
         userText: request.body?.message || '',
@@ -245,17 +254,22 @@ app.post('/api/agent/message/stream', async (request, response) => {
 
     writeSse(response, 'result', sanitizeAgentResultForFrontend(result));
   } catch (error) {
+    let requestContext = resolvedRequest?.requestContext || request.body?.context || {};
+    if (!resolvedRequest) {
+      try {
+        resolvedRequest = await resolveAgentMessageRequest(request.body);
+        requestContext = resolvedRequest.requestContext;
+      } catch {
+        requestContext = request.body?.context || {};
+      }
+    }
     const result = buildRecoverableAgentErrorResult({
+      context: requestContext,
       error,
       sessionId: request.body?.sessionId,
       userText: request.body?.message,
     });
     try {
-      const storedSession = request.body?.sessionId ? await agentSessionStore.read(request.body.sessionId) : null;
-      const requestContext = mergeAgentRequestContext({
-        clientContext: request.body?.context || {},
-        serverContext: storedSession?.context || {},
-      });
       await agentSessionStore.saveTurn({
         requestContext,
         response: result,

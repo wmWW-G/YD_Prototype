@@ -447,7 +447,7 @@ function buildThreadContextGoalText(input = {}) {
  * 返回值：明确换客户时返回 true。
  * 可能抛出的异常：无。
  */
-function shouldStartWithFreshCustomerContext(text = '') {
+export function shouldStartWithFreshCustomerContext(text = '') {
   const compact = String(text || '').replace(/\s+/g, '');
   const resetWords = /(?:重新开始|从头开始|重开|开新任务|新任务|开始新任务|另起一条|另起一个)/u;
   const negatedResetWords = /(?:不要|别|不用|无需|先别|先不要|先不用|不需要)(?:重新开始|从头开始|重开|开新任务|新任务|开始新任务|另起一条|另起一个)|(?:不是|并不是)(?:要)?(?:重新开始|从头开始|重开|开新任务|新任务|开始新任务|另起一条|另起一个)/u;

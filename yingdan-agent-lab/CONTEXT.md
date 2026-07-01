@@ -94,7 +94,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - `server/agent-session-store.mjs`:后端保存新对话 session 文件,前端刷新或只传 `sessionId` 时可以恢复 pending task、pending confirmation、artifact 和消息。
 - `GET /api/agent/session/:sessionId`:前端恢复线程的后端接口;localStorage 只作为兜底,不再是唯一连续性来源。
 - `GET /api/agent/sessions`:前端最近任务列表接口,按更新时间倒序返回最多 50 条安全摘要;只包含 sessionId、taskTitle、status、kind、preview、artifactName、createdAt、updatedAt。
-- pending task 续跑:用户第一次说得太模糊时返回 `needs-input`;补一句话后,后端会用“原始任务 + 新补充”恢复执行文本,并从原 `needs-input:<skillId>` checkpoint 继续。内部可以恢复 Skill 和 plan,但 run log、最终 process 和活动流不能像新任务一样重播 `识别任务 / 核对资料 / 拆解任务`;如果 policy 允许,展示 `继续执行 / 生成材料 / 整理发现 / 检查结果 / 完成`;如果 policy 需要确认,展示 `继续执行 / 核对权限 / 等待确认`。
+- pending task 续跑:用户第一次说得太模糊时返回 `needs-input`;补一句话后,后端会用“原始任务 + 新补充”恢复执行文本,并从原 `needs-input:<skillId>` checkpoint 继续。内部可以恢复 Skill 和 plan,但 run log、最终 process、活动流和 SSE 首条可见进度都不能像新任务一样重播 `识别任务 / 核对资料 / 拆解任务`;如果 policy 允许,展示 `继续执行 / 生成材料 / 整理发现 / 检查结果 / 完成`;如果 policy 需要确认,展示 `继续执行 / 核对权限 / 等待确认`。
 - pending task 必须累积多轮补充:用户分多句补客户、询盘、产品、下一步目标时,后端用“原始任务 + 全部 supplements + 当前输入”重新匹配和执行,不能只保留最后一句补充。
 - 同一线程里的新匹配任务也要能沿用最近真实用户资料:例如先生成 `开发信草稿.md`,上一轮用户已经说清 `德国采购商 / 太阳能路灯 / MOQ和交期`;下一句 `再做一个客户下一步推进计划` 应把这些用户说过的事实带入 `客户推进分析`,不能像失忆一样重新追问。只允许复用最近用户消息里的事实,不能把 Agent 生成的推测、内部 runId、路径或 tool 信息当作业务事实;复用后仍缺资料时继续追问。用户明确说 `另一个客户 / 新客户 / 换个买家` 时必须视为新客户对象,不能套用上一位客户的国家、产品和问题。用户明确说 `重新开始 / 从头开始 / 新任务 / 不要沿用上一个任务` 时也必须切断旧线程事实、旧 pending task、旧确认卡和旧产物上下文;如果新任务本身缺客户资料或当前卡点,应回到 `needs-input / waiting`,而不是把上一轮客户资料粘过去。但 `不要重新开始 / 先别从头开始` 这类否定重开话术表示继续当前任务,不能误清上下文。
 - 前端可恢复异常也必须保留续接上下文:如果 SSE 或网络在后端返回 sessionId 前中断,前端会生成 `agent-session-local-*` 兜底 ID,并把原始任务写入 `context.pendingTask`;用户下一句补充资料时,后端仍能按同一任务续跑,不能把补充句当成全新任务。
@@ -109,7 +109,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - Markdown 产物续改:用户已生成 `开发信草稿.md`、`客户推进分析.md` 这类文本产物后,再补一句“语气更礼貌一点 / 加一句可以寄样品”,后端会安全更新同一份 `workbench/artifacts/` 产物,而不是重开任务或只返回摘要。
 - 已有产物的同线程明显改稿请求必须优先于新任务路由:如果当前 session 有 `客户推进分析.md`、`开发信草稿.md` 等 artifact,用户再说 `继续 / 优化 / 修改 / 改成 / 写成 / 两版 / 第1天话术 / 补一句`,应先按当前产物 follow-up 处理。只有用户明确说 `新任务 / 重新开始 / 另一个客户 / 再做一个报价单` 或输入不带改稿意图的完整新目标,才重新匹配新的 Skill。
 - XLSX 产物续改:用户已生成 `询盘分析会.xlsx`、`报价单.xlsx` 这类表格产物后,再补一句“按负责人补一列下周动作 / 加一列有效期30天”,后端会在同一任务下生成一份 `已续改` 修订版 XLSX,保留原工作表并新增 `本次追问` sheet;原文件不被覆盖,修订版必须通过 Runtime XLSX 校验。公开 `taskTitle`、artifact 名和消息内容必须使用 `报价单-已续改-*.xlsx` 这类业务友好名称,不能暴露 `quotation-sheet`、`skill-runtime` 等内部文件名。
-- `server/agent-message-stream.mjs` 和 `POST /api/agent/message/stream`:把 Runtime 真实 run events 翻译成 `progress` SSE 事件,前端运行中气泡会逐步显示“识别任务 / 核对资料 / 生成材料 / 检查结果”,最后收到 `result` 再落正式 Agent 回复。公开 progress 可以带 `phase`,但必须是 `识别 / 核对资料 / 拆步骤 / 执行 / 检查 / 收尾` 这类中文短标签,不能把 `preflight / validating` 等内部 phase key 暴露给业务用户。
+- `server/agent-message-stream.mjs` 和 `POST /api/agent/message/stream`:把 Runtime 真实 run events 翻译成 `progress` SSE 事件,前端运行中气泡会逐步显示“识别任务 / 核对资料 / 生成材料 / 检查结果”,最后收到 `result` 再落正式 Agent 回复。普通新任务的首条 progress 是 `识别任务`;已有 pending task 或 pending confirmation 的 checkpoint 续跑首条 progress 必须是 `继续执行`,不能先闪一下 `识别任务`;但用户明确说 `重新开始 / 新任务 / 从头开始` 时,即使旧 session 仍有 pending runtime,首条 progress 也必须按新任务回到 `识别任务`。公开 progress 可以带 `phase`,但必须是 `识别 / 核对资料 / 拆步骤 / 执行 / 检查 / 收尾` 这类中文短标签,不能把 `preflight / validating` 等内部 phase key 暴露给业务用户。
 - typed evaluator 失败也必须翻译成业务化检查暂停:`artifact.typed_evaluated` 对前台展示为 `检查结果`,如果失败则提示“检查结果没有通过,我已先停下,避免交付可能误导的材料”。HTTP/SSE recoverable result 也要保持 `waiting`,标题用 `检查结果需要处理`,不能暴露 `typed evaluator`、`artifact.typed_evaluated`、skill slug、runId、路径或 evidence ledger。
 - `artifact.verified` 对 Markdown 业务产物不再只是检查文件非空;Runtime 会生成机器可读 `validation.evidence`,并在同一产物目录写入内部 `evidence-ledger.json`,核对产物是否包含依据段、用户来源、产品、客户/市场、关注点、数量、价格、贸易条款、付款条件、样品计划和下一步动作。run log 会追加 `evidence.added`;SSE 的 `检查结果` 在 evidence 通过时显示 `已核对产物里的业务依据和用户事实覆盖`,失败时阻止任务完成。
 - SSE 展示层会合并连续重复的 progress,例如多个内部 `policy.checked` 只展示一次 `核对权限`;后台 run log 仍保留完整审计事件。
@@ -126,7 +126,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 同任务 follow-up 的最终用户可见消息不能出现 `前端 / 日志 / 脚本 / run log / manifest` 等内部实现词;上一轮依据要翻成业务口吻,例如“已沿用当前线程里的产物和上下文继续处理”。
 - 同任务 follow-up 要能把用户补充转成真实可用内容,不能只记录“用户要求”。例如当前产物是带 `7天跟进节奏` 的 `客户推进分析.md` 时,用户补 `把第1天/第3天话术写成英文 WhatsApp 和邮件两版`,后端应在同一 Markdown 里追加对应天数的 WhatsApp 和 Email 草稿,包含 Subject 和产品语境;用户补 `第5天` 或 `Day 5` 也应生成对应话术,不能只支持第1/3/7天;这仍只是草稿,不会自动外发。
 - 渠道草稿和外发动作必须区分:用户说 `WhatsApp / 邮件 / Email` 不等于要发送;如果同时出现 `话术 / 文案 / 草稿 / 两版 / 写成` 这类版本编辑词,应按同任务 follow-up 续改当前产物。只有明确说 `发给客户 / 发送给买家 / 外发 / 直接发 / 发到客户 / 然后发送 / 然后发客户 / send it / send now` 时,才进入外发确认。`用于开发客户` 这类业务用途不是外发动作,不能因为包含 `发客户` 三个字就误拦。
-- 成功执行的公开主进度必须从 `识别任务` 开始,然后是 `核对资料 / 拆解任务 / 生成材料 / 检查结果`;不能只在折叠活动流里出现任务识别。
+- 普通新任务成功执行的公开主进度必须从 `识别任务` 开始,然后是 `核对资料 / 拆解任务 / 生成材料 / 检查结果`;checkpoint 续跑成功执行的公开主进度必须从 `继续执行` 开始,不能只在折叠活动流里出现任务识别或续跑状态。
 - 对外 Agent payload 会先净化:前台接口只返回 `taskTitle`、业务化进度、消息、产物摘要和上下文摘要,不暴露 `goal/loop/plan/skillId/runId/mode`、真实 `outputPath/manifestPath` 或 `goal.classify/action.execute` 这类内部 runtime 名。
 - 即时 Agent result 只返回助手消息;用户消息由前端用用户原始输入本地追加。后端为了续接任务拼出的 `产出类型: ...；补充资料: ...` 这类内部恢复文本不能进入公开 result messages,否则前台会像在展示系统拼接记录而不是自然 agent thread。刷新恢复时再从 session store 返回真实用户消息。
 - 业务产物本身也不能泄露内部恢复文本:Markdown 里的 `任务来源 / 用户目标 / 用户补充` 应还原成自然业务资料,不能出现 `产出类型`、`补充资料`、`原始需求` 这类 Runtime 拼接痕迹。比如缺产品等待后,用户补 `产品太阳能路灯，发给客户`,确认只生成草稿后,`询盘回复草稿.md` 的任务来源应类似 `客户问MOQ和交期，帮我回一下；产品太阳能路灯，发给客户`。
@@ -386,7 +386,7 @@ npm run acceptance:alibaba-inquiry-meeting:real
 点击 Agent 消息里的「本次操作记录」应展开业务节点:普通成功路径通常是识别任务、核对资料、生成材料、检查结果;保存、导出、外发或付费确认路径才会继续出现核对权限、等待确认
 操作记录每一步应来自真实 Runtime 事件,不是执行结束后拼静态文案
 继续输入追问后,页面应沿用同一次任务,并提示不会重新采集 Alibaba 只读数据
-流式接口验收: `POST /api/agent/message/stream` 应先返回多段 progress,首个可见步骤必须是 `识别任务`,例如 识别任务、确认任务类型、核对资料、拆解任务、生成材料、检查结果,最后返回 result
+流式接口验收: `POST /api/agent/message/stream` 应先返回多段 progress;普通新任务首个可见步骤必须是 `识别任务`,例如 识别任务、确认任务类型、核对资料、拆解任务、生成材料、检查结果,最后返回 result;checkpoint 续跑首个可见步骤必须是 `继续执行`,不能先闪现 `识别任务`;旧 pending session 里用户明确说 `重新开始 / 新任务 / 从头开始` 时,首个可见步骤必须重新回到 `识别任务`
 普通成功 result 的 `progress` 和助手消息 `process.steps` 应包含 `识别任务 / 核对资料 / 拆解任务 / 生成材料 / 检查结果`,并保留用户可见中文 `phase` 标签用于前台回看
 对外 payload 验收:普通 JSON、SSE result、session 恢复和 artifact preview 不应包含 `goal/loop/plan/skillId/runId/mode` 顶层字段,也不应包含 `outputPath/manifestPath`、`memoryPath/diaryPath`、`memory.md/agent-saves.jsonl`、`skill-runtime`、`goal.classify/action.execute/artifact.verify` 这类内部名或本地绝对路径
 历史列表验收:`GET /api/agent/sessions` 应按 updatedAt 倒序返回最近任务摘要;前台 `历史` 面板显示 `最近任务`,可点击恢复对应线程;列表和恢复 payload 不展示本地路径、runId、checkpointPath、runLogPath 或 outputPath

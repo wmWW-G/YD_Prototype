@@ -718,3 +718,11 @@
   - 新增红灯测试 `runNewConversationAgent shows policy confirmation when a needs-input resume hits Runtime policy ask`,覆盖真实 skill 带 `policyActions` 的补资料续跑分支。
   - `buildProgress()` 现在通过 `buildResumeProgress()` 只展示实际发生的续跑步骤:policy waiting 时显示 `继续执行 / 核对权限 / 等待确认`,不会显示尚未执行的生成材料。
   - 文档同步说明 needs-input 续跑仍会执行 policy 检查:allow 时继续生成材料,ask 时停在确认。
+- 修正 checkpoint 续跑的 SSE 首屏进度：
+  - 新增红灯测试 `createInitialAgentStreamProgress starts needs-input resumes with continue execution`,复现补资料续跑时 stream route 还会先发 `识别任务` 的体验断点。
+  - `createInitialAgentStreamProgress()` 现在会读取合并后的线程上下文;普通新任务仍从 `识别任务` 开始,但已有 `pendingTask.runtime` 或 `pendingConfirmation.runtime` 时首条 progress 改为 `继续执行`。
+  - `POST /api/agent/message/stream` 现在会在发首条 SSE progress 前先读取 session 并合并 context,避免真实流式体验在续跑时先闪现“像重新开始”的 `识别任务`。
+  - sub agent 复核指出两处 Important:服务端 session 还会回捞客户端旧 pendingTask,以及续跑失败的最终助手过程仍可能从 `识别任务` 开始。已新增 `server/agent-request-context.mjs` 和对应测试,确保有服务端 context 时 pendingTask/pendingConfirmation 以服务端为准;`buildRecoverableAgentErrorResult()` 也会根据 resume context 把续跑失败的 process/activity 首步显示为 `继续执行`。
+  - sub agent 二次复核指出 JSON `/api/agent/message` 的 `ok:false` 分支还没有用合并后的 request context。已新增 `server/index-source.test.mjs`,并让 JSON route 像 SSE route 一样先 `resolveAgentMessageRequest()`,再把同一个 `requestContext` 传给 `executeAgentMessage()`、recoverable result 和 `saveTurn()`。
+  - sub agent 三次复核指出显式 `重新开始 / 新任务` 在旧 pending session 中仍可能先显示 `继续执行`。已复用 `shouldStartWithFreshCustomerContext()` 判断,让 SSE 首条 progress 和 recoverable result 在显式重开时回到 `识别任务`;新增测试覆盖 explicit restart + pending runtime 的首屏和失败兜底。
+  - 已执行目标集 `node --test server/agent-message-stream.test.mjs server/agent-request-context.test.mjs server/agent-thread-progress.test.mjs server/agent-session-store.test.mjs server/index-source.test.mjs server/skill-agent.test.mjs --test-name-pattern "explicit restart|merged request context|continue-execution|records runtime resume|Runtime policy ask|ignores pending"`、语法检查、`git diff --check`、`npm test`(224 个测试通过)和 `npm run build:web`。

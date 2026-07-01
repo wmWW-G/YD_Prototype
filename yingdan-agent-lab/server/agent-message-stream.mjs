@@ -1,3 +1,5 @@
+import { shouldStartWithFreshCustomerContext } from './skill-agent.mjs';
+
 /**
  * formatSseEvent 把事件名和 JSON 数据编码成 SSE 文本块。
  *
@@ -20,22 +22,62 @@ export function formatSseEvent(eventName, data = {}) {
  * createInitialAgentStreamProgress 生成新对话流式响应的第一条可见进度。
  *
  * 作用：
- * - 让前台一开始就看到“识别任务”,像 agent 正在理解目标。
+ * - 普通新任务一开始看到“识别任务”,像 agent 正在理解目标。
+ * - 从 checkpoint 续跑的任务一开始看到“继续执行”,避免补一句话后像重新开任务。
  * - 避免展示“收到任务”这类通知式文案,降低 Codex / Claude Code 式执行感。
  * - 后续 Runtime 的 `goal.received` 事件会更新同一个步骤为完成态。
  *
- * 参数：无。
+ * 参数：
+ * - input.context：合并后的线程上下文,可能包含 pendingTask 或 pendingConfirmation。
+ * - input.text：用户本轮输入；如果明确重开任务,即使有旧 pending 也按新任务展示。
  *
  * 返回值：前端可直接渲染的 progress 数据。
  * 可能抛出的异常：无。
  */
-export function createInitialAgentStreamProgress() {
+export function createInitialAgentStreamProgress(input = {}) {
+  if (hasPendingResumeContext(input.context, input.text)) {
+    return {
+      detail: '正在接着刚才暂停的外贸任务继续处理。',
+      label: '继续执行',
+      phase: '执行',
+      status: 'running',
+    };
+  }
+
   return {
     detail: '正在理解这次外贸任务要完成什么。',
     label: '识别任务',
     phase: '识别',
     status: 'running',
   };
+}
+
+/**
+ * hasPendingResumeContext 判断当前线程是否正在从等待点续跑。
+ *
+ * 作用：
+ * - pendingTask 覆盖“缺资料后补一句继续”的场景。
+ * - pendingConfirmation 覆盖“保存/导出/付费确认后继续”的场景。
+ * - 这里只返回布尔值,不把 runId、resume_from 等内部细节放进前台进度。
+ *
+ * 参数：
+ * - context：合并后的 agent 上下文对象。
+ * - text：用户本轮输入；明确重开时忽略旧 pending。
+ *
+ * 返回值：存在可恢复等待态时返回 true,否则返回 false。
+ * 可能抛出的异常：无。
+ */
+function hasPendingResumeContext(context = {}, text = '') {
+  if (shouldStartWithFreshCustomerContext(text)) {
+    return false;
+  }
+
+  return Boolean(
+    context?.pendingTask?.runtime?.runId ||
+      context?.pendingTask?.runtime?.resumeFrom ||
+      context?.pendingConfirmation?.runtime?.runId ||
+      context?.pendingConfirmation?.runtime?.resumeFrom
+  );
 }
 
 /**
@@ -190,6 +232,7 @@ export function sanitizeAgentSessionForFrontend(session = {}) {
  * - input.error：捕获到的异常对象,只用于判断是否存在异常,不会直接展示给前台。
  * - input.sessionId：已有任务线程 ID；为空时创建新的安全 ID。
  * - input.userText：用户本轮输入,用于后端 session 保存 pending task。
+ * - input.context：本轮合并后的线程上下文,用于判断是否正在从 checkpoint 续跑。
  *
  * 返回值：runNewConversationAgent 兼容的 waiting 响应对象。
  * 可能抛出的异常：无。
@@ -199,13 +242,9 @@ export function buildRecoverableAgentErrorResult(input = {}) {
   const userText = String(input.userText || '').trim();
   const createdAt = new Date().toISOString();
   const typedEvaluatorFailure = isTypedEvaluatorFailure(input.error);
+  const firstProgress = buildRecoverableStartProgress({ context: input.context, text: userText });
   const progress = typedEvaluatorFailure ? [
-    {
-      detail: '已收到这次外贸任务。',
-      label: '识别任务',
-      phase: '识别',
-      status: 'complete',
-    },
+    firstProgress,
     {
       detail: '检查结果没有通过,我已先停下,避免交付可能误导的材料。',
       label: '检查结果',
@@ -219,12 +258,7 @@ export function buildRecoverableAgentErrorResult(input = {}) {
       status: 'waiting',
     },
   ] : [
-    {
-      detail: '已收到这次外贸任务。',
-      label: '识别任务',
-      phase: '识别',
-      status: 'complete',
-    },
+    firstProgress,
     {
       detail: '执行过程中有一步没有完成,我先停下来避免继续编造结果。',
       label: '处理卡住',
@@ -280,10 +314,10 @@ export function buildRecoverableAgentErrorResult(input = {}) {
           title: '本次操作记录',
           items: [
             {
-              detail: '已记录用户交代的任务。',
-              phase: '识别',
-              status: 'complete',
-              title: '识别任务',
+              detail: firstProgress.detail,
+              phase: firstProgress.phase,
+              status: firstProgress.status,
+              title: firstProgress.label,
             },
             {
               detail: typedEvaluatorFailure
@@ -305,6 +339,39 @@ export function buildRecoverableAgentErrorResult(input = {}) {
         },
       },
     ],
+  };
+}
+
+/**
+ * buildRecoverableStartProgress 生成异常兜底消息的第一步进度。
+ *
+ * 作用：
+ * - 普通新任务失败时,第一步仍是“识别任务”,表示已经收到并理解任务。
+ * - checkpoint 续跑失败时,第一步必须是“继续执行”,避免最终线程看起来像重新开始。
+ * - 返回值不携带 runId、resume_from 或本地路径,只保留业务化状态。
+ *
+ * 参数：
+ * - input.context：本轮合并后的线程上下文。
+ * - input.text：用户本轮输入；明确重开时按新任务失败处理。
+ *
+ * 返回值：前台 process/progress 可渲染的单个进度项。
+ * 可能抛出的异常：无。
+ */
+function buildRecoverableStartProgress(input = {}) {
+  if (hasPendingResumeContext(input.context, input.text)) {
+    return {
+      detail: '已接着刚才暂停的外贸任务继续处理。',
+      label: '继续执行',
+      phase: '执行',
+      status: 'complete',
+    };
+  }
+
+  return {
+    detail: '已收到这次外贸任务。',
+    label: '识别任务',
+    phase: '识别',
+    status: 'complete',
   };
 }
 

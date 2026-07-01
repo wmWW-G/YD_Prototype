@@ -95,6 +95,68 @@ test('createInitialAgentStreamProgress starts the visible loop with task recogni
   assert.equal(JSON.stringify(progress).includes('收到任务'), false);
 });
 
+test('createInitialAgentStreamProgress starts needs-input resumes with continue execution', () => {
+  const progress = createInitialAgentStreamProgress({
+    context: {
+      pendingTask: {
+        runtime: {
+          resumeFrom: 'needs-input:inquiry-reply-draft',
+          runId: 'skill-runtime-20260630-needs-input-resume',
+        },
+      },
+    },
+  });
+  const payloadText = JSON.stringify(progress);
+
+  assert.deepEqual(progress, {
+    detail: '正在接着刚才暂停的外贸任务继续处理。',
+    label: '继续执行',
+    phase: '执行',
+    status: 'running',
+  });
+  assert.equal(payloadText.includes('识别任务'), false);
+  assert.equal(payloadText.includes('needs-input'), false);
+  assert.equal(payloadText.includes('skill-runtime-20260630-needs-input-resume'), false);
+});
+
+test('createInitialAgentStreamProgress starts confirmation resumes with continue execution', () => {
+  const progress = createInitialAgentStreamProgress({
+    context: {
+      pendingConfirmation: {
+        runtime: {
+          resumeFrom: 'policy:artifact.export_file',
+          runId: 'skill-runtime-20260630-confirm-resume',
+        },
+      },
+    },
+  });
+
+  assert.equal(progress.label, '继续执行');
+  assert.equal(progress.phase, '执行');
+  assert.equal(JSON.stringify(progress).includes('policy:'), false);
+  assert.equal(JSON.stringify(progress).includes('skill-runtime-20260630-confirm-resume'), false);
+});
+
+test('createInitialAgentStreamProgress treats explicit restarts as a fresh task despite pending context', () => {
+  const progress = createInitialAgentStreamProgress({
+    context: {
+      pendingTask: {
+        runtime: {
+          resumeFrom: 'needs-input:customer-followup-plan',
+          runId: 'skill-runtime-old-pending-task',
+        },
+      },
+    },
+    text: '重新开始，客户问价格太高，产品是家具，帮我分析怎么推进',
+  });
+  const payloadText = JSON.stringify(progress);
+
+  assert.equal(progress.label, '识别任务');
+  assert.equal(progress.phase, '识别');
+  assert.equal(payloadText.includes('继续执行'), false);
+  assert.equal(payloadText.includes('skill-runtime-old-pending-task'), false);
+});
+
 test('runtimeEventToStreamEvent hides raw internal runtime names from the frontend event', () => {
   const event = runtimeEventToStreamEvent({
     action: 'artifact.write_markdown',
@@ -218,6 +280,59 @@ test('buildRecoverableAgentErrorResult turns stream failures into a waiting task
   assert.equal(payloadText.includes('skill-runtime-20260629'), false);
   assert.equal(payloadText.includes('action.execute'), false);
   assert.equal(payloadText.includes('Raw runtime stack'), false);
+});
+
+test('buildRecoverableAgentErrorResult keeps resume failures in continue-execution language', async () => {
+  const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
+
+  const result = buildRecoverableAgentErrorResult({
+    error: new Error('Raw runtime stack: skill-runtime-resume failed at action.execute'),
+    sessionId: 'agent-session-resume-failure',
+    userText: '产品太阳能路灯',
+    context: {
+      pendingTask: {
+        runtime: {
+          resumeFrom: 'needs-input:inquiry-reply-draft',
+          runId: 'skill-runtime-resume-failure',
+        },
+      },
+    },
+  });
+  const publicResult = sanitizeAgentResultForFrontend(result);
+  const payloadText = JSON.stringify(publicResult);
+
+  assert.deepEqual(publicResult.progress.map((item) => item.label), ['继续执行', '处理卡住', '等待补充']);
+  assert.deepEqual(publicResult.messages[0].process.steps.map((item) => item.label), ['继续执行', '处理卡住', '等待补充']);
+  assert.deepEqual(publicResult.messages[0].activity.items.map((item) => item.title), ['继续执行', '处理卡住', '等待补充']);
+  assert.equal(payloadText.includes('识别任务'), false);
+  assert.equal(payloadText.includes('needs-input:'), false);
+  assert.equal(payloadText.includes('inquiry-reply-draft'), false);
+  assert.equal(payloadText.includes('skill-runtime-resume-failure'), false);
+  assert.equal(payloadText.includes('action.execute'), false);
+});
+
+test('buildRecoverableAgentErrorResult treats explicit restart failures as fresh task failures', async () => {
+  const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
+
+  const result = buildRecoverableAgentErrorResult({
+    context: {
+      pendingTask: {
+        runtime: {
+          resumeFrom: 'needs-input:customer-followup-plan',
+          runId: 'skill-runtime-old-pending-task',
+        },
+      },
+    },
+    error: new Error('Raw runtime stack: fresh task failed'),
+    sessionId: 'agent-session-restart-failure',
+    userText: '重新开始，客户问价格太高，产品是家具，帮我分析怎么推进',
+  });
+  const publicResult = sanitizeAgentResultForFrontend(result);
+
+  assert.deepEqual(publicResult.progress.map((item) => item.label), ['识别任务', '处理卡住', '等待补充']);
+  assert.equal(publicResult.messages[0].process.steps.some((item) => item.label === '继续执行'), false);
+  assert.equal(publicResult.messages[0].activity.items.some((item) => item.title === '继续执行'), false);
+  assert.equal(JSON.stringify(publicResult).includes('skill-runtime-old-pending-task'), false);
 });
 
 test('buildRecoverableAgentErrorResult explains typed evaluator failures as a check-result pause', async () => {
