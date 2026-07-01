@@ -2,6 +2,14 @@
 
 ## 2026-07-01
 
+- 修复缺资料等待态里补资料同时要求保存/导出的续跑断点:
+  - 复现问题:先说 `帮我生成报价单` 进入缺资料等待后,再补 `产品太阳能路灯，导出文件` 或 `产品太阳能路灯，保存一下`,后端会掉进“还没有可导出/可保存的业务产物”兜底,而不是继续询问报价单仍缺的数量、单价和贸易条款。
+  - 已修复:有 pending task 且本轮命中保存/导出时,先用原任务 + 所有补充重新匹配业务 Skill;如果仍缺业务字段,返回 `needs-input-followup` 并追问真实缺字段,不弹空产物兜底,也不清掉 pending task。
+  - 新增红绿回归测试 `runNewConversationAgent keeps pending quotation missing fields when supplement still asks to export or save`,覆盖导出和保存两个副作用词。
+- 修复空线程保存/导出污染下一条真实任务:
+  - 复现问题:空线程先说 `导出文件` 或 `保存一下` 时会创建 `pendingTask`,下一句 `写一封开发信给德国采购商，产品太阳能灯...` 会被拼成 `导出文件；补充资料: ...` 或 `保存一下；补充资料: ...`,污染 Runtime 输入和业务产物来源。
+  - 已修复:没有当前 artifact 的保存/导出请求只返回缺产物提示,不写 pending task 或 checkpoint;下一句完整业务任务会按新任务干净执行。
+  - 新增回归测试 `runNewConversationAgent does not carry an empty export or save request into the next real task`,并加严空保存/导出响应的 `context.pendingTask === undefined`。
 - 继续补「新对话」的认证/合规/验厂口语:
   - 复现问题:`客户要CE认证，产品太阳能灯，帮我回一下` 已经有客户要求和产品,但入口仍返回 `needs-input`,继续追问 `询盘原文或客户问题`;`客户要验厂，产品太阳能灯，下一步怎么推进` 也会追问当前卡点。
   - 已修复:`客户要 / 客户要求 / 客户需要` 后面的认证、合规、证书、CE、RoHS、验厂、厂审、资质审核等会被当成真实客户问题或推进卡点。

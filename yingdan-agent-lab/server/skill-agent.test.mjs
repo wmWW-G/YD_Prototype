@@ -2528,6 +2528,103 @@ test('runNewConversationAgent asks for missing quotation fields before first-tur
   assert.doesNotMatch(response.messages[0].content, /还没有可导出的业务产物/);
 });
 
+test('runNewConversationAgent keeps pending quotation missing fields when supplement still asks to export or save', async () => {
+  const cases = [
+    {
+      forbidden: /还没有可导出的业务产物/,
+      pendingType: 'export_file',
+      supplement: '产品太阳能路灯，导出文件',
+    },
+    {
+      forbidden: /还没有可保存到客户档案的业务产物/,
+      pendingType: 'customer_write',
+      supplement: '产品太阳能路灯，保存一下',
+    },
+  ];
+
+  for (const { forbidden, pendingType, supplement } of cases) {
+    const first = await runNewConversationAgent({
+      text: '帮我生成报价单',
+      registry: createQuotationRegistry(),
+      skillRuntime: {
+        async runGoal() {
+          throw new Error('runtime should not generate a quotation while fields are missing');
+        },
+      },
+    });
+
+    const second = await runNewConversationAgent({
+      text: supplement,
+      sessionId: first.sessionId,
+      context: first.context,
+      registry: createQuotationRegistry(),
+      skillRuntime: {
+        async runGoal() {
+          throw new Error('runtime should still wait for quotation fields before save or export confirmation');
+        },
+      },
+    });
+
+    assert.equal(first.kind, 'needs-input');
+    assert.equal(second.kind, 'needs-input-followup');
+    assert.equal(second.status, 'waiting');
+    assert.equal(second.taskTitle, '报价单');
+    assert.equal(second.context.pendingTask.skillId, 'quotation-sheet');
+    assert.equal(second.context.pendingConfirmation, undefined);
+    assert.equal(second.artifact, undefined);
+    assert.deepEqual(second.messages[0].needsInput.items, ['数量', '单价或报价区间', '币种和贸易条款']);
+    assert.deepEqual(second.context.pendingTask.missing, ['数量', '单价或报价区间', '币种和贸易条款']);
+    assert.equal(second.context.pendingTask.pendingRiskyAction.type, pendingType);
+    assert.deepEqual(second.context.pendingTask.supplements, ['产品太阳能路灯']);
+    assert.doesNotMatch(second.messages[0].content, forbidden);
+
+    let runtimeText = '';
+    const third = await runNewConversationAgent({
+      text: '数量500套，单价USD 35，FOB Shanghai',
+      sessionId: second.sessionId,
+      context: second.context,
+      registry: createQuotationRegistry(),
+      skillRuntime: {
+        async runGoal({ text }) {
+          runtimeText = text;
+          return {
+            ...createRuntimeResult(),
+            goal: {
+              matched: true,
+              trigger: 'natural_goal',
+              skillId: 'quotation-sheet',
+              reason: '用户补齐报价单字段。',
+            },
+            skill: {
+              id: 'quotation-sheet',
+              displayName: '报价单',
+              adapter: 'quotation-sheet',
+              artifactType: 'xlsx',
+            },
+            result: {
+              ok: true,
+              mode: 'quotation-sheet',
+              outputPath: '/tmp/报价单.xlsx',
+              artifactName: '报价单.xlsx',
+            },
+            artifact: {
+              type: 'xlsx',
+              name: '报价单.xlsx',
+              outputPath: '/tmp/报价单.xlsx',
+            },
+          };
+        },
+      },
+    });
+
+    assert.equal(third.kind, 'confirmation-required');
+    assert.equal(third.status, 'waiting');
+    assert.equal(third.artifact.name, '报价单.xlsx');
+    assert.equal(third.context.pendingConfirmation.type, pendingType);
+    assert.doesNotMatch(runtimeText, /导出文件|保存一下/);
+  }
+});
+
 test('runNewConversationAgent executes a matched email draft when business context is enough', async () => {
   let runtimeText = '';
   const response = await runNewConversationAgent({
@@ -3745,6 +3842,7 @@ test('runNewConversationAgent asks what to export when no current artifact exist
   assert.equal(response.kind, 'needs-input');
   assert.equal(response.status, 'waiting');
   assert.equal(response.context.pendingConfirmation, undefined);
+  assert.equal(response.context.pendingTask, undefined);
   assert.equal(response.artifact, undefined);
   assert.match(response.messages[0].content, /还没有可导出的业务产物/);
   assert.match(response.messages[0].content, /先生成/);
@@ -3766,6 +3864,7 @@ test('runNewConversationAgent treats download file as export intent when no arti
   assert.equal(response.kind, 'needs-input');
   assert.equal(response.status, 'waiting');
   assert.equal(response.context.pendingConfirmation, undefined);
+  assert.equal(response.context.pendingTask, undefined);
   assert.equal(response.artifact, undefined);
   assert.deepEqual(response.messages[0].needsInput.items, ['还没有可导出的业务产物', '请先生成或选择要导出的文件']);
 });
@@ -3785,6 +3884,7 @@ test('runNewConversationAgent asks what to save when no current artifact exists'
   assert.equal(response.kind, 'needs-input');
   assert.equal(response.status, 'waiting');
   assert.equal(response.context.pendingConfirmation, undefined);
+  assert.equal(response.context.pendingTask, undefined);
   assert.equal(response.artifact, undefined);
   assert.match(response.messages[0].content, /还没有可保存到客户档案的业务产物/);
   assert.match(response.messages[0].content, /先生成/);
@@ -3806,8 +3906,71 @@ test('runNewConversationAgent treats casual save as customer memory intent when 
   assert.equal(response.kind, 'needs-input');
   assert.equal(response.status, 'waiting');
   assert.equal(response.context.pendingConfirmation, undefined);
+  assert.equal(response.context.pendingTask, undefined);
   assert.equal(response.artifact, undefined);
   assert.deepEqual(response.messages[0].needsInput.items, ['还没有可保存到客户档案的业务产物', '请先生成客户分析、跟进计划或邮件草稿']);
+});
+
+test('runNewConversationAgent does not carry an empty export or save request into the next real task', async () => {
+  const cases = ['导出文件', '保存一下'];
+
+  for (const firstText of cases) {
+    const first = await runNewConversationAgent({
+      text: firstText,
+      registry: createEmailRegistry(),
+      skillRuntime: {
+        async runGoal() {
+          throw new Error('runtime should not run for an empty artifact action');
+        },
+      },
+    });
+    let runtimeText = '';
+
+    const second = await runNewConversationAgent({
+      text: '写一封开发信给德国采购商，产品太阳能灯，重点问MOQ和交期',
+      sessionId: first.sessionId,
+      context: first.context,
+      registry: createEmailRegistry(),
+      skillRuntime: {
+        async runGoal({ text }) {
+          runtimeText = text;
+          return {
+            ...createRuntimeResult(),
+            goal: {
+              matched: true,
+              trigger: 'natural_goal',
+              skillId: 'cold-email-draft',
+              reason: '用户给出完整开发信任务。',
+            },
+            skill: {
+              id: 'cold-email-draft',
+              displayName: '开发信草稿',
+              adapter: 'business-draft',
+              artifactType: 'markdown',
+            },
+            result: {
+              ok: true,
+              mode: 'business-draft',
+              outputPath: '/tmp/开发信草稿.md',
+              artifactName: '开发信草稿.md',
+            },
+            artifact: {
+              type: 'markdown',
+              name: '开发信草稿.md',
+              outputPath: '/tmp/开发信草稿.md',
+            },
+          };
+        },
+      },
+    });
+
+    assert.equal(first.kind, 'needs-input');
+    assert.equal(first.context.pendingTask, undefined);
+    assert.equal(second.kind, 'goal-run');
+    assert.equal(second.taskTitle, '开发信草稿');
+    assert.equal(runtimeText, '写一封开发信给德国采购商，产品太阳能灯，重点问MOQ和交期');
+    assert.doesNotMatch(second.messages[0].content, /导出文件|保存一下|补充资料/);
+  }
 });
 
 test('runNewConversationAgent exports the current artifact only after confirmation', async () => {

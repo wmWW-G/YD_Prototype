@@ -179,6 +179,22 @@ export async function runNewConversationAgent(options = {}) {
             await emitBufferedRuntimeEvents(options.onRuntimeEvent, bufferedRuntimeEvents);
             return generatedResponse;
           }
+
+          return buildNeedsInputContinuationResponse({
+            context: {
+              ...context,
+              pendingTask: {
+                ...context.pendingTask,
+                missing: missingContext.missing,
+                pendingRiskyAction: summarizeRiskyAction(riskyAction),
+              },
+            },
+            missing: missingContext.missing,
+            onRuntimeEvent: options.onRuntimeEvent,
+            sessionId: options.sessionId,
+            skill: combinedMatch.skill,
+            text: stripRiskyActionText(text, riskyAction),
+          });
         }
 
         return buildNeedsInputContinuationResponse({
@@ -233,6 +249,7 @@ export async function runNewConversationAgent(options = {}) {
         onRuntimeEvent: options.onRuntimeEvent,
         projectRoot,
         sessionId: options.sessionId,
+        storePendingTask: false,
         text,
       });
     }
@@ -269,6 +286,34 @@ export async function runNewConversationAgent(options = {}) {
           skill: combinedMatch.skill,
           text,
         });
+      }
+      if (context.pendingTask.pendingRiskyAction) {
+        const bufferedRuntimeEvents = [];
+        const collectRuntimeEvent = async (event) => {
+          bufferedRuntimeEvents.push(event);
+        };
+        const generatedResponse = await runMatchedSkillGoal({
+          checkPolicy: options.checkPolicy,
+          projectRoot,
+          resumeRuntime: context.pendingTask.runtime,
+          sessionId: options.sessionId,
+          skillRuntime: options.skillRuntime,
+          onRuntimeEvent: collectRuntimeEvent,
+          text: combinedText,
+        });
+
+        if (generatedResponse.ok !== false && generatedResponse.kind !== 'confirmation-required' && generatedResponse.artifact) {
+          return buildPostArtifactRiskConfirmationResponse({
+            onRuntimeEvent: options.onRuntimeEvent,
+            response: generatedResponse,
+            runtimeEvents: bufferedRuntimeEvents,
+            riskyAction: context.pendingTask.pendingRiskyAction,
+            text: combinedText,
+          });
+        }
+
+        await emitBufferedRuntimeEvents(options.onRuntimeEvent, bufferedRuntimeEvents);
+        return generatedResponse;
       }
       return runMatchedSkillGoal({
         checkPolicy: options.checkPolicy,
@@ -977,6 +1022,71 @@ function shouldGenerateArtifactBeforeRiskConfirmation(input = {}) {
     return false;
   }
   return ['customer_write', 'export_file'].includes(input.riskyAction?.type || '');
+}
+
+/**
+ * summarizeRiskyAction 把风险动作规则压成可保存到 pendingTask 的安全摘要。
+ *
+ * 作用：
+ * - detectRiskyAction 返回的规则里带 RegExp,不适合写入 session context。
+ * - pending task 只需要记住后续要补一个哪类确认卡。
+ *
+ * 参数：
+ * - riskyAction：detectRiskyAction 命中的动作对象。
+ *
+ * 返回值：只包含确认卡渲染所需字段的对象。
+ * 可能抛出的异常：无。
+ */
+function summarizeRiskyAction(riskyAction = null) {
+  if (!riskyAction) {
+    return null;
+  }
+  return {
+    body: riskyAction.body || '',
+    confirmLabel: riskyAction.confirmLabel || '确认继续',
+    title: riskyAction.title || '这一步需要你确认',
+    type: riskyAction.type || 'risky_action',
+  };
+}
+
+/**
+ * stripRiskyActionText 从业务补充里剥掉保存/导出这类副作用词。
+ *
+ * 作用：
+ * - 用户补资料时顺手说“导出文件 / 保存一下”,副作用意图要进入确认卡。
+ * - 但这些词不能进入 Runtime 的业务产物输入,否则邮件/报价单会出现“导出文件;补充资料”。
+ *
+ * 参数：
+ * - text：用户本轮补充文本。
+ * - riskyAction：当前命中的风险动作。
+ *
+ * 返回值：去掉副作用指令后的业务补充文本。
+ * 可能抛出的异常：无。
+ */
+function stripRiskyActionText(text = '', riskyAction = null) {
+  let value = String(text || '').trim();
+  if (!value || !riskyAction) {
+    return value;
+  }
+  const patternsByType = {
+    customer_write: [
+      /保存到客户档案|保存到客户|写入客户|存到客户|更新客户档案|保存客户摘要/g,
+      /保存一下|保存下|保存这份|保存当前文件|保存当前|保存起来|存一下|存起来/g,
+    ],
+    export_file: [
+      /保存[^，。,.!?！？]{0,16}(?:到)?桌面/g,
+      /保存[^，。,.!?！？]{0,16}下载(?:文件)?/g,
+      /导出文件|导出到|导出|下载文件|下载到|下载/g,
+    ],
+  };
+  for (const pattern of patternsByType[riskyAction.type] || []) {
+    value = value.replace(pattern, '');
+  }
+  return value
+    .replace(/[，。,.!！?？;；\s]+$/g, '')
+    .replace(/^[，。,.!！?？;；\s]+/g, '')
+    .replace(/[，,]\s*[，,]+/g, '，')
+    .trim();
 }
 
 function isConfirmationMessage(text = '', pendingConfirmation = {}) {
@@ -2072,20 +2182,24 @@ async function buildNeedsInputResponse(input = {}) {
   const missing = Array.isArray(input.missing) && input.missing.length > 0
     ? input.missing
     : ['客户名称', '询盘原文', '产品资料', '目标市场', '价格底线', '希望产出的材料类型'];
-  const pendingTask = {
-    ...(skill ? { skillId: skill.id, skillName: skill.displayName || skill.id } : {}),
-    originalText: userText,
-    missing,
-    supplements: [],
-  };
-  const runtime = await writeNeedsInputRuntimeCheckpoint({
-    missing,
-    projectRoot: input.projectRoot,
-    sessionId,
-    skill,
-    text: userText,
-  });
-  pendingTask.runtime = runtime;
+  const shouldStorePendingTask = input.storePendingTask !== false;
+  let pendingTask = null;
+  if (shouldStorePendingTask) {
+    pendingTask = {
+      ...(skill ? { skillId: skill.id, skillName: skill.displayName || skill.id } : {}),
+      originalText: userText,
+      missing,
+      supplements: [],
+    };
+    const runtime = await writeNeedsInputRuntimeCheckpoint({
+      missing,
+      projectRoot: input.projectRoot,
+      sessionId,
+      skill,
+      text: userText,
+    });
+    pendingTask.runtime = runtime;
+  }
   const ask = [
     userText ? `我理解你想处理「${userText}」。` : '我还没拿到明确的任务目标。',
     skill ? `这看起来适合按「${skill.displayName || skill.id}」处理。` : '',
@@ -2105,7 +2219,7 @@ async function buildNeedsInputResponse(input = {}) {
     status: 'waiting',
     taskTitle: skill?.displayName || '本次外贸任务',
     progress,
-    context: { pendingTask },
+    context: pendingTask ? { pendingTask } : {},
     messages: [
       {
         id: messageId('assistant'),
