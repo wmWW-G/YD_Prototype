@@ -861,7 +861,7 @@ function detectBusinessSignals(text = '') {
   const currentIssue = currentIssuePattern.test(lower) || isCustomerHesitationIssue(value) || isCustomerPurchaseIntent(value);
   const customerActorWithIssue = /客户|买家|采购商|客人|对方|buyer|customer|client/i.test(lower) && currentIssue;
   const exclusiveAgencyIssue = /独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights/.test(lower);
-  const productDependentIssue = /认证|合规|证书|验厂|厂审|工厂审核|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|certification|certificate|cert[-\s]*requirements?|ce[-\s]?cert|compliance|\bce\b|rohs|warranty|guarantee|after[-\s]?sales|private[-\s]?label|custom[-\s]?logo|customi[sz]ation|installation|manual|amazon\s*fba|payment[-\s]?terms|lead[-\s]?time|packag(?:e|ing)(?:[-\s]?requirements?)?|factory[-\s]?audit|factory[-\s]?inspection|supplier[-\s]?audit/.test(lower);
+  const productDependentIssue = /嫌贵|太贵|贵了|价格(?:太)?高|砍价|压价|还价|议价|让价|降价|折扣|认证|合规|证书|验厂|厂审|工厂审核|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|too\s+expensive|price\s+too\s+high|discount|certification|certificate|cert[-\s]*requirements?|ce[-\s]?cert|compliance|\bce\b|rohs|warranty|guarantee|after[-\s]?sales|private[-\s]?label|custom[-\s]?logo|customi[sz]ation|installation|manual|amazon\s*fba|payment[-\s]?terms|lead[-\s]?time|packag(?:e|ing)(?:[-\s]?requirements?)?|factory[-\s]?audit|factory[-\s]?inspection|supplier[-\s]?audit/.test(lower);
   const followupCadenceRequested = /7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|weekly/.test(lower) &&
     /跟进|回访|节奏|计划|follow[-\s]?up/.test(lower);
   const productCoreContext = hasProductCoreContext(value);

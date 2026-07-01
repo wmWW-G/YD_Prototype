@@ -1706,6 +1706,26 @@ test('runNewConversationAgent asks for product context before negotiating exclus
   assert.match(response.messages[0].content, /产品或核心卖点/);
 });
 
+test('runNewConversationAgent asks for product context before handling price pressure', async () => {
+  const response = await runNewConversationAgent({
+    text: '客户嫌贵，怎么谈',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not generate a generic price negotiation plan without product context');
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.equal(response.context.pendingTask.skillId, 'customer-followup-plan');
+  assert.deepEqual(response.messages[0].needsInput.items, ['产品或核心卖点']);
+  assert.match(response.messages[0].content, /产品或核心卖点/);
+});
+
 test('runNewConversationAgent does not treat qualification wording as product context before negotiating exclusive agency', async () => {
   const response = await runNewConversationAgent({
     text: '客户想做独家代理，资质怎么谈',
