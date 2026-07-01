@@ -1,5 +1,14 @@
 # DEV_LOG
 
+## 2026-07-01
+
+- 继续补「新对话」的认证/合规/验厂口语:
+  - 复现问题:`客户要CE认证，产品太阳能灯，帮我回一下` 已经有客户要求和产品,但入口仍返回 `needs-input`,继续追问 `询盘原文或客户问题`;`客户要验厂，产品太阳能灯，下一步怎么推进` 也会追问当前卡点。
+  - 已修复:`客户要 / 客户要求 / 客户需要` 后面的认证、合规、证书、CE、RoHS、验厂、厂审、资质审核等会被当成真实客户问题或推进卡点。
+  - 产物层同步补强:询盘回复会把 CE/证书类输入提炼成 `客户关注点: 认证/合规要求`;客户推进分析会把验厂类输入提炼成 `客户关注点: 验厂/资质审核`,并给出证书核对、工厂资料、质量体系和审核节奏相关下一步。
+  - 新增红绿回归测试 `runNewConversationAgent treats certification requirements as inquiry reply context`、`runNewConversationAgent treats factory audit requirements as a concrete follow-up issue`、`createSkillRuntime carries certification requirements into inquiry reply artifacts` 和 `createSkillRuntime carries factory audit requirements into customer follow-up artifacts`。
+  - sub agent 复核指出边界过宽:缺产品时 `认证/验厂` 会冒充产品资料,空壳 `客户要，产品太阳能灯，下一步怎么推进` 会冒充当前卡点,`合规/资质` 也会在开发信和独家代理 gate 里冒充产品资料。已收窄 `replyProductContext`、`productPattern` 和 `currentIssue` 识别,并新增反例测试 `runNewConversationAgent asks for product context before replying to certification or audit requirements`、`runNewConversationAgent does not treat empty customer wants wording as a concrete follow-up issue`、`runNewConversationAgent does not treat compliance wording as product context for email drafts`、`runNewConversationAgent does not treat qualification wording as product context before negotiating exclusive agency`。
+
 ## 2026-06-30
 
 - 补强「新对话」引用资料入口:

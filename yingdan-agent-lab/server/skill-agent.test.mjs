@@ -433,6 +433,32 @@ test('runNewConversationAgent does not treat channel agent wording as product co
   assert.match(response.messages[0].content, /产品或核心卖点/);
 });
 
+test('runNewConversationAgent does not treat compliance wording as product context for email drafts', async () => {
+  const cases = [
+    '写一封开发信给德国客户，重点讲合规',
+    '写一封开发信给德国客户，重点讲资质',
+  ];
+
+  for (const text of cases) {
+    const response = await runNewConversationAgent({
+      text,
+      registry: createEmailRegistry(),
+      skillRuntime: {
+        async runGoal() {
+          throw new Error('runtime should not run when compliance wording is missing product context');
+        },
+      },
+    });
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'needs-input');
+    assert.equal(response.status, 'waiting');
+    assert.equal(response.taskTitle, '开发信草稿');
+    assert.equal(response.context.pendingTask.skillId, 'cold-email-draft');
+    assert.deepEqual(response.messages[0].needsInput.items, ['产品或核心卖点']);
+  }
+});
+
 test('runNewConversationAgent asks for concrete context before generic customer analysis', async () => {
   const response = await runNewConversationAgent({
     text: '客户是德国采购商，帮我做客户分析',
@@ -1486,6 +1512,70 @@ test('runNewConversationAgent treats exclusive agency requests as a concrete cus
   assert.match(runtimeText, /产品是灯具/);
 });
 
+test('runNewConversationAgent treats factory audit requirements as a concrete follow-up issue', async () => {
+  let runtimeText = '';
+  const response = await runNewConversationAgent({
+    text: '客户要验厂，产品太阳能灯，下一步怎么推进',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'customer-followup-plan',
+            reason: '用户要处理客户验厂和资质审核要求。',
+          },
+          skill: {
+            id: 'customer-followup-plan',
+            displayName: '客户推进分析',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/客户推进分析.md',
+            artifactName: '客户推进分析.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: '/tmp/客户推进分析.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.equal(response.artifact.name, '客户推进分析.md');
+  assert.match(runtimeText, /客户要验厂/);
+  assert.match(runtimeText, /产品太阳能灯/);
+});
+
+test('runNewConversationAgent does not treat empty customer wants wording as a concrete follow-up issue', async () => {
+  const response = await runNewConversationAgent({
+    text: '客户要，产品太阳能灯，下一步怎么推进',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not run when the customer request is empty');
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.deepEqual(response.messages[0].needsInput.items, ['客户名称或客户类型', '询盘、聊天记录或当前卡点']);
+});
+
 test('runNewConversationAgent asks for product context before negotiating exclusive agency', async () => {
   const response = await runNewConversationAgent({
     text: '客户想做独家代理，怎么谈',
@@ -1504,6 +1594,25 @@ test('runNewConversationAgent asks for product context before negotiating exclus
   assert.equal(response.context.pendingTask.skillId, 'customer-followup-plan');
   assert.deepEqual(response.messages[0].needsInput.items, ['产品或核心卖点']);
   assert.match(response.messages[0].content, /产品或核心卖点/);
+});
+
+test('runNewConversationAgent does not treat qualification wording as product context before negotiating exclusive agency', async () => {
+  const response = await runNewConversationAgent({
+    text: '客户想做独家代理，资质怎么谈',
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not run before exclusive agency product context is known');
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.equal(response.context.pendingTask.skillId, 'customer-followup-plan');
+  assert.deepEqual(response.messages[0].needsInput.items, ['产品或核心卖点']);
 });
 
 test('runNewConversationAgent asks for product context before a seven-day follow-up plan', async () => {
@@ -1869,6 +1978,77 @@ test('runNewConversationAgent asks for product context before replying to MOQ an
   assert.equal(response.taskTitle, '询盘回复草稿');
   assert.equal(response.context.pendingTask.skillId, 'inquiry-reply-draft');
   assert.deepEqual(response.messages[0].needsInput.items, ['产品资料或报价边界']);
+});
+
+test('runNewConversationAgent treats certification requirements as inquiry reply context', async () => {
+  let runtimeText = '';
+  const response = await runNewConversationAgent({
+    text: '客户要CE认证，产品太阳能灯，帮我回一下',
+    registry: createInquiryReplyRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'inquiry-reply-draft',
+            reason: '用户要回复客户认证要求。',
+          },
+          skill: {
+            id: 'inquiry-reply-draft',
+            displayName: '询盘回复草稿',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/询盘回复草稿.md',
+            artifactName: '询盘回复草稿.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '询盘回复草稿.md',
+            outputPath: '/tmp/询盘回复草稿.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.taskTitle, '询盘回复草稿');
+  assert.equal(response.artifact.name, '询盘回复草稿.md');
+  assert.match(runtimeText, /客户要CE认证/);
+  assert.match(runtimeText, /产品太阳能灯/);
+});
+
+test('runNewConversationAgent asks for product context before replying to certification or audit requirements', async () => {
+  const cases = [
+    '客户要CE认证，帮我回一下',
+    '客户要验厂，帮我回一下',
+  ];
+
+  for (const text of cases) {
+    const response = await runNewConversationAgent({
+      text,
+      registry: createInquiryReplyRegistry(),
+      skillRuntime: {
+        async runGoal() {
+          throw new Error('runtime should not write an inquiry reply before product context is available');
+        },
+      },
+    });
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'needs-input');
+    assert.equal(response.status, 'waiting');
+    assert.equal(response.taskTitle, '询盘回复草稿');
+    assert.deepEqual(response.messages[0].needsInput.items, ['产品资料或报价边界']);
+  }
 });
 
 test('runNewConversationAgent preserves a waiting inquiry task when the supplement asks to send externally', async () => {

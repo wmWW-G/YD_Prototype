@@ -1012,6 +1012,12 @@ function buildCustomerFollowupSignalSentence(concerns = []) {
   if (concerns.includes('独家代理/渠道合作')) {
     return '客户想做独家代理或渠道合作,这通常说明不能先口头承诺代理权;下一步应先确认区域边界、销量承诺、价格体系和试运行条件,再决定是否进入正式授权谈判。';
   }
+  if (concerns.includes('认证/合规要求')) {
+    return '客户正在确认认证或合规资料,这通常说明他已经开始评估准入风险;下一步应先确认目标市场、证书版本、检测报告和可提供的证明文件,不能在资料未核对前直接承诺合规。';
+  }
+  if (concerns.includes('验厂/资质审核')) {
+    return '客户提出验厂或资质审核,这通常说明他在评估供应商可信度;下一步应准备工厂资料、质量体系、证书清单和可审核范围,再安排线上资料审核或现场验厂节奏。';
+  }
   return `客户已经在问${concerns.join('、')},这通常说明他开始评估供应条件,下一步应先补齐采购约束,再决定是否报价。`;
 }
 
@@ -1146,8 +1152,11 @@ function extractBusinessSignals(userText = '') {
   if (isCustomerPurchaseIntent(text)) {
     concerns.push({ chinese: '采购意向/购买意向', english: 'purchase intent' });
   }
-  if (/认证|certification|certificate|ce|fda/.test(lower)) {
-    concerns.push({ chinese: '认证', english: 'certification' });
+  if (/验厂|厂审|工厂审核|资质审核|资质审查|factory\s+audit|factory\s+inspection|supplier\s+audit/.test(lower)) {
+    concerns.push({ chinese: '验厂/资质审核', english: 'factory audit/qualification review' });
+  }
+  if (/认证|合规|证书|certification|certificate|compliance|\bce\b|rohs|fda|reach|ul|etl/.test(lower)) {
+    concerns.push({ chinese: '认证/合规要求', english: 'certification/compliance requirements' });
   }
 
   const country = detectCountry(text);

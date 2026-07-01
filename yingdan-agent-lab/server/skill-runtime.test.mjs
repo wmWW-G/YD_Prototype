@@ -602,6 +602,31 @@ test('createSkillRuntime keeps sample wording out of extracted product names', a
   }
 });
 
+test('createSkillRuntime carries certification requirements into inquiry reply artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户要CE认证，产品太阳能灯，帮我回一下',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'inquiry-reply-draft');
+    assert.match(content, /产品: 太阳能灯/);
+    assert.match(content, /客户关注点: 认证\/合规要求/);
+    assert.match(content, /CE|certification|compliance/i);
+    assert.doesNotMatch(content, /客户关注点暂未明确/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime carries negotiation pressure into customer follow-up artifacts', async () => {
   const fixture = await withRegistryProject();
 
@@ -776,6 +801,32 @@ test('createSkillRuntime turns a seven-day follow-up request into a day-by-day p
     assert.match(content, /第3天|第 3 天/);
     assert.match(content, /第5天|第 5 天/);
     assert.match(content, /第7天|第 7 天/);
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime carries factory audit requirements into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '客户要验厂，产品太阳能灯，下一步怎么推进',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.equal(result.artifact?.name, '客户推进分析.md');
+    assert.match(content, /产品: 太阳能灯/);
+    assert.match(content, /客户关注点: 验厂\/资质审核/);
+    assert.match(content, /验厂|资质|审核/);
     assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
   } finally {
     await fixture.cleanup();
