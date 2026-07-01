@@ -253,6 +253,76 @@ test('reviseMarkdownArtifactForFollowup drafts a standalone WhatsApp follow-up m
   }
 });
 
+test('reviseMarkdownArtifactForFollowup updates composite deal sections instead of only appending a note', async () => {
+  const fixture = await withRevisionProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '客户推进分析.md');
+    await writeFile(
+      artifactPath,
+      [
+        '# 客户推进分析',
+        '',
+        '## 复合任务拆解',
+        '',
+        '- 子任务1: 判断成交策略。',
+        '',
+        '## 成交策略',
+        '',
+        '- 主线: 先确认客户目标市场和采购时间。',
+        '',
+        '## 报价边界',
+        '',
+        '- 报价对象: 太阳能灯',
+        '- 可先给条件报价,正式价格待确认。',
+        '',
+        '## 英文邮件草稿',
+        '',
+        'Subject: Solar lights cooperation options',
+        '',
+        'Hi {{Customer Name}},',
+        '',
+        'Would you like to start with a trial order?',
+        '',
+        'Best regards,',
+        '{{Your Name}}',
+        '',
+        '## 7天跟进节奏',
+        '',
+        '- 第1天: 发一条轻量提醒。',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = await reviseMarkdownArtifactForFollowup({
+      projectRoot: fixture.projectRoot,
+      instruction: '把报价边界改成最多让3%，独代先给3个月试运行，英文邮件语气更坚定一点',
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+        },
+      },
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+    const quoteBoundary = extractMarkdownSection(updated, '报价边界');
+    const emailDraft = extractMarkdownSection(updated, '英文邮件草稿');
+
+    assert.equal(result.ok, true);
+    assert.match(quoteBoundary, /最多让\s*3%/);
+    assert.match(quoteBoundary, /3个月试运行/);
+    assert.match(emailDraft, /clear|firm|明确|坚定/i);
+    assert.match(emailDraft, /trial order/i);
+    assert.match(updated, /本次补充优化/);
+    assert.match(updated, /外发前仍需确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('reviseMarkdownArtifactForFollowup does not infer WhatsApp from Taiwan in email requests', async () => {
   const fixture = await withRevisionProject();
 
@@ -294,6 +364,15 @@ test('reviseMarkdownArtifactForFollowup does not infer WhatsApp from Taiwan in e
     await fixture.cleanup();
   }
 });
+
+function extractMarkdownSection(markdown = '', heading = '') {
+  const pattern = new RegExp(`(^## ${escapeRegExpForTest(heading)}\\s*\\n)([\\s\\S]*?)(?=^##\\s+|(?![\\s\\S]))`, 'm');
+  return markdown.match(pattern)?.[2] || '';
+}
+
+function escapeRegExpForTest(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 test('reviseMarkdownArtifactForFollowup rejects artifacts outside generated artifact roots', async () => {
   const fixture = await withRevisionProject();

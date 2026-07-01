@@ -2,6 +2,10 @@
 
 ## 2026-07-01
 
+- 修复复合成交 Markdown 续改只追加备注:
+  - 复现问题:当前线程已有 `客户推进分析.md` 后,用户说 `把报价边界改成最多让3%，独代先给3个月试运行，英文邮件语气更坚定一点`;旧逻辑只会在文末追加 `本次补充优化`,不会真的改 `报价边界` 和 `英文邮件草稿` 正文。
+  - 已修复:Markdown 续改器会识别让步上限、独代试运行和更坚定邮件语气,把 `最多让 3%`、`3个月试运行` 写入 `报价边界`,并在 `英文邮件草稿` 增加 firm/clear 的英文边界段落。
+  - 新增红绿回归测试 `reviseMarkdownArtifactForFollowup updates composite deal sections instead of only appending a note` 和 `buildAgentFollowupResponse updates composite deal sections in the current markdown artifact`。
 - 补齐复合成交任务的外贸主体词路由:
   - subagent 只读评估指出 P1:`进口商 / 经销商 / 公司` 这类真实外贸主体没有进入复合任务识别,`英文回复` 容易把多目标成交任务带偏成单一 `询盘回复草稿`。
   - 复现问题:`这家德国进口商说价格高，还想要独代；产品是太阳能灯，帮我出谈判思路、英文回复、让步范围和下周跟进` 会落到 `inquiry-reply-draft`,不像 agent 会把它拆成成交策略、报价边界、英文草稿和跟进动作。

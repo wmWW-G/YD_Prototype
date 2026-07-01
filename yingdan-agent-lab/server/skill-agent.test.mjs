@@ -5979,6 +5979,65 @@ test('buildAgentFollowupResponse revises the current markdown artifact for same-
   }
 });
 
+test('buildAgentFollowupResponse updates composite deal sections in the current markdown artifact', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-followup-composite-sections-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '客户推进分析.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(
+      artifactPath,
+      [
+        '# 客户推进分析',
+        '',
+        '## 报价边界',
+        '',
+        '- 报价对象: 太阳能灯',
+        '- 正式价格待确认。',
+        '',
+        '## 英文邮件草稿',
+        '',
+        'Subject: Solar lights cooperation options',
+        '',
+        'Hi {{Customer Name}},',
+        '',
+        'Would you like to start with a trial order?',
+        '',
+        'Best regards,',
+        '{{Your Name}}',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const artifact = {
+      type: 'markdown',
+      name: '客户推进分析.md',
+      outputPath: artifactPath,
+    };
+    const response = await buildAgentFollowupResponse({
+      projectRoot,
+      sessionId: 'agent-session-20260701-composite-section-followup',
+      text: '把报价边界改成最多让3%，独代先给3个月试运行，英文邮件语气更坚定一点',
+      context: { artifact },
+      session: { context: { artifact } },
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+    const quoteBoundary = extractMarkdownSectionForAgentTest(updated, '报价边界');
+    const emailDraft = extractMarkdownSectionForAgentTest(updated, '英文邮件草稿');
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'followup');
+    assert.match(quoteBoundary, /最多让\s*3%/);
+    assert.match(quoteBoundary, /3个月试运行/);
+    assert.match(emailDraft, /firm|clear|明确|坚定/i);
+    assert.match(emailDraft, /3-month agency trial period/);
+    assert.match(response.messages[0].content, /已按补充要求更新/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('runNewConversationAgent treats rewrite wording as current artifact follow-up before matching a new skill', async () => {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-followup-router-'));
   const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
@@ -6182,6 +6241,12 @@ test('buildAgentFollowupResponse emits progress events while revising an xlsx ar
     await rm(projectRoot, { recursive: true, force: true });
   }
 });
+
+function extractMarkdownSectionForAgentTest(markdown = '', heading = '') {
+  const escapedHeading = String(heading).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(^## ${escapedHeading}\\s*\\n)([\\s\\S]*?)(?=^##\\s+|(?![\\s\\S]))`, 'm');
+  return markdown.match(pattern)?.[2] || '';
+}
 
 async function createXlsxFollowupFixture(outputPath) {
   await runPythonTestScript(`

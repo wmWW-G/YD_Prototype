@@ -78,12 +78,16 @@ export async function reviseMarkdownArtifactForFollowup(input = {}) {
   const editableArtifact = resolveEditableArtifact({ artifact, projectRoot });
   const sourcePath = resolveSafeMarkdownPath({ outputPath: editableArtifact.outputPath, projectRoot });
   const current = await readFile(sourcePath, 'utf8');
-  const revision = buildFollowupRevisionSection({
-    artifactName: editableArtifact.name || path.basename(sourcePath),
+  const revisedCurrent = buildSectionAwareMarkdownContent({
     currentContent: current,
     instruction,
   });
-  const nextContent = `${current.replace(/\s+$/u, '')}\n\n${revision}\n`;
+  const revision = buildFollowupRevisionSection({
+    artifactName: editableArtifact.name || path.basename(sourcePath),
+    currentContent: revisedCurrent,
+    instruction,
+  });
+  const nextContent = `${revisedCurrent.replace(/\s+$/u, '')}\n\n${revision}\n`;
 
   await writeFile(sourcePath, nextContent, 'utf8');
   const fileStat = await stat(sourcePath);
@@ -322,6 +326,177 @@ function buildFollowupRevisionSection(input = {}) {
     '- 外发前仍需确认客户名称、产品规格、价格、交期、附件和收件渠道。',
     '- 如果涉及保存客户档案、导出文件或外部发送,仍需再次确认。',
   ].join('\n');
+}
+
+/**
+ * buildSectionAwareMarkdownContent 把明确的续改要求写回原 Markdown 对应章节。
+ *
+ * 作用：
+ * - Codex/Claude Code 式“继续改一下”应该真的改当前产物正文。
+ * - 旧逻辑只在文末追加记录,用户会觉得 Agent 没有执行修改。
+ * - 这里先覆盖高价值场景:复合成交材料里的 `报价边界` 和 `英文邮件草稿`。
+ *
+ * 参数：
+ * - input.currentContent：当前 Markdown 产物全文。
+ * - input.instruction：用户本次补充要求。
+ *
+ * 返回值：已尽量改写对应章节的 Markdown；没有可定位章节时返回原文。
+ * 可能抛出的异常：无。
+ */
+function buildSectionAwareMarkdownContent(input = {}) {
+  const instruction = sanitizeInstruction(input.instruction || '');
+  let content = String(input.currentContent || '');
+
+  const quoteBoundaryLines = buildQuoteBoundarySectionLines(instruction);
+  if (quoteBoundaryLines.length) {
+    content = appendLinesToMarkdownSection({
+      content,
+      heading: '报价边界',
+      lines: quoteBoundaryLines,
+    });
+  }
+
+  const emailDraftLines = buildEmailDraftSectionLines(instruction);
+  if (emailDraftLines.length) {
+    content = appendLinesToMarkdownSection({
+      content,
+      heading: '英文邮件草稿',
+      lines: emailDraftLines,
+    });
+  }
+
+  return content;
+}
+
+/**
+ * buildQuoteBoundarySectionLines 把让步和独代试运行要求转成报价边界条目。
+ *
+ * 参数：
+ * - instruction：用户本次补充要求。
+ *
+ * 返回值：Markdown 列表行数组。
+ * 可能抛出的异常：无。
+ */
+function buildQuoteBoundarySectionLines(instruction = '') {
+  const concessionLimit = extractConcessionLimit(instruction);
+  const agencyTrial = extractAgencyTrialPeriod(instruction);
+  const lines = [];
+
+  if (concessionLimit) {
+    lines.push(`- 本次续改: 价格让步上限为最多让 ${concessionLimit};超过该范围必须重新确认。`);
+  }
+  if (agencyTrial) {
+    lines.push(`- 本次续改: 独代先给${agencyTrial}试运行,试运行后再评估是否正式授权。`);
+  }
+
+  return lines;
+}
+
+/**
+ * buildEmailDraftSectionLines 把邮件语气续改写进英文邮件草稿章节。
+ *
+ * 参数：
+ * - instruction：用户本次补充要求。
+ *
+ * 返回值：Markdown 行数组。
+ * 可能抛出的异常：无。
+ */
+function buildEmailDraftSectionLines(instruction = '') {
+  const lower = String(instruction || '').toLowerCase();
+  const wantsFirmTone = /坚定|强硬|明确|firm|clear/.test(lower);
+  const concessionLimit = extractConcessionLimit(instruction);
+  const agencyTrial = extractAgencyTrialPeriod(instruction);
+  if (!wantsFirmTone && !concessionLimit && !agencyTrial) {
+    return [];
+  }
+
+  const boundaryParts = [
+    concessionLimit ? `a maximum ${concessionLimit} concession` : '',
+    agencyTrial ? `a ${formatAgencyTrialForEnglish(agencyTrial)} agency trial period` : '',
+  ].filter(Boolean);
+  const boundaryText = boundaryParts.length
+    ? ` We can discuss ${joinEnglishOrList(boundaryParts)} only after the trial order details are clear.`
+    : '';
+
+  return [
+    'Clear boundary note for the revised draft:',
+    '',
+    `To keep the cooperation firm and clear, we can support the trial order step by step.${boundaryText}`,
+  ];
+}
+
+/**
+ * appendLinesToMarkdownSection 往指定二级标题章节内追加结构化行。
+ *
+ * 作用：
+ * - 只改指定章节,避免把报价边界写进邮件外面或写进审计区。
+ * - 如果找不到章节,保持原文不变,仍让文末补充记录兜底。
+ *
+ * 参数：
+ * - input.content：Markdown 全文。
+ * - input.heading：二级标题文本,不含 `##`。
+ * - input.lines：要追加的 Markdown 行。
+ *
+ * 返回值：更新后的 Markdown。
+ * 可能抛出的异常：无。
+ */
+function appendLinesToMarkdownSection(input = {}) {
+  const heading = escapeRegExp(String(input.heading || '').trim());
+  const lines = (Array.isArray(input.lines) ? input.lines : []).filter(Boolean);
+  if (!heading || lines.length === 0) {
+    return String(input.content || '');
+  }
+
+  const pattern = new RegExp(`(^## ${heading}\\s*\\n)([\\s\\S]*?)(?=^##\\s+|(?![\\s\\S]))`, 'm');
+  return String(input.content || '').replace(pattern, (fullMatch, headingLine, body) => {
+    const insertion = lines.join('\n');
+    if (body.includes(insertion)) {
+      return fullMatch;
+    }
+    const cleanBody = body.replace(/\s+$/u, '');
+    const nextBody = cleanBody ? `${cleanBody}\n\n${insertion}\n\n` : `${insertion}\n\n`;
+    return `${headingLine}${nextBody}`;
+  });
+}
+
+function extractConcessionLimit(instruction = '') {
+  const value = String(instruction || '');
+  const explicit = value.match(/(?:最多让|最高让|让步上限|让步范围|最多可让|最多可以让)\s*(\d+(?:\.\d+)?\s*%)/i);
+  if (explicit?.[1]) {
+    return explicit[1].replace(/\s+/g, '');
+  }
+
+  const nearby = value.match(/(\d+(?:\.\d+)?\s*%)[^，。,.!?！？]{0,8}(?:以内|之内|上限|封顶)/i);
+  return nearby?.[1] ? nearby[1].replace(/\s+/g, '') : '';
+}
+
+function extractAgencyTrialPeriod(instruction = '') {
+  const value = String(instruction || '');
+  const agencyFirst = value.match(/(?:独代|独家代理|代理)[^，。,.!?！？]{0,16}?(\d+\s*个?月)[^，。,.!?！？]{0,8}(?:试运行|试用|试代理|trial)/i);
+  if (agencyFirst?.[1]) {
+    return agencyFirst[1].replace(/\s+/g, '');
+  }
+
+  const periodFirst = value.match(/(\d+\s*个?月)[^，。,.!?！？]{0,10}(?:独代|独家代理|代理)[^，。,.!?！？]{0,8}(?:试运行|试用|试代理|trial)/i);
+  return periodFirst?.[1] ? periodFirst[1].replace(/\s+/g, '') : '';
+}
+
+function formatAgencyTrialForEnglish(period = '') {
+  const value = String(period || '').trim();
+  const monthMatch = value.match(/^(\d+(?:\.\d+)?)(?:个)?月$/);
+  return monthMatch ? `${monthMatch[1]}-month` : value;
+}
+
+function joinEnglishOrList(items = []) {
+  const values = items.filter(Boolean);
+  if (values.length <= 1) {
+    return values[0] || '';
+  }
+  return `${values.slice(0, -1).join(', ')} and ${values[values.length - 1]}`;
+}
+
+function escapeRegExp(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function buildSafeBusinessAdditions(input = '') {
