@@ -2,6 +2,14 @@
 
 ## 2026-07-01
 
+- 修复风险确认后的 Runtime 输入残留副作用动作:
+  - sub agent 只读评估指出 Critical:外发确认后,`先生成草稿` 仍会让 Runtime 看到 `发给客户` 这类外发词;Important:付费确认后,Runtime 仍会看到 `调用收费接口也可以`,且 `确认继续` 会残留成 `补充资料: 继续`。
+  - 已修复:外发确认后的草稿生成输入会剥离 `发给 / 发送 / 外发 / send to`,保留客户、产品和沟通目标;付费确认后的任务输入会剥离 `调用收费接口 / 付费 / 扣费 / 消耗额度`,并先移除完整确认文案,避免 `确认继续` 被拆成补充资料。
+  - 新增/加严红绿回归测试 `runNewConversationAgent strips external-send wording before generating a confirmed draft` 和 `runNewConversationAgent continues the original business task after paid action confirmation`。
+- 修复首轮生成材料时混入保存/导出副作用词:
+  - 复现问题:`帮我生成报价单并导出文件...` 或 `帮我生成报价单并保存到客户档案 Global Sourcing Inc...` 会先生成报价单再进入确认卡,但 Runtime 生成报价单时收到的文本仍包含 `导出文件`、`保存到客户档案` 和客户档案名,可能污染业务产物正文。
+  - 已修复:先生成安全业务产物时会剥离保存/导出副作用词和客户档案目标;确认卡仍保留用户原句作为 `originalText`,并保留规范化客户标识用于确认后写入。
+  - 新增红绿回归测试 `runNewConversationAgent keeps first-turn save or export wording out of generated artifact input`。
 - 修复自然公司名保存目标被截断:
   - 复现问题:当前线程已有 `客户推进分析.md` 时,用户说 `保存到客户档案 Global Sourcing Inc`;后端会把目标截成 `Global`,确认后可能写入错误客户目录,不像真实 agent 会理解用户说的是公司名。
   - 已修复:保存确认会把可读英文客户名规范化成内部客户标识,例如 `Global Sourcing Inc` → `global-sourcing-inc`;已有 slug 输入仍可直接识别,且仍必须等用户确认后才写入客户 memory。

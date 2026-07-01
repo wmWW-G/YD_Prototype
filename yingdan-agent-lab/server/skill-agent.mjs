@@ -179,7 +179,12 @@ export async function runNewConversationAgent(options = {}) {
   const riskyAction = detectRiskyAction(text);
   if (riskyAction) {
     if (!context.pendingTask && shouldGenerateNewArtifactBeforeRiskConfirmation({ match, riskyAction, text })) {
-      const missingContext = detectMissingBusinessContext({ match, text });
+      const artifactTaskText = buildArtifactTaskTextBeforeRiskConfirmation({
+        fallbackText: text,
+        riskyAction,
+        text,
+      });
+      const missingContext = detectMissingBusinessContext({ match, text: artifactTaskText });
       if (missingContext.missing.length === 0) {
         const bufferedRuntimeEvents = [];
         const collectRuntimeEvent = async (event) => {
@@ -191,7 +196,7 @@ export async function runNewConversationAgent(options = {}) {
           sessionId: options.sessionId,
           skillRuntime: options.skillRuntime,
           onRuntimeEvent: collectRuntimeEvent,
-          text,
+          text: artifactTaskText,
         });
 
         if (generatedResponse.ok !== false && generatedResponse.kind !== 'confirmation-required' && generatedResponse.artifact) {
@@ -221,10 +226,14 @@ export async function runNewConversationAgent(options = {}) {
     const missingArtifact = missingArtifactForRiskyAction({ context, riskyAction });
     if (missingArtifact) {
       if (context.pendingTask) {
-        const combinedText = buildPendingTaskResumeText(context.pendingTask, text);
-        const combinedMatch = matchSkillForGoal({ registry, text: combinedText });
+        const confirmationText = buildPendingTaskResumeText(context.pendingTask, text);
+        const artifactTaskText = buildPendingTaskResumeText(
+          context.pendingTask,
+          stripRiskyActionText(text, riskyAction),
+        );
+        const combinedMatch = matchSkillForGoal({ registry, text: artifactTaskText });
         if (combinedMatch.matched) {
-          const missingContext = detectMissingBusinessContext({ match: combinedMatch, text: combinedText });
+          const missingContext = detectMissingBusinessContext({ match: combinedMatch, text: artifactTaskText });
           if (missingContext.missing.length === 0) {
             const bufferedRuntimeEvents = [];
             const collectRuntimeEvent = async (event) => {
@@ -237,7 +246,7 @@ export async function runNewConversationAgent(options = {}) {
               sessionId: options.sessionId,
               skillRuntime: options.skillRuntime,
               onRuntimeEvent: collectRuntimeEvent,
-              text: combinedText,
+              text: artifactTaskText,
             });
 
             if (generatedResponse.ok !== false && generatedResponse.kind !== 'confirmation-required' && generatedResponse.artifact) {
@@ -246,7 +255,7 @@ export async function runNewConversationAgent(options = {}) {
                 response: generatedResponse,
                 runtimeEvents: bufferedRuntimeEvents,
                 riskyAction,
-                text: combinedText,
+                text: confirmationText,
               });
             }
 
@@ -280,7 +289,12 @@ export async function runNewConversationAgent(options = {}) {
         });
       }
       if (shouldGenerateArtifactBeforeRiskConfirmation({ match, riskyAction })) {
-        const missingContext = detectMissingBusinessContext({ match, text });
+        const artifactTaskText = buildArtifactTaskTextBeforeRiskConfirmation({
+          fallbackText: text,
+          riskyAction,
+          text,
+        });
+        const missingContext = detectMissingBusinessContext({ match, text: artifactTaskText });
         if (missingContext.missing.length === 0) {
           const bufferedRuntimeEvents = [];
           const collectRuntimeEvent = async (event) => {
@@ -292,7 +306,7 @@ export async function runNewConversationAgent(options = {}) {
             sessionId: options.sessionId,
             skillRuntime: options.skillRuntime,
             onRuntimeEvent: collectRuntimeEvent,
-            text,
+            text: artifactTaskText,
           });
 
           if (generatedResponse.ok !== false && generatedResponse.kind !== 'confirmation-required' && generatedResponse.artifact) {
@@ -362,6 +376,10 @@ export async function runNewConversationAgent(options = {}) {
         });
       }
       if (context.pendingTask.pendingRiskyAction) {
+        const artifactTaskText = buildPendingRiskArtifactTaskText({
+          combinedText,
+          pendingTask: context.pendingTask,
+        });
         const bufferedRuntimeEvents = [];
         const collectRuntimeEvent = async (event) => {
           bufferedRuntimeEvents.push(event);
@@ -373,7 +391,7 @@ export async function runNewConversationAgent(options = {}) {
           sessionId: options.sessionId,
           skillRuntime: options.skillRuntime,
           onRuntimeEvent: collectRuntimeEvent,
-          text: combinedText,
+          text: artifactTaskText,
         });
 
         if (generatedResponse.ok !== false && generatedResponse.kind !== 'confirmation-required' && generatedResponse.artifact) {
@@ -1246,6 +1264,49 @@ function summarizeRiskyAction(riskyAction = null) {
 }
 
 /**
+ * buildArtifactTaskTextBeforeRiskConfirmation 生成“先做材料、后等确认”的业务输入。
+ *
+ * 作用：
+ * - 用户说“生成报价单并导出/保存”时,Runtime 只应该看到报价单任务。
+ * - 保存、导出这类副作用目标进入确认卡,不能污染报价单、邮件或客户分析正文。
+ *
+ * 参数：
+ * - input.text：用户原始输入。
+ * - input.riskyAction：当前命中的风险动作。
+ * - input.fallbackText：剥离后为空时使用的兜底文本。
+ *
+ * 返回值：交给 Runtime 生成产物的业务目标文本。
+ * 可能抛出的异常：无。
+ */
+function buildArtifactTaskTextBeforeRiskConfirmation(input = {}) {
+  const strippedText = stripRiskyActionText(input.text || '', input.riskyAction);
+  return strippedText || String(input.fallbackText || input.text || '').trim();
+}
+
+/**
+ * buildPendingRiskArtifactTaskText 生成 pendingRiskyAction 续跑时的业务输入。
+ *
+ * 作用：
+ * - 第一轮缺资料时已经把保存/导出动作放进 pendingRiskyAction。
+ * - 用户补齐资料后真正生成材料时,不能再把原始目标里的保存/导出词写进产物。
+ *
+ * 参数：
+ * - input.pendingTask：缺资料等待上下文。
+ * - input.combinedText：原始任务和全部补充拼出的完整确认文本。
+ *
+ * 返回值：去掉 pendingRiskyAction 副作用词后的 Runtime 业务目标文本。
+ * 可能抛出的异常：无。
+ */
+function buildPendingRiskArtifactTaskText(input = {}) {
+  const riskyAction = input.pendingTask?.pendingRiskyAction || null;
+  return buildArtifactTaskTextBeforeRiskConfirmation({
+    fallbackText: input.combinedText,
+    riskyAction,
+    text: input.combinedText,
+  });
+}
+
+/**
  * stripRiskyActionText 从业务补充里剥掉保存/导出这类副作用词。
  *
  * 作用：
@@ -1266,6 +1327,10 @@ function stripRiskyActionText(text = '', riskyAction = null) {
   }
   const patternsByType = {
     customer_write: [
+      /保存到客户档案\s*[A-Za-z0-9][A-Za-z0-9 _&.'-]{1,120}(?=[，。,.!?！？;；]|$)/gi,
+      /保存到客户\s*[A-Za-z0-9][A-Za-z0-9 _&.'-]{1,120}(?=[，。,.!?！？;；]|$)/gi,
+      /写入客户档案\s*[A-Za-z0-9][A-Za-z0-9 _&.'-]{1,120}(?=[，。,.!?！？;；]|$)/gi,
+      /写入客户\s*[A-Za-z0-9][A-Za-z0-9 _&.'-]{1,120}(?=[，。,.!?！？;；]|$)/gi,
       /保存到客户档案|保存到客户|写入客户|存到客户|更新客户档案|保存客户摘要/g,
       /保存一下|保存下|保存这份|保存当前文件|保存当前|保存起来|存一下|存起来/g,
     ],
@@ -1279,6 +1344,7 @@ function stripRiskyActionText(text = '', riskyAction = null) {
     value = value.replace(pattern, '');
   }
   return value
+    .replace(/(?:并|然后|再)\s*([，,。.;；])/g, '$1')
     .replace(/[，。,.!！?？;；\s]+$/g, '')
     .replace(/^[，。,.!！?？;；\s]+/g, '')
     .replace(/[，,]\s*[，,]+/g, '，')
@@ -1550,7 +1616,6 @@ function extractInlineConfirmationSupplement(text = '', pendingConfirmation = {}
     return '';
   }
 
-  supplement = supplement.replace(/^(可以的|可以|好的|好|行的|行|同意|确认|没问题|ok|okay|yes|sure)[，。,.!！?？\s]*/i, '');
   const candidates = [
     pendingConfirmation.confirmLabel,
     ...confirmationCandidatesForType(pendingConfirmation.type),
@@ -1560,6 +1625,8 @@ function extractInlineConfirmationSupplement(text = '', pendingConfirmation = {}
     const pattern = new RegExp(escapeRegExp(String(candidate).trim()), 'gi');
     supplement = supplement.replace(pattern, '');
   }
+
+  supplement = supplement.replace(/^(可以的|可以|好的|好|行的|行|同意|确认|没问题|ok|okay|yes|sure)[，。,.!！?？\s]*/i, '');
 
   return supplement
     .replace(/[，。,.!！?？\s]+$/g, '')
@@ -2024,7 +2091,7 @@ async function buildConfirmationAcceptedResponse(input = {}) {
   }
 
   if (pendingConfirmation.type === 'paid_call') {
-    const taskText = buildTaskTextFromConfirmation(pendingConfirmation);
+    const taskText = buildPaidTaskTextFromConfirmation(pendingConfirmation);
     const taskMatch = input.registry ? matchSkillForGoal({ registry: input.registry, text: taskText }) : { matched: false };
     if (taskMatch.matched) {
       const missingContext = detectMissingBusinessContext({ match: taskMatch, text: taskText });
@@ -2365,10 +2432,67 @@ function buildTaskTextFromConfirmation(pendingConfirmation = {}) {
   return [originalText, supplements].filter(Boolean).join('；补充资料: ') || originalText;
 }
 
-function buildDraftTextFromConfirmation(pendingConfirmation = {}) {
-  const originalText = String(pendingConfirmation.originalText || '').trim();
+/**
+ * buildPaidTaskTextFromConfirmation 生成付费确认后的非付费业务任务文本。
+ *
+ * 作用：
+ * - 用户确认后仍不能把“调用收费接口 / 扣费也可以”写进 Runtime 业务材料。
+ * - 这次确认只代表允许继续当前任务;真正再次产生费用时仍要走 Runtime policy。
+ *
+ * 参数：
+ * - pendingConfirmation：当前付费确认卡。
+ *
+ * 返回值：去掉付费动作词和确认填充词后的业务任务文本。
+ * 可能抛出的异常：无。
+ */
+function buildPaidTaskTextFromConfirmation(pendingConfirmation = {}) {
+  const originalText = stripPaidActionText(String(pendingConfirmation.originalText || '').trim());
   const supplements = Array.isArray(pendingConfirmation.supplements)
-    ? pendingConfirmation.supplements.filter(Boolean).join('；补充资料: ')
+    ? pendingConfirmation.supplements.map(stripPaidActionText).filter(Boolean).join('；补充资料: ')
+    : '';
+  return [originalText, supplements].filter(Boolean).join('；补充资料: ') || originalText;
+}
+
+/**
+ * stripPaidActionText 从业务任务文本里剥掉付费动作词。
+ *
+ * 作用：
+ * - `调用收费接口也可以` 表示风险许可,不是客户推进材料的业务事实。
+ * - 剥掉这类词后仍保留客户、产品、询盘问题和任务目标,让 Runtime 接着做不扣费的部分。
+ *
+ * 参数：
+ * - text：确认卡原始需求或补充资料。
+ *
+ * 返回值：去掉付费动作词后的业务文本。
+ * 可能抛出的异常：无。
+ */
+function stripPaidActionText(text = '') {
+  let value = String(text || '').trim();
+  if (!value) {
+    return '';
+  }
+
+  for (const pattern of [
+    /调用[^，。,.!?！？;；]{0,16}(?:付费|收费)[^，。,.!?！？;；]{0,12}(?:接口|数据|能力|工具)?(?:也可以|也行)?/g,
+    /(?:扣费|付费|花钱|产生费用|收费|消耗(?:点数|额度|积分))[^，。,.!?！？;；]{0,12}(?:也可以|也行)?/g,
+    /(?:paid\s+api|paid\s+tool|paid\s+data)[^，。,.!?！？;；]{0,20}/gi,
+  ]) {
+    value = value.replace(pattern, '');
+  }
+
+  return value
+    .replace(/(?:并|然后|再)\s*([，,。.;；])/g, '$1')
+    .replace(/[，。,.!！?？;；\s]+$/g, '')
+    .replace(/^[，。,.!！?？;；\s]+/g, '')
+    .replace(/[，,]\s*[，,]+/g, '，')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function buildDraftTextFromConfirmation(pendingConfirmation = {}) {
+  const originalText = stripExternalSendText(String(pendingConfirmation.originalText || '').trim());
+  const supplements = Array.isArray(pendingConfirmation.supplements)
+    ? pendingConfirmation.supplements.map(stripExternalSendText).filter(Boolean).join('；补充资料: ')
     : '';
   const fullText = [originalText, supplements].filter(Boolean).join('；补充资料: ');
   if (/询盘|回复|回信|客户问|客户发来|帮我回|回一下/i.test(fullText)) {
@@ -2378,6 +2502,50 @@ function buildDraftTextFromConfirmation(pendingConfirmation = {}) {
     return `帮我准备一封跟进开发信。原始需求: ${fullText}`;
   }
   return `帮我准备一封跟进开发信。原始需求: ${fullText || originalText}`;
+}
+
+/**
+ * stripExternalSendText 从草稿生成输入里剥掉外发动作词。
+ *
+ * 作用：
+ * - 用户确认“先生成草稿”后,Runtime 只应该生成可检查草稿。
+ * - `发给 / 发送 / 外发 / send to` 是副作用动作,必须留在确认卡,不能混进草稿任务输入。
+ * - 保留“德国客户、产品、MOQ、交期”等业务事实,避免清理过度导致又追问资料。
+ *
+ * 参数：
+ * - text：确认卡里的原始需求或补充资料。
+ *
+ * 返回值：去掉外发动作词后的业务文本。
+ * 可能抛出的异常：无。
+ */
+function stripExternalSendText(text = '') {
+  let value = String(text || '').trim();
+  if (!value) {
+    return '';
+  }
+
+  for (const pattern of [
+    /外发/g,
+    /直接(?:发|发送)|现在(?:发|发送)|立即(?:发|发送)|马上(?:发|发送)|帮我(?:发|发送)/g,
+    /发(?:送)?给/g,
+    /发送到|发到/g,
+    /发(?:一下|下|过去|出)(?:吧)?/g,
+    /发邮件(?:给|到)?/g,
+    /寄给/g,
+    /send\s+(?:this|it|the\s+(?:message|email|draft)|this\s+(?:message|email|draft))?\s*(?:to|over\s+to)\s+/gi,
+    /send\s+(?:email|it|now)\b/gi,
+    /(?:whatsapp|email|message)\s+(?:the\s+)?(?:customer|buyer|client|prospect)/gi,
+  ]) {
+    value = value.replace(pattern, '');
+  }
+
+  return value
+    .replace(/(?:并|然后|再)\s*([，,。.;；])/g, '$1')
+    .replace(/[，。,.!！?？;；\s]+$/g, '')
+    .replace(/^[，。,.!！?？;；\s]+/g, '')
+    .replace(/[，,]\s*[，,]+/g, '，')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 function buildRuntimePolicyConfirmation(input = {}) {

@@ -2661,8 +2661,12 @@ test('runNewConversationAgent generates a new matched artifact before export whe
   assert.equal(response.artifact.name, '报价单.xlsx');
   assert.equal(response.context.artifact.name, '报价单.xlsx');
   assert.equal(response.context.pendingConfirmation.type, 'export_file');
-  assert.equal(response.context.pendingConfirmation.originalText, runtimeText);
-  assert.match(runtimeText, /帮我生成报价单并导出文件/);
+  assert.equal(
+    response.context.pendingConfirmation.originalText,
+    '帮我生成报价单并导出文件，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai',
+  );
+  assert.match(runtimeText, /帮我生成报价单/);
+  assert.doesNotMatch(runtimeText, /导出文件/);
   assert.doesNotMatch(JSON.stringify(response), /旧客户推进分析/);
 });
 
@@ -2868,8 +2872,12 @@ test('runNewConversationAgent generates a new matched artifact before customer s
   assert.equal(response.artifact.name, '报价单.xlsx');
   assert.equal(response.context.artifact.name, '报价单.xlsx');
   assert.equal(response.context.pendingConfirmation.type, 'customer_write');
-  assert.equal(response.context.pendingConfirmation.originalText, runtimeText);
-  assert.match(runtimeText, /帮我生成报价单并保存一下/);
+  assert.equal(
+    response.context.pendingConfirmation.originalText,
+    '帮我生成报价单并保存一下，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai',
+  );
+  assert.match(runtimeText, /帮我生成报价单/);
+  assert.doesNotMatch(runtimeText, /保存一下/);
   assert.doesNotMatch(JSON.stringify(response), /旧客户推进分析/);
 });
 
@@ -2932,7 +2940,73 @@ test('runNewConversationAgent generates a first-turn quotation artifact before a
   assert.match(assistantMessage.content, /保存前需要你确认/);
   assert.deepEqual(response.progress.slice(-2).map((item) => item.label), ['核对权限', '等待确认']);
   assert.match(runtimeText, /生成报价单/);
-  assert.match(runtimeText, /保存一下/);
+  assert.doesNotMatch(runtimeText, /保存一下/);
+});
+
+test('runNewConversationAgent keeps first-turn save or export wording out of generated artifact input', async () => {
+  const cases = [
+    {
+      text: '帮我生成报价单并导出文件，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai',
+      confirmationType: 'export_file',
+      forbiddenRuntimeText: /导出文件/,
+    },
+    {
+      text: '帮我生成报价单并保存到客户档案 Global Sourcing Inc，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai',
+      confirmationType: 'customer_write',
+      customerSlug: 'global-sourcing-inc',
+      forbiddenRuntimeText: /保存到客户档案|Global Sourcing Inc/i,
+    },
+  ];
+
+  for (const testCase of cases) {
+    let runtimeText = '';
+    const response = await runNewConversationAgent({
+      text: testCase.text,
+      registry: createQuotationRegistry(),
+      skillRuntime: {
+        async runGoal({ text }) {
+          runtimeText = text;
+          return {
+            ...createRuntimeResult(),
+            goal: {
+              matched: true,
+              trigger: 'natural_goal',
+              skillId: 'quotation-sheet',
+              reason: '用户要生成报价单。',
+            },
+            skill: {
+              id: 'quotation-sheet',
+              displayName: '报价单',
+              adapter: 'quotation-sheet',
+              artifactType: 'xlsx',
+            },
+            result: {
+              ok: true,
+              mode: 'quotation-sheet',
+              outputPath: '/tmp/报价单.xlsx',
+              artifactName: '报价单.xlsx',
+            },
+            artifact: {
+              type: 'xlsx',
+              name: '报价单.xlsx',
+              outputPath: '/tmp/报价单.xlsx',
+            },
+          };
+        },
+      },
+    });
+
+    assert.equal(response.kind, 'confirmation-required');
+    assert.equal(response.context.pendingConfirmation.type, testCase.confirmationType);
+    assert.equal(response.context.pendingConfirmation.originalText, testCase.text);
+    if (testCase.customerSlug) {
+      assert.equal(response.context.pendingConfirmation.customerSlug, testCase.customerSlug);
+    }
+    assert.match(runtimeText, /生成报价单/);
+    assert.match(runtimeText, /产品太阳能路灯/);
+    assert.match(runtimeText, /FOB Shanghai/);
+    assert.doesNotMatch(runtimeText, testCase.forbiddenRuntimeText);
+  }
 });
 
 test('runNewConversationAgent asks for missing quotation fields before first-turn export confirmation', async () => {
@@ -4280,6 +4354,8 @@ test('runNewConversationAgent continues the original business task after paid ac
   assert.match(runtimeText, /客户是德国采购商/);
   assert.match(runtimeText, /询盘问MOQ和交期/);
   assert.match(runtimeText, /产品太阳能灯/);
+  assert.doesNotMatch(runtimeText, /调用收费接口|付费|扣费|收费/);
+  assert.doesNotMatch(runtimeText, /补充资料:\s*继续/);
 });
 
 test('runNewConversationAgent accepts short natural wording for paid action confirmation', async () => {
@@ -4357,10 +4433,11 @@ test('runNewConversationAgent records supplements while still waiting for risky 
   });
   const skillRuntime = {
     async runGoal({ text }) {
-      assert.match(text, /把这封开发信发给客户/);
+      assert.match(text, /开发信/);
       assert.match(text, /德国采购商/);
       assert.match(text, /太阳能路灯/);
       assert.match(text, /MOQ/);
+      assert.doesNotMatch(text, /发给|发送|外发/);
       return {
         ok: true,
         runId: 'skill-runtime-20260629-150000-confirm-supplement',
@@ -5666,6 +5743,62 @@ test('runNewConversationAgent keeps inquiry reply intent after external send con
   assert.match(runtimeText, /产品太阳能路灯/);
 });
 
+test('runNewConversationAgent strips external-send wording before generating a confirmed draft', async () => {
+  const first = await runNewConversationAgent({
+    text: '帮我写一封开发信发给德国客户，产品是太阳能路灯，重点问MOQ和交期',
+    registry: createEmailRegistry(),
+  });
+  let runtimeText = '';
+
+  const second = await runNewConversationAgent({
+    text: '先生成草稿',
+    sessionId: first.sessionId,
+    context: first.context,
+    registry: createEmailRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'cold-email-draft',
+            reason: '用户确认后只生成开发信草稿。',
+          },
+          skill: {
+            id: 'cold-email-draft',
+            displayName: '开发信草稿',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/开发信草稿.md',
+            artifactName: '开发信草稿.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '开发信草稿.md',
+            outputPath: '/tmp/开发信草稿.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(first.kind, 'confirmation-required');
+  assert.equal(first.context.pendingConfirmation.type, 'external_send');
+  assert.equal(second.kind, 'confirmation-accepted');
+  assert.equal(second.artifact.name, '开发信草稿.md');
+  assert.match(runtimeText, /开发信/);
+  assert.match(runtimeText, /德国客户/);
+  assert.match(runtimeText, /太阳能路灯/);
+  assert.match(runtimeText, /MOQ和交期/);
+  assert.doesNotMatch(runtimeText, /发给|发送|外发/);
+});
+
 test('runNewConversationAgent accepts natural external-send confirmation wording', async () => {
   const first = await runNewConversationAgent({
     text: '客户发来询盘，帮我回一封邮件发给客户，产品太阳能路灯',
@@ -5905,9 +6038,9 @@ test('runNewConversationAgent continues after the user confirms a risky action w
   const skillRuntime = {
     async runGoal({ text }) {
       assert.match(text, /准备一封跟进开发信/);
-      assert.match(text, /把这封开发信发给客户/);
       assert.match(text, /德国采购商/);
       assert.match(text, /太阳能路灯/);
+      assert.doesNotMatch(text, /发给|发送|外发/);
       return {
         ok: true,
         runId: 'skill-runtime-20260629-120000-mail',
