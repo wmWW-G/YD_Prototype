@@ -139,6 +139,16 @@ function createEmailAndFollowupRegistry() {
   };
 }
 
+function createEmailAndQuotationRegistry() {
+  const emailRegistry = createEmailRegistry();
+  const quotationRegistry = createQuotationRegistry();
+  const skills = [...emailRegistry.skills, ...quotationRegistry.skills];
+  return {
+    skills,
+    byId: new Map(skills.map((skill) => [skill.id, skill])),
+  };
+}
+
 function createQuotationRegistry() {
   const quotationSkill = {
     id: 'quotation-sheet',
@@ -3389,6 +3399,71 @@ test('runNewConversationAgent does not carry prior customer facts when the user 
   assert.doesNotMatch(second.messages[0].content, /德国采购商|太阳能路灯|MOQ和交期/);
 });
 
+test('runNewConversationAgent treats English new-customer wording as a fresh customer context', async () => {
+  const registry = createEmailAndFollowupRegistry();
+  const firstText = '帮我准备一封跟进开发信，客户是德国采购商，产品太阳能路灯，重点问MOQ和交期';
+  const first = await runNewConversationAgent({
+    text: firstText,
+    registry,
+    skillRuntime: {
+      async runGoal() {
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'cold-email-draft',
+            reason: '用户要准备开发信草稿。',
+          },
+          skill: {
+            id: 'cold-email-draft',
+            displayName: '开发信草稿',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/开发信草稿.md',
+            artifactName: '开发信草稿.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '开发信草稿.md',
+            outputPath: '/tmp/开发信草稿.md',
+          },
+        };
+      },
+    },
+  });
+
+  const second = await runNewConversationAgent({
+    text: 'another buyer，帮我做客户下一步推进计划',
+    sessionId: first.sessionId,
+    context: first.context,
+    session: {
+      context: first.context,
+      messages: [
+        { role: 'user', content: firstText },
+        ...(first.messages || []).filter((message) => message.role === 'assistant'),
+      ],
+    },
+    registry,
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not reuse prior facts after English new-customer wording');
+      },
+    },
+  });
+
+  assert.equal(first.kind, 'goal-run');
+  assert.equal(second.kind, 'needs-input');
+  assert.equal(second.status, 'waiting');
+  assert.equal(second.taskTitle, '客户推进分析');
+  assert.deepEqual(second.context.pendingTask.missing, ['询盘、聊天记录或当前卡点']);
+  assert.doesNotMatch(second.messages[0].content, /德国采购商|太阳能路灯|MOQ和交期/);
+});
+
 test('runNewConversationAgent does not carry prior facts when the user explicitly restarts the task', async () => {
   const registry = createEmailAndFollowupRegistry();
   const firstText = '帮我准备一封跟进开发信，客户是德国采购商，产品太阳能路灯，重点问MOQ和交期';
@@ -3887,6 +3962,63 @@ test('runNewConversationAgent treats sending to a described customer as an exter
   assert.equal(response.context.pendingConfirmation.type, 'external_send');
   assert.match(response.messages[0].confirmation.title, /外发前需要你确认/);
   assert.equal(response.messages[0].confirmation.confirmLabel, '先生成草稿');
+});
+
+test('runNewConversationAgent starts a new matched task instead of swallowing it into pending confirmation', async () => {
+  const registry = createEmailAndQuotationRegistry();
+  const first = await runNewConversationAgent({
+    text: '帮我写一封开发信发给德国客户，产品太阳能路灯，重点问MOQ和交期',
+    registry,
+  });
+  let runtimeText = '';
+
+  const second = await runNewConversationAgent({
+    text: '帮我生成报价单，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai',
+    sessionId: first.sessionId,
+    context: first.context,
+    registry,
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'quotation-sheet',
+            reason: '用户在等待确认时切换到新的报价单任务。',
+          },
+          skill: {
+            id: 'quotation-sheet',
+            displayName: '报价单',
+            adapter: 'quotation-sheet',
+            artifactType: 'xlsx',
+          },
+          result: {
+            ok: true,
+            mode: 'quotation-sheet',
+            outputPath: '/tmp/报价单.xlsx',
+            workbookName: '报价单.xlsx',
+          },
+          artifact: {
+            type: 'xlsx',
+            name: '报价单.xlsx',
+            outputPath: '/tmp/报价单.xlsx',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(first.kind, 'confirmation-required');
+  assert.equal(first.context.pendingConfirmation.type, 'external_send');
+  assert.equal(second.kind, 'goal-run');
+  assert.equal(second.status, 'completed');
+  assert.equal(second.artifact.name, '报价单.xlsx');
+  assert.equal(second.context.pendingConfirmation, undefined);
+  assert.match(runtimeText, /生成报价单/);
+  assert.match(runtimeText, /太阳能路灯/);
+  assert.doesNotMatch(runtimeText, /开发信|发给|外发/);
 });
 
 test('runNewConversationAgent treats channel script versions as current artifact follow-up, not external send', async () => {

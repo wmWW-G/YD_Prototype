@@ -162,7 +162,13 @@ export async function runNewConversationAgent(options = {}) {
       });
     }
 
-    if (shouldKeepConfirmationWaitingForSupplement(context.pendingConfirmation)) {
+    if (shouldStartNewMatchedTaskDuringPendingConfirmation({
+      match,
+      pendingConfirmation: context.pendingConfirmation,
+      text,
+    })) {
+      context = clearTaskContinuationContext(context);
+    } else if (shouldKeepConfirmationWaitingForSupplement(context.pendingConfirmation)) {
       return buildConfirmationSupplementResponse({
         context,
         onRuntimeEvent: options.onRuntimeEvent,
@@ -625,12 +631,20 @@ function buildThreadContextGoalText(input = {}) {
  */
 export function shouldStartWithFreshCustomerContext(text = '') {
   const compact = String(text || '').replace(/\s+/g, '');
+  const lowerText = String(text || '').toLowerCase();
   const resetWords = /(?:重新开始|从头开始|重开|开新任务|新任务|开始新任务|另起一条|另起一个)/u;
   const negatedResetWords = /(?:不要|别|不用|无需|先别|先不要|先不用|不需要)(?:重新开始|从头开始|重开|开新任务|新任务|开始新任务|另起一条|另起一个)|(?:不是|并不是)(?:要)?(?:重新开始|从头开始|重开|开新任务|新任务|开始新任务|另起一条|另起一个)/u;
+  const englishResetWords = /\b(?:start\s+over|restart|reset|fresh\s+start|new\s+task)\b/i;
+  const negatedEnglishResetWords = /\b(?:do\s+not|don't|dont|no\s+need\s+to|please\s+do\s+not)\s+(?:start\s+over|restart|reset|use\s+a\s+new\s+task)\b/i;
   const rejectsOldContext = /(?:不要沿用|别沿用|不要用上(?:一|个)任务|别用上(?:一|个)任务)/u.test(compact);
-  const explicitlyRestartsTask = rejectsOldContext || (!negatedResetWords.test(compact) && resetWords.test(compact));
+  const rejectsOldContextEnglish = /\b(?:do\s+not|don't|dont|stop)\s+(?:reuse|use|carry)\s+(?:the\s+)?(?:previous|prior|last|old)\s+(?:context|customer|buyer|client|task|facts?)\b/i.test(lowerText);
+  const explicitlyRestartsTask = rejectsOldContext ||
+    rejectsOldContextEnglish ||
+    (!negatedResetWords.test(compact) && resetWords.test(compact)) ||
+    (!negatedEnglishResetWords.test(lowerText) && englishResetWords.test(lowerText));
   const switchesCustomer = /(?:另一个|另个|另外一个|新的?|换个|换一个|下一个|第二个)(?:客户|买家|采购商|客人|联系人)|(?:客户|买家|采购商|客人)(?:换一个|换个|另一个|新的?)/u.test(compact);
-  return explicitlyRestartsTask || switchesCustomer;
+  const switchesCustomerEnglish = /\b(?:another|new|different|next|second|other)\s+(?:customer|buyer|client|prospect|lead|importer|distributor|wholesaler|retailer|contact)\b|\b(?:customer|buyer|client|prospect|lead|importer|distributor|wholesaler|retailer|contact)\s+(?:changed|changes|switch(?:es|ed)?|is\s+new)\b/i.test(lowerText);
+  return explicitlyRestartsTask || switchesCustomer || switchesCustomerEnglish;
 }
 
 /**
@@ -2052,6 +2066,34 @@ function appendConfirmationSupplement(pendingConfirmation = {}, text = '') {
 
 function shouldKeepConfirmationWaitingForSupplement(pendingConfirmation = {}) {
   return ['external_send', 'paid_call', 'runtime_policy', 'risky_action'].includes(pendingConfirmation.type);
+}
+
+/**
+ * shouldStartNewMatchedTaskDuringPendingConfirmation 判断等待确认时用户是否已经切到完整新任务。
+ *
+ * 作用：
+ * - Agent 线程里用户可能不点确认/取消,而是直接说“帮我生成报价单...”。
+ * - 这种完整新任务不能被旧的外发/付费确认卡吞成 supplement,否则像表单卡住。
+ * - 已经确认、取消和普通补资料会在更早分支处理,这里只处理明确匹配到 Skill 的新目标。
+ *
+ * 参数：
+ * - input.match：本轮用户文本的 Skill 匹配结果。
+ * - input.pendingConfirmation：当前等待确认的动作。
+ * - input.text：用户本轮输入。
+ *
+ * 返回值：应切断旧确认上下文时返回 true。
+ * 可能抛出的异常：无。
+ */
+function shouldStartNewMatchedTaskDuringPendingConfirmation(input = {}) {
+  const text = String(input.text || '').trim();
+  const pendingConfirmation = input.pendingConfirmation || {};
+  if (!text || !input.match?.matched || !pendingConfirmation.type) {
+    return false;
+  }
+  if (isChannelReferenceOnlyRequest(text)) {
+    return false;
+  }
+  return true;
 }
 
 /**

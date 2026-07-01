@@ -2,6 +2,14 @@
 
 ## 2026-07-01
 
+- 修复等待确认时完整新任务被旧确认卡吞掉:
+  - sub agent 只读评估指出 Critical:外发确认卡等待时,用户输入 `帮我生成报价单，产品太阳能路灯，数量500套，单价USD 35，FOB Shanghai`;旧逻辑会把这句完整新任务塞进 `external_send` 的 supplements,继续提示外发确认。
+  - 已修复:pendingConfirmation 分支会先让确认/取消/补资料服务当前卡片;如果本轮文本已经明确匹配到新的 Skill 任务,则切断旧确认卡和旧任务上下文,按新任务进入 Runtime。
+  - 新增红绿回归测试 `runNewConversationAgent starts a new matched task instead of swallowing it into pending confirmation`。
+- 修复英文换客户话术仍沿用旧客户资料:
+  - 复现问题:同一线程先处理 `德国采购商 / 太阳能路灯 / MOQ和交期`,下一句用户说 `another buyer，帮我做客户下一步推进计划`;后端没有把 `another buyer` 当成新客户边界,会复用上一位客户资料并直接跑 Runtime。
+  - 已修复:`shouldStartWithFreshCustomerContext()` 支持 `another/new/different/next buyer/customer/client/prospect` 和 `start over/new task/don't reuse previous customer` 等英文边界话术;中英混用时也会切断旧 pending task、确认卡和旧产物上下文。
+  - 新增红绿回归测试 `runNewConversationAgent treats English new-customer wording as a fresh customer context`。
 - 修复同线程事实复用混入确认口令:
   - 复现问题:用户先说 `客户是德国采购商...帮我写开发信发给客户`,中间又说 `先生成草稿 / 确认继续`;下一句 `再做一个客户下一步推进计划` 时,Runtime 会把 `发给客户`、`先`、`确认继续` 当作线程事实带入新任务。
   - 已修复:同线程事实提取只保留客户、产品、询盘和当前卡点等业务资料,过滤外发、草稿、保存、导出、确认继续等操作性碎片。
