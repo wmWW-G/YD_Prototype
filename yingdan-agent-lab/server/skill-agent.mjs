@@ -1157,8 +1157,44 @@ function shouldGenerateNewArtifactBeforeRiskConfirmation(input = {}) {
     /(?:帮我|请|麻烦)?(?:生成|做|整理|准备|写)(?:一|1)?(?:个|份|张)?/.test(text) ||
     /(?:帮我|请|麻烦)?出(?:一|1|个|份|张)/.test(text) ||
     /客户(?:问|要|要求|需要)[^，。,.!?！？]{0,18}(?:报价|pi|proforma|回复|回信|方案|计划)/i.test(text) ||
-    /报价给|(?:^|[，。,.!?！？\s])出(?:一|1)?(?:个|份|张)?报价单|make\s+(?:a\s+)?(?:quote|quotation|pi)|generate\s+(?:a\s+)?(?:quote|quotation|pi)/i.test(text);
+    /报价给|(?:^|[，。,.!?！？\s])出(?:一|1)?(?:个|份|张)?报价单|make\s+(?:a\s+)?(?:quote|quotation|pi)|generate\s+(?:a\s+)?(?:quote|quotation|pi)/i.test(text) ||
+    hasSpecificBusinessTaskBeforeRiskConfirmation({ match: input.match, text });
   return asksForNewArtifact;
+}
+
+/**
+ * hasSpecificBusinessTaskBeforeRiskConfirmation 判断保存/导出前是否仍有明确新业务任务。
+ *
+ * 作用：
+ * - 旧线程已有产物时,`导出文件` 应导出当前产物,不能重新生成。
+ * - 但 `德国客户嫌贵...判断成交策略、报价边界和7天跟进节奏,并导出文件` 是新任务+导出。
+ * - 这类表达不一定含“生成/做/写”,所以不能只靠动词判断是否先生成本轮产物。
+ *
+ * 参数：
+ * - input.match：当前输入匹配到的业务 Skill。
+ * - input.text：去掉保存/导出词后的业务文本。
+ *
+ * 返回值：boolean,true 表示应先生成新产物再进入风险确认。
+ * 可能抛出的异常：无。
+ */
+function hasSpecificBusinessTaskBeforeRiskConfirmation(input = {}) {
+  if (!input.match?.matched) {
+    return false;
+  }
+
+  const value = String(input.text || '').toLowerCase().trim();
+  if (!value) {
+    return false;
+  }
+
+  const hasBusinessAction = /判断|分析|推进|跟进|策略|边界|节奏|计划|回复|回信|开发信|客户分析|成交|谈判|报价|quote|strategy|follow[-\s]?up/.test(value);
+  const hasConcreteContext =
+    /产品(?:是|为|:|：)|\bmoq\b|交期|lead\s*time|数量|单价|fob|cif|exw|ddp|dap|德国|美国|英国|法国|西班牙|意大利|巴西|印度/.test(value) ||
+    /客户[^，。,.!?！？]{0,16}(?:说|问|要|要求|嫌|抱怨|已读|想|申请|采购|购买|下单|订购|观望|考虑|砍价|压价|还价)/.test(value) ||
+    /买家[^，。,.!?！？]{0,16}(?:说|问|要|要求|嫌|想|采购|购买|下单|订购)/.test(value) ||
+    /独家代理|代理权|渠道合作|成交策略|报价边界|跟进(?:计划|节奏)|价格(?:太)?高|嫌贵|太贵|折扣|优惠|discount/.test(value);
+
+  return hasBusinessAction && hasConcreteContext;
 }
 
 /**

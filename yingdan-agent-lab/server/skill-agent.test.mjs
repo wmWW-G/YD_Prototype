@@ -2666,6 +2666,75 @@ test('runNewConversationAgent generates a new matched artifact before export whe
   assert.doesNotMatch(JSON.stringify(response), /旧客户推进分析/);
 });
 
+test('runNewConversationAgent generates a new composite deal artifact before export when an old artifact already exists', async () => {
+  let runtimeText = '';
+  let runtimeCalled = false;
+  const oldArtifact = {
+    type: 'markdown',
+    name: '旧客户推进分析.md',
+    outputPath: '/tmp/旧客户推进分析.md',
+  };
+
+  const response = await runNewConversationAgent({
+    text: '德国客户嫌贵，想申请独家代理，产品是太阳能灯，帮我判断成交策略、报价边界和7天跟进节奏，并导出文件',
+    sessionId: 'agent-session-20260701T180000-old-artifact-composite-export',
+    context: {
+      artifact: oldArtifact,
+    },
+    session: {
+      context: {
+        artifact: oldArtifact,
+      },
+    },
+    registry: createFollowupRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeCalled = true;
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'customer-followup-plan',
+            reason: '用户要生成新的复合成交推进材料并导出。',
+          },
+          skill: {
+            id: 'customer-followup-plan',
+            displayName: '客户推进分析',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/客户推进分析.md',
+            artifactName: '客户推进分析.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: '/tmp/客户推进分析.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(runtimeCalled, true);
+  assert.equal(response.kind, 'confirmation-required');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '客户推进分析');
+  assert.equal(response.artifact.name, '客户推进分析.md');
+  assert.equal(response.context.artifact.name, '客户推进分析.md');
+  assert.equal(response.context.pendingConfirmation.type, 'export_file');
+  assert.notEqual(response.context.artifact.name, oldArtifact.name);
+  assert.match(runtimeText, /判断成交策略/);
+  assert.match(runtimeText, /报价边界/);
+  assert.match(runtimeText, /7天跟进节奏/);
+  assert.match(runtimeText, /产品是太阳能灯/);
+});
+
 test('runNewConversationAgent treats pure quotation export wording as current artifact export', async () => {
   const oldArtifact = {
     type: 'xlsx',

@@ -1791,16 +1791,16 @@ function buildPlan(skill, goal, userText = '') {
  */
 function isCompositeDealRequest(text = '') {
   const value = String(text || '').toLowerCase();
-  const hasCustomerContext = /客户|买家|采购商|客人|对方|buyer|customer|client/.test(value);
+  const hasCustomerContext = /客户|买家|采购商|进口商|经销商|分销商|代理商|客人|对方|这家公司|该公司|buyer|customer|client|importer|distributor|dealer|reseller|company/.test(value);
   if (!hasCustomerContext) {
     return false;
   }
 
   const intentChecks = [
-    /成交策略|推进策略|怎么谈|谈判策略|判断|策略|deal\s+strategy/.test(value),
-    /报价边界|报价策略|价格边界|价格底线|让步边界|quote\s+boundary|pricing\s+boundary/.test(value),
-    /写(?:一封)?邮件|写信|邮件草稿|英文邮件|email\s+draft|write\s+(?:an?\s+)?email/.test(value),
-    /7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|跟进计划|follow[-\s]?up\s+plan/.test(value),
+    /成交策略|推进策略|怎么谈|谈判策略|谈判思路|谈判|判断|策略|思路|deal\s+strategy/.test(value),
+    /报价边界|报价策略|价格边界|价格底线|让步边界|让步范围|让步空间|让步上限|quote\s+boundary|pricing\s+boundary/.test(value),
+    /写(?:一封)?邮件|写信|邮件草稿|英文邮件|英文回复|英文回信|回复草稿|email\s+draft|write\s+(?:an?\s+)?email/.test(value),
+    /7\s*天|七天|一周|下周|1\s*周|7-day|seven[-\s]?day|next\s+week|跟进计划|跟进节奏|follow[-\s]?up\s+plan/.test(value),
     /独家代理|独代|代理权|嫌贵|太贵|价格(?:太)?高|discount|exclusive\s+(?:agent|agency|distributor)/.test(value),
   ];
   return intentChecks.filter(Boolean).length >= 3;

@@ -259,7 +259,7 @@ function normalizeGoalText(text = '') {
   if (hasExplicitDevelopmentIntent || hasFollowUpEmailIntent || (/email|mail|邮件/.test(lower) && !hasReplyIntent)) {
     additions.push('邮件开发信草稿');
   }
-  if (/buyer|客户|买家|采购商|客人|对方/.test(lower)) {
+  if (/buyer|customer|client|importer|distributor|dealer|reseller|company|客户|买家|采购商|进口商|经销商|分销商|代理商|客人|对方|这家公司|该公司/.test(lower)) {
     additions.push('客户');
   }
   if (/next step|下一步|咋办|怎么办|怎么处理|怎么推进|怎么谈|怎么跟|谈判|推进|跟下去|跟进|回访|优先跟|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|砍价|压价|还价|议价|让价|降价|折扣|账期|赊账|月结|付款条件|付款方式|免费样品|样品费|样品费用|不想付样品|不付样品|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|free\s+sample|sample\s+fee|small\s+(?:trial\s+)?order|trial\s+order|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights|payment\s+terms|credit\s+terms/.test(lower)) {
@@ -295,16 +295,16 @@ function normalizeGoalText(text = '') {
  */
 function isCompositeDealIntent(text = '') {
   const value = String(text || '').toLowerCase();
-  const hasCustomerContext = /客户|买家|采购商|客人|对方|buyer|customer|client/.test(value);
+  const hasCustomerContext = /客户|买家|采购商|进口商|经销商|分销商|代理商|客人|对方|这家公司|该公司|buyer|customer|client|importer|distributor|dealer|reseller|company/.test(value);
   if (!hasCustomerContext) {
     return false;
   }
 
   const intentChecks = [
-    /成交策略|推进策略|怎么谈|谈判策略|判断|策略|deal\s+strategy/.test(value),
-    /报价边界|报价策略|价格边界|价格底线|让步边界|quote\s+boundary|pricing\s+boundary/.test(value),
-    /写(?:一封)?邮件|写信|邮件草稿|英文邮件|email\s+draft|write\s+(?:an?\s+)?email/.test(value),
-    /7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|跟进计划|follow[-\s]?up\s+plan/.test(value),
+    /成交策略|推进策略|怎么谈|谈判策略|谈判思路|谈判|判断|策略|思路|deal\s+strategy/.test(value),
+    /报价边界|报价策略|价格边界|价格底线|让步边界|让步范围|让步空间|让步上限|quote\s+boundary|pricing\s+boundary/.test(value),
+    /写(?:一封)?邮件|写信|邮件草稿|英文邮件|英文回复|英文回信|回复草稿|email\s+draft|write\s+(?:an?\s+)?email/.test(value),
+    /7\s*天|七天|一周|下周|1\s*周|7-day|seven[-\s]?day|next\s+week|跟进计划|跟进节奏|follow[-\s]?up\s+plan/.test(value),
     /独家代理|独代|代理权|嫌贵|太贵|价格(?:太)?高|discount|exclusive\s+(?:agent|agency|distributor)/.test(value),
   ];
   return intentChecks.filter(Boolean).length >= 3;

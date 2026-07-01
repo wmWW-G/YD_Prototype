@@ -497,6 +497,42 @@ test('createSkillRuntime decomposes a complex deal request into strategy, quote 
   }
 });
 
+test('createSkillRuntime treats importer wording as a composite deal request instead of a single reply draft', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '这家德国进口商说价格高，还想要独代；产品是太阳能灯，帮我出谈判思路、英文回复、让步范围和下周跟进',
+    });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+    const facts = result.artifact.validation.evidence.checkedFacts;
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'customer-followup-plan');
+    assert.match(result.plan.steps.map((step) => step.label).join(' / '), /拆解复合任务/);
+    assert.match(content, /## 复合任务拆解/);
+    assert.match(content, /## 成交策略/);
+    assert.match(content, /## 报价边界/);
+    assert.match(content, /## 英文邮件草稿/);
+    assert.match(content, /产品: 太阳能灯/);
+    assert.match(content, /客户\/市场: 德国/);
+    assert.match(content, /客户关注点: .*议价\/折扣压力/);
+    assert.match(content, /客户关注点: .*独家代理\/渠道合作/);
+    assert.ok(facts.includes('产品:太阳能灯'));
+    assert.ok(facts.includes('客户/市场:德国'));
+    assert.ok(facts.includes('关注点:议价/折扣压力'));
+    assert.ok(facts.includes('关注点:独家代理/渠道合作'));
+    assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime fails markdown business artifacts that do not cover user-provided facts', async () => {
   const fixture = await withRegistryProject();
 
