@@ -69,6 +69,44 @@ test('reviseMarkdownArtifactForFollowup appends a safe follow-up revision to the
   }
 });
 
+test('reviseMarkdownArtifactForFollowup continues from the original artifact after export', async () => {
+  const fixture = await withRevisionProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '开发信草稿.md');
+    const exportDir = path.join(fixture.projectRoot, 'workbench', 'exports', 'agent-session-20260701-exported');
+    const exportPath = path.join(exportDir, '开发信草稿.md');
+    await mkdir(exportDir, { recursive: true });
+    await writeFile(artifactPath, '# 开发信草稿\n\nCould you confirm MOQ?\n', 'utf8');
+    await writeFile(exportPath, '# 开发信草稿\n\nCould you confirm MOQ?\n', 'utf8');
+
+    const result = await reviseMarkdownArtifactForFollowup({
+      projectRoot: fixture.projectRoot,
+      instruction: '语气更礼貌一点',
+      session: {
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '开发信草稿.md',
+            outputPath: exportPath,
+            exportedFrom: artifactPath,
+          },
+        },
+      },
+    });
+    const updatedOriginal = await readFile(artifactPath, 'utf8');
+    const exportedCopy = await readFile(exportPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.artifact.outputPath, artifactPath);
+    assert.match(updatedOriginal, /本次补充优化/);
+    assert.match(updatedOriginal, /语气更礼貌一点/);
+    assert.doesNotMatch(exportedCopy, /本次补充优化/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('reviseMarkdownArtifactForFollowup drafts day-specific WhatsApp and email follow-up scripts', async () => {
   const fixture = await withRevisionProject();
 
@@ -229,6 +267,44 @@ test('reviseXlsxArtifactForFollowup creates a validated revised workbook with a 
     assert.equal(revised.sheets.includes('本次追问'), true);
     assert.equal(revised.followupValues.some((value) => String(value).includes('按负责人补一列下周动作')), true);
     assert.equal(revised.followupValues.some((value) => String(value).includes('外发前仍需确认')), true);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('reviseXlsxArtifactForFollowup continues from the original workbook after export', async () => {
+  const fixture = await withRevisionProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '报价单.xlsx');
+    const exportDir = path.join(fixture.projectRoot, 'workbench', 'exports', 'agent-session-20260701-exported-xlsx');
+    const exportPath = path.join(exportDir, '报价单.xlsx');
+    await mkdir(exportDir, { recursive: true });
+    await createWorkbookFixture(artifactPath);
+    await createWorkbookFixture(exportPath);
+
+    const result = await reviseXlsxArtifactForFollowup({
+      projectRoot: fixture.projectRoot,
+      instruction: '加一列有效期30天',
+      session: {
+        context: {
+          artifact: {
+            type: 'xlsx',
+            name: '报价单.xlsx',
+            outputPath: exportPath,
+            exportedFrom: artifactPath,
+          },
+        },
+      },
+    });
+    const revised = await inspectWorkbookFixture(result.artifact.outputPath);
+
+    assert.equal(result.ok, true);
+    assert.match(result.artifact.outputPath, /workbench\/artifacts\/run-1/);
+    assert.equal(result.artifact.previousOutputPath, artifactPath);
+    assert.match(result.artifact.name, /^报价单-已续改-/);
+    assert.equal(revised.sheets.includes('本次追问'), true);
+    assert.equal(revised.followupValues.some((value) => String(value).includes('加一列有效期30天')), true);
   } finally {
     await fixture.cleanup();
   }

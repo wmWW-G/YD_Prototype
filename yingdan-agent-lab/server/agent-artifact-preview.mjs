@@ -47,7 +47,7 @@ export async function readAgentArtifactPreview(input = {}) {
 
   const filePath = resolveSafeArtifactPath({ outputPath: artifact.outputPath, projectRoot });
   const fileStat = await stat(filePath);
-  const name = artifact.name || path.basename(filePath);
+  const name = scrubPreviewArtifactName(artifact.name || artifact.workbookName || path.basename(filePath), artifact.type);
   const ext = path.extname(filePath).toLowerCase();
 
   if (artifact.type === 'markdown' || ext === '.md' || ext === '.txt') {
@@ -173,6 +173,49 @@ function buildXlsxPreviewNote(workbook = {}) {
     .join('、');
   const extra = sheets.length > 8 ? `，另有 ${sheets.length - 8} 个工作表` : '';
   return `表格文件已生成,包含 ${sheets.length} 个工作表: ${sheetSummary}${extra}。`;
+}
+
+/**
+ * scrubPreviewArtifactName 清理预览接口返回的产物名。
+ *
+ * 作用：
+ * - session 内部可以保存真实文件名,例如 `quotation-sheet-skill-runtime-...xlsx`。
+ * - 前台点击“查看文件”时只应该看到业务化名称,不能看到 runId 或本机路径。
+ *
+ * 参数：
+ * - name：session 里的 artifact.name 或文件 basename。
+ * - type：artifact 类型。
+ *
+ * 返回值：用户可见的安全产物名。
+ * 可能抛出的异常：无。
+ */
+function scrubPreviewArtifactName(name = '', type = '') {
+  const value = String(name || '').trim();
+  if (!value) {
+    return '';
+  }
+  if (!/skill-runtime|\/Users|\/tmp|workbench\//iu.test(value)) {
+    return value;
+  }
+  if (/quotation-sheet/iu.test(value)) {
+    return '报价单.xlsx';
+  }
+  if (/customer-followup-plan/iu.test(value)) {
+    return '客户推进分析.md';
+  }
+  if (/inquiry-reply-draft/iu.test(value)) {
+    return '询盘回复草稿.md';
+  }
+  if (/cold-email-draft/iu.test(value)) {
+    return '开发信草稿.md';
+  }
+  if (type === 'xlsx' || /\.xlsx$/iu.test(value)) {
+    return '修订版表格.xlsx';
+  }
+  if (type === 'markdown' || /\.(?:md|txt)$/iu.test(value)) {
+    return '业务材料.md';
+  }
+  return '任务材料';
 }
 
 /**

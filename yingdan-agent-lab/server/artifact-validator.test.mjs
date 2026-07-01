@@ -23,6 +23,8 @@ test('validateXlsxArtifact verifies zip, openpyxl, required sheets, and residual
     });
 
     assert.equal(result.ok, true);
+    assert.equal(result.checks.libreOffice, true);
+    assert.equal(result.checks.cleanup, true);
     assert.equal(result.checks.zip, true);
     assert.equal(result.checks.openpyxl, true);
     assert.equal(result.checks.requiredSheets, true);

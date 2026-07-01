@@ -45,6 +45,7 @@ test('saveAgentArtifactToCustomerMemory appends a confirmed artifact summary to 
     );
 
     const result = await saveAgentArtifactToCustomerMemory({
+      customerSlug: 'global-sourcing-inc',
       projectRoot: fixture.projectRoot,
       sessionId: 'agent-session-20260629T160000-save',
       session: {
@@ -71,6 +72,34 @@ test('saveAgentArtifactToCustomerMemory appends a confirmed artifact summary to 
   }
 });
 
+test('saveAgentArtifactToCustomerMemory requires an explicit customer slug', async () => {
+  const fixture = await withCustomerMemoryProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, '客户推进分析.md');
+    await writeFile(artifactPath, '# 客户推进分析\n\n下一步跟进计划。\n', 'utf8');
+
+    await assert.rejects(
+      () => saveAgentArtifactToCustomerMemory({
+        projectRoot: fixture.projectRoot,
+        sessionId: 'agent-session-20260701T170000-save-no-customer',
+        session: {
+          context: {
+            artifact: {
+              type: 'markdown',
+              name: '客户推进分析.md',
+              outputPath: artifactPath,
+            },
+          },
+        },
+      }),
+      (error) => error.code === 'CUSTOMER_SLUG_REQUIRED' && error.status === 400,
+    );
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('saveAgentArtifactToCustomerMemory rejects artifacts outside generated artifact roots', async () => {
   const fixture = await withCustomerMemoryProject();
 
@@ -80,6 +109,7 @@ test('saveAgentArtifactToCustomerMemory rejects artifacts outside generated arti
 
     await assert.rejects(
       () => saveAgentArtifactToCustomerMemory({
+        customerSlug: 'global-sourcing-inc',
         projectRoot: fixture.projectRoot,
         sessionId: 'agent-session-20260629T160500-save',
         session: {

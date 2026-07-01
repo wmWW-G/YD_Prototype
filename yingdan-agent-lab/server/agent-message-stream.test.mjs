@@ -359,6 +359,37 @@ test('buildRecoverableAgentErrorResult explains typed evaluator failures as a ch
   assert.equal(payloadText.includes('evidence ledger'), false);
 });
 
+test('buildRecoverableAgentErrorResult explains Alibaba tool connection failures as data-source waiting', async () => {
+  const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
+
+  const error = Object.assign(
+    new Error('No required Alibaba read-only tool succeeded; refusing to mark this as real-bridge acceptance.'),
+    { code: 'NO_REQUIRED_ALIBABA_TOOL_SUCCEEDED' },
+  );
+  const result = buildRecoverableAgentErrorResult({
+    error,
+    sessionId: 'agent-session-alibaba-tool-wait',
+    userText: '帮我开上周询盘分析会',
+  });
+  const publicResult = sanitizeAgentResultForFrontend(result);
+  const payloadText = JSON.stringify(publicResult);
+
+  assert.equal(publicResult.ok, true);
+  assert.equal(publicResult.kind, 'needs-input');
+  assert.equal(publicResult.status, 'waiting');
+  assert.equal(publicResult.taskTitle, '需要连接 Alibaba 数据源');
+  assert.deepEqual(publicResult.progress.map((item) => item.label), ['识别任务', '连接数据源', '等待处理']);
+  assert.deepEqual(publicResult.progress.map((item) => item.phase), ['识别', '执行', '执行']);
+  assert.match(publicResult.messages[0].content, /真实数据源暂时没有返回可用结果/);
+  assert.match(publicResult.messages[0].content, /Alibaba bridge 已启动/);
+  assert.match(publicResult.messages[0].content, /我已处理,继续/);
+  assert.doesNotMatch(publicResult.messages[0].content, /更多业务资料/);
+  assert.deepEqual(publicResult.context.pendingTask.missing, ['启动 Alibaba bridge', '确认账号已登录', '确认只读工具有数据权限']);
+  assert.equal(payloadText.includes('NO_REQUIRED_ALIBABA_TOOL_SUCCEEDED'), false);
+  assert.equal(payloadText.includes('read-only tool succeeded'), false);
+  assert.equal(payloadText.includes('skill-runtime'), false);
+});
+
 test('buildRecoverableAgentErrorResult does not treat incidental typed evaluator mentions as check failures', async () => {
   const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
 
@@ -717,4 +748,46 @@ test('sanitizeAgentSessionForFrontend removes raw session internals before resto
   assert.equal(payloadText.includes('goal.classify'), false);
   assert.equal(payloadText.includes('action.executed'), false);
   assert.equal(payloadText.includes('artifact.verify'), false);
+});
+
+test('sanitizeAgentSessionForFrontend scrubs runtime file names from restored thread text', () => {
+  const session = sanitizeAgentSessionForFrontend({
+    artifact: {
+      name: 'quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx',
+      outputPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/artifacts/skill-runtime-20260630-011458-s63f/quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx',
+      type: 'xlsx',
+    },
+    kind: 'followup',
+    messages: [
+      {
+        role: 'assistant',
+        content: [
+          '我会接着这次任务处理「加一列有效期30天」，不会重新采集外部数据。',
+          '已按补充要求生成修订版表格 quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx。',
+        ].join('\n'),
+      },
+    ],
+    sessionId: 'agent-session-20260630T011458-s63f',
+    skillAgentResult: {
+      artifact: {
+        name: 'quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx',
+        outputPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/artifacts/skill-runtime-20260630-011458-s63f/quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx',
+        type: 'xlsx',
+      },
+      summary: '已按补充要求生成修订版表格 quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx。',
+      taskTitle: 'quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx',
+    },
+    status: 'completed',
+    summary: '已按补充要求生成修订版表格 quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx。',
+    taskTitle: 'quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx',
+  });
+  const payloadText = JSON.stringify(session);
+
+  assert.equal(payloadText.includes('skill-runtime'), false);
+  assert.equal(payloadText.includes('/Users/garden'), false);
+  assert.equal(session.artifact.name, '报价单.xlsx');
+  assert.match(session.messages[0].content, /修订版表格\.xlsx/);
+  assert.match(session.summary, /修订版表格\.xlsx/);
+  assert.equal(session.taskTitle, '修订版表格.xlsx');
+  assert.equal(session.skillAgentResult.artifact.name, '报价单.xlsx');
 });

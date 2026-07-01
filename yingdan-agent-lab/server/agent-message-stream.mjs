@@ -168,12 +168,12 @@ export function sanitizeAgentResultForFrontend(result = {}) {
   return compactObject({
     ok: result.ok,
     error: result.error,
-    message: result.message,
+    message: scrubUserVisibleText(result.message),
     kind: result.kind,
     sessionId: result.sessionId,
     status: result.status,
-    taskTitle,
-    summary: result.summary,
+    taskTitle: scrubUserVisibleText(taskTitle) || '本次外贸任务',
+    summary: scrubUserVisibleText(result.summary),
     period: result.period,
     progress: sanitizeProgressItems(result.progress),
     artifact: sanitizeArtifact(result.artifact),
@@ -208,13 +208,15 @@ export function sanitizeAgentSessionForFrontend(session = {}) {
     sessionId: session.sessionId,
     skillAgentResult: sanitizeStoredAgentResult(session.skillAgentResult),
     status: session.status,
-    summary: session.summary,
+    summary: scrubUserVisibleText(session.summary),
     taskTitle: safeDisplayText(
-      session.taskTitle ||
+      scrubUserVisibleText(
+        session.taskTitle ||
         session.skillAgentResult?.taskTitle ||
         session.context?.pendingTask?.skillName ||
         session.artifact?.workbookName ||
         session.artifact?.name
+      )
     ),
     updatedAt: session.updatedAt,
   });
@@ -242,45 +244,15 @@ export function buildRecoverableAgentErrorResult(input = {}) {
   const userText = String(input.userText || '').trim();
   const createdAt = new Date().toISOString();
   const typedEvaluatorFailure = isTypedEvaluatorFailure(input.error);
+  const toolConnectionFailure = isToolConnectionFailure(input.error);
   const firstProgress = buildRecoverableStartProgress({ context: input.context, text: userText });
-  const progress = typedEvaluatorFailure ? [
+  const recoverable = buildRecoverableFailureShape({
     firstProgress,
-    {
-      detail: '检查结果没有通过,我已先停下,避免交付可能误导的材料。',
-      label: '检查结果',
-      phase: '检查',
-      status: 'error',
-    },
-    {
-      detail: '可以补充资料、换一种要求,或让我重新生成更稳妥的材料。',
-      label: '等待补充',
-      phase: '检查',
-      status: 'waiting',
-    },
-  ] : [
-    firstProgress,
-    {
-      detail: '执行过程中有一步没有完成,我先停下来避免继续编造结果。',
-      label: '处理卡住',
-      phase: '执行',
-      status: 'error',
-    },
-    {
-      detail: '可以直接补充资料、换一种说法,或指定要生成的产物。',
-      label: '等待补充',
-      phase: '执行',
-      status: 'waiting',
-    },
-  ];
-  const content = typedEvaluatorFailure
-    ? [
-        '检查结果没有通过,我没有继续交付这份材料。',
-        '可以补充资料、换一种要求,或让我重新生成更稳妥的版本,我会接着这次任务继续处理。',
-      ].join(' ')
-    : [
-        '我这一步处理卡住了,所以没有继续编造结果。',
-        '可以直接补充资料、换一种说法,或告诉我要生成邮件草稿、客户分析、跟进计划还是表格,我会接着这次任务继续处理。',
-      ].join(' ');
+    toolConnectionFailure,
+    typedEvaluatorFailure,
+  });
+  const progress = recoverable.progress;
+  const content = recoverable.content;
 
   return {
     ok: true,
@@ -288,13 +260,13 @@ export function buildRecoverableAgentErrorResult(input = {}) {
     sessionId,
     status: 'waiting',
     summary: content,
-    taskTitle: typedEvaluatorFailure ? '检查结果需要处理' : '本次外贸任务',
+    taskTitle: recoverable.taskTitle,
     progress,
     context: {
       pendingTask: {
-        missing: typedEvaluatorFailure ? ['补充资料、调整要求或重新生成材料'] : ['更多业务资料或更明确的产物要求'],
+        missing: recoverable.missing,
         originalText: userText,
-        reason: typedEvaluatorFailure ? 'artifact_check_failed' : 'agent_recoverable_error',
+        reason: recoverable.reason,
       },
     },
     messages: [
@@ -320,25 +292,125 @@ export function buildRecoverableAgentErrorResult(input = {}) {
               title: firstProgress.label,
             },
             {
-              detail: typedEvaluatorFailure
-                ? '检查结果没有通过,没有继续交付可能误导的材料。'
-                : '没有继续执行可能产生误导结果的步骤。',
-              phase: typedEvaluatorFailure ? '检查' : '执行',
+              detail: recoverable.errorDetail,
+              phase: recoverable.errorPhase,
               status: 'error',
-              title: typedEvaluatorFailure ? '检查结果' : '处理卡住',
+              title: recoverable.errorLabel,
             },
             {
-              detail: typedEvaluatorFailure
-                ? '等待用户补充资料、调整要求或重新生成。'
-                : '等待用户补充资料后继续同一次任务。',
-              phase: typedEvaluatorFailure ? '检查' : '执行',
+              detail: recoverable.waitingDetail,
+              phase: recoverable.waitingPhase,
               status: 'waiting',
-              title: '等待补充',
+              title: recoverable.waitingLabel,
             },
           ],
         },
       },
     ],
+  };
+}
+
+function buildRecoverableFailureShape(input = {}) {
+  const firstProgress = input.firstProgress || {};
+  if (input.typedEvaluatorFailure) {
+    const progress = [
+      firstProgress,
+      {
+        detail: '检查结果没有通过,我已先停下,避免交付可能误导的材料。',
+        label: '检查结果',
+        phase: '检查',
+        status: 'error',
+      },
+      {
+        detail: '可以补充资料、换一种要求,或让我重新生成更稳妥的材料。',
+        label: '等待补充',
+        phase: '检查',
+        status: 'waiting',
+      },
+    ];
+    return {
+      content: [
+        '检查结果没有通过,我没有继续交付这份材料。',
+        '可以补充资料、换一种要求,或让我重新生成更稳妥的版本,我会接着这次任务继续处理。',
+      ].join(' '),
+      errorDetail: '检查结果没有通过,没有继续交付可能误导的材料。',
+      errorLabel: '检查结果',
+      errorPhase: '检查',
+      missing: ['补充资料、调整要求或重新生成材料'],
+      progress,
+      reason: 'artifact_check_failed',
+      taskTitle: '检查结果需要处理',
+      waitingDetail: '等待用户补充资料、调整要求或重新生成。',
+      waitingLabel: '等待补充',
+      waitingPhase: '检查',
+    };
+  }
+
+  if (input.toolConnectionFailure) {
+    const progress = [
+      firstProgress,
+      {
+        detail: '真实数据源没有返回可用结果,我已先停下,避免编造平台数据。',
+        label: '连接数据源',
+        phase: '执行',
+        status: 'error',
+      },
+      {
+        detail: '请确认 Alibaba bridge 已启动、账号已登录,并允许读取国际站数据。',
+        label: '等待处理',
+        phase: '执行',
+        status: 'waiting',
+      },
+    ];
+    return {
+      content: [
+        '真实数据源暂时没有返回可用结果,我没有编造询盘分析会数据。',
+        '请确认 Alibaba bridge 已启动、账号已登录,并且只读工具有权限读取国际站数据。',
+        '处理好后直接说“我已处理,继续”,我会接着这次任务重新读取真实数据。',
+      ].join(' '),
+      errorDetail: '真实数据源没有返回可用结果,没有继续生成可能误导的材料。',
+      errorLabel: '连接数据源',
+      errorPhase: '执行',
+      missing: ['启动 Alibaba bridge', '确认账号已登录', '确认只读工具有数据权限'],
+      progress,
+      reason: 'tool_connection_required',
+      taskTitle: '需要连接 Alibaba 数据源',
+      waitingDetail: '等待用户处理 bridge、登录或只读权限后继续。',
+      waitingLabel: '等待处理',
+      waitingPhase: '执行',
+    };
+  }
+
+  const progress = [
+    firstProgress,
+    {
+      detail: '执行过程中有一步没有完成,我先停下来避免继续编造结果。',
+      label: '处理卡住',
+      phase: '执行',
+      status: 'error',
+    },
+    {
+      detail: '可以直接补充资料、换一种说法,或指定要生成的产物。',
+      label: '等待补充',
+      phase: '执行',
+      status: 'waiting',
+    },
+  ];
+  return {
+    content: [
+      '我这一步处理卡住了,所以没有继续编造结果。',
+      '可以直接补充资料、换一种说法,或告诉我要生成邮件草稿、客户分析、跟进计划还是表格,我会接着这次任务继续处理。',
+    ].join(' '),
+    errorDetail: '没有继续执行可能产生误导结果的步骤。',
+    errorLabel: '处理卡住',
+    errorPhase: '执行',
+    missing: ['更多业务资料或更明确的产物要求'],
+    progress,
+    reason: 'agent_recoverable_error',
+    taskTitle: '本次外贸任务',
+    waitingDetail: '等待用户补充资料后继续同一次任务。',
+    waitingLabel: '等待补充',
+    waitingPhase: '执行',
   };
 }
 
@@ -377,6 +449,13 @@ function buildRecoverableStartProgress(input = {}) {
 
 function isTypedEvaluatorFailure(error = null) {
   return /typed evaluator rejected|TYPED_EVALUATOR_REJECTED/i.test(String(error?.message || error || ''));
+}
+
+function isToolConnectionFailure(error = null) {
+  const code = String(error?.code || '').trim();
+  const message = String(error?.message || error || '');
+  return code === 'NO_REQUIRED_ALIBABA_TOOL_SUCCEEDED' ||
+    /NO_REQUIRED_ALIBABA_TOOL_SUCCEEDED|No required Alibaba read-only tool succeeded/i.test(message);
 }
 
 const progressMap = {
@@ -546,7 +625,7 @@ function sanitizeMessages(messages = []) {
   return messages.map((message) => compactObject({
     id: message.id,
     role: message.role,
-    content: message.content,
+    content: scrubUserVisibleText(message.content),
     createdAt: message.createdAt,
     tone: message.tone,
     confirmation: sanitizeConfirmation(message.confirmation),
@@ -581,8 +660,8 @@ function sanitizeProgressItems(items = []) {
   }
 
   return items.map((item) => compactObject({
-    detail: scrubInternalToken(item.detail),
-    label: scrubInternalToken(item.label),
+    detail: scrubUserVisibleText(item.detail),
+    label: scrubUserVisibleText(item.label),
     phase: sanitizeProgressPhase(item.phase),
     status: normalizeProgressStatus(item.status),
   }));
@@ -596,7 +675,7 @@ function sanitizeProcess(process = null) {
   return compactObject({
     expanded: Boolean(process.expanded),
     steps: sanitizeProgressItems(process.steps),
-    title: scrubInternalToken(process.title),
+    title: scrubUserVisibleText(process.title),
   });
 }
 
@@ -613,16 +692,16 @@ function sanitizeActivity(activity = null) {
 }
 
 function sanitizeActivityItem(item = {}) {
-  const observation = scrubInternalToken(item.observation);
-  const nextAction = scrubTerminalPlaceholder(scrubInternalToken(item.nextAction));
+  const observation = scrubUserVisibleText(item.observation);
+  const nextAction = scrubTerminalPlaceholder(scrubUserVisibleText(item.nextAction));
   return compactObject({
-    detail: scrubInternalToken(item.detail),
-    kind: scrubInternalToken(item.kind),
+    detail: scrubUserVisibleText(item.detail),
+    kind: scrubUserVisibleText(item.kind),
     nextAction: nextAction && nextAction !== item.nextAction ? nextAction : safeDisplayText(nextAction),
     observation: observation && observation !== item.observation ? observation : safeDisplayText(observation),
     phase: sanitizeProgressPhase(item.phase),
     status: normalizeProgressStatus(item.status),
-    title: scrubInternalToken(item.title),
+    title: scrubUserVisibleText(item.title),
   });
 }
 
@@ -640,11 +719,11 @@ function sanitizeArtifact(artifact = null) {
 
   return compactObject({
     exportedFrom: artifact.exportedFrom ? 'previous-artifact' : undefined,
-    name: artifact.name,
+    name: scrubArtifactDisplayName(artifact.name || artifact.workbookName, artifact.type),
     revisedAt: artifact.revisedAt,
     sizeBytes: artifact.sizeBytes,
     type: artifact.type,
-    workbookName: artifact.workbookName || artifact.name,
+    workbookName: scrubArtifactDisplayName(artifact.workbookName || artifact.name, artifact.type),
   });
 }
 
@@ -698,8 +777,8 @@ function sanitizeStoredAgentResult(result = null) {
     progress: sanitizeProgressItems(result.progress),
     sessionId: result.sessionId,
     status: result.status,
-    summary: result.summary,
-    taskTitle: result.taskTitle || result.artifact?.workbookName || result.artifact?.name,
+    summary: scrubUserVisibleText(result.summary),
+    taskTitle: scrubUserVisibleText(result.taskTitle || result.artifact?.workbookName || result.artifact?.name),
   });
 }
 
@@ -709,10 +788,10 @@ function sanitizeConfirmation(confirmation = null) {
   }
 
   return compactObject({
-    body: scrubInternalToken(confirmation.body),
-    cancelLabel: scrubInternalToken(confirmation.cancelLabel),
-    confirmLabel: scrubInternalToken(confirmation.confirmLabel),
-    title: scrubInternalToken(confirmation.title),
+    body: scrubUserVisibleText(confirmation.body),
+    cancelLabel: scrubUserVisibleText(confirmation.cancelLabel),
+    confirmLabel: scrubUserVisibleText(confirmation.confirmLabel),
+    title: scrubUserVisibleText(confirmation.title),
   });
 }
 
@@ -735,16 +814,16 @@ function sanitizeNeedsInput(needsInput = null) {
   }
 
   const items = Array.isArray(needsInput.items)
-    ? needsInput.items.map(scrubInternalToken).filter(Boolean)
+    ? needsInput.items.map(scrubUserVisibleText).filter(Boolean)
     : [];
   if (!items.length) {
     return undefined;
   }
 
   return compactObject({
-    hint: scrubInternalToken(needsInput.hint),
+    hint: scrubUserVisibleText(needsInput.hint),
     items,
-    title: scrubInternalToken(needsInput.title),
+    title: scrubUserVisibleText(needsInput.title),
   });
 }
 
@@ -767,7 +846,7 @@ function sanitizePendingTask(pendingTask = null) {
   }
 
   const missing = Array.isArray(pendingTask.missing)
-    ? pendingTask.missing.map(scrubInternalToken).filter(Boolean)
+    ? pendingTask.missing.map(scrubUserVisibleText).filter(Boolean)
     : [];
   if (!missing.length) {
     return undefined;
@@ -775,8 +854,8 @@ function sanitizePendingTask(pendingTask = null) {
 
   return compactObject({
     missing,
-    originalText: scrubInternalToken(pendingTask.originalText),
-    skillName: scrubInternalToken(pendingTask.skillName),
+    originalText: scrubUserVisibleText(pendingTask.originalText),
+    skillName: scrubUserVisibleText(pendingTask.skillName),
   });
 }
 
@@ -790,16 +869,91 @@ function scrubInternalToken(value = '') {
   return value;
 }
 
+/**
+ * scrubUserVisibleText 清理夹在自然语言里的内部 runtime 片段。
+ *
+ * 作用：
+ * - 历史 session 可能保存了完整内部文件名,例如 `quotation-sheet-skill-runtime-...xlsx`。
+ * - 前台恢复线程时应该看到“修订版表格”这类业务文案,而不是 runId、路径或工具字段。
+ * - 原始 session 不改,只在 HTTP/SSE 返回前净化。
+ *
+ * 参数：
+ * - value：将要展示给用户的文本。
+ *
+ * 返回值：清理后的用户可见文本。
+ * 可能抛出的异常：无。
+ */
+function scrubUserVisibleText(value = '') {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  let text = String(value || '');
+  if (!text.trim()) {
+    return '';
+  }
+
+  text = text
+    .replace(/(?:\/Users|\/tmp|\/var\/folders|workbench\/)(?:[^\s，。,.!?！？；;]|\\s)+/giu, '当前任务文件')
+    .replace(/\b[A-Za-z0-9_-]*skill-runtime-[A-Za-z0-9T_-]+[A-Za-z0-9_.\-\u4e00-\u9fa5]*\.(xlsx|md|txt|json)\b/giu, (_match, ext) => {
+      const normalizedExt = String(ext || '').toLowerCase();
+      if (normalizedExt === 'xlsx') {
+        return '修订版表格.xlsx';
+      }
+      if (normalizedExt === 'md' || normalizedExt === 'txt') {
+        return '业务材料.md';
+      }
+      return '任务材料';
+    })
+    .replace(/\bskill-runtime-[A-Za-z0-9T_-]+\b/giu, '')
+    .replace(/\b(?:goal|skill|plan|policy|action|artifact|observation|run)\.[A-Za-z0-9_.-]+\b/giu, '')
+    .replace(/\b(?:schema|tool[_\s-]?call|toolCall|runId|skillId|outputPath|manifestPath|checkpointPath|runLogPath)\b/giu, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\s+([，。,.!?！？；;])/g, '$1')
+    .replace(/(?:当前任务文件){2,}/g, '当前任务文件')
+    .trim();
+
+  return text;
+}
+
+function scrubArtifactDisplayName(name = '', type = '') {
+  const value = String(name || '').trim();
+  if (!value) {
+    return '';
+  }
+  if (!looksLikeInternalRuntimeName(value) && !/skill-runtime/iu.test(value)) {
+    return scrubUserVisibleText(value);
+  }
+  if (/quotation-sheet/iu.test(value)) {
+    return '报价单.xlsx';
+  }
+  if (/customer-followup-plan/iu.test(value)) {
+    return '客户推进分析.md';
+  }
+  if (/inquiry-reply-draft/iu.test(value)) {
+    return '询盘回复草稿.md';
+  }
+  if (/cold-email-draft/iu.test(value)) {
+    return '开发信草稿.md';
+  }
+  if (type === 'xlsx' || /\.xlsx$/iu.test(value)) {
+    return '修订版表格.xlsx';
+  }
+  if (type === 'markdown' || /\.(?:md|txt)$/iu.test(value)) {
+    return '业务材料.md';
+  }
+  return '任务材料';
+}
+
 function safeDisplayText(value = '') {
   if (!value || looksLikeInternalRuntimeName(value)) {
     return undefined;
   }
-  return value;
+  return scrubUserVisibleText(value);
 }
 
 function looksLikeInternalRuntimeName(value = '') {
   return /\b(?:goal|skill|plan|policy|action|artifact|observation|run)\.[A-Za-z0-9_.-]+\b/u.test(String(value || '')) ||
-    /skill-runtime-loop/u.test(String(value || ''));
+    /skill-runtime(?:-loop|-[A-Za-z0-9T_-]+)?/u.test(String(value || ''));
 }
 
 function createAgentSessionId() {

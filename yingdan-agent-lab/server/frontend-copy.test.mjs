@@ -335,6 +335,16 @@ test('New Conversation can reopen recent agent threads from history', async () =
   assert.equal(threadSource.includes('最近任务'), true);
 });
 
+test('New Conversation history labels confirmation pauses as waiting for confirmation', async () => {
+  const threadSource = await readNewConversationSource();
+  const labelSource = await readFunctionSource('historyStatusLabel');
+
+  assert.equal(threadSource.includes('historyStatusLabel(item)'), true);
+  assert.equal(labelSource.includes("item.kind === 'confirmation-required'"), true);
+  assert.equal(labelSource.includes("return '等待确认'"), true);
+  assert.equal(labelSource.includes("return '等待补充'"), true);
+});
+
 test('New Conversation toast does not block header actions after a task finishes', async () => {
   const styles = await readFile(appStylesPath, 'utf8');
   const toastStart = styles.indexOf('.toast {');

@@ -311,7 +311,13 @@ export async function runAlibabaInquiryMeetingReal(options = {}) {
       status: 'failed',
       reason: 'NO_REQUIRED_ALIBABA_TOOL_SUCCEEDED',
     });
-    throw new Error('No required Alibaba read-only tool succeeded; refusing to mark this as real-bridge acceptance.');
+    throw Object.assign(
+      new Error('Alibaba 数据源没有返回可用的只读结果,需要确认 bridge、登录状态或工具授权后再继续。'),
+      {
+        code: 'NO_REQUIRED_ALIBABA_TOOL_SUCCEEDED',
+        status: 503,
+      },
+    );
   }
 
   const payload = buildHostMaterialPayload({

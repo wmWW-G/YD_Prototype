@@ -71,7 +71,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - Runtime policy 暂停确认时如果同轮已经有业务产物,响应必须继续保留 `artifact` 和 `context.artifact`;确认或取消期间不能丢当前产物,否则后续预览、保存、导出或同任务续改会断上下文。
 - 缺资料等待态也必须写 Runtime 风格 checkpoint:进入 `needs-input` 时后端写 `workbench/runs/<runId>.jsonl` 和 `<runId>.checkpoint.json`,run log 至少包含 `goal.received / skill.matched / skill.loaded / run.checkpointed / run.needs_input`;用户补资料足够后用同一个 runId 从 `needs-input:<skillId>` 继续,不再重复写 `goal.received / skill.matched / skill.loaded / plan.created`。续跑仍要重新执行 policy 检查:允许时继续 `action.executed / observation.recorded / evidence.added / artifact.verified / run.completed`;需要确认时停在 `policy.checked / run.checkpointed / run.waiting`。公开 HTTP/SSE payload 仍不能暴露 runId、checkpointPath、runLogPath 或本地路径。
 - `server/skill-adapters/alibaba-inquiry-meeting.mjs`:把已跑通的 Alibaba real-bridge 链路包装成第一个 adapter,保留原真实验收能力。
-- `server/artifact-validator.mjs`:Runtime 层复核 XLSX,包括 `unzip -t`、`openpyxl.load_workbook()`、必需 sheet、禁止 sheet、`xl/tables/`、`xl/drawings/`、tableParts 和 drawing relationships 残留扫描。
+- `server/artifact-validator.mjs`:Runtime 层复核 XLSX,包括 LibreOffice headless 重存、清理 `xl/tables/`、`xl/drawings/`、tableParts 和 drawing relationships 残留,再执行 `unzip -t`、`openpyxl.load_workbook()`、必需 sheet、禁止 sheet 和残留扫描。
 - `workbench/registry/skills.json`:注册 `alibaba-inquiry-meeting` 的目标匹配、policy、产物要求和计划。
 - `workbench/skills/supplier-brief/skill.json`:第二个轻量 mock Skill,用于证明 registry + runner 可接新 Skill。
 - `business-draft` adapter:用于开发信草稿、客户推进分析和询盘回复草稿这类轻量 Markdown 业务产物。
@@ -97,6 +97,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 前端 SSE / 网络异常兜底同样不能保留旧产物:进入本地 recoverable waiting 时,只保留 pendingTask 等待信息,必须清掉 `artifact`、`period` 和 `skillAgentResult`;否则下一句 `保存一下 / 导出文件` 会误绑异常前的旧文件。
 - `GET /api/agent/session/:sessionId`:前端恢复线程的后端接口;localStorage 只作为兜底,不再是唯一连续性来源。
 - `GET /api/agent/sessions`:前端最近任务列表接口,按更新时间倒序返回最多 50 条安全摘要;只包含 sessionId、taskTitle、status、kind、preview、artifactName、createdAt、updatedAt。
+- `GET /api/agent/session/:sessionId` 恢复 payload 里的消息正文、summary、taskTitle 和 artifact name 也必须净化;即使后端 session 文件保存了 `quotation-sheet-skill-runtime-...xlsx`、本机路径或 runtime action 名,前台也只能看到 `报价单.xlsx`、`修订版表格` 这类业务化文案。
 - pending task 续跑:用户第一次说得太模糊时返回 `needs-input`;补一句话后,后端会用“原始任务 + 新补充”恢复执行文本,并从原 `needs-input:<skillId>` checkpoint 继续。内部可以恢复 Skill 和 plan,但 run log、最终 process、活动流和 SSE 首条可见进度都不能像新任务一样重播 `识别任务 / 核对资料 / 拆解任务`;如果 policy 允许,展示 `继续执行 / 生成材料 / 整理发现 / 检查结果 / 完成`;如果 policy 需要确认,展示 `继续执行 / 核对权限 / 等待确认`。
 - pending task 必须累积多轮补充:用户分多句补客户、询盘、产品、下一步目标时,后端用“原始任务 + 全部 supplements + 当前输入”重新匹配和执行,不能只保留最后一句补充。
 - 同一线程里的新匹配任务也要能沿用最近真实用户资料:例如先生成 `开发信草稿.md`,上一轮用户已经说清 `德国采购商 / 太阳能路灯 / MOQ和交期`;下一句 `再做一个客户下一步推进计划` 应把这些用户说过的事实带入 `客户推进分析`,不能像失忆一样重新追问。只允许复用最近用户消息里的事实,不能把 Agent 生成的推测、内部 runId、路径或 tool 信息当作业务事实;复用后仍缺资料时继续追问。用户明确说 `另一个客户 / 新客户 / 换个买家` 时必须视为新客户对象,不能套用上一位客户的国家、产品和问题。用户明确说 `重新开始 / 从头开始 / 新任务 / 不要沿用上一个任务` 时也必须切断旧线程事实、旧 pending task、旧确认卡和旧产物上下文;如果新任务本身缺客户资料或当前卡点,应回到 `needs-input / waiting`,而不是把上一轮客户资料粘过去。但 `不要重新开始 / 先别从头开始` 这类否定重开话术表示继续当前任务,不能误清上下文。
@@ -115,8 +116,10 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - Markdown 产物续改:用户已生成 `开发信草稿.md`、`客户推进分析.md` 这类文本产物后,再补一句“语气更礼貌一点 / 加一句可以寄样品”,后端会安全更新同一份 `workbench/artifacts/` 产物,而不是重开任务或只返回摘要。
 - 已有产物的同线程明显改稿请求必须优先于新任务路由:如果当前 session 有 `客户推进分析.md`、`开发信草稿.md` 等 artifact,用户再说 `继续 / 优化 / 修改 / 改成 / 写成 / 两版 / 第1天话术 / 补一句`,应先按当前产物 follow-up 处理。只有用户明确说 `新任务 / 重新开始 / 另一个客户 / 再做一个报价单` 或输入不带改稿意图的完整新目标,才重新匹配新的 Skill。
 - XLSX 产物续改:用户已生成 `询盘分析会.xlsx`、`报价单.xlsx` 这类表格产物后,再补一句“按负责人补一列下周动作 / 加一列有效期30天”,后端会在同一任务下生成一份 `已续改` 修订版 XLSX,保留原工作表并新增 `本次追问` sheet;原文件不被覆盖,修订版必须通过 Runtime XLSX 校验。公开 `taskTitle`、artifact 名和消息内容必须使用 `报价单-已续改-*.xlsx` 这类业务友好名称,不能暴露 `quotation-sheet`、`skill-runtime` 等内部文件名。
+- 导出确认不能打断同任务续改:导出的 `workbench/exports/<sessionId>/...` 文件只是交付副本;用户导出后继续说“再改一下 / 加一列 / 语气更礼貌”时,后端必须通过 `exportedFrom` 回到原始 `workbench/artifacts/` 产物继续修改。修改后的新版本需要用户再次导出才会生成新的可交付副本,不能偷偷改已经导出的文件。
 - `server/agent-message-stream.mjs` 和 `POST /api/agent/message/stream`:把 Runtime 真实 run events 翻译成 `progress` SSE 事件,前端运行中气泡会逐步显示“识别任务 / 核对资料 / 生成材料 / 检查结果”,最后收到 `result` 再落正式 Agent 回复。普通新任务的首条 progress 是 `识别任务`;已有 pending task 或 pending confirmation 的 checkpoint 续跑首条 progress 必须是 `继续执行`,不能先闪一下 `识别任务`;但用户明确说 `重新开始 / 新任务 / 从头开始` 时,即使旧 session 仍有 pending runtime,首条 progress 也必须按新任务回到 `识别任务`。公开 progress 可以带 `phase`,但必须是 `识别 / 核对资料 / 拆步骤 / 执行 / 检查 / 收尾` 这类中文短标签,不能把 `preflight / validating` 等内部 phase key 暴露给业务用户。
 - typed evaluator 失败也必须翻译成业务化检查暂停:`artifact.typed_evaluated` 对前台展示为 `检查结果`,如果失败则提示“检查结果没有通过,我已先停下,避免交付可能误导的材料”。HTTP/SSE recoverable result 也要保持 `waiting`,标题用 `检查结果需要处理`,不能暴露 `typed evaluator`、`artifact.typed_evaluated`、skill slug、runId、路径或 evidence ledger。
+- 真实外部数据源失败不能伪装成缺业务资料:例如 `alibaba-inquiry-meeting` 真实 runner 没有任何必需只读工具成功时,公开线程必须显示 `连接数据源 / 等待处理`,提示确认 Alibaba bridge 已启动、账号已登录、只读工具有权限;不能泛化成 `更多业务资料`,也不能编造 XLSX。用户处理好后说 `我已处理，继续` 应沿用原任务重新读取真实数据。
 - `artifact.verified` 对 Markdown 业务产物不再只是检查文件非空;Runtime 会生成机器可读 `validation.evidence`,并在同一产物目录写入内部 `evidence-ledger.json`,核对产物是否包含依据段、用户来源、产品、客户/市场、关注点、数量、价格、贸易条款、付款条件、样品计划和下一步动作。run log 会追加 `evidence.added`;SSE 的 `检查结果` 在 evidence 通过时显示 `已核对产物里的业务依据和用户事实覆盖`,失败时阻止任务完成。
 - SSE 展示层会合并连续重复的 progress,例如多个内部 `policy.checked` 只展示一次 `核对权限`;后台 run log 仍保留完整审计事件。
 - 前端实时进度合并只允许“连续同名步骤”更新同一步,例如 `识别任务 running → 识别任务 complete`;非连续同名步骤必须保留为新阶段,例如先核对产物权限,生成材料后再核对保存权限。不能按 label 全局覆盖,否则后面的确认步骤会被挪到前面旧位置。
@@ -132,12 +135,15 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 同任务 follow-up 的最终用户可见消息不能出现 `前端 / 日志 / 脚本 / run log / manifest` 等内部实现词;上一轮依据要翻成业务口吻,例如“已沿用当前线程里的产物和上下文继续处理”。
 - 同任务 follow-up 要能把用户补充转成真实可用内容,不能只记录“用户要求”。例如当前产物是带 `7天跟进节奏` 的 `客户推进分析.md` 时,用户补 `把第1天/第3天话术写成英文 WhatsApp 和邮件两版`,后端应在同一 Markdown 里追加对应天数的 WhatsApp 和 Email 草稿,包含 Subject 和产品语境;用户补 `第5天` 或 `Day 5` 也应生成对应话术,不能只支持第1/3/7天;这仍只是草稿,不会自动外发。
 - 渠道草稿和外发动作必须区分:用户说 `WhatsApp / 邮件 / Email` 不等于要发送;如果同时出现 `话术 / 文案 / 草稿 / 两版 / 写成` 这类版本编辑词,应按同任务 follow-up 续改当前产物。只有明确说 `发给客户 / 发送给买家 / 外发 / 直接发 / 发到客户 / 然后发送 / 然后发客户 / send it / send now` 时,才进入外发确认。`用于开发客户` 这类业务用途不是外发动作,不能因为包含 `发客户` 三个字就误拦。
+- 同一线程同一时刻只能有一个明确等待原因:如果缺资料 pending task 的补充已经足够、但同一句又包含外发/付费/保存/导出等风险动作,应先清掉 `pendingTask`,再创建 `pendingConfirmation`;确认卡里的 `originalText` 保存原任务和本次补充的合并文本。前台不能同时认为“缺资料”和“等待确认”都在挂起。
+- 最近任务历史也要区分等待原因:`confirmation-required + waiting` 显示 `等待确认`;`needs-input / needs-input-followup + waiting` 才显示 `等待补充`。不要只看 `status=waiting`,否则用户会把导出/外发确认误解成还缺业务资料。
 - 普通新任务成功执行的公开主进度必须从 `识别任务` 开始,然后是 `核对资料 / 拆解任务 / 生成材料 / 检查结果`;checkpoint 续跑成功执行的公开主进度必须从 `继续执行` 开始,不能只在折叠活动流里出现任务识别或续跑状态。
 - 对外 Agent payload 会先净化:前台接口只返回 `taskTitle`、业务化进度、消息、产物摘要和上下文摘要,不暴露 `goal/loop/plan/skillId/runId/mode`、真实 `outputPath/manifestPath` 或 `goal.classify/action.execute` 这类内部 runtime 名。
 - 即时 Agent result 只返回助手消息;用户消息由前端用用户原始输入本地追加。后端为了续接任务拼出的 `产出类型: ...；补充资料: ...` 这类内部恢复文本不能进入公开 result messages,否则前台会像在展示系统拼接记录而不是自然 agent thread。刷新恢复时再从 session store 返回真实用户消息。
 - 业务产物本身也不能泄露内部恢复文本:Markdown 里的 `任务来源 / 用户目标 / 用户补充` 应还原成自然业务资料,不能出现 `产出类型`、`补充资料`、`原始需求` 这类 Runtime 拼接痕迹。比如缺产品等待后,用户补 `产品太阳能路灯，发给客户`,确认只生成草稿后,`询盘回复草稿.md` 的任务来源应类似 `客户问MOQ和交期，帮我回一下；产品太阳能路灯，发给客户`。
 - `GET /api/agent/session/:sessionId` 是前台恢复接口,也必须返回净化 session;后端 session 文件可以保留真实路径和 pendingConfirmation,但 HTTP 恢复 payload 不返回这些内部执行字段。
 - `server/agent-artifact-preview.mjs` 和 `GET /api/agent/session/:sessionId/artifact`:只允许预览当前 session 绑定的 `workbench/artifacts/` 产物;Markdown 草稿/客户分析可在前台线程内打开,XLSX 返回工作簿摘要。
+- 产物预览 payload 的 `name` 也必须净化;历史 session 里即使保存了 `quotation-sheet-skill-runtime-...xlsx` 这种内部 basename,前台查看文件时也只能显示 `报价单.xlsx`、`修订版表格.xlsx` 等业务化名称。
 - Markdown 业务产物预览必须把 Runtime 的 `validation.evidence` 转成安全的 `quality` 摘要,前台显示 `依据检查 / 已覆盖 / 待复核` 和已核对的业务事实;事实必须先收敛成 `product / market / concern / quantity / price / trade_term / payment / sample / next_action` 这类业务白名单结构,不能直接渲染自由字符串。不能暴露 validation 原文、runId、run_id、checkpoint、outputPath、output_path、本地路径、schema、JSON、tool call、tool_call、toolCall 或 `workbench/artifacts`。
 - XLSX 的 `查看文件` 不能只提示“表格文件已生成”;预览 payload 至少要包含工作表数量、sheet 名、行数和列数,让用户能在 agent thread 里确认真实产物结构。
 - 前台收到 XLSX workbook 摘要后要渲染为结构化工作表列表,不是把所有 sheet 信息塞进一段长提示里。
@@ -170,7 +176,7 @@ DeepSeek V4 只是诊断生成入口之一,不能替代真实 Skill 执行和真
 - 即使用户在自然语言里写了“调用付费数据”“扣费也可以”,新对话也必须先进入 `付费能力需要你确认` 的等待态;确认前不能调用付费能力,前台运行中提示也要持续明确包含导出、保存、外发、扣费都会停下来问,不能因为流式进度出现就消失。
 - 付费/扣费识别只针对平台能力或外部收费工具,例如 `收费接口`、`付费接口`、`花钱也可以`、`消耗额度/积分/点数`、`购买套餐/积分/额度`、`买套餐/积分/额度`、`订购额度`。外贸客户的采购意向不是平台扣费动作,例如 `客户说想购买500套太阳能灯` 应继续进入客户推进分析,不能因为出现 `购买` 就弹付费确认。
 - 付费确认不是任务终点:用户确认 `确认继续` 后,后端必须用原始请求和确认期间 supplements 继续匹配业务任务;资料足够时继续生成客户分析、邮件草稿、报价单等产物,资料不足时回到 `needs-input`。不能只回复一句“已确认”就结束。
-- `server/agent-customer-memory.mjs`:写入客户档案确认后,只把当前 session 绑定产物的摘要写入 `workbench/customers/<customerSlug>/memory.md`,并追加 `diary/agent-saves.jsonl`。
+- `server/agent-customer-memory.mjs`:写入客户档案确认后,只把当前 session 绑定产物的摘要写入 `workbench/customers/<customerSlug>/memory.md`,并追加 `diary/agent-saves.jsonl`。`customerSlug` 必须来自当前客户上下文或用户明确补充;没有客户绑定时必须继续追问写入哪个客户档案,不能默认写入 `global-sourcing-inc`。
 - 保存确认成功后会清掉 `pendingConfirmation`,但保留 artifact、customerSlug 和 lastCustomerSave;用户再补一句「继续优化」会进入同任务 follow-up,不会重复保存。
 - 保存确认成功后的公开 `context.lastCustomerSave` 只能包含客户标识和可读摘要,不能把 `memoryPath`、`diaryPath`、`memory.md`、`agent-saves.jsonl` 或任何本地绝对路径返回给前台;后端 session 文件和内部日志可以保留排查用路径,但 HTTP result、SSE result 和 session 恢复 payload 必须净化。
 - 保存、导出、外发等确认卡标题只是暂停点标题,不能污染业务任务标题。比如 `客户推进分析.md` 生成后用户说 `保存到客户档案`,确认卡可显示 `写入客户档案前需要确认`;用户确认写入后,即时 result 和 `GET /api/agent/session/:sessionId` 恢复标题都应回到 `客户推进分析`,不能变成 `本次外贸任务` 或继续停在确认卡标题。
@@ -485,8 +491,9 @@ npm run acceptance:alibaba-inquiry-meeting:real
 输入: 保存当前文件
 → 如果当前已有业务产物,返回 confirmation-required / customer_write,不能误判为导出
 输入: 确认写入
-→ 追加 workbench/customers/global-sourcing-inc/memory.md 和 diary/agent-saves.jsonl
-→ session context 不再保留 pendingConfirmation
+→ 如果当前线程已有明确 customerSlug,追加 workbench/customers/<customerSlug>/memory.md 和 diary/agent-saves.jsonl
+→ 如果当前线程没有明确 customerSlug,继续等待用户补充客户档案名称或客户标识,不能默认写入 global-sourcing-inc
+→ 真正写入成功后 session context 不再保留 pendingConfirmation;如果还缺客户档案目标,则继续保留 pendingConfirmation 等待补充
 → 公开 result 和 session 恢复 payload 里的 lastCustomerSave 只保留 customerSlug 和 savedSummary,不暴露 memoryPath、diaryPath、本地绝对路径、memory.md 或 agent-saves.jsonl
 → 即时 result.taskTitle 和 GET /api/agent/session/:sessionId 恢复标题仍为 客户推进分析,不能变成 本次外贸任务 或 写入客户档案前需要确认
 输入: 继续优化一下下一步动作

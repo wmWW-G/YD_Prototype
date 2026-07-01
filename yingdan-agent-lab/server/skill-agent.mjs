@@ -110,6 +110,40 @@ export async function runNewConversationAgent(options = {}) {
       });
     }
 
+    if (isCustomerWriteAwaitingCustomerSlug(context.pendingConfirmation)) {
+      const customerSlug = extractCustomerSlugFromConfirmationText(text);
+      if (customerSlug) {
+        const pendingConfirmation = {
+          ...context.pendingConfirmation,
+          awaitingCustomerSlug: false,
+          customerSlug,
+        };
+        return buildConfirmationAcceptedResponse({
+          checkPolicy: options.checkPolicy,
+          context: {
+            ...context,
+            customerSlug,
+            pendingConfirmation,
+          },
+          pendingConfirmation,
+          projectRoot,
+          registry,
+          sessionId: options.sessionId,
+          session: options.session,
+          skillRuntime: options.skillRuntime,
+          onRuntimeEvent: options.onRuntimeEvent,
+        });
+      }
+
+      return buildCustomerWriteTargetRequiredResponse({
+        context,
+        onRuntimeEvent: options.onRuntimeEvent,
+        pendingConfirmation: context.pendingConfirmation,
+        sessionId: options.sessionId,
+        text,
+      });
+    }
+
     if (isConfirmationMessage(text, context.pendingConfirmation)) {
       const pendingConfirmation = appendInlineConfirmationSupplement(context.pendingConfirmation, text);
       return buildConfirmationAcceptedResponse({
@@ -1424,7 +1458,7 @@ async function buildRiskConfirmationResponse(input = {}) {
     taskTitle: confirmation.title || '这一步需要你确认',
     progress,
     context: {
-      ...context,
+      ...clearPendingTask(context),
       pendingConfirmation: confirmation,
     },
     messages: [
@@ -2054,7 +2088,22 @@ async function buildConfirmationAcceptedResponse(input = {}) {
   }
 
   if (pendingConfirmation.type === 'customer_write') {
+    const customerSlug = resolveCustomerWriteSlug({
+      context: input.context,
+      pendingConfirmation,
+      session: input.session,
+    });
+    if (!customerSlug) {
+      return buildCustomerWriteTargetRequiredResponse({
+        context: input.context,
+        onRuntimeEvent: input.onRuntimeEvent,
+        pendingConfirmation,
+        sessionId: input.sessionId,
+      });
+    }
+
     const saved = await saveAgentArtifactToCustomerMemory({
+      customerSlug,
       projectRoot: input.projectRoot,
       session: input.session || { context: input.context || {} },
       sessionId: input.sessionId,
@@ -2144,6 +2193,24 @@ function clearPendingConfirmation(context = {}) {
   return contextWithoutPendingConfirmation;
 }
 
+/**
+ * clearPendingTask 从上下文里移除缺资料等待状态。
+ *
+ * 作用：
+ * - 当补充资料已经足够、下一步变成外发/付费/保存/导出确认时,线程只能有一个等待原因。
+ * - 保留 artifact、period、customerSlug 等业务上下文,只移除旧 pendingTask。
+ *
+ * 参数：
+ * - context：当前线程上下文。
+ *
+ * 返回值：不含 pendingTask 的上下文。
+ * 可能抛出的异常：无。
+ */
+function clearPendingTask(context = {}) {
+  const { pendingTask: _pendingTask, ...contextWithoutPendingTask } = context || {};
+  return contextWithoutPendingTask;
+}
+
 function buildTaskTextFromConfirmation(pendingConfirmation = {}) {
   const originalText = String(pendingConfirmation.originalText || '').trim();
   const supplements = Array.isArray(pendingConfirmation.supplements)
@@ -2229,6 +2296,98 @@ function buildConfirmationCancelledResponse(input = {}) {
       },
     ],
   };
+}
+
+/**
+ * buildCustomerWriteTargetRequiredResponse 在保存客户档案前追问目标客户。
+ *
+ * 作用：
+ * - 写入客户档案是真实副作用,不能在没有客户绑定时默认写入演示客户。
+ * - 用户已经确认“要保存”时,这里保留同一个 pendingConfirmation,只追问保存目标。
+ * - 用户下一句补充明确 customer slug 后,会继续同一次确认链路执行写入。
+ *
+ * 参数：
+ * - input.pendingConfirmation：当前写入客户档案确认卡。
+ * - input.context：当前线程上下文,会保留 artifact。
+ * - input.text：用户刚补充但仍未提供客户标识的内容。
+ *
+ * 返回值：confirmation-required 响应,状态仍为 waiting。
+ * 可能抛出的异常：onRuntimeEvent 内部异常会向上抛出。
+ */
+async function buildCustomerWriteTargetRequiredResponse(input = {}) {
+  const confirmation = {
+    ...(input.pendingConfirmation || {}),
+    awaitingCustomerSlug: true,
+    body: '写入客户档案前,还需要先确认写入哪一个客户档案。确认目标前我不会保存。',
+  };
+  const progress = buildRiskConfirmationProgressItems({ confirmation });
+  await emitRiskConfirmationProgress(input.onRuntimeEvent, { confirmation });
+
+  return {
+    ok: true,
+    kind: 'confirmation-required',
+    sessionId: input.sessionId || createAgentSessionId(),
+    status: 'waiting',
+    taskTitle: resolveFollowupTaskTitle({
+      artifactName: input.context?.artifact?.name || input.context?.artifact?.workbookName || '',
+      context: input.context,
+    }),
+    progress,
+    context: {
+      ...(input.context || {}),
+      pendingConfirmation: confirmation,
+    },
+    messages: [
+      {
+        id: messageId('assistant'),
+        role: 'assistant',
+        content: [
+          '保存前还需要知道写入哪个客户档案。',
+          '请补充客户档案标识,例如: global-sourcing-inc。',
+          '确认目标前我不会写入任何客户档案。',
+        ].join('\n'),
+        createdAt: new Date().toISOString(),
+        confirmation,
+        needsInput: {
+          items: ['客户档案名称或客户标识'],
+        },
+        process: {
+          expanded: false,
+          steps: progress,
+          title: '写入客户档案处理过程',
+        },
+      },
+    ],
+  };
+}
+
+function isCustomerWriteAwaitingCustomerSlug(pendingConfirmation = {}) {
+  return pendingConfirmation.type === 'customer_write' && pendingConfirmation.awaitingCustomerSlug;
+}
+
+function resolveCustomerWriteSlug(input = {}) {
+  return normalizeCustomerSlugForAgent(
+    input.pendingConfirmation?.customerSlug ||
+      input.context?.customerSlug ||
+      input.context?.lastCustomerSave?.customerSlug ||
+      input.session?.customerSlug ||
+      input.session?.context?.customerSlug,
+  );
+}
+
+function extractCustomerSlugFromConfirmationText(text = '') {
+  const value = String(text || '').trim();
+  const explicitMatch = value.match(/(?:客户档案|客户|customer|slug|保存到|写入到|写入)\s*[:：]?\s*([A-Za-z0-9][A-Za-z0-9_-]{1,80})/i);
+  if (explicitMatch) {
+    return normalizeCustomerSlugForAgent(explicitMatch[1]);
+  }
+  const slugCandidates = value.match(/[A-Za-z0-9][A-Za-z0-9_-]{1,80}/g) || [];
+  return normalizeCustomerSlugForAgent(slugCandidates.find((candidate) => /[-_]/.test(candidate)) || '');
+}
+
+function normalizeCustomerSlugForAgent(customerSlug = '') {
+  const value = String(customerSlug || '').trim();
+  return /^[a-z0-9][a-z0-9_-]{0,80}$/i.test(value) ? value : '';
 }
 
 /**

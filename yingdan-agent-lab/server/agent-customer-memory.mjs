@@ -15,7 +15,7 @@ const MAX_ARTIFACT_SUMMARY_CHARS = 2600;
  * - input.projectRoot：项目根目录。
  * - input.session：agent-session-store 读取的 session 对象。
  * - input.sessionId：当前任务线程 ID。
- * - input.customerSlug：客户目录 slug,默认 `global-sourcing-inc`。
+ * - input.customerSlug：客户目录 slug,必须来自当前客户上下文或用户明确补充。
  *
  * 返回值：Promise<object>,包含保存目标和写入摘要。
  * 可能抛出的异常：没有产物、路径越界、客户 slug 不合法或文件写入失败时抛出带 code/status 的错误。
@@ -24,14 +24,14 @@ export async function saveAgentArtifactToCustomerMemory(input = {}) {
   const projectRoot = input.projectRoot || process.cwd();
   const session = input.session || {};
   const sessionId = normalizeSessionId(input.sessionId || session.sessionId);
-  const customerSlug = normalizeCustomerSlug(input.customerSlug || session.customerSlug || session.context?.customerSlug || 'global-sourcing-inc');
+  const customerSlug = normalizeCustomerSlug(input.customerSlug || session.customerSlug || session.context?.customerSlug);
   const artifact = findLatestArtifact(session);
 
   if (!sessionId) {
     throw createCustomerMemoryError('AGENT_SESSION_INVALID', '这次任务线程不可保存,可以重新交代任务。', 400);
   }
   if (!customerSlug) {
-    throw createCustomerMemoryError('CUSTOMER_SLUG_INVALID', '客户标识不合法,不能写入客户档案。', 400);
+    throw createCustomerMemoryError('CUSTOMER_SLUG_REQUIRED', '请先指定要写入的客户档案。', 400);
   }
   if (!artifact?.outputPath) {
     throw createCustomerMemoryError('ARTIFACT_NOT_FOUND', '这次任务还没有可保存的产物。', 404);

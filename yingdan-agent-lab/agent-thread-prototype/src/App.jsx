@@ -1812,7 +1812,7 @@ function NewConversationView({
                       <span>{item.taskTitle || '外贸任务'}</span>
                       <strong>{item.preview || item.artifactName || '继续这次任务'}</strong>
                       <small>
-                        {historyStatusLabel(item.status)}
+                        {historyStatusLabel(item)}
                         {item.artifactName ? ` · ${item.artifactName}` : ''}
                       </small>
                     </button>
@@ -1944,19 +1944,22 @@ function NewConversationView({
  * historyStatusLabel 把后端线程状态转成业务可读文案。
  *
  * 参数：
- * - status：后端 session 状态。
+ * - item：最近任务摘要,包含 status 和 kind。
  *
  * 返回值：用于最近任务列表的小标签。
  * 可能抛出的异常：无。
  */
-function historyStatusLabel(status = '') {
-  if (status === 'waiting') {
+function historyStatusLabel(item = {}) {
+  if (item.kind === 'confirmation-required') {
+    return '等待确认';
+  }
+  if (item.status === 'waiting') {
     return '等待补充';
   }
-  if (status === 'completed') {
+  if (item.status === 'completed') {
     return '已完成';
   }
-  if (status === 'running') {
+  if (item.status === 'running') {
     return '处理中';
   }
   return '任务线程';

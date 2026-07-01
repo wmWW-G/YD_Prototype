@@ -314,6 +314,35 @@ test('readAgentArtifactPreview returns a readable summary for xlsx artifacts', a
   }
 });
 
+test('readAgentArtifactPreview scrubs runtime artifact names from preview payloads', async () => {
+  const fixture = await withPreviewProject();
+
+  try {
+    const artifactPath = path.join(fixture.artifactRoot, 'quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx');
+    await createWorkbookFixture(artifactPath);
+
+    const preview = await readAgentArtifactPreview({
+      projectRoot: fixture.projectRoot,
+      session: {
+        artifact: {
+          type: 'xlsx',
+          name: 'quotation-sheet-skill-runtime-20260630-011458-s63f-已续改-20260630011458-dajv.xlsx',
+          outputPath: artifactPath,
+        },
+      },
+    });
+    const payloadText = JSON.stringify(preview);
+
+    assert.equal(preview.ok, true);
+    assert.equal(preview.name, '报价单.xlsx');
+    assert.equal(payloadText.includes('skill-runtime'), false);
+    assert.equal(payloadText.includes('/Users/garden'), false);
+    assert.equal(preview.outputPath, undefined);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 async function createWorkbookFixture(outputPath) {
   await runPythonFixture(`
 from openpyxl import Workbook

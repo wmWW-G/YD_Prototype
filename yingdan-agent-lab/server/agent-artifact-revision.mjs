@@ -54,6 +54,7 @@ print(json.dumps({"sheets": workbook.sheetnames}, ensure_ascii=False))
  * 作用：
  * - 让新对话的同任务追问真正“接着做”,而不是只返回上一轮摘要。
  * - 只允许修改当前 session 绑定且位于 `workbench/artifacts/` 下的 Markdown 产物。
+ * - 如果当前指针是导出副本,会回到 `exportedFrom` 指向的原始产物继续修改。
  * - 第一版采用安全追加方式,保留原产物内容,把本次补充、可替换段落和外发确认提醒追加到文末。
  *
  * 参数：
@@ -74,10 +75,11 @@ export async function reviseMarkdownArtifactForFollowup(input = {}) {
     throw createRevisionError('ARTIFACT_REVISION_NOT_FOUND', '这次任务还没有可继续修改的产物。', 404);
   }
 
-  const sourcePath = resolveSafeMarkdownPath({ outputPath: artifact.outputPath, projectRoot });
+  const editableArtifact = resolveEditableArtifact({ artifact, projectRoot });
+  const sourcePath = resolveSafeMarkdownPath({ outputPath: editableArtifact.outputPath, projectRoot });
   const current = await readFile(sourcePath, 'utf8');
   const revision = buildFollowupRevisionSection({
-    artifactName: artifact.name || path.basename(sourcePath),
+    artifactName: editableArtifact.name || path.basename(sourcePath),
     currentContent: current,
     instruction,
   });
@@ -89,13 +91,13 @@ export async function reviseMarkdownArtifactForFollowup(input = {}) {
   return {
     ok: true,
     artifact: {
-      ...artifact,
+      ...editableArtifact,
       outputPath: sourcePath,
       revisedAt: new Date().toISOString(),
       sizeBytes: fileStat.size,
-      type: artifact.type || 'markdown',
+      type: editableArtifact.type || 'markdown',
     },
-    summary: `已按补充要求更新 ${artifact.name || path.basename(sourcePath)}。`,
+    summary: `已按补充要求更新 ${editableArtifact.name || path.basename(sourcePath)}。`,
   };
 }
 
@@ -105,6 +107,7 @@ export async function reviseMarkdownArtifactForFollowup(input = {}) {
  * 作用：
  * - 让询盘分析会这类表格产物也能“接着做”,而不是只能返回文字说明。
  * - 不直接覆盖原始工作簿,而是在同一 `workbench/artifacts/` 目录下生成一份修订版。
+ * - 如果当前指针是导出副本,会回到 `exportedFrom` 指向的原始工作簿生成修订版。
  * - 修订版保留原工作表,并新增 `本次追问` 工作表记录用户补充、处理结果和交付提醒。
  * - 生成后复用 Runtime XLSX 校验器,确认 zip、openpyxl、sheet 和残留扫描通过。
  *
@@ -126,9 +129,10 @@ export async function reviseXlsxArtifactForFollowup(input = {}) {
     throw createRevisionError('ARTIFACT_REVISION_NOT_FOUND', '这次任务还没有可继续修改的产物。', 404);
   }
 
+  const editableArtifact = resolveEditableArtifact({ artifact, projectRoot });
   const sourcePath = resolveSafeArtifactPath({
     allowedExtensions: ['.xlsx'],
-    outputPath: artifact.outputPath,
+    outputPath: editableArtifact.outputPath,
     projectRoot,
   });
   const targetPath = buildRevisedXlsxPath(sourcePath);
@@ -152,13 +156,13 @@ export async function reviseXlsxArtifactForFollowup(input = {}) {
 
   const fileStat = await stat(targetPath);
   const revisedName = buildUserFacingRevisedXlsxName({
-    originalName: artifact.name,
+    originalName: editableArtifact.name,
     targetPath,
   });
   return {
     ok: true,
     artifact: {
-      ...artifact,
+      ...editableArtifact,
       name: revisedName,
       outputPath: targetPath,
       previousOutputPath: sourcePath,
@@ -186,6 +190,45 @@ function buildUserFacingRevisedXlsxName(input = {}) {
 
 function findLatestArtifact(session = {}) {
   return session.context?.artifact || session.artifact || session.skillAgentResult?.artifact || null;
+}
+
+/**
+ * resolveEditableArtifact 把导出副本还原成可继续编辑的原始产物。
+ *
+ * 作用：
+ * - 用户确认“导出文件”后,session 当前 artifact 会指向 `workbench/exports` 下的副本。
+ * - 但后续“再加一句 / 改一下”应该继续修改原始 `workbench/artifacts` 产物。
+ * - 如果 `exportedFrom` 不存在或不安全,保持当前 artifact,由后续路径校验负责拦截。
+ *
+ * 参数：
+ * - input.artifact：当前 session 绑定的产物摘要。
+ * - input.projectRoot：项目根目录。
+ *
+ * 返回值：可继续编辑的产物摘要。
+ * 可能抛出的异常：无；路径安全错误会留给后续 resolveSafeArtifactPath 抛出。
+ */
+function resolveEditableArtifact(input = {}) {
+  const artifact = input.artifact || {};
+  const exportedFrom = String(artifact.exportedFrom || '').trim();
+  if (!exportedFrom) {
+    return artifact;
+  }
+
+  try {
+    const sourcePath = resolveSafeArtifactPath({
+      allowedExtensions: ['.md', '.txt', '.xlsx'],
+      outputPath: exportedFrom,
+      projectRoot: input.projectRoot,
+    });
+    const { exportedFrom: _exportedFrom, ...artifactWithoutExportMarker } = artifact;
+    return {
+      ...artifactWithoutExportMarker,
+      exportedCopyPath: artifact.outputPath,
+      outputPath: sourcePath,
+    };
+  } catch {
+    return artifact;
+  }
 }
 
 function resolveSafeMarkdownPath(input = {}) {

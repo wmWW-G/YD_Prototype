@@ -307,6 +307,65 @@ test('runAlibabaInquiryMeetingReal discovers tools, calls read-only Alibaba sour
   }
 });
 
+test('runAlibabaInquiryMeetingReal throws a typed connection error when every required Alibaba tool fails', async () => {
+  const fixture = await withTempProject();
+  let buildXlsxCalled = false;
+  const bridgeClient = {
+    async listTools() {
+      return [
+        'subaccount_query',
+        'query_seller_acct_dim_diag_data',
+        'query_seller_shop_dim_diag_data',
+        'query_seller_chat_quality_check_detail',
+      ];
+    },
+    async callTool() {
+      return {
+        ok: false,
+        status: 503,
+        data: { error: 'not logged in' },
+        error: 'gateway unauthorized',
+      };
+    },
+  };
+
+  try {
+    let caughtError;
+    try {
+      await runAlibabaInquiryMeetingReal({
+        bridgeClient,
+        buildXlsx: async () => {
+          buildXlsxCalled = true;
+          throw new Error('XLSX builder should not run when Alibaba data source has no required result');
+        },
+        now: new Date('2026-06-27T12:00:00+08:00'),
+        projectRoot: fixture.projectRoot,
+      });
+    } catch (error) {
+      caughtError = error;
+    }
+
+    assert.ok(caughtError);
+    assert.equal(caughtError.code, 'NO_REQUIRED_ALIBABA_TOOL_SUCCEEDED');
+    assert.equal(caughtError.status, 503);
+    assert.match(caughtError.message, /bridge/);
+    assert.match(caughtError.message, /登录状态|工具授权/);
+    assert.equal(buildXlsxCalled, false);
+
+    const runDir = path.join(fixture.projectRoot, 'workbench', 'runs');
+    const [runFile] = (await readdir(runDir)).filter((file) => file.endsWith('.jsonl'));
+    const events = await readJsonl(path.join(runDir, runFile));
+    assert.ok(events.some((event) => event.type === 'tool.discovery' && event.requiredAvailable === 4));
+    assert.ok(events.some((event) => event.type === 'tool.degraded' && event.ok === false));
+    assert.ok(events.some((event) => event.type === 'run.failed' && event.reason === 'NO_REQUIRED_ALIBABA_TOOL_SUCCEEDED'));
+    assert.equal(events.some((event) => event.type === 'diagnosis.generated'), false);
+    assert.equal(events.some((event) => event.type === 'artifact.typed_evaluated'), false);
+    assert.equal(events.some((event) => event.type === 'run.completed'), false);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('runAlibabaInquiryMeetingReal refuses to complete when typed evaluator rejects XLSX evidence', async () => {
   const fixture = await withTempProject();
   const bridgeClient = {

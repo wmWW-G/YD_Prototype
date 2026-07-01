@@ -2274,8 +2274,10 @@ test('runNewConversationAgent preserves a waiting inquiry task when the suppleme
 
   assert.equal(first.kind, 'needs-input');
   assert.equal(second.kind, 'confirmation-required');
-  assert.equal(second.context.pendingTask.skillId, 'inquiry-reply-draft');
+  assert.equal(second.context.pendingTask, undefined);
   assert.equal(second.context.pendingConfirmation.type, 'external_send');
+  assert.match(second.context.pendingConfirmation.originalText, /客户问MOQ和交期/);
+  assert.match(second.context.pendingConfirmation.originalText, /产品太阳能路灯/);
   assert.equal(third.kind, 'confirmation-accepted');
   assert.equal(third.artifact.name, '询盘回复草稿.md');
   assert.match(runtimeText, /客户问MOQ和交期/);
@@ -4237,6 +4239,77 @@ test('runNewConversationAgent exports the current artifact only after confirmati
   }
 });
 
+test('runNewConversationAgent continues editing the original artifact after export confirmation', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-export-then-followup-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '开发信草稿.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(artifactPath, '# 开发信草稿\n\nCould you confirm your MOQ and lead time?\n', 'utf8');
+
+    const first = await runNewConversationAgent({
+      text: '导出文件',
+      sessionId: 'agent-session-20260701T100000-export-then-followup',
+      context: {
+        artifact: {
+          type: 'markdown',
+          name: '开发信草稿.md',
+          outputPath: artifactPath,
+        },
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+    const second = await runNewConversationAgent({
+      text: '确认导出',
+      sessionId: first.sessionId,
+      context: first.context,
+      session: {
+        sessionId: first.sessionId,
+        taskTitle: '开发信草稿',
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '开发信草稿.md',
+            outputPath: artifactPath,
+          },
+        },
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+    const exportedContentBeforeFollowup = await readFile(second.artifact.outputPath, 'utf8');
+    const third = await runNewConversationAgent({
+      text: '继续优化一下，语气更礼貌',
+      sessionId: second.sessionId,
+      context: second.context,
+      session: {
+        sessionId: second.sessionId,
+        taskTitle: '开发信草稿',
+        context: second.context,
+        artifact: second.artifact,
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+    const updatedOriginal = await readFile(artifactPath, 'utf8');
+    const exportedContentAfterFollowup = await readFile(second.artifact.outputPath, 'utf8');
+
+    assert.equal(first.kind, 'confirmation-required');
+    assert.equal(second.kind, 'confirmation-accepted');
+    assert.match(second.artifact.outputPath, /workbench\/exports\/agent-session-20260701T100000-export-then-followup/);
+    assert.equal(third.kind, 'followup');
+    assert.equal(third.artifact.outputPath, artifactPath);
+    assert.equal(third.context.artifact.outputPath, artifactPath);
+    assert.match(updatedOriginal, /本次补充优化/);
+    assert.match(updatedOriginal, /语气更礼貌/);
+    assert.equal(exportedContentAfterFollowup, exportedContentBeforeFollowup);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('runNewConversationAgent asks before downloading the current artifact', async () => {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-download-confirm-'));
   const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
@@ -4441,6 +4514,72 @@ test('runNewConversationAgent saves current artifact summary to customer memory 
           name: '客户推进分析.md',
           outputPath: artifactPath,
         },
+        customerSlug: 'global-sourcing-inc',
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+
+    const second = await runNewConversationAgent({
+      text: '确认写入',
+      sessionId: first.sessionId,
+      context: first.context,
+      session: {
+        sessionId: first.sessionId,
+        context: {
+          artifact: {
+            type: 'markdown',
+            name: '客户推进分析.md',
+            outputPath: artifactPath,
+          },
+          customerSlug: 'global-sourcing-inc',
+        },
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+    const memory = await readFile(memoryPath, 'utf8');
+
+    assert.equal(first.kind, 'confirmation-required');
+    assert.equal(first.context.pendingConfirmation.type, 'customer_write');
+    assert.equal(second.ok, true);
+    assert.equal(second.kind, 'confirmation-accepted');
+    assert.equal(second.taskTitle, '客户推进分析');
+    assert.equal(second.artifact.name, '客户推进分析.md');
+    assert.equal(second.context.customerSlug, 'global-sourcing-inc');
+    assert.equal(Object.hasOwn(second.context, 'pendingConfirmation'), false);
+    assert.equal(second.context.artifact.name, '客户推进分析.md');
+    assert.equal(second.messages[0].artifact.name, '客户推进分析.md');
+    assert.match(second.messages[0].content, /已确认保存/);
+    assert.match(memory, /Agent 保存: 客户推进分析/);
+    assert.match(memory, /先确认MOQ和交期/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('runNewConversationAgent asks for a customer target before saving when no customer is bound', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-save-needs-customer-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '客户推进分析.md');
+  const customerDir = path.join(projectRoot, 'workbench', 'customers', 'global-sourcing-inc');
+  const memoryPath = path.join(customerDir, 'memory.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await mkdir(customerDir, { recursive: true });
+    await writeFile(memoryPath, '# Global Sourcing Inc. Memory\n\n- Existing memory.\n', 'utf8');
+    await writeFile(artifactPath, '# 客户推进分析\n\n## 下一步跟进行动\n\n1. 先确认MOQ和交期。\n', 'utf8');
+
+    const first = await runNewConversationAgent({
+      text: '保存到客户档案',
+      sessionId: 'agent-session-20260701T170500-save-needs-customer',
+      context: {
+        artifact: {
+          type: 'markdown',
+          name: '客户推进分析.md',
+          outputPath: artifactPath,
+        },
       },
       registry: createTestRegistry(),
       projectRoot,
@@ -4463,21 +4602,34 @@ test('runNewConversationAgent saves current artifact summary to customer memory 
       registry: createTestRegistry(),
       projectRoot,
     });
-    const memory = await readFile(memoryPath, 'utf8');
+    const memoryAfterMissingTarget = await readFile(memoryPath, 'utf8');
+
+    const third = await runNewConversationAgent({
+      text: 'global-sourcing-inc',
+      sessionId: first.sessionId,
+      context: second.context,
+      session: {
+        sessionId: first.sessionId,
+        context: second.context,
+      },
+      registry: createTestRegistry(),
+      projectRoot,
+    });
+    const memoryAfterTarget = await readFile(memoryPath, 'utf8');
 
     assert.equal(first.kind, 'confirmation-required');
     assert.equal(first.context.pendingConfirmation.type, 'customer_write');
-    assert.equal(second.ok, true);
-    assert.equal(second.kind, 'confirmation-accepted');
-    assert.equal(second.taskTitle, '客户推进分析');
-    assert.equal(second.artifact.name, '客户推进分析.md');
-    assert.equal(second.context.customerSlug, 'global-sourcing-inc');
-    assert.equal(Object.hasOwn(second.context, 'pendingConfirmation'), false);
-    assert.equal(second.context.artifact.name, '客户推进分析.md');
-    assert.equal(second.messages[0].artifact.name, '客户推进分析.md');
-    assert.match(second.messages[0].content, /已确认保存/);
-    assert.match(memory, /Agent 保存: 客户推进分析/);
-    assert.match(memory, /先确认MOQ和交期/);
+    assert.equal(second.kind, 'confirmation-required');
+    assert.equal(second.status, 'waiting');
+    assert.equal(second.context.pendingConfirmation.type, 'customer_write');
+    assert.equal(second.context.pendingConfirmation.awaitingCustomerSlug, true);
+    assert.deepEqual(second.messages[0].needsInput.items, ['客户档案名称或客户标识']);
+    assert.match(second.messages[0].content, /写入哪个客户档案/);
+    assert.doesNotMatch(memoryAfterMissingTarget, /Agent 保存/);
+    assert.equal(third.kind, 'confirmation-accepted');
+    assert.equal(third.context.customerSlug, 'global-sourcing-inc');
+    assert.match(memoryAfterTarget, /Agent 保存: 客户推进分析/);
+    assert.match(memoryAfterTarget, /先确认MOQ和交期/);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }

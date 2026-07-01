@@ -2,6 +2,38 @@
 
 ## 2026-07-01
 
+- 修复客户档案保存默认错绑演示客户:
+  - sub agent 评估指出 Critical:没有明确客户绑定时,`保存到客户档案` 确认后会默认写入 `global-sourcing-inc`,可能把真实任务材料错绑到演示客户。
+  - 已修复:`saveAgentArtifactToCustomerMemory()` 不再默认 customerSlug;`customer_write` 确认分支在缺少客户绑定时继续等待用户补充客户档案名称或客户标识,不会写入任何 memory。
+  - 新增回归测试 `saveAgentArtifactToCustomerMemory requires an explicit customer slug` 和 `runNewConversationAgent asks for a customer target before saving when no customer is bound`;已有明确 `customerSlug` 的保存确认仍可继续写入。
+- 修复历史恢复暴露 runtime 文件名:
+  - sub agent 评估指出 Important:历史 session 里的 assistant message、summary、taskTitle 和 artifact name 可能包含 `quotation-sheet-skill-runtime-...xlsx`,前台恢复线程时会看到内部文件名。
+  - 已修复:`sanitizeAgentSessionForFrontend()` 和 `sanitizeAgentResultForFrontend()` 对用户可见文本做片段级清理,保留自然业务句子,把内部 runtime basename、路径、action 名、schema/tool call 等替换或移除;报价单类 artifact 公开显示为 `报价单.xlsx`。
+  - 新增回归测试 `sanitizeAgentSessionForFrontend scrubs runtime file names from restored thread text`,并用真实 `agent-session-20260630T011458-s63f` 本地净化复验 `skill-runtime=false`、绝对路径=false。
+- 修复产物预览接口暴露 runtime 文件名:
+  - sub agent 复查指出 Important:主恢复 payload 已净化,但用户点 `查看文件` 时 `readAgentArtifactPreview()` 仍直接返回 raw `artifact.name`,可能显示 `quotation-sheet-skill-runtime-...xlsx`。
+  - 已修复:预览接口返回的 `name` 也会转成业务化名称,例如报价单类内部文件名显示为 `报价单.xlsx`。
+  - 新增回归测试 `readAgentArtifactPreview scrubs runtime artifact names from preview payloads`。
+- 补齐 XLSX 真实交付链的 LibreOffice 重存:
+  - sub agent 评估指出 Important:当前 `validateXlsxArtifact()` 只做 unzip/openpyxl/残留扫描,没有执行 AGENTS 要求的 LibreOffice headless 重存。
+  - 已修复:`validateXlsxArtifact()` 现在先用 bundled `soffice --headless` 重存 XLSX,再清理 `xl/tables/`、`xl/drawings/`、tableParts 和 drawing relationships 残留,最后执行 `unzip -t`、`openpyxl.load_workbook()` 和包内残留扫描;任一步失败都会返回 `ok:false`。
+  - 更新回归测试 `validateXlsxArtifact verifies zip, openpyxl, required sheets, and residual table or drawing parts`,新增 `checks.libreOffice` 和 `checks.cleanup` 断言。
+- 修复导出确认后同任务续改断点:
+  - 复现问题:确认 `导出文件` 后,session 当前 artifact 会指向 `workbench/exports/<sessionId>/...` 的导出副本;用户接着说 `继续优化一下` 时,续改器只允许修改 `workbench/artifacts/` 下的原始产物,会把本该连续的 agent thread 卡断。
+  - 已修复:Markdown 和 XLSX 续改器遇到带 `exportedFrom` 的导出副本时,先回到原始 `workbench/artifacts/` 产物继续修改;导出副本保持不变,修改后的新版本需要用户再次确认导出。
+  - 新增回归测试 `reviseMarkdownArtifactForFollowup continues from the original artifact after export`、`reviseXlsxArtifactForFollowup continues from the original workbook after export` 和 `runNewConversationAgent continues editing the original artifact after export confirmation`。
+- 修复真实 Alibaba 数据源失败被包装成缺业务资料:
+  - sub agent 评估指出 Critical:`帮我开上周询盘分析会` 如果真实 bridge 必需只读工具全失败,会落成通用 `更多业务资料` 等待态,不像 Codex / Claude Code 的环境 checkpoint。
+  - 已修复:`runAlibabaInquiryMeetingReal()` 在 `NO_REQUIRED_ALIBABA_TOOL_SUCCEEDED` 时抛出带 code 的 typed error;`buildRecoverableAgentErrorResult()` 将其转成 `连接数据源 / 等待处理`,提示确认 Alibaba bridge、登录和只读权限,并让用户处理后说 `我已处理,继续` 沿用原任务。
+  - 新增回归测试 `buildRecoverableAgentErrorResult explains Alibaba tool connection failures as data-source waiting` 和 `runAlibabaInquiryMeetingReal throws a typed connection error when every required Alibaba tool fails`,同时覆盖前台等待文案与真实 runner 失败事件。
+- 修复缺资料等待和外发确认同时挂起:
+  - 复现问题:`客户问MOQ和交期，帮我回一下` 进入缺产品等待后,补 `产品太阳能路灯，发给客户` 会进入外发确认,但 context 仍保留上一轮 `pendingTask.missing`。
+  - 已修复:创建风险确认卡时会清掉已解决的 `pendingTask`,只保留一个 `pendingConfirmation`;确认卡的 `originalText` 保存原任务和本次补充的合并文本,确认后仍能生成询盘回复草稿。
+  - 更新回归测试 `runNewConversationAgent preserves a waiting inquiry task when the supplement asks to send externally`,断言确认态不再保留 stale pendingTask。
+- 修复最近任务历史的等待状态文案:
+  - 复现问题:导出/保存/外发确认中的历史任务因为 `status=waiting`,历史列表显示 `等待补充`,误导用户以为还缺资料。
+  - 已修复:历史标签改为根据 `kind + status` 判断,`confirmation-required` 显示 `等待确认`,缺资料等待才显示 `等待补充`。
+  - 新增前端源码回归测试 `New Conversation history labels confirmation pauses as waiting for confirmation`。
 - 修复前端和请求合并层回灌旧产物:
   - sub agent 复核发现:session store 虽然已在新 waiting 任务中清掉旧 artifact,但前端仍会把旧 `skillAgentResult.artifact` 拼进下一轮请求,`server/agent-request-context.mjs` 也会在 server context 无 artifact 时回退使用 client artifact,导致 `重新开始，写一封开发信` 这种新任务可能继续误绑 `旧客户推进分析.md`。
   - 已修复:新增 `agent-thread-prototype/src/agentThreadContext.js`,统一控制前端请求 context、输入区当前产物展示和 payload 后的 `skillAgentResult` 更新;新 waiting / confirmation context 无 artifact 时清空当前产物指针。
