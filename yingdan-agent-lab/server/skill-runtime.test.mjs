@@ -971,6 +971,60 @@ test('createSkillRuntime generates a validated XLSX quotation sheet when quote t
   }
 });
 
+test('createSkillRuntime writes bare quotation currency amounts into XLSX', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: '帮我做PI，太阳能路灯500套，35美金，FOB上海',
+    });
+    const workbook = await inspectXlsxWorkbook(result.artifact.outputPath);
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'quotation-sheet');
+    assert.equal(result.artifact.type, 'xlsx');
+    assert.equal(workbook.quoteRows['产品'], '太阳能路灯');
+    assert.equal(workbook.quoteRows['数量'], '500套');
+    assert.equal(workbook.quoteRows['单价/报价'], '35美金');
+    assert.equal(workbook.quoteRows['贸易条款'], 'FOB上海');
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime does not write shipping or freight cost as quotation unit price', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    for (const text of [
+      '帮我做PI，太阳能路灯500套，shipping cost USD 35，FOB上海',
+      '帮我做PI，太阳能路灯500套，freight cost USD 35，FOB上海',
+    ]) {
+      const result = await runtime.runGoal({ text });
+      const workbook = await inspectXlsxWorkbook(result.artifact.outputPath);
+
+      assert.equal(result.ok, true);
+      assert.equal(result.skill.id, 'quotation-sheet');
+      assert.equal(workbook.quoteRows['产品'], '太阳能路灯');
+      assert.equal(workbook.quoteRows['数量'], '500套');
+      assert.equal(workbook.quoteRows['单价/报价'], '待确认');
+      assert.equal(workbook.quoteRows['贸易条款'], 'FOB上海');
+    }
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime reads quotation fields from referenced CSV-style lines', async () => {
   const fixture = await withRegistryProject();
 

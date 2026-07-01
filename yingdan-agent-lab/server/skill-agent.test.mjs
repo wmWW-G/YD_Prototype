@@ -1673,6 +1673,51 @@ test('runNewConversationAgent asks for product details before generating a quota
   assert.deepEqual(response.messages[0].needsInput.items, ['产品资料', '数量', '单价或报价区间', '币种和贸易条款']);
 });
 
+test('runNewConversationAgent treats bare currency amounts in quotation tasks as unit price', async () => {
+  let runtimeText = '';
+  const response = await runNewConversationAgent({
+    text: '帮我做PI，太阳能路灯500套，35美金，FOB上海',
+    registry: createQuotationRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'quotation-sheet',
+            reason: '用户用外贸口语给出 PI 所需报价字段。',
+          },
+          skill: {
+            id: 'quotation-sheet',
+            displayName: '报价单',
+            adapter: 'quotation-sheet',
+            artifactType: 'xlsx',
+          },
+          result: {
+            ok: true,
+            mode: 'quotation-sheet',
+            outputPath: '/tmp/报价单.xlsx',
+            artifactName: '报价单.xlsx',
+          },
+          artifact: {
+            type: 'xlsx',
+            name: '报价单.xlsx',
+            outputPath: '/tmp/报价单.xlsx',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.taskTitle, '报价单');
+  assert.equal(response.artifact.name, '报价单.xlsx');
+  assert.match(runtimeText, /35美金/);
+});
+
 test('runNewConversationAgent uses referenced CSV quotation details instead of asking for unit price', async () => {
   let runtimeText = '';
   const response = await runNewConversationAgent({
@@ -1781,6 +1826,30 @@ test('runNewConversationAgent does not treat referenced suffix-currency sample f
   assert.equal(response.status, 'waiting');
   assert.equal(response.taskTitle, '报价单');
   assert.deepEqual(response.messages[0].needsInput.items, ['单价或报价区间']);
+});
+
+test('runNewConversationAgent does not treat shipping or freight cost as quotation unit price', async () => {
+  const cases = [
+    '帮我做PI，太阳能路灯500套，shipping cost USD 35，FOB上海',
+    '帮我做PI，太阳能路灯500套，freight cost USD 35，FOB上海',
+  ];
+
+  for (const text of cases) {
+    const response = await runNewConversationAgent({
+      text,
+      registry: createQuotationRegistry(),
+      skillRuntime: {
+        async runGoal() {
+          throw new Error('runtime should not generate a quotation sheet when the only amount is shipping or freight cost');
+        },
+      },
+    });
+
+    assert.equal(response.kind, 'needs-input');
+    assert.equal(response.status, 'waiting');
+    assert.equal(response.taskTitle, '报价单');
+    assert.deepEqual(response.messages[0].needsInput.items, ['单价或报价区间']);
+  }
 });
 
 test('runNewConversationAgent asks for product context before replying to MOQ and lead time questions', async () => {

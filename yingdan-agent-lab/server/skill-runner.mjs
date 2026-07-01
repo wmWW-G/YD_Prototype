@@ -1251,7 +1251,43 @@ function extractQuotationQuantity(text = '') {
 function extractQuotationPrice(text = '') {
   const value = String(text || '');
   const explicit = value.match(/(?:单价|底价|目标价|价格|报价)\s*(?:是|为|:|：|,|，)?\s*((?:usd|us\$|\$|rmb|¥|人民币|美元|美金)?\s*\d+(?:\.\d+)?\s*(?:usd|美元|美金|rmb|人民币|元)?)/i);
-  return (explicit?.[1] || '').replace(/\s+/g, '').trim();
+  if (explicit?.[1]) {
+    return explicit[1].replace(/\s+/g, '').trim();
+  }
+
+  const quoteIntent = /报价单|报价|做\s*pi|生成\s*pi|整理\s*pi|proforma|客户问报价|客户要报价|客户要price|客户问price/i.test(value);
+  if (!quoteIntent) {
+    return '';
+  }
+
+  return findBareQuotationCurrencyAmount(value);
+}
+
+/**
+ * findBareQuotationCurrencyAmount 从报价任务里提取口语金额。
+ *
+ * 作用：
+ * - 让 `35美金`、`USD 35` 这种没有字段名但明显在 PI/报价任务里的金额进入报价单。
+ * - 跳过样品费、运费、物流费等局部金额,避免把非单价费用写成报价单价格。
+ *
+ * 参数：
+ * - text：用户输入。
+ *
+ * 返回值：金额文本；未识别时返回空字符串。
+ * 可能抛出的异常：无。
+ */
+function findBareQuotationCurrencyAmount(text = '') {
+  const value = String(text || '');
+  const amountPattern = /(?:usd|us\$|\$|rmb|¥|人民币|美元|美金)\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:usd|美元|美金|rmb|人民币|元)/gi;
+  for (const match of value.matchAll(amountPattern)) {
+    // 32 个字符能覆盖 `shipping cost USD 35` / `freight cost USD 35` 这类英文费用标签。
+    const before = value.slice(Math.max(0, match.index - 32), match.index);
+    if (/样品费|样品|sample(?:\s+fee|\s+cost)?|运费|物流|快递|海运|空运|shipping(?:\s+fee|\s+cost)?|freight(?:\s+fee|\s+cost)?/i.test(before)) {
+      continue;
+    }
+    return match[0].replace(/\s+/g, '').trim();
+  }
+  return '';
 }
 
 /**
