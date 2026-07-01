@@ -607,10 +607,13 @@ function detectMissingBusinessContext(input = {}) {
   if (skill.id === 'cold-email-draft' && strongSignalCount >= 2) {
     return { missing: [] };
   }
-  if (skill.id === 'customer-followup-plan' && signals.exclusiveAgencyIssue && !signals.product) {
+  if (skill.id === 'customer-followup-plan' && signals.exclusiveAgencyIssue && !signals.productCoreContext) {
     return { missing: ['产品或核心卖点'] };
   }
-  if (skill.id === 'customer-followup-plan' && signals.followupCadenceRequested && !signals.product) {
+  if (skill.id === 'customer-followup-plan' && signals.followupCadenceRequested && !signals.productCoreContext) {
+    return { missing: ['产品或核心卖点'] };
+  }
+  if (skill.id === 'customer-followup-plan' && signals.productDependentIssue && !signals.productCoreContext) {
     return { missing: ['产品或核心卖点'] };
   }
   if (skill.id === 'customer-followup-plan' && signals.customer && !signals.genericCustomerOnly && signals.currentIssue) {
@@ -672,15 +675,59 @@ function isCustomerHesitationIssue(text = '') {
   return quotedByCustomer.test(value) || stateOnCustomer.test(value);
 }
 
+/**
+ * hasProductCoreContext 判断文本里是否真的给了产品或核心卖点。
+ *
+ * 作用：
+ * - `产品太阳能灯`、`产品是ABC-123`、`卖点是IP65防水` 应该算产品上下文。
+ * - `客户问产品质保多久`、`客户要产品CE认证` 只是客户问题里带了“产品”二字,不能算产品资料。
+ * - 这个判断只服务缺资料 gate,避免售前问题在缺产品时直接跑 Runtime。
+ *
+ * 参数：
+ * - text：用户输入的自然语言。
+ *
+ * 返回值：boolean, true 表示已有足够的产品名、规格、型号或核心卖点线索。
+ * 可能抛出的异常：无。
+ */
+function hasProductCoreContext(text = '') {
+  const value = String(text || '');
+  const lower = value.toLowerCase();
+  const concreteProductNamePattern = /太阳能|路灯|灯具|灯|家具|服装|电池|设备|机器|配件|\b(?:solar|light|lamp|battery|machine|equipment)\b/i;
+  if (concreteProductNamePattern.test(lower)) {
+    return true;
+  }
+
+  const issueOnlyPattern = /^(?:产品|product|item|goods|质保|保修|warranty|guarantee|认证|合规|证书|certification|certificate|certrequirements?|cecert|compliance|验厂|厂审|factoryaudit|factoryinspection|supplieraudit|ce|rohs|fba|amazonfba|亚马逊fba|中性包装|包装|package|packagerequirements?|packaging|packagingrequirements?|neutralpackage|neutralpackaging|oem|odm|贴牌|privatelabel|定制logo|customlogo|customization|customisation|定制|logo|安装|installation|说明书|manual|价格|报价|price|quote|moq|起订|交期|leadtime|delivery|样品|sample|付款|paymentterms|售后|aftersales)(?:多久|多少|能不能|可不可以|可以吗|吗|要求|问题|资料)?$/i;
+  const issueTermPattern = /质保|保修|warranty|guarantee|认证|合规|证书|certification|certificate|certrequirements|cecert|compliance|验厂|厂审|factoryaudit|factoryinspection|supplieraudit|rohs|fba|amazonfba|亚马逊fba|中性包装|包装(?:要求|问题|资料)|packagerequirements|packagingrequirements|neutralpackage|neutralpackaging|oem|odm|贴牌|privatelabel|定制|customlogo|customization|customisation|logo|安装|installation|说明书|manual|价格|报价|price|quote|moq|起订|交期|leadtime|delivery|样品|sample|付款|paymentterms|售后|aftersales/i;
+  const genericFieldQuestionPattern = /怎么|如何|怎样|多少|多久|可不可以|能不能|可以吗|下一步|推进|处理|回复|回|一下|帮我|客户|买家|what|how|next|reply|follow|emphasize|highlight/i;
+  const productFieldPattern = /(?:产品|品名|款式|规格|型号|卖点|材质|尺寸|product|item|goods|model|spec|material|size)\s*(?:是|为|叫|:|：)?\s*([^，。,.!?！？;；]{2,48})/gi;
+
+  for (const match of value.matchAll(productFieldPattern)) {
+    const phrase = String(match[1] || '').trim();
+    const normalized = phrase.toLowerCase().replace(/[\s_-]+/g, '');
+    if (!normalized || issueOnlyPattern.test(normalized)) {
+      continue;
+    }
+    if (genericFieldQuestionPattern.test(normalized)) {
+      continue;
+    }
+    if (issueTermPattern.test(normalized) && !concreteProductNamePattern.test(normalized)) {
+      continue;
+    }
+    return true;
+  }
+
+  return false;
+}
+
 function detectBusinessSignals(text = '') {
   const value = String(text || '');
   const lower = value.toLowerCase();
   const compact = value.replace(/\s/g, '');
   const marketPattern = /德国|美国|巴西|英国|法国|意大利|西班牙|加拿大|澳大利亚|印度|越南|泰国|日本|韩国|中东|欧洲|北美|南美|非洲|东南亚|germany|usa|brazil|uk|france|india|vietnam|europe|market/i;
-  const productPattern = /产品|规格|型号|卖点|报价|价格|底价|moq|起订|小批量|小单|试单|交期|lead\s*time|delivery|样品|sample|包装|付款|账期|赊账|月结|付款条件|付款方式|质量|售后|库存|材质|尺寸|quantity|price|quote|payment\s+terms|credit\s+terms/i;
-  const explicitProductPattern = /产品|规格|型号|卖点|包装|库存|材质|尺寸|型号|太阳能|路灯|灯|家具|服装|电池|设备|机器|配件|solar|light|lamp|battery|machine|equipment|product|model|spec/i;
+  const productPattern = /产品|规格|型号|卖点|报价|价格|底价|moq|起订|小批量|小单|试单|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量|售后|库存|材质|尺寸|quantity|price|quote|payment\s+terms|credit\s+terms/i;
   const inquiryPattern = /询盘|邮件|聊天|客户(?:说|问|要|要求|需要|想要)|买家(?:说|问|要|要求|需要|想要)|问了|问|需求|投诉|异议|报价|回复|回信|沉默|订单|认证|合规|证书|验厂|资质|inquiry|rfq|reply|certification|certificate|compliance|factory\s+audit|supplier\s+audit/i;
-  const currentIssuePattern = /(?:客户|买家|采购商|客人|对方)(?:说|问|提到|要求|抱怨|投诉|反馈)[^，。,.!?！？]{0,24}(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|合规|证书|验厂|资质|质量|售后|异议|投诉|抱怨|沉默|不回|已读不回|嫌贵|太贵|折扣|代理|渠道)|问了.+|问.*(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|合规|证书|验厂|资质|质量|售后)|投诉|抱怨|异议|沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|卡点|嫌贵|太贵|贵了|价格(?:太)?高|砍价|压价|还价|议价|让价|降价|折扣|报价|价格|底价|moq|起订|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量(?:不行|问题|投诉)?|货有问题|售后|认证|合规|证书|验厂|厂审|工厂审核|资质|quantity|price|quote|small\s+(?:trial\s+)?order|trial\s+order|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights|too\s+expensive|price\s+too\s+high|discount|payment\s+terms|credit\s+terms|quality\s+(?:issue|complaint|problem)|after[-\s]?sales|certification|certificate|compliance|\bce\b|rohs|factory\s+audit|factory\s+inspection|supplier\s+audit/i;
+  const currentIssuePattern = /(?:客户|买家|采购商|客人|对方)(?:说|问|提到|要求|抱怨|投诉|反馈)[^，。,.!?！？]{0,24}(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|合规|证书|验厂|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|质量|售后|异议|投诉|抱怨|沉默|不回|已读不回|嫌贵|太贵|折扣|代理|渠道|cert[-\s]*requirements?|ce[-\s]?cert)|问了.+|问.*(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|合规|证书|验厂|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|质量|售后|cert[-\s]*requirements?|ce[-\s]?cert)|投诉|抱怨|异议|沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|卡点|嫌贵|太贵|贵了|价格(?:太)?高|砍价|压价|还价|议价|让价|降价|折扣|报价|价格|底价|moq|起订|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量(?:不行|问题|投诉)?|货有问题|售后|认证|合规|证书|验厂|厂审|工厂审核|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|quantity|price|quote|small\s+(?:trial\s+)?order|trial\s+order|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights|too\s+expensive|price\s+too\s+high|discount|payment\s+terms|credit\s+terms|quality\s+(?:issue|complaint|problem)|after[-\s]?sales|certification|certificate|cert[-\s]*requirements?|ce[-\s]?cert|compliance|\bce\b|rohs|warranty|guarantee|private\s+label|custom\s+logo|customi[sz]ation|installation|manual|amazon\s*fba|factory\s+audit|factory\s+inspection|supplier\s+audit/i;
   const customerPattern = /采购商|买家|对方|公司|联系人|进口商|批发商|零售商|经销商|代理商|客户(?:名称|类型|是|叫)|客户(?:说|问|提到).+|buyer|customer\s+(?:is|type|name)|client\s+(?:is|type|name)|importer|distributor|wholesaler|retailer/i;
   const quantityPattern = /(?:数量|qty|quantity)\s*(?:是|为|:|：|,|，)?\s*\d+|\d+\s*(?:套|件|个|箱|台|pcs|pieces|units?|cartons?)/i;
   const priceTerm = hasQuotationPriceTerm(value);
@@ -690,8 +737,10 @@ function detectBusinessSignals(text = '') {
   const currentIssue = currentIssuePattern.test(lower) || isCustomerHesitationIssue(value) || isCustomerPurchaseIntent(value);
   const customerActorWithIssue = /客户|买家|采购商|客人|对方|buyer|customer|client/i.test(lower) && currentIssue;
   const exclusiveAgencyIssue = /独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights/.test(lower);
+  const productDependentIssue = /认证|合规|证书|验厂|厂审|工厂审核|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|certification|certificate|cert[-\s]*requirements?|ce[-\s]?cert|compliance|\bce\b|rohs|warranty|guarantee|after[-\s]?sales|private[-\s]?label|custom[-\s]?logo|customi[sz]ation|installation|manual|amazon\s*fba|payment[-\s]?terms|lead[-\s]?time|packag(?:e|ing)(?:[-\s]?requirements?)?|factory[-\s]?audit|factory[-\s]?inspection|supplier[-\s]?audit/.test(lower);
   const followupCadenceRequested = /7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|weekly/.test(lower) &&
     /跟进|回访|节奏|计划|follow[-\s]?up/.test(lower);
+  const productCoreContext = hasProductCoreContext(value);
 
   return {
     customer: customerPattern.test(lower) || marketPattern.test(lower) || customerActorWithIssue,
@@ -699,15 +748,19 @@ function detectBusinessSignals(text = '') {
     genericCustomerOnly,
     currentIssue,
     exclusiveAgencyIssue,
+    productDependentIssue,
     followupCadenceRequested,
     inquiry: inquiryPattern.test(lower),
     market: marketPattern.test(lower),
     priceTerm,
     product: productPattern.test(lower),
+    // 质保/OEM/安装/FBA/包装/认证等售前问题需要真实产品或卖点上下文；
+    // 单独的价格、MOQ、交期、样品、付款等商业词不能绕过等待补充。
+    productCoreContext,
     // 询盘回复需要能写进正文的产品上下文,不能把单独的 MOQ/交期问题当成产品资料。
-    replyProductContext: explicitProductPattern.test(lower) || priceTerm || tradeTermPattern.test(value),
+    replyProductContext: productCoreContext || priceTerm || tradeTermPattern.test(value),
     // 报价单必须知道具体报什么产品；“报价/价格”只是任务意图,不能当成产品资料。
-    quoteProduct: explicitProductPattern.test(lower),
+    quoteProduct: productCoreContext,
     quantity: quantityPattern.test(value),
     tradeTerm: tradeTermPattern.test(value),
   };

@@ -1018,6 +1018,21 @@ function buildCustomerFollowupSignalSentence(concerns = []) {
   if (concerns.includes('验厂/资质审核')) {
     return '客户提出验厂或资质审核,这通常说明他在评估供应商可信度;下一步应准备工厂资料、质量体系、证书清单和可审核范围,再安排线上资料审核或现场验厂节奏。';
   }
+  if (concerns.includes('质保/售后承诺')) {
+    return '客户正在确认质保或售后承诺,这通常说明他在评估采购后的风险;下一步应先确认目标市场、使用场景、质保年限、备件和售后响应边界,不能只给一句笼统保证。';
+  }
+  if (concerns.includes('OEM/定制贴牌')) {
+    return '客户正在确认 OEM、贴牌或 logo 定制,这通常说明需要把起订量、打样、设计文件、包装方式和交期影响拆开说明,避免直接承诺所有定制都可做。';
+  }
+  if (concerns.includes('安装/使用资料')) {
+    return '客户正在索要安装说明或使用资料,这通常说明他在评估落地使用风险;下一步应准备说明书、安装视频、关键注意事项和售后支持口径。';
+  }
+  if (concerns.includes('FBA/发货渠道')) {
+    return '客户正在确认 FBA 或平台发货方式,这通常说明需要同步核对包装标签、箱规、入仓要求和物流责任边界,再决定是否报价或安排发货方案。';
+  }
+  if (concerns.includes('包装/中性包装')) {
+    return '客户正在确认包装或中性包装要求,这通常说明要先核对包装方式、箱规、标签、起订量和额外费用,再给出可执行方案。';
+  }
   return `客户已经在问${concerns.join('、')},这通常说明他开始评估供应条件,下一步应先补齐采购约束,再决定是否报价。`;
 }
 
@@ -1155,8 +1170,23 @@ function extractBusinessSignals(userText = '') {
   if (/验厂|厂审|工厂审核|资质审核|资质审查|factory\s+audit|factory\s+inspection|supplier\s+audit/.test(lower)) {
     concerns.push({ chinese: '验厂/资质审核', english: 'factory audit/qualification review' });
   }
-  if (/认证|合规|证书|certification|certificate|compliance|\bce\b|rohs|fda|reach|ul|etl/.test(lower)) {
+  if (/认证|合规|证书|certification|certificate|cert[-\s]*requirements?|ce[-\s]?cert|compliance|\bce\b|rohs|fda|reach|ul|etl/.test(lower)) {
     concerns.push({ chinese: '认证/合规要求', english: 'certification/compliance requirements' });
+  }
+  if (/质保|保修|质保期|保修期|warranty|guarantee/.test(lower)) {
+    concerns.push({ chinese: '质保/售后承诺', english: 'warranty/after-sales commitment' });
+  }
+  if (/oem|odm|贴牌|定制\s*logo|定制logo|私标|private[-\s]+label|custom[-\s]*logo|customi[sz]ation/.test(lower)) {
+    concerns.push({ chinese: 'OEM/定制贴牌', english: 'OEM/custom logo/private label requirements' });
+  }
+  if (/安装说明|安装资料|说明书|使用手册|安装视频|installation\s+manual|user\s+manual|operation\s+manual|manual\s+(?:book|guide)|user\s+guide/.test(lower)) {
+    concerns.push({ chinese: '安装/使用资料', english: 'installation/manual materials' });
+  }
+  if (/亚马逊\s*fba|fba|amazon\s*fba|fulfillment/.test(lower)) {
+    concerns.push({ chinese: 'FBA/发货渠道', english: 'FBA/fulfillment requirements' });
+  }
+  if (/中性包装|包装方式|包装要求|neutral[-\s]+packag(?:e|ing)|packag(?:e|ing)[-\s]+requirements?/.test(lower)) {
+    concerns.push({ chinese: '包装/中性包装', english: 'packaging/neutral packaging requirements' });
   }
 
   const country = detectCountry(text);

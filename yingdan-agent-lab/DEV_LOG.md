@@ -8,6 +8,26 @@
   - 产物层同步补强:询盘回复会把 CE/证书类输入提炼成 `客户关注点: 认证/合规要求`;客户推进分析会把验厂类输入提炼成 `客户关注点: 验厂/资质审核`,并给出证书核对、工厂资料、质量体系和审核节奏相关下一步。
   - 新增红绿回归测试 `runNewConversationAgent treats certification requirements as inquiry reply context`、`runNewConversationAgent treats factory audit requirements as a concrete follow-up issue`、`createSkillRuntime carries certification requirements into inquiry reply artifacts` 和 `createSkillRuntime carries factory audit requirements into customer follow-up artifacts`。
   - sub agent 复核指出边界过宽:缺产品时 `认证/验厂` 会冒充产品资料,空壳 `客户要，产品太阳能灯，下一步怎么推进` 会冒充当前卡点,`合规/资质` 也会在开发信和独家代理 gate 里冒充产品资料。已收窄 `replyProductContext`、`productPattern` 和 `currentIssue` 识别,并新增反例测试 `runNewConversationAgent asks for product context before replying to certification or audit requirements`、`runNewConversationAgent does not treat empty customer wants wording as a concrete follow-up issue`、`runNewConversationAgent does not treat compliance wording as product context for email drafts`、`runNewConversationAgent does not treat qualification wording as product context before negotiating exclusive agency`。
+- 继续补「新对话」常见售前问题:
+  - 复现问题:`客户问质保多久，产品太阳能灯，帮我回一下`、`客户要OEM贴牌，产品太阳能灯，下一步怎么推进` 能生成产物,但正文和依据仍显示 `客户关注点暂未明确`。
+  - 已修复:`质保/保修/warranty`、`OEM/ODM/贴牌/定制logo/private label`、`安装说明/说明书/manual`、`FBA/亚马逊FBA`、`中性包装/包装要求` 会被提炼成业务关注点,并进入询盘回复正文或客户推进判断。
+  - 同步收紧边界:包装、FBA、安装资料、OEM 和质保是客户问题,不是产品资料。`客户问能不能做中性包装，帮我回一下`、`写一封开发信给德国客户，重点讲包装` 仍要先追问产品或核心卖点。
+  - 新增红绿回归测试 `runNewConversationAgent treats warranty and customization questions as concrete follow-up issues`、`runNewConversationAgent does not treat compliance wording as product context for email drafts`、`createSkillRuntime carries warranty and customization concerns into inquiry reply artifacts` 和 `createSkillRuntime carries warranty and customization concerns into customer follow-up artifacts`。
+  - sub agent 复核指出 Critical:客户推进路径里,缺产品的 `客户问质保多久 / OEM贴牌 / 中性包装 / 验厂 / CE认证,下一步怎么推进` 仍会直接跑 Runtime。已新增 `productDependentIssue` gate,这类售前/认证/验厂问题缺产品时统一先追问 `产品或核心卖点`。
+  - 二次 sub agent 复核发现 `客户问质保多久，还问价格`、`客户要CE认证，也问MOQ`、`客户要验厂，还问交期`、`客户问中性包装，还问样品` 会用宽泛商业词绕过缺产品 gate。已新增更窄的 `productCoreContext`;价格、MOQ、交期、样品、付款等商业词不能冒充产品或核心卖点。
+  - 三次 sub agent 复核发现裸 `产品` 两字也会绕过 gate。`productCoreContext` 已改为识别具体产品名、规格、型号、卖点或 `产品是 ABC-123` 这类带值字段;`客户问产品质保多久 / 产品CE认证 / 产品能不能做中性包装` 仍会等待补充产品或核心卖点。
+  - 四次 sub agent 复核发现英文产品词子串误命中:`highlight` 会命中 `light`,`emphasize` 会命中 `size`。已为英文产品词加词边界,普通英文改写指令不能冒充产品上下文。
+  - 五次 sub agent 复核发现裸 `规格/型号/卖点/材质/尺寸/库存` 和独立英文 `model/spec/size` 也会绕过 gate。已拆分具体品类词和字段值识别;字段名必须带具体值才算产品上下文,`型号 Model S` 仍可通过。
+  - 六次 sub agent 复核发现 `product/item/goods + warranty/private label/packaging requirements` 这类英文售前问题会冒充产品字段值。已把英文售前问题词纳入 issue-only 判断,两条入口都会继续追问真实产品或核心卖点。
+  - 七次 sub agent 复核发现英文售前词的连字符形态也会绕过,例如 `after-sales / private-label / payment-terms / lead-time / factory-audit`。字段值归一化现在会去掉空格、连字符和下划线后再判断 issue-only。
+  - 八次 sub agent 复核发现英式 `customisation` 和 `package/package-requirements/neutral-package` 仍可绕过。已补齐这些英文变体,避免 generic `product + 售前问题词` 冒充产品名。
+  - sub agent 复核还指出 Important:issue term 里的裸 `ce` 会误伤 `CE123 / ACE-123 / device charger` 这类真实型号或品名。已移除字段值子串判断里的裸 `ce`,只保留整值 `CE` 或 `CE认证` 这类问题词判断。
+  - sub agent 复核继续指出 `CE-cert / CE cert` 会归一成 `cecert` 后绕过。已补 `cecert` 和 `certrequirements` 这类认证缩写形态,但仍不使用裸 `cert` 子串,避免误伤真实产品名。
+  - sub agent 复核继续指出 `cert requirements` 只被当作非产品过滤,没有同步到客户卡点识别和 Runtime 关注点。已补到 `currentIssuePattern`、`productDependentIssue` 和认证/合规关注点提取,有产品时会生成材料并写入 `客户关注点: 认证/合规要求`。
+  - sub agent 复核继续指出 `cert  requirements` 双空格形态在不同正则里的分隔符规则不一致。已统一为 `cert[-\\s]*requirements?`,缺产品时追问,有产品时产物进入认证/合规关注点。
+  - sub agent 复核继续指出 Runtime 产物层没有同步 `private-label / custom-logo / neutral-package / package-requirements` 连字符形态。已同步到 OEM/定制贴牌和包装/中性包装关注点提取。
+  - commit 前 sub agent 复核继续指出 `包装/package/packaging` 子串过滤会误伤真实产品名,例如 `产品是包装盒`、`产品是 packaging tape`。已把字段值过滤收窄到 `中性包装/包装要求/package-requirements/neutral-package` 这类售前问题,真实包装类产品名仍算产品上下文。
+  - sub agent 复核还指出 `logo/manual/packaging` 裸词过宽。已收窄为 `定制logo / private label`、`installation manual / user manual`、`packaging requirements / neutral packaging`,并新增反例测试 `createSkillRuntime does not infer customization or packaging concerns from incidental words`。
 
 ## 2026-06-30
 

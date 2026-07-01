@@ -622,6 +622,148 @@ test('createSkillRuntime carries certification requirements into inquiry reply a
     assert.match(content, /客户关注点: 认证\/合规要求/);
     assert.match(content, /CE|certification|compliance/i);
     assert.doesNotMatch(content, /客户关注点暂未明确/);
+
+    const certRequirementResult = await runtime.runGoal({
+      text: '客户问cert  requirements，产品太阳能灯，帮我回一下',
+    });
+    const certRequirementContent = await readFile(certRequirementResult.artifact.outputPath, 'utf8');
+
+    assert.equal(certRequirementResult.ok, true);
+    assert.equal(certRequirementResult.skill.id, 'inquiry-reply-draft');
+    assert.match(certRequirementContent, /产品: 太阳能灯/);
+    assert.match(certRequirementContent, /客户关注点: 认证\/合规要求/);
+    assert.match(certRequirementContent, /cert\s+requirements|certification|compliance/i);
+    assert.doesNotMatch(certRequirementContent, /客户关注点暂未明确/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime carries warranty and customization concerns into inquiry reply artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const warrantyResult = await runtime.runGoal({
+      text: '客户问质保多久，产品太阳能灯，帮我回一下',
+    });
+    const warrantyContent = await readFile(warrantyResult.artifact.outputPath, 'utf8');
+
+    assert.equal(warrantyResult.ok, true);
+    assert.equal(warrantyResult.skill.id, 'inquiry-reply-draft');
+    assert.match(warrantyContent, /产品: 太阳能灯/);
+    assert.match(warrantyContent, /客户关注点: 质保\/售后承诺/);
+    assert.match(warrantyContent, /warranty|after-sales/i);
+    assert.doesNotMatch(warrantyContent, /客户关注点暂未明确/);
+
+    const customizationResult = await runtime.runGoal({
+      text: '客户问能不能定制logo，产品太阳能灯，帮我回一下',
+    });
+    const customizationContent = await readFile(customizationResult.artifact.outputPath, 'utf8');
+
+    assert.equal(customizationResult.ok, true);
+    assert.equal(customizationResult.skill.id, 'inquiry-reply-draft');
+    assert.match(customizationContent, /产品: 太阳能灯/);
+    assert.match(customizationContent, /客户关注点: OEM\/定制贴牌/);
+    assert.match(customizationContent, /custom|logo|private label/i);
+    assert.doesNotMatch(customizationContent, /客户关注点暂未明确/);
+
+    const privateLabelResult = await runtime.runGoal({
+      text: '客户问private-label，产品太阳能灯，帮我回一下',
+    });
+    const privateLabelContent = await readFile(privateLabelResult.artifact.outputPath, 'utf8');
+
+    assert.equal(privateLabelResult.ok, true);
+    assert.match(privateLabelContent, /客户关注点: OEM\/定制贴牌/);
+    assert.match(privateLabelContent, /private-label|custom|logo|private label/i);
+    assert.doesNotMatch(privateLabelContent, /客户关注点暂未明确/);
+
+    const customLogoResult = await runtime.runGoal({
+      text: '客户问custom-logo，产品太阳能灯，帮我回一下',
+    });
+    const customLogoContent = await readFile(customLogoResult.artifact.outputPath, 'utf8');
+
+    assert.equal(customLogoResult.ok, true);
+    assert.match(customLogoContent, /客户关注点: OEM\/定制贴牌/);
+    assert.match(customLogoContent, /custom-logo|custom|logo/i);
+    assert.doesNotMatch(customLogoContent, /客户关注点暂未明确/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime carries hyphenated packaging concerns into inquiry reply artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const neutralPackageResult = await runtime.runGoal({
+      text: '客户问neutral-package，产品太阳能灯，帮我回一下',
+    });
+    const neutralPackageContent = await readFile(neutralPackageResult.artifact.outputPath, 'utf8');
+
+    assert.equal(neutralPackageResult.ok, true);
+    assert.match(neutralPackageContent, /客户关注点: 包装\/中性包装/);
+    assert.match(neutralPackageContent, /neutral-package|packaging/i);
+    assert.doesNotMatch(neutralPackageContent, /客户关注点暂未明确/);
+
+    const packageRequirementsResult = await runtime.runGoal({
+      text: '客户问package-requirements，产品太阳能灯，帮我回一下',
+    });
+    const packageRequirementsContent = await readFile(packageRequirementsResult.artifact.outputPath, 'utf8');
+
+    assert.equal(packageRequirementsResult.ok, true);
+    assert.match(packageRequirementsContent, /客户关注点: 包装\/中性包装/);
+    assert.match(packageRequirementsContent, /package-requirements|packaging/i);
+    assert.doesNotMatch(packageRequirementsContent, /客户关注点暂未明确/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime does not infer customization or packaging concerns from incidental words', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const logoResult = await runtime.runGoal({
+      text: '客户发来logo图片，产品太阳能灯，帮我回复收到',
+    });
+    const logoContent = await readFile(logoResult.artifact.outputPath, 'utf8');
+
+    assert.equal(logoResult.ok, true);
+    assert.equal(logoResult.skill.id, 'inquiry-reply-draft');
+    assert.doesNotMatch(logoContent, /客户关注点: OEM\/定制贴牌/);
+
+    const manualResult = await runtime.runGoal({
+      text: '客户提到manual team，产品太阳能灯，帮我回一下',
+    });
+    const manualContent = await readFile(manualResult.artifact.outputPath, 'utf8');
+
+    assert.equal(manualResult.ok, true);
+    assert.equal(manualResult.skill.id, 'inquiry-reply-draft');
+    assert.doesNotMatch(manualContent, /客户关注点: 安装\/使用资料/);
+
+    const packagingResult = await runtime.runGoal({
+      text: '客户提到packaging team，产品太阳能灯，帮我回一下',
+    });
+    const packagingContent = await readFile(packagingResult.artifact.outputPath, 'utf8');
+
+    assert.equal(packagingResult.ok, true);
+    assert.equal(packagingResult.skill.id, 'inquiry-reply-draft');
+    assert.doesNotMatch(packagingContent, /客户关注点: 包装\/中性包装/);
   } finally {
     await fixture.cleanup();
   }
@@ -828,6 +970,43 @@ test('createSkillRuntime carries factory audit requirements into customer follow
     assert.match(content, /客户关注点: 验厂\/资质审核/);
     assert.match(content, /验厂|资质|审核/);
     assert.doesNotMatch(content, /客户关注点还需要从询盘原文里确认/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime carries warranty and customization concerns into customer follow-up artifacts', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const warrantyResult = await runtime.runGoal({
+      text: '客户问质保多久，产品太阳能灯，下一步怎么推进',
+    });
+    const warrantyContent = await readFile(warrantyResult.artifact.outputPath, 'utf8');
+
+    assert.equal(warrantyResult.ok, true);
+    assert.equal(warrantyResult.skill.id, 'customer-followup-plan');
+    assert.match(warrantyContent, /产品: 太阳能灯/);
+    assert.match(warrantyContent, /客户关注点: 质保\/售后承诺/);
+    assert.match(warrantyContent, /质保|售后/);
+    assert.doesNotMatch(warrantyContent, /客户关注点还需要从询盘原文里确认/);
+
+    const customizationResult = await runtime.runGoal({
+      text: '客户要OEM贴牌，产品太阳能灯，下一步怎么推进',
+    });
+    const customizationContent = await readFile(customizationResult.artifact.outputPath, 'utf8');
+
+    assert.equal(customizationResult.ok, true);
+    assert.equal(customizationResult.skill.id, 'customer-followup-plan');
+    assert.match(customizationContent, /产品: 太阳能灯/);
+    assert.match(customizationContent, /客户关注点: OEM\/定制贴牌/);
+    assert.match(customizationContent, /OEM|贴牌|定制/);
+    assert.doesNotMatch(customizationContent, /客户关注点还需要从询盘原文里确认/);
   } finally {
     await fixture.cleanup();
   }

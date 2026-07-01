@@ -437,6 +437,7 @@ test('runNewConversationAgent does not treat compliance wording as product conte
   const cases = [
     '写一封开发信给德国客户，重点讲合规',
     '写一封开发信给德国客户，重点讲资质',
+    '写一封开发信给德国客户，重点讲包装',
   ];
 
   for (const text of cases) {
@@ -1558,6 +1559,115 @@ test('runNewConversationAgent treats factory audit requirements as a concrete fo
   assert.match(runtimeText, /产品太阳能灯/);
 });
 
+test('runNewConversationAgent treats warranty and customization questions as concrete follow-up issues', async () => {
+  const cases = [
+    '客户问质保多久，产品太阳能灯，下一步怎么推进',
+    '客户要OEM贴牌，产品太阳能灯，下一步怎么推进',
+    '客户问质保多久，型号 Model S，下一步怎么推进',
+    '客户问质保多久，型号 CE123，下一步怎么推进',
+    '客户问质保多久，产品是 ACE-123，下一步怎么推进',
+    '客户问质保多久，产品是包装盒，下一步怎么推进',
+    '客户问质保多久，产品是 packaging tape，下一步怎么推进',
+    '客户问cert requirements，产品太阳能灯，下一步怎么推进',
+  ];
+
+  for (const text of cases) {
+    let runtimeText = '';
+    const response = await runNewConversationAgent({
+      text,
+      registry: createFollowupRegistry(),
+      skillRuntime: {
+        async runGoal({ text }) {
+          runtimeText = text;
+          return {
+            ...createRuntimeResult(),
+            goal: {
+              matched: true,
+              trigger: 'natural_goal',
+              skillId: 'customer-followup-plan',
+              reason: '用户要处理客户售前问题。',
+            },
+            skill: {
+              id: 'customer-followup-plan',
+              displayName: '客户推进分析',
+              adapter: 'business-draft',
+              artifactType: 'markdown',
+            },
+            result: {
+              ok: true,
+              mode: 'business-draft',
+              outputPath: '/tmp/客户推进分析.md',
+              artifactName: '客户推进分析.md',
+            },
+            artifact: {
+              type: 'markdown',
+              name: '客户推进分析.md',
+              outputPath: '/tmp/客户推进分析.md',
+            },
+          };
+        },
+      },
+    });
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'goal-run');
+    assert.equal(response.taskTitle, '客户推进分析');
+    assert.match(runtimeText, /产品太阳能灯|型号 Model S|型号 CE123|产品是 ACE-123|产品是包装盒|产品是 packaging tape/);
+  }
+});
+
+test('runNewConversationAgent asks for product context before product-dependent customer follow-up issues', async () => {
+  const cases = [
+    '客户问质保多久，下一步怎么推进',
+    '客户要OEM贴牌，下一步怎么推进',
+    '客户问能不能做中性包装，下一步怎么推进',
+    '客户要验厂，下一步怎么推进',
+    '客户要CE认证，下一步怎么推进',
+    '客户问质保多久，还问价格，下一步怎么推进',
+    '客户要CE认证，也问MOQ，下一步怎么推进',
+    '客户要验厂，还问交期，下一步怎么推进',
+    '客户问能不能做中性包装，还问样品，下一步怎么推进',
+    '客户问产品质保多久，下一步怎么推进',
+    '客户要产品CE认证，下一步怎么推进',
+    '客户问产品能不能做中性包装，下一步怎么推进',
+    '客户要CE认证，帮我highlight一下下一步怎么推进',
+    '客户问质保多久，帮我emphasize一下下一步怎么推进',
+    '客户要CE认证，规格怎么写，下一步怎么推进',
+    '客户问质保多久，型号怎么写，下一步怎么推进',
+    '客户问中性包装，卖点怎么写，下一步怎么推进',
+    '客户问中性包装，帮我model一下下一步怎么推进',
+    '客户要CE认证，库存怎么写，下一步怎么推进',
+    '客户问中性包装，材质怎么写，下一步怎么推进',
+    '客户问质保多久，帮我spec一下下一步怎么推进',
+    '客户问质保多久，帮我size一下下一步怎么推进',
+    '客户问product warranty，下一步怎么推进',
+    '客户问item warranty，下一步怎么推进',
+    '客户问product private label，下一步怎么推进',
+    '客户问product after-sales，下一步怎么推进',
+    '客户问product customisation，下一步怎么推进',
+    '客户问product CE-cert，下一步怎么推进',
+    '客户问cert  requirements，下一步怎么推进',
+  ];
+
+  for (const text of cases) {
+    const response = await runNewConversationAgent({
+      text,
+      registry: createFollowupRegistry(),
+      skillRuntime: {
+        async runGoal() {
+          throw new Error('runtime should not run before product-dependent follow-up context is known');
+        },
+      },
+    });
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'needs-input');
+    assert.equal(response.status, 'waiting');
+    assert.equal(response.taskTitle, '客户推进分析');
+    assert.deepEqual(response.messages[0].needsInput.items, ['产品或核心卖点']);
+  }
+});
+
 test('runNewConversationAgent does not treat empty customer wants wording as a concrete follow-up issue', async () => {
   const response = await runNewConversationAgent({
     text: '客户要，产品太阳能灯，下一步怎么推进',
@@ -1981,55 +2091,109 @@ test('runNewConversationAgent asks for product context before replying to MOQ an
 });
 
 test('runNewConversationAgent treats certification requirements as inquiry reply context', async () => {
-  let runtimeText = '';
-  const response = await runNewConversationAgent({
-    text: '客户要CE认证，产品太阳能灯，帮我回一下',
-    registry: createInquiryReplyRegistry(),
-    skillRuntime: {
-      async runGoal({ text }) {
-        runtimeText = text;
-        return {
-          ...createRuntimeResult(),
-          goal: {
-            matched: true,
-            trigger: 'natural_goal',
-            skillId: 'inquiry-reply-draft',
-            reason: '用户要回复客户认证要求。',
-          },
-          skill: {
-            id: 'inquiry-reply-draft',
-            displayName: '询盘回复草稿',
-            adapter: 'business-draft',
-            artifactType: 'markdown',
-          },
-          result: {
-            ok: true,
-            mode: 'business-draft',
-            outputPath: '/tmp/询盘回复草稿.md',
-            artifactName: '询盘回复草稿.md',
-          },
-          artifact: {
-            type: 'markdown',
-            name: '询盘回复草稿.md',
-            outputPath: '/tmp/询盘回复草稿.md',
-          },
-        };
-      },
+  const cases = [
+    {
+      text: '客户要CE认证，产品太阳能灯，帮我回一下',
+      expectedContext: /产品太阳能灯/,
+      expectedIssue: /CE认证/,
     },
-  });
+    {
+      text: '客户问CE认证，产品是 device charger，帮我回一下',
+      expectedContext: /产品是 device charger/,
+      expectedIssue: /CE认证/,
+    },
+    {
+      text: '客户问CE认证，产品是 packaging tape，帮我回一下',
+      expectedContext: /产品是 packaging tape/,
+      expectedIssue: /CE认证/,
+    },
+    {
+      text: '客户问质保多久，产品是包装盒，帮我回一下',
+      expectedContext: /产品是包装盒/,
+      expectedIssue: /质保/,
+    },
+    {
+      text: '客户问cert requirements，产品太阳能灯，帮我回一下',
+      expectedContext: /产品太阳能灯/,
+      expectedIssue: /cert requirements/i,
+    },
+    {
+      text: '客户问cert  requirements，产品太阳能灯，帮我回一下',
+      expectedContext: /产品太阳能灯/,
+      expectedIssue: /cert\s+requirements/i,
+    },
+  ];
 
-  assert.equal(response.ok, true);
-  assert.equal(response.kind, 'goal-run');
-  assert.equal(response.taskTitle, '询盘回复草稿');
-  assert.equal(response.artifact.name, '询盘回复草稿.md');
-  assert.match(runtimeText, /客户要CE认证/);
-  assert.match(runtimeText, /产品太阳能灯/);
+  for (const { text, expectedContext, expectedIssue } of cases) {
+    let runtimeText = '';
+    const response = await runNewConversationAgent({
+      text,
+      registry: createInquiryReplyRegistry(),
+      skillRuntime: {
+        async runGoal({ text }) {
+          runtimeText = text;
+          return {
+            ...createRuntimeResult(),
+            goal: {
+              matched: true,
+              trigger: 'natural_goal',
+              skillId: 'inquiry-reply-draft',
+              reason: '用户要回复客户认证要求。',
+            },
+            skill: {
+              id: 'inquiry-reply-draft',
+              displayName: '询盘回复草稿',
+              adapter: 'business-draft',
+              artifactType: 'markdown',
+            },
+            result: {
+              ok: true,
+              mode: 'business-draft',
+              outputPath: '/tmp/询盘回复草稿.md',
+              artifactName: '询盘回复草稿.md',
+            },
+            artifact: {
+              type: 'markdown',
+              name: '询盘回复草稿.md',
+              outputPath: '/tmp/询盘回复草稿.md',
+            },
+          };
+        },
+      },
+    });
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'goal-run');
+    assert.equal(response.taskTitle, '询盘回复草稿');
+    assert.equal(response.artifact.name, '询盘回复草稿.md');
+    assert.match(runtimeText, expectedIssue);
+    assert.match(runtimeText, expectedContext);
+  }
 });
 
 test('runNewConversationAgent asks for product context before replying to certification or audit requirements', async () => {
   const cases = [
     '客户要CE认证，帮我回一下',
     '客户要验厂，帮我回一下',
+    '客户问能不能做中性包装，帮我回一下',
+    '客户问产品CE认证，帮我回一下',
+    '客户问产品质保多久，帮我回一下',
+    '客户问产品能不能做中性包装，帮我回一下',
+    '客户问product warranty，帮我回一下',
+    '客户问product packaging，帮我回一下',
+    '客户问product private label，帮我回一下',
+    '客户问product packaging requirements，帮我回一下',
+    '客户问product after-sales，帮我回一下',
+    '客户问product private-label，帮我回一下',
+    '客户问product payment-terms，帮我回一下',
+    '客户问product lead-time，帮我回一下',
+    '客户问product factory-audit，帮我回一下',
+    '客户问product customisation，帮我回一下',
+    '客户问product package，帮我回一下',
+    '客户问product package-requirements，帮我回一下',
+    '客户问product neutral-package，帮我回一下',
+    '客户问product CE-cert，帮我回一下',
+    '客户问product CE cert，帮我回一下',
   ];
 
   for (const text of cases) {
