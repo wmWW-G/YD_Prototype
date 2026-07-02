@@ -21,6 +21,11 @@
   - sub agent 只读评估指出 P1:当前已有 `pendingTask` 时,用户说 `算了 / 先不做这个了` 会被当成补充资料进入 `needs-input-followup`,让新对话像被表单卡住。
   - 已修复:`runNewConversationAgent()` 在缺资料等待态识别明确取消语,返回 `task-cancelled / completed`,清掉 `context.pendingTask`,不调用 Runtime,后续完整新任务不会携带旧任务或 `补充资料` 拼接文本。
   - 新增红绿回归测试 `runNewConversationAgent cancels a pending needs-input task without carrying it into the next task`。
+- 区分产物解释追问和产物续改:
+  - sub agent 只读评估指出 P1:当前已有 Markdown/XLSX 产物时,用户问 `为什么这里要强调 MOQ 和交期?` 这类理解问题,旧逻辑会进入同任务续改并把问题写回产物,不像 Codex / Claude Code 那样先回答你问的内容。
+  - 已修复:`buildAgentFollowupResponse()` 增加解释类追问分支;`为什么 / 什么意思 / 解释一下 / why / explain` 且没有明确编辑意图时,只读取当前产物回答,返回 `followup / completed` 和 `artifact: null`,保留上下文里的当前产物,不改写文件。
+  - sub agent 复核后继续收紧边界:`能不能改成更短?` 必须仍按编辑续改产物,`请问为什么要改成更短?` 必须只解释不改文件;解释响应保存到 session 后仍保留当前产物指针,下一句可以继续修改、导出或保存。
+  - 新增红绿回归测试 `buildAgentFollowupResponse answers artifact explanation questions without revising markdown`、`buildAgentFollowupResponse treats edit questions as artifact revisions`、`buildAgentFollowupResponse treats why-change wording as explanation, not revision`、`runNewConversationAgent answers artifact why-written questions before matching a new skill` 和 `agent session store keeps current artifact after explanation follow-up with null response artifact`,并保留明确 `重写 / 修改 / 优化` 仍会续改产物的回归测试。
 
 ## 2026-07-01
 

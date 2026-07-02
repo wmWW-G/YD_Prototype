@@ -3573,7 +3573,7 @@ function shouldHandleAsCurrentArtifactFollowup(input = {}) {
  */
 export async function buildAgentFollowupResponse(input = {}) {
   const context = input.context || {};
-  const artifact = context.artifact || {};
+  const artifact = context.artifact || input.session?.context?.artifact || input.session?.artifact || {};
   const period = context.period || {};
   const artifactName = artifact.name || artifact.workbookName || '上一份业务产物';
   const taskTitle = resolveFollowupTaskTitle({
@@ -3598,6 +3598,61 @@ export async function buildAgentFollowupResponse(input = {}) {
     status: 'complete',
     type: 'plan.created',
   });
+
+  if (isArtifactExplanationQuestion(question)) {
+    const explanation = await buildArtifactExplanationAnswer({
+      artifact,
+      artifactName,
+      projectRoot: input.projectRoot,
+      question,
+    });
+    await emitFollowupProgress(input.onRuntimeEvent, {
+      status: 'complete',
+      type: 'observation.recorded',
+    });
+    await emitFollowupProgress(input.onRuntimeEvent, {
+      status: 'complete',
+      type: 'artifact.verified',
+    });
+    await emitFollowupProgress(input.onRuntimeEvent, {
+      status: 'complete',
+      type: 'run.completed',
+    });
+
+    const progress = buildArtifactExplanationProgress({ artifactName, question });
+    const activity = buildArtifactExplanationActivity({ artifactName, question });
+
+    return {
+      ok: true,
+      kind: 'followup',
+      sessionId: input.sessionId || createAgentSessionId(),
+      status: 'completed',
+      taskTitle,
+      artifact: null,
+      context: { ...context, artifact },
+      progress,
+      summary: `已解释 ${artifactName},未改动当前产物。`,
+      messages: [
+        {
+          id: messageId('assistant'),
+          role: 'assistant',
+          createdAt: new Date().toISOString(),
+          content: [
+            '我先解释，不改动当前产物。',
+            explanation,
+            details || '已沿用当前线程里的产物和上下文回答。',
+          ].filter(Boolean).join('\n'),
+          process: {
+            expanded: false,
+            steps: progress,
+            title: '同任务追问处理过程',
+          },
+          activity,
+        },
+      ],
+    };
+  }
+
   const revision = await reviseCurrentArtifactIfPossible({
     artifact,
     context,
@@ -3670,6 +3725,223 @@ export async function buildAgentFollowupResponse(input = {}) {
         artifact: responseArtifact || undefined,
       },
     ],
+  };
+}
+
+/**
+ * isArtifactExplanationQuestion 判断用户是在问当前产物,还是要求改当前产物。
+ *
+ * 作用：
+ * - Agent thread 里“为什么这么写 / 这是什么意思”应该得到解释,不能偷偷改文件。
+ * - “改一下 / 加一句 / 重写”仍然走续改产物。
+ *
+ * 参数：
+ * - text：用户本轮追问。
+ *
+ * 返回值：解释类追问返回 true。
+ * 可能抛出的异常：无。
+ */
+function isArtifactExplanationQuestion(text = '') {
+  const value = String(text || '').trim().toLowerCase();
+  if (!value) {
+    return false;
+  }
+
+  const hasExplanationCue = /为什么|为何|为啥|啥意思|什么意思|怎么理解|解释(?:一下)?|说明(?:一下)?|帮我看懂|这里指什么|why|what\s+does|explain|meaning/.test(value);
+  const hasDirectEditCommand = /(?:帮我|请你|直接|麻烦|把|给我|然后).{0,24}(?:优化|修改|调整|补充|补一句|加一句|增加|删掉|删除|改成|换成|写成|整理成|重写|重新写|重新生成|重来|再来|再写|另写|更礼貌|更正式|更短|更强硬)|(?:改一下|改下|优化一下|调一下|调整一下|加一句|补一句|重写一下|删掉|删除)|能不能.{0,18}(?:优化|修改|调整|补充|补一句|加一句|增加|删掉|删除|改成|换成|写成|整理成|重写|重新写|重新生成|更礼貌|更正式|更短|更强硬)/.test(value);
+  if (hasExplanationCue && !hasDirectEditCommand && !isChannelDraftOnlyRequest(value)) {
+    return true;
+  }
+
+  const hasEditIntent = /优化|修改|调整|补充|补一句|加一句|增加|删掉|删除|改成|换成|写成|整理成|重写|重新写|重新生成|重来|再来|再写|另写|另一版|换(?:个|种)说法|换(?:个|种)表达|版本|两版|多版|更礼貌|更正式|更短|更强硬|语气/.test(value);
+  if (hasEditIntent || isChannelDraftOnlyRequest(value)) {
+    return false;
+  }
+
+  return hasExplanationCue;
+}
+
+/**
+ * buildArtifactExplanationAnswer 基于当前产物给解释,但不写回文件。
+ *
+ * 作用：
+ * - 回答用户对当前材料的理解问题。
+ * - 尽量引用当前 Markdown 里的相关行,让回答有依据。
+ * - 只读取 `workbench/artifacts/` 下的文本产物;读不到时降级为基于线程上下文的解释。
+ *
+ * 参数：
+ * - input.artifact：当前线程绑定的产物摘要。
+ * - input.artifactName：用户可见产物名。
+ * - input.projectRoot：项目根目录。
+ * - input.question：用户问题。
+ *
+ * 返回值：用户可见解释文本。
+ * 可能抛出的异常：无；读取失败会降级。
+ */
+async function buildArtifactExplanationAnswer(input = {}) {
+  const question = String(input.question || '').trim();
+  const content = await readArtifactTextForExplanation({
+    artifact: input.artifact,
+    projectRoot: input.projectRoot,
+  });
+  const relevantLines = selectRelevantArtifactLines({
+    content,
+    question,
+  });
+  const mainPoint = buildArtifactQuestionMainPoint(question);
+  const evidenceLines = relevantLines.length
+    ? [
+      '当前产物里的相关依据:',
+      ...relevantLines.map((line) => `- ${line}`),
+    ].join('\n')
+    : `我没有直接改文件,只是沿用「${input.artifactName || '当前产物'}」和这次线程上下文解释这句话。`;
+
+  return [
+    `关于「${question}」: ${mainPoint}`,
+    evidenceLines,
+    '如果你接下来明确说“把这段改成……”或“加一句……”,我再继续修改当前产物。',
+  ].join('\n');
+}
+
+async function readArtifactTextForExplanation(input = {}) {
+  const artifact = input.artifact || {};
+  const outputPath = String(artifact.outputPath || '').trim();
+  if (!outputPath || !/\.(?:md|markdown|txt)$/i.test(outputPath)) {
+    return '';
+  }
+
+  try {
+    const projectRoot = input.projectRoot || process.cwd();
+    const filePath = path.isAbsolute(outputPath)
+      ? path.resolve(outputPath)
+      : path.resolve(projectRoot, outputPath);
+    const allowedRoot = path.resolve(projectRoot, 'workbench', 'artifacts');
+    if (!(filePath === allowedRoot || filePath.startsWith(`${allowedRoot}${path.sep}`))) {
+      return '';
+    }
+    return await readFile(filePath, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+function selectRelevantArtifactLines(input = {}) {
+  const content = String(input.content || '');
+  if (!content) {
+    return [];
+  }
+
+  const question = String(input.question || '');
+  const patterns = [];
+  if (/moq|起订|最小起订/i.test(question)) {
+    patterns.push(/moq|起订|最小起订/i);
+  }
+  if (/交期|lead\s*time|delivery/i.test(question)) {
+    patterns.push(/交期|lead\s*time|delivery/i);
+  }
+  if (/样品|sample/i.test(question)) {
+    patterns.push(/样品|sample/i);
+  }
+  if (/价格|报价|price|quote/i.test(question)) {
+    patterns.push(/价格|报价|price|quote/i);
+  }
+
+  const lines = content
+    .split(/\r?\n/u)
+    .map((line) => line.replace(/^#+\s*/u, '').replace(/^[-*]\s*/u, '').trim())
+    .filter((line) => line && !/^>?\s*(任务来源|生成时间)[:：]/u.test(line));
+  const matched = patterns.length
+    ? lines.filter((line) => patterns.some((pattern) => pattern.test(line)))
+    : [];
+
+  return (matched.length ? matched : lines).slice(0, 3);
+}
+
+function buildArtifactQuestionMainPoint(question = '') {
+  const value = String(question || '').toLowerCase();
+  if (/moq|起订/i.test(value) && /交期|lead\s*time|delivery/i.test(value)) {
+    return '这里强调 MOQ 和交期,是因为它们会直接影响客户能否继续推进:MOQ 决定试单门槛和报价方式,交期决定客户项目节奏、样品安排和后续承诺边界。';
+  }
+  if (/moq|起订/i.test(value)) {
+    return '这里强调 MOQ,是为了先确认客户能接受的试单门槛,避免后面报价和样品方案落不到真实订单上。';
+  }
+  if (/交期|lead\s*time|delivery/i.test(value)) {
+    return '这里强调交期,是为了先对齐客户项目时间表,避免过早承诺无法兑现的生产或发货节奏。';
+  }
+  if (/价格|报价|price|quote/i.test(value)) {
+    return '这里关注价格或报价,是为了把客户预算、数量、贸易条款和让步边界先对齐,避免草稿直接变成不安全承诺。';
+  }
+  return '这部分是在解释当前材料里的业务判断依据,帮助你看懂为什么这样组织内容,不是在替你外发或保存。';
+}
+
+function buildArtifactExplanationProgress(input = {}) {
+  const artifactName = input.artifactName || '当前业务产物';
+  const question = input.question || '解释当前产物';
+  return [
+    {
+      detail: `已识别为对「${artifactName}」的理解追问。`,
+      label: '识别任务',
+      status: 'complete',
+    },
+    {
+      detail: '已沿用当前产物和上一轮任务上下文,不会重新采集外部数据。',
+      label: '核对资料',
+      status: 'complete',
+    },
+    {
+      detail: `已围绕「${question}」整理解释,不改写文件。`,
+      label: '整理回答',
+      status: 'complete',
+    },
+    {
+      detail: '已确认本轮只是解释当前材料,当前产物保持不变。',
+      label: '检查结果',
+      status: 'complete',
+    },
+  ];
+}
+
+function buildArtifactExplanationActivity(input = {}) {
+  const artifactName = input.artifactName || '当前业务产物';
+  const question = input.question || '解释当前产物';
+  return {
+    expanded: false,
+    items: [
+      {
+        detail: `识别为继续理解「${artifactName}」。`,
+        kind: 'goal',
+        nextAction: '核对资料',
+        observation: '同一任务追问',
+        status: 'complete',
+        title: '识别任务',
+      },
+      {
+        detail: '沿用当前线程里的产物和上下文。',
+        kind: 'action',
+        nextAction: '整理回答',
+        observation: '资料已沿用',
+        status: 'complete',
+        title: '核对资料',
+      },
+      {
+        detail: `回答「${question}」,不写回产物文件。`,
+        kind: 'observation',
+        nextAction: '检查结果',
+        observation: '已整理解释',
+        status: 'complete',
+        title: '整理回答',
+      },
+      {
+        detail: '当前产物保持不变,后续仍可继续修改或导出。',
+        kind: 'observation',
+        nextAction: '',
+        observation: '可继续追问',
+        status: 'complete',
+        title: '检查结果',
+      },
+    ],
+    source: 'agent-followup',
+    title: '本次操作记录',
   };
 }
 

@@ -6651,6 +6651,150 @@ test('buildAgentFollowupResponse revises the current markdown artifact for same-
   }
 });
 
+test('buildAgentFollowupResponse answers artifact explanation questions without revising markdown', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-followup-artifact-question-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '开发信草稿.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(
+      artifactPath,
+      [
+        '# 开发信草稿',
+        '',
+        '## 英文开发信草稿',
+        '',
+        'Hi {{Customer Name}},',
+        '',
+        'Could you confirm your MOQ and lead time requirement?',
+        '',
+        'This helps us prepare a suitable sample plan.',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const artifact = {
+      type: 'markdown',
+      name: '开发信草稿.md',
+      outputPath: artifactPath,
+    };
+    const response = await buildAgentFollowupResponse({
+      projectRoot,
+      sessionId: 'agent-session-20260702-artifact-question',
+      text: '为什么这里要强调 MOQ 和交期？',
+      context: { artifact },
+      session: { context: { artifact } },
+    });
+    const afterQuestion = await readFile(artifactPath, 'utf8');
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'followup');
+    assert.equal(response.status, 'completed');
+    assert.equal(response.artifact, null);
+    assert.equal(response.context.artifact.outputPath, artifactPath);
+    assert.match(response.summary, /已解释/);
+    assert.match(response.messages[0].content, /不改动当前产物/);
+    assert.match(response.messages[0].content, /MOQ/);
+    assert.match(response.messages[0].content, /交期/);
+    assert.doesNotMatch(response.messages[0].content, /已按补充要求更新/);
+    assert.equal(afterQuestion, [
+      '# 开发信草稿',
+      '',
+      '## 英文开发信草稿',
+      '',
+      'Hi {{Customer Name}},',
+      '',
+      'Could you confirm your MOQ and lead time requirement?',
+      '',
+      'This helps us prepare a suitable sample plan.',
+    ].join('\n'));
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('buildAgentFollowupResponse treats edit questions as artifact revisions', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-followup-edit-question-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '开发信草稿.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(
+      artifactPath,
+      [
+        '# 开发信草稿',
+        '',
+        'Could you confirm your MOQ and lead time requirement?',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const artifact = {
+      type: 'markdown',
+      name: '开发信草稿.md',
+      outputPath: artifactPath,
+    };
+    const response = await buildAgentFollowupResponse({
+      projectRoot,
+      sessionId: 'agent-session-20260702-edit-question',
+      text: '能不能改成更短？',
+      context: { artifact },
+      session: { context: { artifact } },
+    });
+    const updated = await readFile(artifactPath, 'utf8');
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'followup');
+    assert.equal(response.artifact.outputPath, artifactPath);
+    assert.match(response.messages[0].content, /已按补充要求更新/);
+    assert.match(updated, /本次补充优化/);
+    assert.match(updated, /能不能改成更短？/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('buildAgentFollowupResponse treats why-change wording as explanation, not revision', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-followup-why-change-question-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '开发信草稿.md');
+  const original = [
+    '# 开发信草稿',
+    '',
+    'Could you confirm your MOQ and lead time requirement?',
+  ].join('\n');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(artifactPath, original, 'utf8');
+
+    const artifact = {
+      type: 'markdown',
+      name: '开发信草稿.md',
+      outputPath: artifactPath,
+    };
+    const response = await buildAgentFollowupResponse({
+      projectRoot,
+      sessionId: 'agent-session-20260702-why-change-question',
+      text: '请问为什么要改成更短？',
+      context: { artifact },
+      session: { context: { artifact } },
+    });
+    const afterQuestion = await readFile(artifactPath, 'utf8');
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'followup');
+    assert.equal(response.artifact, null);
+    assert.match(response.messages[0].content, /不改动当前产物/);
+    assert.doesNotMatch(response.messages[0].content, /已按补充要求更新/);
+    assert.equal(afterQuestion, original);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('buildAgentFollowupResponse updates composite deal sections in the current markdown artifact', async () => {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-followup-composite-sections-'));
   const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
@@ -6755,6 +6899,57 @@ test('runNewConversationAgent treats rewrite wording as current artifact follow-
     assert.match(response.messages[0].content, /已按补充要求更新/);
     assert.match(updated, /本次补充优化/);
     assert.match(updated, /重写一下开发信，更直接一点/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('runNewConversationAgent answers artifact why-written questions before matching a new skill', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'yingdan-followup-question-router-'));
+  const artifactDir = path.join(projectRoot, 'workbench', 'artifacts', 'run-1');
+  const artifactPath = path.join(artifactDir, '开发信草稿.md');
+
+  try {
+    await mkdir(artifactDir, { recursive: true });
+    await writeFile(
+      artifactPath,
+      [
+        '# 开发信草稿',
+        '',
+        'Could you confirm your MOQ and lead time requirement?',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const artifact = {
+      type: 'markdown',
+      name: '开发信草稿.md',
+      outputPath: artifactPath,
+    };
+    const response = await runNewConversationAgent({
+      projectRoot,
+      sessionId: 'agent-session-20260702-artifact-question-router',
+      text: '为什么这封开发信写成这样，要强调 MOQ 和交期？',
+      context: { artifact },
+      session: { context: { artifact } },
+      registry: createEmailRegistry(),
+      skillRuntime: {
+        async runGoal() {
+          throw new Error('runtime should not start a new email skill for artifact explanation questions');
+        },
+      },
+    });
+    const afterQuestion = await readFile(artifactPath, 'utf8');
+
+    assert.equal(response.ok, true);
+    assert.equal(response.kind, 'followup');
+    assert.equal(response.artifact, null);
+    assert.match(response.messages[0].content, /不改动当前产物/);
+    assert.equal(afterQuestion, [
+      '# 开发信草稿',
+      '',
+      'Could you confirm your MOQ and lead time requirement?',
+    ].join('\n'));
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }

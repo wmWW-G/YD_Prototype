@@ -124,6 +124,70 @@ test('agent session store preserves prior context when follow-up response has no
   }
 });
 
+test('agent session store keeps current artifact after explanation follow-up with null response artifact', async () => {
+  const fixture = await withSessionStore();
+
+  try {
+    const sessionId = 'agent-session-20260702-explanation-followup';
+    const artifact = {
+      name: '开发信草稿.md',
+      outputPath: '/tmp/workbench/artifacts/run-1/开发信草稿.md',
+      type: 'markdown',
+    };
+
+    await fixture.store.saveTurn({
+      sessionId,
+      userText: '写个 follow up 给德国客户',
+      response: {
+        artifact,
+        context: { artifact },
+        kind: 'goal-run',
+        messages: [
+          {
+            id: 'assistant-goal-run',
+            role: 'assistant',
+            content: '已生成开发信草稿。',
+            createdAt: '2026-07-02T10:00:00.000Z',
+            artifact,
+          },
+        ],
+        sessionId,
+        status: 'completed',
+      },
+    });
+
+    await fixture.store.saveTurn({
+      sessionId,
+      userText: '为什么这里要强调 MOQ 和交期？',
+      response: {
+        artifact: null,
+        context: { artifact },
+        kind: 'followup',
+        messages: [
+          {
+            id: 'assistant-explanation',
+            role: 'assistant',
+            content: '我先解释，不改动当前产物。',
+            createdAt: '2026-07-02T10:01:00.000Z',
+          },
+        ],
+        sessionId,
+        status: 'completed',
+        summary: '已解释 开发信草稿.md,未改动当前产物。',
+      },
+    });
+
+    const session = await fixture.store.read(sessionId);
+
+    assert.equal(session.artifact.outputPath, artifact.outputPath);
+    assert.equal(session.context.artifact.outputPath, artifact.outputPath);
+    assert.equal(session.skillAgentResult.artifact.outputPath, artifact.outputPath);
+    assert.equal(session.summary, '已解释 开发信草稿.md,未改动当前产物。');
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('agent session store writes a readable JSON file with the latest artifact summary', async () => {
   const fixture = await withSessionStore();
 
