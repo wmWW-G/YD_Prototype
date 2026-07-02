@@ -101,6 +101,32 @@ function createInquiryReplyRegistry(options = {}) {
   };
 }
 
+function createMarketResearchRegistry() {
+  const marketResearchSkill = {
+    id: 'market-research',
+    displayName: '市场调研',
+    adapter: 'business-draft',
+    artifactType: 'markdown',
+    commandAliases: ['market-research'],
+    goalMatchers: [
+      {
+        requiresAll: ['市场调研'],
+        requiresAny: ['做', '生成', '分析', '整理', '调研'],
+        reason: '用户要做市场调研,匹配市场调研任务。',
+      },
+      {
+        requiresAll: ['市场'],
+        requiresAny: ['机会', '渠道', '竞品', '客户类型', '进入策略'],
+        reason: '用户要分析目标市场机会,匹配市场调研任务。',
+      },
+    ],
+  };
+  return {
+    skills: [marketResearchSkill],
+    byId: new Map([[marketResearchSkill.id, marketResearchSkill]]),
+  };
+}
+
 async function writeInquiryReplySkillProject(projectRoot, options = {}) {
   const skill = createInquiryReplyRegistry(options).skills[0];
   const registryDir = path.join(projectRoot, 'workbench', 'registry');
@@ -381,6 +407,83 @@ test('runNewConversationAgent asks for missing business context before generatin
   assert.deepEqual(response.progress.map((item) => item.label), ['识别任务', '核对资料', '等待补充']);
   assert.deepEqual(response.messages[0].process.steps.map((item) => item.label), ['识别任务', '核对资料', '等待补充']);
   assert.deepEqual(progressEvents, ['goal.received', 'skill.loaded', 'run.needs_input']);
+});
+
+test('runNewConversationAgent cancels a pending needs-input task without carrying it into the next task', async () => {
+  const first = await runNewConversationAgent({
+    text: '写一封开发信',
+    registry: createEmailRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should not run while the email task is missing context');
+      },
+    },
+  });
+
+  let runtimeCalledDuringCancel = false;
+  const second = await runNewConversationAgent({
+    text: '算了，先不做这个了',
+    sessionId: first.sessionId,
+    context: first.context,
+    registry: createEmailRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        runtimeCalledDuringCancel = true;
+        throw new Error('runtime should not run when cancelling a pending task');
+      },
+    },
+  });
+
+  let runtimeText = '';
+  const third = await runNewConversationAgent({
+    text: '写一封开发信给德国采购商，产品是太阳能路灯，重点问MOQ和交期',
+    sessionId: first.sessionId,
+    context: second.context,
+    registry: createEmailRegistry(),
+    skillRuntime: {
+      async runGoal(input = {}) {
+        runtimeText = input.text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'cold-email-draft',
+            reason: '用户取消旧等待任务后重新开始开发信任务。',
+          },
+          skill: {
+            id: 'cold-email-draft',
+            displayName: '开发信草稿',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/开发信草稿.md',
+            artifactName: '开发信草稿.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '开发信草稿.md',
+            outputPath: '/tmp/开发信草稿.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(first.kind, 'needs-input');
+  assert.equal(second.kind, 'task-cancelled');
+  assert.equal(second.status, 'completed');
+  assert.equal(runtimeCalledDuringCancel, false);
+  assert.equal(Object.hasOwn(second.context, 'pendingTask'), false);
+  assert.match(second.messages[0].content, /已取消/);
+  assert.match(second.messages[0].content, /可以直接开始新任务/);
+  assert.equal(third.kind, 'goal-run');
+  assert.equal(third.artifact.name, '开发信草稿.md');
+  assert.equal(runtimeText, '写一封开发信给德国采购商，产品是太阳能路灯，重点问MOQ和交期');
+  assert.doesNotMatch(runtimeText, /算了|补充资料|写一封开发信；/);
 });
 
 test('runNewConversationAgent writes a runtime checkpoint when a matched task needs business input', async () => {
@@ -3235,6 +3338,89 @@ test('runNewConversationAgent executes a matched email draft when business conte
   assert.equal(response.taskTitle, '开发信草稿');
   assert.equal(response.artifact.name, '开发信草稿.md');
   assert.equal(runtimeText, '写一封开发信给德国采购商，产品是太阳能路灯，重点问MOQ和交期');
+});
+
+test('runNewConversationAgent asks for product and target market before market research', async () => {
+  const response = await runNewConversationAgent({
+    text: '帮我做市场调研',
+    registry: createMarketResearchRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should wait for product and market before market research');
+      },
+    },
+  });
+
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '市场调研');
+  assert.equal(response.context.pendingTask.skillId, 'market-research');
+  assert.deepEqual(response.messages[0].needsInput.items, ['产品或核心卖点', '目标市场或客户所在国家']);
+});
+
+test('runNewConversationAgent does not treat bare English market research wording as a target market', async () => {
+  const response = await runNewConversationAgent({
+    text: 'do market research for solar lights',
+    registry: createMarketResearchRegistry(),
+    skillRuntime: {
+      async runGoal() {
+        throw new Error('runtime should wait for a real target market before English market research');
+      },
+    },
+  });
+
+  assert.equal(response.kind, 'needs-input');
+  assert.equal(response.status, 'waiting');
+  assert.equal(response.taskTitle, '市场调研');
+  assert.equal(response.context.pendingTask.skillId, 'market-research');
+  assert.deepEqual(response.messages[0].needsInput.items, ['目标市场或客户所在国家']);
+});
+
+test('runNewConversationAgent executes market research when product and target market are enough', async () => {
+  let runtimeText = '';
+
+  const response = await runNewConversationAgent({
+    text: '帮我做德国市场调研，产品是太阳能路灯，目标客户是批发商',
+    registry: createMarketResearchRegistry(),
+    skillRuntime: {
+      async runGoal(input = {}) {
+        runtimeText = input.text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'market-research',
+            reason: '已按业务目标匹配市场调研。',
+          },
+          skill: {
+            id: 'market-research',
+            displayName: '市场调研',
+            adapter: 'business-draft',
+            artifactType: 'markdown',
+          },
+          result: {
+            ok: true,
+            mode: 'business-draft',
+            outputPath: '/tmp/市场调研.md',
+            artifactName: '市场调研.md',
+          },
+          artifact: {
+            type: 'markdown',
+            name: '市场调研.md',
+            outputPath: '/tmp/市场调研.md',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.status, 'completed');
+  assert.equal(response.skillId, 'market-research');
+  assert.equal(response.taskTitle, '市场调研');
+  assert.equal(response.artifact.name, '市场调研.md');
+  assert.equal(runtimeText, '帮我做德国市场调研，产品是太阳能路灯，目标客户是批发商');
 });
 
 test('runNewConversationAgent carries prior thread facts into a new matched task in the same session', async () => {

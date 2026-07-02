@@ -18,6 +18,7 @@ async function withRegistryProject() {
   const coldEmailDir = path.join(projectRoot, 'workbench', 'skills', 'cold-email-draft');
   const followupDir = path.join(projectRoot, 'workbench', 'skills', 'customer-followup-plan');
   const inquiryReplyDir = path.join(projectRoot, 'workbench', 'skills', 'inquiry-reply-draft');
+  const marketResearchDir = path.join(projectRoot, 'workbench', 'skills', 'market-research');
   const quotationDir = path.join(projectRoot, 'workbench', 'skills', 'quotation-sheet');
 
   await mkdir(registryDir, { recursive: true });
@@ -25,6 +26,7 @@ async function withRegistryProject() {
   await mkdir(coldEmailDir, { recursive: true });
   await mkdir(followupDir, { recursive: true });
   await mkdir(inquiryReplyDir, { recursive: true });
+  await mkdir(marketResearchDir, { recursive: true });
   await mkdir(quotationDir, { recursive: true });
   await writeFile(
     path.join(registryDir, 'skills.json'),
@@ -148,6 +150,31 @@ async function withRegistryProject() {
     'utf8',
   );
   await writeFile(
+    path.join(marketResearchDir, 'skill.json'),
+    `${JSON.stringify(
+      {
+        id: 'market-research',
+        displayName: '市场调研',
+        description: '根据产品和目标市场生成外贸市场机会、渠道、风险和下一步动作。',
+        adapter: 'business-draft',
+        artifactType: 'markdown',
+        commandAliases: ['market-research'],
+        goalMatchers: [
+          { requiresAll: ['市场调研'], requiresAny: ['做', '生成', '分析', '整理', '调研'], confidence: 0.88 },
+          { requiresAll: ['市场'], requiresAny: ['机会', '渠道', '竞品', '客户类型', '进入策略'], confidence: 0.84 },
+        ],
+        policyActions: ['skill.read_external_package', 'artifact.write_markdown'],
+        plan: [
+          { id: 'check_context', label: '核对资料', detail: '核对产品、目标市场和客户类型。' },
+          { id: 'write_research', label: '生成材料', detail: '生成市场机会、渠道和风险判断。' },
+        ],
+      },
+      null,
+      2,
+    )}\n`,
+    'utf8',
+  );
+  await writeFile(
     path.join(quotationDir, 'skill.json'),
     `${JSON.stringify(
       {
@@ -247,7 +274,7 @@ test('loadSkillRegistry merges registry skills with skill directories so a secon
 
     assert.deepEqual(
       registry.skills.map((skill) => skill.id).sort(),
-      ['alibaba-inquiry-meeting', 'cold-email-draft', 'customer-followup-plan', 'inquiry-reply-draft', 'quotation-sheet', 'supplier-brief'],
+      ['alibaba-inquiry-meeting', 'cold-email-draft', 'customer-followup-plan', 'inquiry-reply-draft', 'market-research', 'quotation-sheet', 'supplier-brief'],
     );
     assert.equal(registry.byId.get('supplier-brief').adapter, 'mock-artifact');
     assert.equal(registry.byId.get('supplier-brief').source.endsWith('workbench/skills/supplier-brief/skill.json'), true);
@@ -301,6 +328,22 @@ test('matchSkillForGoal matches natural language and explicit commands from regi
     assert.equal(priceObjection.matched, true);
     assert.equal(priceObjection.skill.id, 'customer-followup-plan');
 
+    const marketResearch = matchSkillForGoal({ registry, text: '帮我做德国市场调研，产品是太阳能路灯' });
+    assert.equal(marketResearch.matched, true);
+    assert.equal(marketResearch.skill.id, 'market-research');
+
+    const quotationWithTargetMarket = matchSkillForGoal({ registry, text: '目标市场德国，客户问报价，产品太阳能路灯，数量500套，单价20美元，FOB深圳，帮我做报价单' });
+    assert.equal(quotationWithTargetMarket.matched, true);
+    assert.equal(quotationWithTargetMarket.skill.id, 'quotation-sheet');
+
+    const quoteEmailWithTargetMarket = matchSkillForGoal({ registry, text: '客户问报价邮件怎么写，目标市场德国，产品太阳能路灯，数量500套，单价20美元，FOB深圳' });
+    assert.equal(quoteEmailWithTargetMarket.matched, true);
+    assert.equal(quoteEmailWithTargetMarket.skill.id, 'cold-email-draft');
+
+    const followupWithMarketOpportunity = matchSkillForGoal({ registry, text: '这个德国客户问市场机会和渠道政策，产品太阳能路灯，做下一步推进计划' });
+    assert.equal(followupWithMarketOpportunity.matched, true);
+    assert.equal(followupWithMarketOpportunity.skill.id, 'customer-followup-plan');
+
     const casualReply = matchSkillForGoal({ registry, text: '客户发来价格和交期问题，帮我回一下，产品太阳能路灯' });
     assert.equal(casualReply.matched, true);
     assert.equal(casualReply.skill.id, 'inquiry-reply-draft');
@@ -328,6 +371,37 @@ test('matchSkillForGoal matches natural language and explicit commands from regi
     const quotationEmail = matchSkillForGoal({ registry, text: '帮我写报价邮件，客户是德国采购商，产品太阳能路灯，数量500套，单价20美元，FOB深圳' });
     assert.equal(quotationEmail.matched, true);
     assert.equal(quotationEmail.skill.id, 'cold-email-draft');
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime generates a market research artifact from product and target market', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({ text: '帮我做德国市场调研，产品是太阳能路灯，目标客户是批发商' });
+    const content = await readFile(result.artifact.outputPath, 'utf8');
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'market-research');
+    assert.equal(result.artifact.type, 'markdown');
+    assert.match(content, /# 市场调研/);
+    assert.match(content, /## 市场机会判断/);
+    assert.match(content, /## 渠道与客户类型/);
+    assert.match(content, /## 风险与验证点/);
+    assert.match(content, /## 下一步动作/);
+    assert.match(content, /太阳能路灯/);
+    assert.match(content, /德国/);
+    assert.match(content, /批发商/);
+    assert.match(content, /依据/);
+    assert.match(content, /外发或保存前仍需确认/);
+    assert.equal(result.artifact.validation.evidence.coverage, 'complete');
   } finally {
     await fixture.cleanup();
   }

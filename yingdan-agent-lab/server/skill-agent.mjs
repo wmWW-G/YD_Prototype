@@ -182,6 +182,14 @@ export async function runNewConversationAgent(options = {}) {
     context = contextWithoutPendingConfirmation;
   }
 
+  if (options.sessionId && context.pendingTask && isPendingTaskCancelMessage(text)) {
+    return buildPendingTaskCancelledResponse({
+      context,
+      pendingTask: context.pendingTask,
+      sessionId: options.sessionId,
+    });
+  }
+
   const riskyAction = detectRiskyAction(text);
   if (riskyAction) {
     if (!context.pendingTask && shouldGenerateNewArtifactBeforeRiskConfirmation({ match, riskyAction, text })) {
@@ -877,6 +885,10 @@ function businessContextRequirementsForSkill(skillId = '') {
       { signal: 'inquiry', label: '询盘原文或客户问题' },
       { signal: 'replyProductContext', label: '产品资料或报价边界' },
     ],
+    'market-research': [
+      { signal: 'productCoreContext', label: '产品或核心卖点' },
+      { signal: 'market', label: '目标市场或客户所在国家' },
+    ],
     'quotation-sheet': [
       { signal: 'quoteProduct', label: '产品资料' },
       { signal: 'quantity', label: '数量' },
@@ -964,7 +976,8 @@ function detectBusinessSignals(text = '') {
   const lower = value.toLowerCase();
   const compact = value.replace(/\s/g, '');
   const quotationTableFields = extractQuotationTableFields(value);
-  const marketPattern = /德国|美国|巴西|英国|法国|意大利|西班牙|加拿大|澳大利亚|印度|越南|泰国|日本|韩国|中东|欧洲|北美|南美|非洲|东南亚|germany|usa|brazil|uk|france|india|vietnam|europe|market/i;
+  const countryOrRegionPattern = /德国|美国|巴西|英国|法国|意大利|西班牙|加拿大|澳大利亚|印度|越南|泰国|日本|韩国|中东|欧洲|北美|南美|非洲|东南亚|germany|usa|brazil|uk|france|india|vietnam|europe|middle\s+east|north\s+america|south\s+america|southeast\s+asia/i;
+  const marketPattern = countryOrRegionPattern;
   const productPattern = /产品|规格|型号|卖点|报价|价格|底价|moq|起订|小批量|小单|试单|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量|售后|库存|材质|尺寸|quantity|price|quote|payment\s+terms|credit\s+terms/i;
   const inquiryPattern = /询盘|邮件|聊天|客户(?:说|问|要|要求|需要|想要)|买家(?:说|问|要|要求|需要|想要)|问了|问|需求|投诉|异议|报价|回复|回信|沉默|订单|认证|合规|证书|验厂|资质|inquiry|rfq|reply|certification|certificate|compliance|factory\s+audit|supplier\s+audit/i;
   const currentIssuePattern = /(?:客户|买家|采购商|客人|对方)(?:说|问|提到|要求|抱怨|投诉|反馈)[^，。,.!?！？]{0,24}(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|合规|证书|验厂|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|质量|售后|异议|投诉|抱怨|沉默|不回|已读不回|嫌贵|太贵|便宜点|优惠|折扣|代理|渠道|cert[-\s]*requirements?|ce[-\s]?cert)|问了.+|问.*(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|合规|证书|验厂|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|质量|售后|便宜点|优惠|cert[-\s]*requirements?|ce[-\s]?cert)|投诉|抱怨|异议|沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|卡点|嫌贵|太贵|贵了|价格(?:太)?高|便宜点|优惠|砍价|压价|还价|议价|让价|降价|折扣|报价|价格|底价|moq|起订|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量(?:不行|问题|投诉)?|货有问题|售后|认证|合规|证书|验厂|厂审|工厂审核|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|quantity|price|quote|small\s+(?:trial\s+)?order|trial\s+order|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights|too\s+expensive|price\s+too\s+high|better\s+price|lower\s+price|discount|payment\s+terms|credit\s+terms|quality\s+(?:issue|complaint|problem)|after[-\s]?sales|certification|certificate|cert[-\s]*requirements?|ce[-\s]?cert|compliance|\bce\b|rohs|warranty|guarantee|private\s+label|custom\s+logo|customi[sz]ation|installation|manual|amazon\s*fba|factory\s+audit|factory\s+inspection|supplier\s+audit/i;
@@ -1622,6 +1635,35 @@ function isCancelMessage(text = '', pendingConfirmation = {}) {
   const exactCancelTexts = ['取消', '取消这一步', '先不', '先不要', '先不用', '不要', '不用', '先不导出', '先不写入', '不要导出', '不要写入', '停止'];
   return exactCancelTexts.includes(value) ||
     hasNaturalCancelIntent(value, pendingConfirmation);
+}
+
+/**
+ * isPendingTaskCancelMessage 判断用户是否要放弃当前缺资料等待任务。
+ *
+ * 作用：
+ * - needs-input 等待的是业务资料,不是风险确认卡。
+ * - 用户说“算了 / 先不做这个了 / 不用了”时应结束当前等待,不能把这句话拼进 Runtime 输入。
+ * - 这里刻意只接受明确放弃当前任务的话,避免“不要太正式”这类内容调整被误取消。
+ *
+ * 参数：
+ * - text：用户本轮输入。
+ *
+ * 返回值：boolean,true 表示取消当前 pendingTask。
+ * 可能抛出的异常：无。
+ */
+function isPendingTaskCancelMessage(text = '') {
+  const value = normalizeConfirmationText(text);
+  if (!value) {
+    return false;
+  }
+  const exactCancelTexts = ['算了', '不用了', '不做了', '先不做', '先不做了', '先停', '先暂停', '取消', '取消任务', '放弃'];
+  if (exactCancelTexts.includes(value)) {
+    return true;
+  }
+  return /^(?:算了|不用了|不做了|先不做|先停|先暂停|取消|放弃)(?:这个|这次|当前)?(?:任务|需求|事情)?(?:了|吧)?$/u.test(value) ||
+    /^算了(?:先)?(?:不做|不用|取消|放弃)(?:这个|这次|当前)?(?:任务|需求|事情)?(?:了|吧)?$/u.test(value) ||
+    /^(?:先)?不做(?:这个|这次|当前)?(?:任务|需求|事情)?(?:了|吧)?$/u.test(value) ||
+    /^(?:这个|这次|当前)?(?:任务|需求|事情)(?:先)?(?:不做了|不用了|取消|放弃)$/u.test(value);
 }
 
 function normalizeConfirmationText(text = '') {
@@ -2878,6 +2920,43 @@ function buildConfirmationCancelledResponse(input = {}) {
         id: messageId('assistant'),
         role: 'assistant',
         content: `已取消「${label}」。我会留在当前任务里,不保存、不导出、不外发,也不会调用付费能力。你可以继续补充或调整这次材料。`,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  };
+}
+
+/**
+ * buildPendingTaskCancelledResponse 结束当前缺资料等待任务。
+ *
+ * 作用：
+ * - 清掉 pendingTask,让下一句话可以作为干净的新任务进入 Runtime。
+ * - 不调用 Runtime,不保存、不导出、不外发。
+ * - 给用户一个可见的收束消息,说明这次等待已取消。
+ *
+ * 参数：
+ * - input.context：当前线程上下文。
+ * - input.pendingTask：被取消的等待任务。
+ * - input.sessionId：当前 session id。
+ *
+ * 返回值：task-cancelled 响应。
+ * 可能抛出的异常：无。
+ */
+function buildPendingTaskCancelledResponse(input = {}) {
+  const pendingTask = input.pendingTask || {};
+  const taskName = pendingTask.skillName || pendingTask.originalText || '这次任务';
+  const { pendingTask: _cancelledPendingTask, ...contextWithoutPendingTask } = input.context || {};
+  return {
+    ok: true,
+    kind: 'task-cancelled',
+    sessionId: input.sessionId || createAgentSessionId(),
+    status: 'completed',
+    context: contextWithoutPendingTask,
+    messages: [
+      {
+        id: messageId('assistant'),
+        role: 'assistant',
+        content: `已取消「${taskName}」。我不会把这句话并入刚才的任务,也不会生成、保存、导出或外发任何材料。你可以直接开始新任务。`,
         createdAt: new Date().toISOString(),
       },
     ],

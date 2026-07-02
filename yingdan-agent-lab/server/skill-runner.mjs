@@ -936,6 +936,53 @@ function buildBusinessDraftMarkdown({ skill, userText }) {
     ].join('\n');
   }
 
+  if (skill.id === 'market-research') {
+    const product = signals.productChinese || '该产品';
+    const market = signals.countryChinese || '目标市场';
+    const marketEnglish = signals.countryEnglish || market;
+    const productEnglish = signals.productEnglish || product;
+
+    return [
+      `# ${title}`,
+      '',
+      `> 任务来源: ${cleanInput}`,
+      `> 生成时间: ${generatedAt}`,
+      '',
+      '## 市场机会判断',
+      '',
+      `围绕${product}进入${market},当前可以先做机会假设和验证清单,不能在缺少真实询盘、竞品价格和渠道反馈时直接下确定结论。`,
+      '',
+      '## 依据',
+      '',
+      `- 用户目标: ${cleanInput}`,
+      signals.productChinese ? `- 产品: ${signals.productChinese}` : '- 产品暂未明确。',
+      signals.countryChinese ? `- 客户/市场: ${signals.countryChinese}` : '- 目标市场暂未明确。',
+      signals.concernsChinese.length ? `- 已识别关注点: ${signals.concernsChinese.join('、')}` : '- 关注点暂未明确。',
+      ...buildBusinessFactLines(signals),
+      '- 市场调研只生成本地分析材料,不会自动采购数据、外发邮件或写入客户档案。',
+      '',
+      '## 渠道与客户类型',
+      '',
+      `- 优先客户: 先验证${market}里批发商、进口商、工程商、平台卖家或区域经销商是否匹配${product}。`,
+      '- 渠道顺序: 先找现有询盘和客户记录,再看竞品页面、B2B 平台、展会名单和本地分销渠道。',
+      '- 触达方向: 用应用场景、起订量、认证资料、交期和样品方案做第一轮验证。',
+      '',
+      '## 风险与验证点',
+      '',
+      `- 准入风险: ${market}可能有认证、包装、质保或本地法规要求,需要逐项确认。`,
+      `- 价格风险: ${productEnglish} in ${marketEnglish} market 需要结合竞品价格、运输成本和订单量判断,不能只按单价比较。`,
+      '- 需求风险: 如果没有客户原话或真实询盘,只能作为初筛方向,不能直接判定市场一定可做。',
+      '',
+      '## 下一步动作',
+      '',
+      '1. 收集 5-10 个目标客户或竞品样本,记录国家、渠道、价格段、认证和卖点。',
+      '2. 把客户类型分成进口商、批发商、工程商、平台卖家和终端品牌方。',
+      '3. 针对最高优先级客户准备一版开发信或询盘回复草稿。',
+      '4. 外发或保存前仍需确认客户名单、邮件正文、附件和客户档案目标。',
+      '',
+    ].join('\n');
+  }
+
   const replyFocus = signals.concernsEnglish.length
     ? `To prepare an accurate reply on ${joinEnglishList(signals.concernsEnglish)}, could you please confirm the target quantity, required specification, destination country, packaging needs, and expected delivery time?`
     : 'To prepare a more accurate quotation, could you please confirm the target quantity, required specification, destination country, packaging needs, and expected delivery time?';

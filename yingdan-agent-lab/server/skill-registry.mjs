@@ -203,11 +203,15 @@ function scoreGoalMatcher(input = {}) {
   const skill = input.skill || {};
   const matcher = input.matcher || {};
   const text = String(input.text || '').toLowerCase();
-  const hasEmailDraftIntent = /开发信|开发邮件|cold\s*email|首次开发|新客|写.*(?:邮件|email|follow\s*up|跟进)|准备.*(?:邮件|email|follow\s*up|跟进)|生成.*(?:邮件|email|follow\s*up|跟进)/.test(text);
+  const hasQuoteEmailIntent = /报价邮件|报价.*(?:邮件|email|mail)|(?:邮件|email|mail).*报价|quote\s+(?:email|mail)|quotation\s+(?:email|mail)/.test(text);
+  const hasEmailDraftIntent =
+    hasQuoteEmailIntent ||
+    /开发信|开发邮件|cold\s*email|首次开发|新客|写.*(?:邮件|email|follow\s*up|跟进)|准备.*(?:邮件|email|follow\s*up|跟进)|生成.*(?:邮件|email|follow\s*up|跟进)/.test(text);
   const hasReplyIntent = /怎么回|回复|回信|reply|回一下|回客户|帮.*回/.test(text);
   const hasEmailIntent = /邮件|email|mail/.test(text);
   const hasOutboundSendIntent = /发给|发送给|外发|send\s+to|send/.test(text);
   const hasCompositeDealIntent = isCompositeDealIntent(text);
+  const hasMarketResearchIntent = /市场调研|市场分析|market\s+research|market\s+analysis|go[-\s]?to[-\s]?market/.test(text);
   // 报价、报价邮件、回复客户、外发给客户是四个不同动作；这里只给“生成报价单”类说法加分。
   const hasQuotationSheetIntent =
     /报价单|做报价|生成报价|整理报价|报价给|客户问报价|客户要报价|pi|proforma/.test(text) &&
@@ -222,6 +226,9 @@ function scoreGoalMatcher(input = {}) {
   if (skill.id === 'quotation-sheet' && hasQuotationSheetIntent) {
     score += 0.11;
   }
+  if (skill.id === 'quotation-sheet' && hasEmailIntent) {
+    score -= 0.12;
+  }
   if (skill.id === 'customer-followup-plan' && !hasEmailDraftIntent && /下一步|推进|怎么推进|咋办|怎么办|推进计划|跟进计划|跟进|回访|优先跟|客户分析|客户画像|优先级|机会|意向|判断/.test(text)) {
     score += 0.1;
   }
@@ -230,6 +237,16 @@ function scoreGoalMatcher(input = {}) {
   }
   if (skill.id === 'inquiry-reply-draft' && /询盘|回复|回信|怎么回|reply|回一下|回客户/.test(text)) {
     score += 0.12;
+  }
+  if (
+    skill.id === 'market-research' &&
+    hasMarketResearchIntent &&
+    !hasQuotationSheetIntent &&
+    !hasEmailDraftIntent &&
+    !hasReplyIntent &&
+    !/下一步|推进|怎么推进|咋办|怎么办|推进计划|跟进计划|客户分析|客户画像|优先级|判断/.test(text)
+  ) {
+    score += 0.16;
   }
 
   return score;
@@ -275,6 +292,9 @@ function normalizeGoalText(text = '') {
   }
   if (/moq|起订量|交期|lead\s*time|delivery/.test(lower)) {
     additions.push('MOQ交期采购关注点');
+  }
+  if (/市场调研|市场分析|market\s+research|market\s+analysis|go[-\s]?to[-\s]?market/.test(lower)) {
+    additions.push('市场调研市场机会渠道竞品客户类型进入策略');
   }
 
   return `${raw}${additions.join('')}`.replace(/\s+/g, '');

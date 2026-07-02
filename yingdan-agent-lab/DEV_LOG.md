@@ -13,6 +13,14 @@
   - 已修复:`server/skill-agent.mjs` 和 `server/skill-runner.mjs` 都支持按 `|` 分隔表头读取下一行的产品、数量、单价和贸易条款;入口缺资料 gate 不再把表头当产品资料,Runtime 真实报价单会写入数据行字段。
   - sub agent 复核后继续补纵向键值表边界:`产品 | 太阳能路灯`、`数量 | 500套`、`单价 | USD 35`、`贸易条款 | FOB Shanghai` 这类表格不再被误判成横向表头,避免把产品写成 `数量`。
   - 新增红绿回归测试 `runNewConversationAgent uses referenced xlsx table details instead of asking for quotation fields`、`createSkillRuntime reads quotation fields from referenced xlsx table rows` 和 `createSkillRuntime reads quotation fields from referenced xlsx key-value rows`;保留样品费、运费不能冒充单价的反例。
+- 新增新对话 `市场调研` Skill:
+  - 复现问题:用户自然说 `帮我做德国市场调研，产品是太阳能路灯` 时,Runtime 虽能匹配测试里的 `market-research`,但 `business-draft` 旧兜底会生成询盘回复模板;缺产品/市场的 `帮我做市场调研` 也会直接跑 Runtime,不像 Codex / Claude Code 会先追问必要资料。
+  - 已修复:新增 `workbench/skills/market-research/skill.json`,并扩展自然语言路由、缺资料 gate 和 `business-draft` 模板;资料齐全时生成 `市场调研.md`,包含市场机会判断、渠道与客户类型、风险与验证点、下一步动作,并继续走 Markdown evidence ledger 检查。
+  - 新增红绿回归测试 `runNewConversationAgent asks for product and target market before market research`、`runNewConversationAgent executes market research when product and target market are enough` 和 `createSkillRuntime generates a market research artifact from product and target market`。
+- 修复缺资料等待态不能自然取消:
+  - sub agent 只读评估指出 P1:当前已有 `pendingTask` 时,用户说 `算了 / 先不做这个了` 会被当成补充资料进入 `needs-input-followup`,让新对话像被表单卡住。
+  - 已修复:`runNewConversationAgent()` 在缺资料等待态识别明确取消语,返回 `task-cancelled / completed`,清掉 `context.pendingTask`,不调用 Runtime,后续完整新任务不会携带旧任务或 `补充资料` 拼接文本。
+  - 新增红绿回归测试 `runNewConversationAgent cancels a pending needs-input task without carrying it into the next task`。
 
 ## 2026-07-01
 
