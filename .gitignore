@@ -3,5 +3,6 @@ backups/
 
 # 其它项目和系统文件
 coze-workflows/
+yingdan-agent-lab/
 .DS_Store
 **/.DS_Store

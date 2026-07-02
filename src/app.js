@@ -1,4 +1,4 @@
-/* global NAV_GROUPS, HISTORY_ITEMS, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_USER_PREVIEW_SUB_ACCOUNTS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
+/* global NAV_GROUPS, HISTORY_ITEMS, CUSTOMER_DEVELOPMENT, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_USER_PREVIEW_SUB_ACCOUNTS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
 
 /**
  * 页面级状态对象。
@@ -20,6 +20,10 @@
  *   activeCustomerId: string,
  *   activeCustomerPanel: string,
  *   kassAssistantOpen: boolean,
+ *   customerDevPhase: "brief" | "searching" | "results" | "contacts",
+ *   customerDevBrief: { market: string, product: string, role: string, goal: string },
+ *   customerDevSelectedLeadId: string,
+ *   customerDevRevealedEmails: Set<string>,
  *   customerDraft: string,
  *   isCustomerGenerating: boolean,
  *   customerResult: string,
@@ -77,6 +81,15 @@ const state = {
   activeCustomerId: "kass-a-1",
   activeCustomerPanel: "overview",
   kassAssistantOpen: false,
+  customerDevPhase: "brief",
+  customerDevBrief: {
+    market: "德国、阿联酋、沙特",
+    product: "光伏组件 + 工商业储能方案",
+    role: "EPC 承包商 / 系统集成商",
+    goal: "找 100 个候选客户，先查看公司信息和联系人"
+  },
+  customerDevSelectedLeadId: "solartech",
+  customerDevRevealedEmails: new Set(),
   customerDraft: "",
   isCustomerGenerating: false,
   customerResult: "",
@@ -290,6 +303,7 @@ function getChatLabels() {
     "negotiation-scene": ["场景谈判顾问", "选择常见的谈判场景", "在右下角选择谈判场景，附带你的问题详情"],
     "inquiry-reply": ["询盘分析回复", "直接粘贴「客户询盘/聊天记录全文」，可补充「你的产品基本信息、价格区间、底线要求」，用于分析询盘质量并生成回复。", "询盘分析：这是客户的英文询盘内容…… 帮我判断客户诚意并给一封回复建议"],
     "market-research": ["市场调研", "输入「核心产品」为主，可选加上「目标国家/地区」和「目标客户类型」，用于整体市场调研与选品推荐。", "市场调研：墨西哥·建筑材料行业·PVC地板·目标客户是工程采购商和批发商"],
+    "customer-development": ["客户开发", "输入「目标国家 + 客户类型 + 主推产品 + 开发目标」，AI 会帮你拆客户画像、开发渠道和多轮触达动作。", "客户开发：中东·新能源经销商·主推 5kW 户储套件·想找 20 个高匹配客户"],
     "cold-email": ["新客开发信", "输入「目标客户类型 + 产品 + 国家/地区」，AI 会帮你生成一封针对性的开发信。", "新客开发信：中东·光伏经销商·要主推 5kW 户用储能套件"],
     "complaint": ["客诉处理", "粘贴客户投诉原文，并补充「你已经掌握的事实和可让步空间」，用于生成专业回复。", "客诉处理：客户反馈到货数量少了 2 台，希望免费补寄并赔偿运费"],
     "reactivation": ["客户激活", "输入「客户名称 + 沉睡时长 + 上次成交/沟通线索」，用于设计激活动作和邮件。", "客户激活：UAE·Yellow Door Energy·上次询盘 6 个月前·关注交付节奏"],
@@ -3952,7 +3966,394 @@ function renderWorkspace() {
     return renderAccountUsageView();
   }
 
+  if (state.activeMain === "customer-development") {
+    return renderCustomerDevelopmentView();
+  }
+
   return renderChatView();
+}
+
+/**
+ * 渲染客户开发工作台。
+ *
+ * 作用：
+ * - 把“客户开发”从单封开发信升级成一个完整业务界面。
+ * - 用户可以先看目标客户、渠道、线索和开发节奏，再在底部输入具体开发任务。
+ *
+ * @returns {string} 客户开发页面 HTML。
+ * @throws {Error} 本函数不主动抛异常；如果示例数据缺失，会用空数组兜底。
+ */
+function renderCustomerDevelopmentView() {
+  const leads = CUSTOMER_DEVELOPMENT.leads || [];
+  const selectedLead = leads.find((lead) => lead.id === state.customerDevSelectedLeadId) || leads[0];
+  const isBrief = state.customerDevPhase === "brief";
+  const isSearching = state.customerDevPhase === "searching";
+  const isResults = state.customerDevPhase === "results";
+  const isContacts = state.customerDevPhase === "contacts";
+
+  return `
+    <section class="customer-dev-view" aria-label="客户开发">
+      ${isBrief ? renderCustomerDevBriefPanel() : ""}
+      ${isSearching ? renderCustomerDevSearchingPanel() : ""}
+      ${isResults ? renderCustomerDevResultsWorkspace(leads, selectedLead) : ""}
+      ${isContacts ? renderCustomerDevContactsWorkspace(selectedLead) : ""}
+    </section>
+  `;
+}
+
+/**
+ * 渲染客户开发的目标输入区。
+ *
+ * 作用：
+ * - 回答“客户名单从哪里来”这个产品问题。
+ * - 用户先填目标市场、产品、客户角色和开发目标，再进入 AI 找客户。
+ *
+ * @returns {string} 目标输入区 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerDevBriefPanel() {
+  const brief = state.customerDevBrief;
+
+  return `
+    <section class="customer-dev-brief-panel" aria-label="输入客户开发目标">
+      <article class="customer-dev-brief-card">
+        <header>
+          <div>
+            <span>从开发目标开始</span>
+            <h2>告诉 AI 你要找什么客户</h2>
+          </div>
+          <a href="#/customer-development/searching" data-customer-dev-start>开始 AI 找客户</a>
+        </header>
+        <div class="customer-dev-brief-fields">
+          ${[
+            ["market", "目标国家 / 地区", brief.market],
+            ["product", "主推产品 / 方案", brief.product],
+            ["role", "客户类型 / 关键角色", brief.role],
+            ["goal", "本次开发目标", brief.goal]
+          ].map(([field, label, value]) => `
+            <label>
+              <span>${escapeHtml(label)}</span>
+              <input data-customer-dev-field="${escapeHtml(field)}" value="${escapeHtml(value)}" />
+            </label>
+          `).join("")}
+        </div>
+        <div class="customer-dev-brief-presets">
+          ${["中东 EPC 承包商", "德国光伏项目商", "印度分销商", "南非系统集成商"].map((preset) => `
+            <button type="button" data-customer-dev-preset="${escapeHtml(preset)}">${escapeHtml(preset)}</button>
+          `).join("")}
+        </div>
+      </article>
+      <aside class="customer-dev-brief-preview">
+        <h3>AI 将按这个路径生成名单</h3>
+        ${[
+          ["01", "拆目标客户画像", "把国家、产品和客户角色转成可搜索条件"],
+          ["02", "搜索候选客户", "模拟从官网、LinkedIn、展会名录和推荐客户里找线索"],
+          ["03", "生成客户列表", "整理公司、国家、客户类型和来源"],
+          ["04", "查看联系人", "点进公司后再获取关键联系人方式"]
+        ].map(([index, title, desc]) => `
+          <p><b>${escapeHtml(index)}</b><strong>${escapeHtml(title)}</strong><span>${escapeHtml(desc)}</span></p>
+        `).join("")}
+      </aside>
+    </section>
+  `;
+}
+
+/**
+ * 渲染 AI 找客户的处理中状态。
+ *
+ * @returns {string} 搜索中状态 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerDevSearchingPanel() {
+  const brief = state.customerDevBrief;
+
+  return `
+    <section class="customer-dev-searching" aria-label="AI 正在找客户">
+      <article>
+        <div class="customer-dev-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
+        <h2>正在根据开发目标生成客户名单</h2>
+        <p>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}</p>
+        <div class="customer-dev-search-log">
+          ${[
+            "拆解目标客户画像和关键词",
+            "扫描 Google / 官网 / LinkedIn / 展会名录",
+            "整理候选公司列表",
+            "准备公司详情与联系人线索"
+          ].map((text, index) => `
+            <span class="${index < 3 ? "done" : "active"}">${escapeHtml(text)}</span>
+          `).join("")}
+        </div>
+      </article>
+    </section>
+  `;
+}
+
+/**
+ * 渲染客户开发结果工作台。
+ *
+ * @param {typeof CUSTOMER_DEVELOPMENT.leads} leads - 客户线索列表。
+ * @param {typeof CUSTOMER_DEVELOPMENT.leads[number]} selectedLead - 当前选中客户。
+ * @returns {string} 结果工作台 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerDevResultsWorkspace(leads, selectedLead) {
+  const brief = state.customerDevBrief;
+
+  return `
+    <section class="customer-dev-brief-summary">
+      <div>
+        <span>本轮获客目标</span>
+        <strong>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}</strong>
+      </div>
+      <a href="#/customer-development" data-customer-dev-reset>重新配置目标</a>
+    </section>
+
+    <section class="customer-dev-filterbar">
+      <label class="customer-dev-search">
+        <span aria-hidden="true">⌕</span>
+        <input value="" placeholder="用自然语言搜索客户，例如：德国做光伏组件的EPC承包商" aria-label="搜索客户" />
+      </label>
+      ${["目标国家", "产品", "渠道", "客户角色"].map((label) => `
+        <button type="button" data-toast="已模拟打开${label}筛选。">${escapeHtml(label)}⌄</button>
+      `).join("")}
+      <button class="customer-dev-filter-more" type="button" data-toast="已模拟打开更多筛选。">更多筛选 <b>2</b></button>
+      <button type="button" data-toast="已模拟保存当前筛选。">保存筛选</button>
+    </section>
+
+    <div class="customer-dev-list-toolbar">
+      <strong>客户列表 <span>${leads.length}</span></strong>
+      <div class="customer-dev-table-actions">
+        <button type="button" data-toast="已模拟导出客户列表。">导出</button>
+        <button type="button" data-toast="已模拟刷新客户池。">刷新</button>
+      </div>
+    </div>
+
+    <section class="customer-dev-console">
+      <article class="customer-dev-table-panel">
+        <table class="customer-dev-table">
+          <thead>
+              <tr>
+                <th><input type="checkbox" aria-label="全选客户" /></th>
+                <th>公司</th>
+                <th>国家</th>
+                <th>客户类型</th>
+                <th>来源</th>
+                <th>线索说明</th>
+                <th>联系人</th>
+                <th>更新时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${leads.map((lead) => renderCustomerDevLeadRow(lead, selectedLead)).join("")}
+            </tbody>
+          </table>
+        <footer class="customer-dev-pagination">
+          <span>共 126 条</span>
+          <div>
+            <button type="button" data-toast="已在第 1 页。">‹</button>
+            <button class="active" type="button">1</button>
+            <button type="button" data-toast="已模拟切到第 2 页。">2</button>
+            <button type="button" data-toast="已模拟切到第 3 页。">3</button>
+            <button type="button" data-toast="已模拟切到第 4 页。">4</button>
+            <span>...</span>
+            <button type="button" data-toast="已模拟切到第 9 页。">9</button>
+            <button type="button" data-toast="已模拟下一页。">›</button>
+          </div>
+          <button type="button" data-toast="已模拟切换每页 20 条。">20 条/页⌄</button>
+        </footer>
+      </article>
+
+      ${renderCustomerDevDetail(selectedLead)}
+    </section>
+  `;
+}
+
+/**
+ * 渲染单个客户列表行。
+ *
+ * @param {typeof CUSTOMER_DEVELOPMENT.leads[number]} lead - 客户线索。
+ * @param {typeof CUSTOMER_DEVELOPMENT.leads[number]} selectedLead - 当前右侧详情客户。
+ * @returns {string} 单行 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerDevLeadRow(lead, selectedLead) {
+  return `
+    <tr class="customer-dev-data-row ${selectedLead && lead.id === selectedLead.id ? "selected" : ""}" data-dev-lead="${escapeHtml(lead.id)}">
+      <td><input type="checkbox" ${selectedLead && lead.id === selectedLead.id ? "checked" : ""} aria-label="选择${escapeHtml(lead.company)}" /></td>
+      <td><button type="button" data-dev-lead="${escapeHtml(lead.id)}">${escapeHtml(lead.company)}</button></td>
+      <td>${escapeHtml(lead.countryName)}</td>
+      <td>${escapeHtml(lead.type)}</td>
+      <td>${escapeHtml(lead.source)}</td>
+      <td>${escapeHtml(lead.reason)}</td>
+      <td>${escapeHtml(lead.contact)}</td>
+      <td>${escapeHtml(lead.updated)}</td>
+    </tr>
+  `;
+}
+
+/**
+ * 渲染右侧客户情报抽屉。
+ *
+ * @param {typeof CUSTOMER_DEVELOPMENT.leads[number]} lead - 当前选中的客户。
+ * @returns {string} 情报抽屉 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerDevDetail(lead) {
+  if (!lead) {
+    return "";
+  }
+
+  return `
+    <aside class="customer-dev-detail">
+      <header>
+        <div>
+          <h2>${escapeHtml(lead.company)}</h2>
+          <p><span>${escapeHtml(lead.type)}</span><span>${escapeHtml(lead.countryName)}</span></p>
+        </div>
+        <button type="button" data-toast="已模拟关闭客户详情。">×</button>
+      </header>
+
+      ${renderCustomerDevCompanyPanel(lead)}
+    </aside>
+  `;
+}
+
+/**
+ * 为当前公司生成联系人原型数据。
+ *
+ * @param {typeof CUSTOMER_DEVELOPMENT.leads[number]} lead - 当前公司线索。
+ * @returns {Array<{ name: string, title: string, source: string, email: string, linkedin: string, whatsapp: string }>} 联系人列表。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function buildCustomerDevContacts(lead) {
+  const primaryName = lead.contact === "待确认" ? "采购负责人待确认" : lead.contact;
+  const domain = lead.website.replace(/^www\./, "");
+
+  return [
+    {
+      name: primaryName,
+      title: lead.role,
+      source: "官网 + LinkedIn",
+      email: `purchase@${domain}`,
+      linkedin: `linkedin.com/company/${lead.id}`,
+      whatsapp: "+00 000 000 000"
+    },
+    {
+      name: "Business Development",
+      title: "业务开发",
+      source: "LinkedIn",
+      email: `bd@${domain}`,
+      linkedin: `linkedin.com/search/results/people/?keywords=${encodeURIComponent(lead.company)}`,
+      whatsapp: "待获取"
+    },
+    {
+      name: "Procurement Team",
+      title: "采购团队",
+      source: "官网表单",
+      email: `info@${domain}`,
+      linkedin: "待获取",
+      whatsapp: "待获取"
+    }
+  ];
+}
+
+/**
+ * 渲染公司信息面板。
+ *
+ * @param {typeof CUSTOMER_DEVELOPMENT.leads[number]} lead - 当前公司线索。
+ * @returns {string} 公司信息 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerDevCompanyPanel(lead) {
+  return `
+    <div class="customer-dev-panel-slide">
+      <section class="customer-dev-info-list">
+        <h3>公司信息</h3>
+        ${[
+          ["官网", lead.website],
+          ["总部", lead.location],
+          ["公司规模", lead.size],
+          ["成立时间", lead.founded],
+          ["线索来源", lead.source]
+        ].map(([label, value]) => `
+          <p><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></p>
+        `).join("")}
+      </section>
+      <section class="customer-dev-evidence">
+        <h3>线索依据</h3>
+        ${lead.evidence.slice(0, 2).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
+      </section>
+      <section class="customer-dev-detail-action">
+        <a href="#/customer-development/contacts" data-customer-dev-open-contacts>获取联系人信息</a>
+      </section>
+    </div>
+  `;
+}
+
+/**
+ * 渲染客户开发联系人整页。
+ *
+ * @param {typeof CUSTOMER_DEVELOPMENT.leads[number]} lead - 当前公司线索。
+ * @returns {string} 联系人整页 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerDevContactsWorkspace(lead) {
+  const contacts = buildCustomerDevContacts(lead);
+
+  return `
+    <section class="customer-dev-contact-workspace">
+      <header class="customer-dev-contact-hero">
+        <a href="#/customer-development/results" data-customer-dev-back-results>返回客户列表</a>
+        <div>
+          <span>公司信息</span>
+          <h2>${escapeHtml(lead.company)}</h2>
+          <p>${escapeHtml(lead.type)} · ${escapeHtml(lead.countryName)} · ${escapeHtml(lead.source)}</p>
+        </div>
+      </header>
+
+      <section class="customer-dev-contact-company">
+        ${[
+          ["官网", lead.website],
+          ["总部", lead.location],
+          ["公司规模", lead.size],
+          ["成立时间", lead.founded],
+          ["线索说明", lead.reason]
+        ].map(([label, value]) => `
+          <p><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></p>
+        `).join("")}
+      </section>
+
+      <section class="customer-dev-contact-table-card">
+        <header>
+          <h3>联系人</h3>
+          <span>邮箱默认隐藏，点击后获取单个联系人邮箱</span>
+        </header>
+        <div class="customer-dev-contact-table">
+          <div class="customer-dev-contact-row head">
+            <span>姓名</span>
+            <span>岗位职位</span>
+            <span>邮箱</span>
+            <span></span>
+          </div>
+          ${contacts.map((contact, index) => {
+            const key = `${lead.id}-${index}`;
+            const revealed = state.customerDevRevealedEmails.has(key);
+
+            return `
+              <div class="customer-dev-contact-row ${revealed ? "revealed" : ""}">
+                <strong>${escapeHtml(contact.name)}</strong>
+                <span>${escapeHtml(contact.title)}</span>
+                <em>${revealed ? escapeHtml(contact.email) : "待获取"}</em>
+                <a href="#/customer-development/contacts/${index}" data-customer-dev-reveal-email="${index}">
+                  ${revealed ? "已获取" : "获取邮箱"}
+                </a>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </section>
+    </section>
+  `;
 }
 
 /**
@@ -6117,7 +6518,62 @@ function renderUpgradePlan(plan) {
  * @returns {void}
  * @throws {Error} 本函数不主动抛异常。
  */
+/**
+ * 处理客户开发页面里的点击交互。
+ *
+ * 为什么用事件委托：
+ * - 客户开发页面会频繁在“目标输入 / 客户列表 / 联系人页”之间重绘。
+ * - 直接给每个按钮单独绑定，重绘后容易漏绑；挂在 #app 上更稳。
+ *
+ * @param {MouseEvent} event - 浏览器点击事件。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function handleCustomerDevClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+
+  if (!target) {
+    return;
+  }
+
+  const presetButton = target.closest("[data-customer-dev-preset]");
+  if (presetButton) {
+    const preset = presetButton.getAttribute("data-customer-dev-preset") || "";
+    const presetMap = {
+      "中东 EPC 承包商": ["阿联酋、沙特、卡塔尔", "光伏组件 + 工商业储能方案", "EPC 承包商 / 项目采购", "找 100 个项目型客户，优先筛出近期有招标动作的 A 类客户"],
+      "德国光伏项目商": ["德国、奥地利、瑞士", "高效光伏组件 + 逆变器配套", "光伏项目商 / 系统集成商", "找 80 个有工商业光伏项目经验的客户，先看公司信息和联系人"],
+      "印度分销商": ["印度", "户用储能套件 + 光伏配件", "分销商 / 渠道负责人", "找 60 个区域分销客户，优先补齐联系人和 WhatsApp"],
+      "南非系统集成商": ["南非", "离网储能 + 工商业备电方案", "系统集成商 / 业务开发负责人", "找 50 个储能集成客户并标记可快速触达对象"]
+    };
+    const [market, product, role, goal] = presetMap[preset] || presetMap["中东 EPC 承包商"];
+    state.customerDevBrief = { market, product, role, goal };
+    renderApp();
+    return;
+  }
+
+  const revealButton = target.closest("[data-customer-dev-reveal-email]");
+  if (revealButton) {
+    const index = revealButton.getAttribute("data-customer-dev-reveal-email") || "0";
+    state.customerDevRevealedEmails.add(`${state.customerDevSelectedLeadId}-${index}`);
+    renderApp();
+    return;
+  }
+
+  const leadNode = target.closest("[data-dev-lead]");
+  if (leadNode) {
+    state.customerDevSelectedLeadId = leadNode.getAttribute("data-dev-lead") || "solartech";
+    state.popup = null;
+    renderApp();
+  }
+}
+
 function bindEvents() {
+  const app = document.querySelector("#app");
+  if (app && !app.dataset.customerDevDelegated) {
+    app.dataset.customerDevDelegated = "true";
+    app.addEventListener("click", handleCustomerDevClick);
+  }
+
   document.querySelectorAll("[data-admin-route]").forEach((node) => {
     node.addEventListener("click", (event) => {
       const main = node.getAttribute("data-admin-route");
@@ -6575,6 +7031,24 @@ function bindEvents() {
     textarea.addEventListener("input", () => {
       state.chatDraft = textarea.value;
       syncSendButton();
+    });
+  });
+
+  document.querySelectorAll("[data-dev-prompt]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.chatDraft = button.getAttribute("data-dev-prompt") || "";
+      state.generatedResult = "";
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-customer-dev-field]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const field = input.getAttribute("data-customer-dev-field");
+      if (!field || !Object.prototype.hasOwnProperty.call(state.customerDevBrief, field)) {
+        return;
+      }
+      state.customerDevBrief[field] = input.value;
     });
   });
 
@@ -7200,7 +7674,11 @@ function sendChatDraft() {
   window.setTimeout(() => {
     const [title] = getChatLabels();
     state.isGenerating = false;
-    state.generatedResult = `${title} 已根据你的输入整理出一版可继续编辑的业务建议。正式版这里会展示 AI 生成内容、引用资料和下一步动作。`;
+    if (state.activeMain === "customer-development") {
+      state.generatedResult = "已生成客户开发方案：优先开发 UAE 新能源经销商，首轮用公司一句话定位 + 中东案例建立信任，第二轮补认证和交付能力，第三轮切 WhatsApp 或 LinkedIn 确认采购角色；有回复的客户进入客户Kass A/B 分组继续推进。";
+    } else {
+      state.generatedResult = `${title} 已根据你的输入整理出一版可继续编辑的业务建议。正式版这里会展示 AI 生成内容、引用资料和下一步动作。`;
+    }
     renderApp();
   }, 900);
 }
@@ -7296,10 +7774,19 @@ const ROUTES = [
   { hash: "/sales-prep/company", main: "sales-prep", tab: "company" },
   { hash: "/sales-prep/market", main: "sales-prep", tab: "market" },
   { hash: "/sales-prep/cases", main: "sales-prep", tab: "cases" },
+  { hash: "/customer-development", main: "customer-development", customerDevPhase: "brief" },
+  { hash: "/customer-development/searching", main: "customer-development", customerDevPhase: "searching" },
+  { hash: "/customer-development/results", main: "customer-development", customerDevPhase: "results" },
+  { hash: "/customer-development/contacts", main: "customer-development", customerDevPhase: "contacts" },
+  { hash: "/customer-development/contacts/0", main: "customer-development", customerDevPhase: "contacts", revealEmailIndex: 0 },
+  { hash: "/customer-development/contacts/1", main: "customer-development", customerDevPhase: "contacts", revealEmailIndex: 1 },
+  { hash: "/customer-development/contacts/2", main: "customer-development", customerDevPhase: "contacts", revealEmailIndex: 2 },
   { hash: "/agents/customer-research", main: "customer-research" },
   { hash: "/agents/negotiation-scene", main: "negotiation-scene" },
   { hash: "/agents/inquiry-reply", main: "inquiry-reply" },
   { hash: "/skills/market-research", main: "market-research" },
+  // 旧入口兼容：客户开发已升为一级入口，老链接仍可打开同一个页面。
+  { hash: "/skills/customer-development", main: "customer-development" },
   { hash: "/skills/cold-email", main: "cold-email" },
   { hash: "/skills/complaint", main: "complaint" },
   { hash: "/skills/reactivation", main: "reactivation" },
@@ -7352,6 +7839,13 @@ function hashForState() {
 
   if (main.startsWith("customer-kass-")) {
     return `#/customer-kass/${main.slice("customer-kass-".length).toUpperCase()}`;
+  }
+
+  if (main === "customer-development") {
+    if (state.customerDevPhase === "contacts") return "#/customer-development/contacts";
+    if (state.customerDevPhase === "results") return "#/customer-development/results";
+    if (state.customerDevPhase === "searching") return "#/customer-development/searching";
+    return "#/customer-development";
   }
 
   if (main === "customer-research" || main === "negotiation-scene" || main === "inquiry-reply") {
@@ -7435,6 +7929,16 @@ function applyRoute() {
     state.activeSalesTab = route.tab;
   }
 
+  if (route.main === "customer-development") {
+    state.customerDevPhase = route.customerDevPhase || "brief";
+    if (state.customerDevPhase === "brief") {
+      state.customerDevRevealedEmails = new Set();
+    }
+    if (typeof route.revealEmailIndex === "number") {
+      state.customerDevRevealedEmails.add(`${state.customerDevSelectedLeadId}-${route.revealEmailIndex}`);
+    }
+  }
+
   // 来自外贸流程"问 AI"按钮的预填，进入 ask 页时消费一下。
   if (route.main === "ask") {
     consumePrefillPromptIfAny();
@@ -7467,6 +7971,13 @@ function applyRoute() {
   state.generatedResult = "";
   renderApp();
   isApplyingRoute = false;
+
+  if (route.main === "customer-development" && route.customerDevPhase === "searching") {
+    window.setTimeout(() => {
+      state.customerDevPhase = "results";
+      renderApp();
+    }, 900);
+  }
 }
 
 window.addEventListener("hashchange", applyRoute);
