@@ -1216,6 +1216,7 @@ function buildCompositeDealSections({ signals = {}, userText = '' } = {}) {
 function extractBusinessSignals(userText = '') {
   const text = String(userText || '');
   const lower = text.toLowerCase();
+  const quotationTableFields = extractQuotationTableFields(text);
   const concerns = [];
 
   const hasSmallOrderPressure = /小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|small\s+(?:trial\s+)?order|trial\s+order/.test(lower);
@@ -1285,11 +1286,11 @@ function extractBusinessSignals(userText = '') {
   }
 
   const country = detectCountry(text);
-  const productChinese = extractProductName(text);
+  const productChinese = quotationTableFields.product || extractProductName(text);
   const sampleTiming = detectSampleTiming(text);
-  const quantity = extractQuotationQuantity(text);
-  const priceTerm = extractQuotationPrice(text);
-  const tradeTerm = extractQuotationTradeTerm(text);
+  const quantity = quotationTableFields.quantity || extractQuotationQuantity(text);
+  const priceTerm = quotationTableFields.priceTerm || extractQuotationPrice(text);
+  const tradeTerm = quotationTableFields.tradeTerm || extractQuotationTradeTerm(text);
   const paymentTerm = extractPaymentTerm(text);
   const concessionLimit = extractConcessionLimit(text);
   const agencyTrialPeriod = extractAgencyTrialPeriod(text);
@@ -1354,13 +1355,173 @@ function buildBusinessFactLines(signals = {}) {
  */
 function extractQuotationFields(userText = '') {
   const signals = extractBusinessSignals(userText);
+  const quotationTableFields = extractQuotationTableFields(userText);
   return {
     country: signals.countryChinese || '待确认',
-    priceTerm: extractQuotationPrice(userText) || '待确认',
+    priceTerm: quotationTableFields.priceTerm || extractQuotationPrice(userText) || '待确认',
     product: signals.productChinese || '待确认',
-    quantity: extractQuotationQuantity(userText) || '待确认',
-    tradeTerm: extractQuotationTradeTerm(userText) || '待确认',
+    quantity: quotationTableFields.quantity || extractQuotationQuantity(userText) || '待确认',
+    tradeTerm: quotationTableFields.tradeTerm || extractQuotationTradeTerm(userText) || '待确认',
   };
+}
+
+/**
+ * extractQuotationTableFields 从引用资料解析出的表格文本里抽取报价字段。
+ *
+ * 作用：
+ * - 前端 XLSX 引用资料会被后端整理成 `产品 | 数量 | 单价 | 贸易条款` 这种文本。
+ * - 这里按表头列名读取下一行数据,避免把表头残片当成产品名。
+ *
+ * 参数：
+ * - text：用户输入和引用资料拼出的完整文本。
+ *
+ * 返回值：包含 product、quantity、priceTerm、tradeTerm 的对象；未识别字段为空字符串。
+ * 可能抛出的异常：无。
+ */
+function extractQuotationTableFields(text = '') {
+  const rows = String(text || '')
+    .split('\n')
+    .map(splitPipeTableRow)
+    .filter((row) => row.length > 1);
+  const keyValueTable = extractQuotationKeyValueTableFields(rows);
+  if (keyValueTable.matchedCount >= 2) {
+    return keyValueTable.fields;
+  }
+
+  for (let index = 0; index < rows.length - 1; index += 1) {
+    const header = rows[index].map((cell) => cell.toLowerCase().replace(/\s+/g, ''));
+    const productIndex = findQuotationColumnIndex(header, [/产品|品名|product|item|goods/]);
+    const quantityIndex = findQuotationColumnIndex(header, [/数量|qty|quantity/]);
+    const priceIndex = findQuotationColumnIndex(header, [/单价|价格|报价|unitprice|price/]);
+    const tradeIndex = findQuotationColumnIndex(header, [/贸易条款|贸易方式|incoterm|tradeterm|terms/]);
+    const usefulHeaderCount = [productIndex, quantityIndex, priceIndex, tradeIndex]
+      .filter((columnIndex) => columnIndex >= 0)
+      .length;
+    if (usefulHeaderCount < 2) {
+      continue;
+    }
+
+    const row = rows.slice(index + 1).find((candidate) => candidate.some(Boolean)) || [];
+    return {
+      priceTerm: normalizeQuotationPriceCell(row[priceIndex] || ''),
+      product: cleanQuotationTableCell(row[productIndex] || ''),
+      quantity: cleanQuotationTableCell(row[quantityIndex] || '').replace(/\s+/g, ''),
+      tradeTerm: cleanQuotationTableCell(row[tradeIndex] || ''),
+    };
+  }
+
+  return {
+    priceTerm: '',
+    product: '',
+    quantity: '',
+    tradeTerm: '',
+  };
+}
+
+/**
+ * extractQuotationKeyValueTableFields 从纵向键值表里抽取报价字段。
+ *
+ * 作用：
+ * - 很多报价表是 `产品 | 太阳能路灯`、`数量 | 500套` 这种一行一个字段。
+ * - 至少命中两行字段名才认为是键值表,避免横向表头第一行被误判。
+ *
+ * 参数：
+ * - rows：splitPipeTableRow 拆出的二维表格。
+ *
+ * 返回值：包含 fields 和 matchedCount 的对象。
+ * 可能抛出的异常：无。
+ */
+function extractQuotationKeyValueTableFields(rows = []) {
+  const fields = {
+    priceTerm: '',
+    product: '',
+    quantity: '',
+    tradeTerm: '',
+  };
+  let matchedCount = 0;
+
+  for (const row of rows) {
+    const label = String(row[0] || '').toLowerCase().replace(/\s+/g, '');
+    const value = row.slice(1).find((cell) => cleanQuotationTableCell(cell)) || '';
+    if (!value) {
+      continue;
+    }
+    if (/产品|品名|product|item|goods/.test(label) && !fields.product) {
+      fields.product = cleanQuotationTableCell(value);
+      matchedCount += 1;
+    } else if (/数量|qty|quantity/.test(label) && !fields.quantity) {
+      fields.quantity = cleanQuotationTableCell(value).replace(/\s+/g, '');
+      matchedCount += 1;
+    } else if (/单价|价格|报价|unitprice|price/.test(label) && !fields.priceTerm) {
+      fields.priceTerm = normalizeQuotationPriceCell(value);
+      matchedCount += 1;
+    } else if (/贸易条款|贸易方式|incoterm|tradeterm|terms/.test(label) && !fields.tradeTerm) {
+      fields.tradeTerm = cleanQuotationTableCell(value);
+      matchedCount += 1;
+    }
+  }
+
+  return { fields, matchedCount };
+}
+
+/**
+ * splitPipeTableRow 把一行 `|` 分隔文本拆成单元格。
+ *
+ * 参数：
+ * - line：引用资料里的单行文本。
+ *
+ * 返回值：单元格数组；不是表格行时返回空数组。
+ * 可能抛出的异常：无。
+ */
+function splitPipeTableRow(line = '') {
+  if (!String(line || '').includes('|')) {
+    return [];
+  }
+  return String(line)
+    .split('|')
+    .map(cleanQuotationTableCell);
+}
+
+/**
+ * findQuotationColumnIndex 根据表头别名查找字段列。
+ *
+ * 参数：
+ * - header：已归一化的小写表头数组。
+ * - matchers：字段别名正则数组。
+ *
+ * 返回值：列序号；找不到时返回 -1。
+ * 可能抛出的异常：无。
+ */
+function findQuotationColumnIndex(header = [], matchers = []) {
+  return header.findIndex((cell) => matchers.some((matcher) => matcher.test(cell)));
+}
+
+/**
+ * cleanQuotationTableCell 清理表格单元格文本。
+ *
+ * 参数：
+ * - value：单元格原始文本。
+ *
+ * 返回值：去掉多余空白和截断提示后的文本。
+ * 可能抛出的异常：无。
+ */
+function cleanQuotationTableCell(value = '') {
+  return String(value || '')
+    .replace(/\[单元格较长,已截断到 \d+ 字\]/g, '')
+    .trim();
+}
+
+/**
+ * normalizeQuotationPriceCell 清理表格里的单价字段。
+ *
+ * 参数：
+ * - value：表格单价单元格。
+ *
+ * 返回值：适合写进报价单的单价文本。
+ * 可能抛出的异常：无。
+ */
+function normalizeQuotationPriceCell(value = '') {
+  return cleanQuotationTableCell(value).replace(/\s+/g, '');
 }
 
 /**

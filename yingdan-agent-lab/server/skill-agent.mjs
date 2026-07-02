@@ -940,6 +940,9 @@ function hasProductCoreContext(text = '') {
 
   for (const match of value.matchAll(productFieldPattern)) {
     const phrase = String(match[1] || '').trim();
+    if (phrase.startsWith('|')) {
+      continue;
+    }
     const normalized = phrase.toLowerCase().replace(/[\s_-]+/g, '');
     if (!normalized || issueOnlyPattern.test(normalized)) {
       continue;
@@ -960,13 +963,14 @@ function detectBusinessSignals(text = '') {
   const value = String(text || '');
   const lower = value.toLowerCase();
   const compact = value.replace(/\s/g, '');
+  const quotationTableFields = extractQuotationTableFields(value);
   const marketPattern = /德国|美国|巴西|英国|法国|意大利|西班牙|加拿大|澳大利亚|印度|越南|泰国|日本|韩国|中东|欧洲|北美|南美|非洲|东南亚|germany|usa|brazil|uk|france|india|vietnam|europe|market/i;
   const productPattern = /产品|规格|型号|卖点|报价|价格|底价|moq|起订|小批量|小单|试单|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量|售后|库存|材质|尺寸|quantity|price|quote|payment\s+terms|credit\s+terms/i;
   const inquiryPattern = /询盘|邮件|聊天|客户(?:说|问|要|要求|需要|想要)|买家(?:说|问|要|要求|需要|想要)|问了|问|需求|投诉|异议|报价|回复|回信|沉默|订单|认证|合规|证书|验厂|资质|inquiry|rfq|reply|certification|certificate|compliance|factory\s+audit|supplier\s+audit/i;
   const currentIssuePattern = /(?:客户|买家|采购商|客人|对方)(?:说|问|提到|要求|抱怨|投诉|反馈)[^，。,.!?！？]{0,24}(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|合规|证书|验厂|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|质量|售后|异议|投诉|抱怨|沉默|不回|已读不回|嫌贵|太贵|便宜点|优惠|折扣|代理|渠道|cert[-\s]*requirements?|ce[-\s]?cert)|问了.+|问.*(?:moq|起订|交期|lead\s*time|delivery|价格|报价|样品|付款|账期|赊账|月结|付款条件|付款方式|数量|规格|认证|合规|证书|验厂|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|质量|售后|便宜点|优惠|cert[-\s]*requirements?|ce[-\s]?cert)|投诉|抱怨|异议|沉默|已读不回|没回复|未回复|不回复|不回消息|不回信|没回|卡点|嫌贵|太贵|贵了|价格(?:太)?高|便宜点|优惠|砍价|压价|还价|议价|让价|降价|折扣|报价|价格|底价|moq|起订|小批量|小单|试单|小数量|少量试|低于\s*moq|moq\s*太高|起订量太高|独家代理|独代|代理权|区域代理|总代理|渠道代理|经销代理|分销代理|交期|lead\s*time|delivery|样品|sample|付款|账期|赊账|月结|付款条件|付款方式|质量(?:不行|问题|投诉)?|货有问题|售后|认证|合规|证书|验厂|厂审|工厂审核|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|quantity|price|quote|small\s+(?:trial\s+)?order|trial\s+order|exclusive\s+(?:agent|agency|distributor)|distribution\s+rights|too\s+expensive|price\s+too\s+high|better\s+price|lower\s+price|discount|payment\s+terms|credit\s+terms|quality\s+(?:issue|complaint|problem)|after[-\s]?sales|certification|certificate|cert[-\s]*requirements?|ce[-\s]?cert|compliance|\bce\b|rohs|warranty|guarantee|private\s+label|custom\s+logo|customi[sz]ation|installation|manual|amazon\s*fba|factory\s+audit|factory\s+inspection|supplier\s+audit/i;
   const customerPattern = /采购商|买家|对方|公司|联系人|进口商|批发商|零售商|经销商|代理商|客户(?:名称|类型|是|叫)|客户(?:说|问|提到).+|buyer|customer\s+(?:is|type|name)|client\s+(?:is|type|name)|importer|distributor|wholesaler|retailer/i;
   const quantityPattern = /(?:数量|qty|quantity)\s*(?:是|为|:|：|,|，)?\s*\d+|\d+\s*(?:套|件|个|箱|台|pcs|pieces|units?|cartons?)/i;
-  const priceTerm = hasQuotationPriceTerm(value);
+  const priceTerm = hasQuotationPriceTerm(value) || Boolean(quotationTableFields.priceTerm);
   const tradeTermPattern = /\b(?:fob|cif|exw|ddp|dap|cfr)\b|贸易条款|付款条款|目的港|港口/i;
   const genericCustomerOnly = /^帮?我?(分析|处理|推进|判断|整理)?(一下)?(这个|该个|该)?(客户|买家|采购商|客人)(怎么)?(推进|跟进|分析|成交|优先级|机会|意向|有没有机会成交)?(一下)?$/u.test(compact) ||
     /^(分析|判断)(一下)?(这个|该个|该)?(客户|买家|采购商|客人)(有没有机会成交|优先级|机会|意向)?$/u.test(compact);
@@ -976,7 +980,7 @@ function detectBusinessSignals(text = '') {
   const productDependentIssue = /嫌贵|太贵|贵了|价格(?:太)?高|便宜点|优惠|砍价|压价|还价|议价|让价|降价|折扣|认证|合规|证书|验厂|厂审|工厂审核|资质|质保|保修|oem|odm|贴牌|定制|logo|安装|说明书|使用手册|fba|亚马逊|中性包装|包装|too\s+expensive|price\s+too\s+high|better\s+price|lower\s+price|discount|certification|certificate|cert[-\s]*requirements?|ce[-\s]?cert|compliance|\bce\b|rohs|warranty|guarantee|after[-\s]?sales|private[-\s]?label|custom[-\s]?logo|customi[sz]ation|installation|manual|amazon\s*fba|payment[-\s]?terms|lead[-\s]?time|packag(?:e|ing)(?:[-\s]?requirements?)?|factory[-\s]?audit|factory[-\s]?inspection|supplier[-\s]?audit/.test(lower);
   const followupCadenceRequested = /7\s*天|七天|一周|1\s*周|7-day|seven[-\s]?day|weekly/.test(lower) &&
     /跟进|回访|节奏|计划|follow[-\s]?up/.test(lower);
-  const productCoreContext = hasProductCoreContext(value);
+  const productCoreContext = hasProductCoreContext(value) || Boolean(quotationTableFields.product);
 
   return {
     customer: customerPattern.test(lower) || marketPattern.test(lower) || customerActorWithIssue,
@@ -998,9 +1002,155 @@ function detectBusinessSignals(text = '') {
     replyProductContext: productCoreContext || priceTerm || tradeTermPattern.test(value),
     // 报价单必须知道具体报什么产品；“报价/价格”只是任务意图,不能当成产品资料。
     quoteProduct: productCoreContext,
-    quantity: quantityPattern.test(value),
-    tradeTerm: tradeTermPattern.test(value),
+    quantity: quantityPattern.test(value) || Boolean(quotationTableFields.quantity),
+    tradeTerm: tradeTermPattern.test(value) || Boolean(quotationTableFields.tradeTerm),
   };
+}
+
+/**
+ * extractQuotationTableFields 从 XLSX 引用资料的表格文本里抽取报价字段。
+ *
+ * 作用：
+ * - 引用资料解析器会把工作表转成 `产品 | 数量 | 单价 | 贸易条款` 文本。
+ * - 入口缺资料 gate 需要看真实数据行,不能把表头 `产品 | 数量...` 当成产品资料。
+ *
+ * 参数：
+ * - text：用户输入和引用资料拼出的完整文本。
+ *
+ * 返回值：包含 product、quantity、priceTerm、tradeTerm 的对象；未识别字段为空字符串。
+ * 可能抛出的异常：无。
+ */
+function extractQuotationTableFields(text = '') {
+  const rows = String(text || '')
+    .split('\n')
+    .map(splitPipeTableRow)
+    .filter((row) => row.length > 1);
+  const keyValueTable = extractQuotationKeyValueTableFields(rows);
+  if (keyValueTable.matchedCount >= 2) {
+    return keyValueTable.fields;
+  }
+
+  for (let index = 0; index < rows.length - 1; index += 1) {
+    const header = rows[index].map((cell) => cell.toLowerCase().replace(/\s+/g, ''));
+    const productIndex = findQuotationColumnIndex(header, [/产品|品名|product|item|goods/]);
+    const quantityIndex = findQuotationColumnIndex(header, [/数量|qty|quantity/]);
+    const priceIndex = findQuotationColumnIndex(header, [/单价|价格|报价|unitprice|price/]);
+    const tradeIndex = findQuotationColumnIndex(header, [/贸易条款|贸易方式|incoterm|tradeterm|terms/]);
+    const usefulHeaderCount = [productIndex, quantityIndex, priceIndex, tradeIndex]
+      .filter((columnIndex) => columnIndex >= 0)
+      .length;
+    if (usefulHeaderCount < 2) {
+      continue;
+    }
+
+    const row = rows.slice(index + 1).find((candidate) => candidate.some(Boolean)) || [];
+    return {
+      priceTerm: cleanQuotationTableCell(row[priceIndex] || '').replace(/\s+/g, ''),
+      product: cleanQuotationTableCell(row[productIndex] || ''),
+      quantity: cleanQuotationTableCell(row[quantityIndex] || '').replace(/\s+/g, ''),
+      tradeTerm: cleanQuotationTableCell(row[tradeIndex] || ''),
+    };
+  }
+
+  return {
+    priceTerm: '',
+    product: '',
+    quantity: '',
+    tradeTerm: '',
+  };
+}
+
+/**
+ * extractQuotationKeyValueTableFields 从纵向键值表里抽取报价字段。
+ *
+ * 作用：
+ * - XLSX 解析文本可能是一行一个字段,例如 `产品 | 太阳能路灯`。
+ * - 至少命中两行字段名才认为是键值表,避免横向表头被误判。
+ *
+ * 参数：
+ * - rows：splitPipeTableRow 拆出的二维表格。
+ *
+ * 返回值：包含 fields 和 matchedCount 的对象。
+ * 可能抛出的异常：无。
+ */
+function extractQuotationKeyValueTableFields(rows = []) {
+  const fields = {
+    priceTerm: '',
+    product: '',
+    quantity: '',
+    tradeTerm: '',
+  };
+  let matchedCount = 0;
+
+  for (const row of rows) {
+    const label = String(row[0] || '').toLowerCase().replace(/\s+/g, '');
+    const value = row.slice(1).find((cell) => cleanQuotationTableCell(cell)) || '';
+    if (!value) {
+      continue;
+    }
+    if (/产品|品名|product|item|goods/.test(label) && !fields.product) {
+      fields.product = cleanQuotationTableCell(value);
+      matchedCount += 1;
+    } else if (/数量|qty|quantity/.test(label) && !fields.quantity) {
+      fields.quantity = cleanQuotationTableCell(value).replace(/\s+/g, '');
+      matchedCount += 1;
+    } else if (/单价|价格|报价|unitprice|price/.test(label) && !fields.priceTerm) {
+      fields.priceTerm = cleanQuotationTableCell(value).replace(/\s+/g, '');
+      matchedCount += 1;
+    } else if (/贸易条款|贸易方式|incoterm|tradeterm|terms/.test(label) && !fields.tradeTerm) {
+      fields.tradeTerm = cleanQuotationTableCell(value);
+      matchedCount += 1;
+    }
+  }
+
+  return { fields, matchedCount };
+}
+
+/**
+ * splitPipeTableRow 把 `|` 分隔文本拆成单元格。
+ *
+ * 参数：
+ * - line：引用资料里的单行文本。
+ *
+ * 返回值：单元格数组；不是表格行时返回空数组。
+ * 可能抛出的异常：无。
+ */
+function splitPipeTableRow(line = '') {
+  if (!String(line || '').includes('|')) {
+    return [];
+  }
+  return String(line)
+    .split('|')
+    .map(cleanQuotationTableCell);
+}
+
+/**
+ * findQuotationColumnIndex 根据表头别名查找字段列。
+ *
+ * 参数：
+ * - header：已归一化的小写表头数组。
+ * - matchers：字段别名正则数组。
+ *
+ * 返回值：列序号；找不到时返回 -1。
+ * 可能抛出的异常：无。
+ */
+function findQuotationColumnIndex(header = [], matchers = []) {
+  return header.findIndex((cell) => matchers.some((matcher) => matcher.test(cell)));
+}
+
+/**
+ * cleanQuotationTableCell 清理引用表格单元格文本。
+ *
+ * 参数：
+ * - value：单元格原始文本。
+ *
+ * 返回值：去掉多余空白和截断提示后的文本。
+ * 可能抛出的异常：无。
+ */
+function cleanQuotationTableCell(value = '') {
+  return String(value || '')
+    .replace(/\[单元格较长,已截断到 \d+ 字\]/g, '')
+    .trim();
 }
 
 /**

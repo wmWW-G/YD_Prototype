@@ -8,6 +8,11 @@
   - 前端 `agentReferenceMaterials.js` 区分浏览器可直接读取的 txt/md/csv 和需要后端解析的 XLSX/XLSM;`App.jsx` 的引用资料按钮会把表格解析结果追加到当前任务草稿,继续保持自然语言上下文,不暴露 schema、JSON 或工具调用。
   - sub agent 复核后收紧安全边界:`/api/agent/reference/parse` 使用专用 8MB JSON body limit,普通 API 回到 1MB;CORS 只允许本机浏览器 origin;后端同时限制单元格长度和总返回文本,避免超长表格先撑爆响应再交给前端截断。
   - 新增红绿回归测试 `readReferenceFileText imports xlsx through the backend parser`、`parseAgentReferenceFile extracts readable text from xlsx workbooks`,并补前端源码测试确认 `/api/agent/reference/parse` 已接入引用资料按钮。PDF 仍不是第一阶段直接引用格式。
+- 闭环 XLSX 引用资料到报价单字段抽取:
+  - 复现问题:XLSX 引用资料解析后会形成 `产品 | 数量 | 单价 | 贸易条款` + 数据行,但 Runtime 旧抽取器会把表头残片当成产品名,真实 `报价单.xlsx` 可能写错产品。
+  - 已修复:`server/skill-agent.mjs` 和 `server/skill-runner.mjs` 都支持按 `|` 分隔表头读取下一行的产品、数量、单价和贸易条款;入口缺资料 gate 不再把表头当产品资料,Runtime 真实报价单会写入数据行字段。
+  - sub agent 复核后继续补纵向键值表边界:`产品 | 太阳能路灯`、`数量 | 500套`、`单价 | USD 35`、`贸易条款 | FOB Shanghai` 这类表格不再被误判成横向表头,避免把产品写成 `数量`。
+  - 新增红绿回归测试 `runNewConversationAgent uses referenced xlsx table details instead of asking for quotation fields`、`createSkillRuntime reads quotation fields from referenced xlsx table rows` 和 `createSkillRuntime reads quotation fields from referenced xlsx key-value rows`;保留样品费、运费不能冒充单价的反例。
 
 ## 2026-07-01
 

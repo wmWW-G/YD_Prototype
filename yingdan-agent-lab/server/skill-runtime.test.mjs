@@ -1401,6 +1401,77 @@ test('createSkillRuntime reads quotation fields from referenced CSV-style lines'
   }
 });
 
+test('createSkillRuntime reads quotation fields from referenced xlsx table rows', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: [
+        '帮我做报价单',
+        '',
+        '引用资料：',
+        '',
+        '【报价信息.xlsx】',
+        '工作表: 报价单',
+        '产品 | 数量 | 单价 | 贸易条款',
+        '太阳能路灯 | 500套 | USD 35 | FOB Shanghai',
+      ].join('\n'),
+    });
+    const workbook = await inspectXlsxWorkbook(result.artifact.outputPath);
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'quotation-sheet');
+    assert.equal(result.artifact.type, 'xlsx');
+    assert.equal(workbook.quoteRows['产品'], '太阳能路灯');
+    assert.equal(workbook.quoteRows['数量'], '500套');
+    assert.equal(workbook.quoteRows['单价/报价'], 'USD35');
+    assert.equal(workbook.quoteRows['贸易条款'], 'FOB Shanghai');
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('createSkillRuntime reads quotation fields from referenced xlsx key-value rows', async () => {
+  const fixture = await withRegistryProject();
+
+  try {
+    const runtime = createSkillRuntime({
+      projectRoot: fixture.projectRoot,
+      checkPolicy: async () => ({ decision: 'allow', why: 'test allow' }),
+    });
+
+    const result = await runtime.runGoal({
+      text: [
+        '帮我做报价单',
+        '',
+        '引用资料：',
+        '',
+        '【报价信息.xlsx】',
+        '工作表: 报价单',
+        '产品 | 太阳能路灯',
+        '数量 | 500套',
+        '单价 | USD 35',
+        '贸易条款 | FOB Shanghai',
+      ].join('\n'),
+    });
+    const workbook = await inspectXlsxWorkbook(result.artifact.outputPath);
+
+    assert.equal(result.ok, true);
+    assert.equal(result.skill.id, 'quotation-sheet');
+    assert.equal(workbook.quoteRows['产品'], '太阳能路灯');
+    assert.equal(workbook.quoteRows['数量'], '500套');
+    assert.equal(workbook.quoteRows['单价/报价'], 'USD35');
+    assert.equal(workbook.quoteRows['贸易条款'], 'FOB Shanghai');
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('createSkillRuntime executes a newly registered mock Skill without changing the main Runtime logic', async () => {
   const fixture = await withRegistryProject();
   const policyChecks = [];

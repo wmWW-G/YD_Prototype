@@ -2088,6 +2088,62 @@ test('runNewConversationAgent uses referenced CSV quotation details instead of a
   assert.match(runtimeText, /单价,USD 35/);
 });
 
+test('runNewConversationAgent uses referenced xlsx table details instead of asking for quotation fields', async () => {
+  let runtimeText = '';
+  const response = await runNewConversationAgent({
+    text: [
+      '帮我做报价单',
+      '',
+      '引用资料：',
+      '',
+      '【报价信息.xlsx】',
+      '工作表: 报价单',
+      '产品 | 数量 | 单价 | 贸易条款',
+      '太阳能路灯 | 500套 | USD 35 | FOB Shanghai',
+    ].join('\n'),
+    registry: createQuotationRegistry(),
+    skillRuntime: {
+      async runGoal({ text }) {
+        runtimeText = text;
+        return {
+          ...createRuntimeResult(),
+          goal: {
+            matched: true,
+            trigger: 'natural_goal',
+            skillId: 'quotation-sheet',
+            reason: '用户引用了报价信息 XLSX,需要生成报价单。',
+          },
+          skill: {
+            id: 'quotation-sheet',
+            displayName: '报价单',
+            adapter: 'quotation-sheet',
+            artifactType: 'xlsx',
+          },
+          result: {
+            ok: true,
+            mode: 'quotation-sheet',
+            outputPath: '/tmp/报价单.xlsx',
+            artifactName: '报价单.xlsx',
+          },
+          artifact: {
+            type: 'xlsx',
+            name: '报价单.xlsx',
+            outputPath: '/tmp/报价单.xlsx',
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.kind, 'goal-run');
+  assert.equal(response.taskTitle, '报价单');
+  assert.equal(response.artifact.name, '报价单.xlsx');
+  assert.match(runtimeText, /报价信息\.xlsx/);
+  assert.match(runtimeText, /产品 \| 数量 \| 单价 \| 贸易条款/);
+  assert.match(runtimeText, /太阳能路灯 \| 500套 \| USD 35 \| FOB Shanghai/);
+});
+
 test('runNewConversationAgent does not treat referenced sample fee as quotation unit price', async () => {
   const response = await runNewConversationAgent({
     text: [
