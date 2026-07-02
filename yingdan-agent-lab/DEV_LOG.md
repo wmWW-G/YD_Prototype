@@ -34,6 +34,10 @@
   - 复现问题:已有 `pendingConfirmation` 的导出/保存/外发/付费确认在续跑时如果后端异常,旧 recoverable fallback 会把本轮 `确认导出` 改写成新的 `pendingTask`,同时丢掉确认卡和当前产物指针。
   - 已修复:`buildRecoverableAgentErrorResult()` 会在内部保留 `pendingConfirmation`、当前 artifact、period 和 customerSlug;下一句 `继续` 仍能回到刚才的确认点,公开 payload 仍不暴露 `export_file`、runId、checkpointPath、policy action 或本地路径。
   - 新增红绿回归测试 `buildRecoverableAgentErrorResult preserves pending confirmation and artifact after confirmation failures`;按 sub agent 的 P3 建议补断言 period/customerSlug 保留,并新增 `buildRecoverableAgentErrorResult drops pending confirmation when restart failures start fresh`,防止显式重开任务误沿用旧确认卡。
+- 保留确认句里的业务补充:
+  - 复现问题:用户在确认卡里一句话同时确认和补资料,例如 `可以，产品是太阳能路灯，先生成草稿`;如果确认后 Runtime 卡住,旧 recoverable fallback 只保留旧 `pendingConfirmation`,会丢掉这句里的产品补充。
+  - 已修复:`appendInlineConfirmationSupplement()` 导出给 recoverable fallback 复用;确认动作异常恢复时会把确认句里的业务事实继续追加到 `pendingConfirmation.supplements`,而公开 payload 仍不返回确认内部字段。
+  - 新增红绿回归测试 `buildRecoverableAgentErrorResult preserves inline confirmation supplements after confirmation failures`,并保留自然外发确认、确认句补充和相邻 recoverable 确认态测试。
 
 ## 2026-07-01
 
@@ -997,3 +1001,7 @@
   - `server/skill-agent.mjs` 新增 `isStandaloneNaturalConfirmation()`,只在已有 pending confirmation 时接受极短确认词,例如 `可以 / 好的 / 继续吧 / 没问题 / ok`;不放宽 `继续优化`、`可以更正式一点` 或 `好像...` 这类长句,避免误触发风险动作。
   - 已执行 `node --test server/skill-agent.test.mjs --test-name-pattern "short natural wording"`。
   - sub agent 只读复查指出实现也覆盖保存和付费,但正向测试只钉住导出/外发。已补 `runNewConversationAgent accepts short natural wording for paid action confirmation` 和 `runNewConversationAgent accepts short natural wording for customer memory save confirmation`。
+- 记录客户开发的信息架构口径：
+  - `AGENTS.md` 和 `CONTEXT.md` 明确「客户开发」是一级业务入口,不属于 `技能Skill` 子菜单,也不是 Runtime Skill。
+  - 产品边界:客户开发承接 `找线索 → 筛客户 → 触达 → 入客户Kass` 的获客主流程;`新客开发信` 这类单点写信能力才放在 `技能Skill`。
+  - 本次只做项目级文档记录,未执行 git 提交或推送。

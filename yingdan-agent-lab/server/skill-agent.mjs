@@ -1870,7 +1870,7 @@ function hasNaturalCancelIntent(value = '', pendingConfirmation = {}) {
  * 返回值：新的 pendingConfirmation；没有补充时返回原对象。
  * 可能抛出的异常：无。
  */
-function appendInlineConfirmationSupplement(pendingConfirmation = {}, text = '') {
+export function appendInlineConfirmationSupplement(pendingConfirmation = {}, text = '') {
   const supplement = extractInlineConfirmationSupplement(text, pendingConfirmation);
   if (!supplement) {
     return pendingConfirmation;

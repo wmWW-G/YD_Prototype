@@ -406,6 +406,36 @@ test('buildRecoverableAgentErrorResult preserves pending confirmation and artifa
   assert.equal(publicText.includes('workbench/exports/quote.xlsx'), false);
 });
 
+test('buildRecoverableAgentErrorResult preserves inline confirmation supplements after confirmation failures', async () => {
+  const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
+
+  const result = buildRecoverableAgentErrorResult({
+    error: new Error('Raw runtime stack: external draft generation failed'),
+    sessionId: 'agent-session-inline-confirmation-supplement',
+    userText: '可以，产品是太阳能路灯，先生成草稿',
+    context: {
+      pendingConfirmation: {
+        body: '正式外发前需要确认。',
+        confirmLabel: '先生成草稿',
+        originalText: '客户问MOQ和交期，帮我发给客户',
+        supplements: ['客户是德国采购商'],
+        title: '外发前需要你确认',
+        type: 'external_send',
+      },
+    },
+  });
+  const publicResult = sanitizeAgentResultForFrontend(result);
+  const publicText = JSON.stringify(publicResult);
+
+  assert.deepEqual(result.context.pendingConfirmation.supplements, ['客户是德国采购商', '产品是太阳能路灯']);
+  assert.equal(result.context.pendingTask, undefined);
+  assert.equal(publicResult.context.pendingTask, undefined);
+  assert.equal(publicResult.context.pendingConfirmation, undefined);
+  assert.equal(publicText.includes('external_send'), false);
+  assert.equal(publicText.includes('pendingConfirmation'), false);
+  assert.equal(publicText.includes('Raw runtime stack'), false);
+});
+
 test('buildRecoverableAgentErrorResult treats explicit restart failures as fresh task failures', async () => {
   const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
 

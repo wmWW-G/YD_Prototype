@@ -1,4 +1,4 @@
-import { shouldStartWithFreshCustomerContext } from './skill-agent.mjs';
+import { appendInlineConfirmationSupplement, shouldStartWithFreshCustomerContext } from './skill-agent.mjs';
 
 /**
  * formatSseEvent 把事件名和 JSON 数据编码成 SSE 文本块。
@@ -329,7 +329,7 @@ export function buildRecoverableAgentErrorResult(input = {}) {
  */
 function buildRecoverableContext(input = {}) {
   if (hasRecoverablePendingConfirmation(input.context, input.userText)) {
-    return buildRecoverableConfirmationContext(input.context);
+    return buildRecoverableConfirmationContext(input.context, input.userText);
   }
 
   return {
@@ -344,11 +344,12 @@ function hasRecoverablePendingConfirmation(context = {}, text = '') {
   return Boolean(context?.pendingConfirmation && typeof context.pendingConfirmation === 'object');
 }
 
-function buildRecoverableConfirmationContext(context = {}) {
+function buildRecoverableConfirmationContext(context = {}, userText = '') {
+  const pendingConfirmation = appendInlineConfirmationSupplement(context.pendingConfirmation, userText);
   return compactObject({
     artifact: context.artifact,
     customerSlug: context.customerSlug,
-    pendingConfirmation: context.pendingConfirmation,
+    pendingConfirmation,
     period: context.period,
   });
 }
