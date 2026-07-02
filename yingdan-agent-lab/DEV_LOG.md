@@ -26,6 +26,10 @@
   - 已修复:`buildAgentFollowupResponse()` 增加解释类追问分支;`为什么 / 什么意思 / 解释一下 / why / explain` 且没有明确编辑意图时,只读取当前产物回答,返回 `followup / completed` 和 `artifact: null`,保留上下文里的当前产物,不改写文件。
   - sub agent 复核后继续收紧边界:`能不能改成更短?` 必须仍按编辑续改产物,`请问为什么要改成更短?` 必须只解释不改文件;解释响应保存到 session 后仍保留当前产物指针,下一句可以继续修改、导出或保存。
   - 新增红绿回归测试 `buildAgentFollowupResponse answers artifact explanation questions without revising markdown`、`buildAgentFollowupResponse treats edit questions as artifact revisions`、`buildAgentFollowupResponse treats why-change wording as explanation, not revision`、`runNewConversationAgent answers artifact why-written questions before matching a new skill` 和 `agent session store keeps current artifact after explanation follow-up with null response artifact`,并保留明确 `重写 / 修改 / 优化` 仍会续改产物的回归测试。
+- 保留后端可恢复异常里的 pending checkpoint:
+  - 复现问题:已有 `pendingTask.runtime` 的缺资料任务在补资料续跑时如果后端异常,`buildRecoverableAgentErrorResult()` 会把 `pendingTask.originalText` 覆盖成本轮补充,并丢掉 `runtime.runId/resumeFrom`,下一句继续时只能重新拼任务,不像 Codex / Claude Code 从刚才卡住的位置继续。
+  - 已修复:recoverable waiting 会沿用原 `pendingTask`、runtime checkpoint 和已有 supplements,把本轮补充追加到 supplements;公开 payload 仍只显示业务化缺失项,不泄露 runId、checkpointPath 或 `needs-input:<skillId>`。
+  - 新增红绿回归测试 `buildRecoverableAgentErrorResult preserves pending runtime checkpoint after resume failures`,并保留 recoverable 首步进度 `继续执行` 和显式重开任务回到 `识别任务` 的测试。
 
 ## 2026-07-01
 

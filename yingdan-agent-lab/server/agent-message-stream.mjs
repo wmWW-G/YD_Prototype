@@ -253,6 +253,12 @@ export function buildRecoverableAgentErrorResult(input = {}) {
   });
   const progress = recoverable.progress;
   const content = recoverable.content;
+  const pendingTask = buildRecoverablePendingTask({
+    context: input.context,
+    missing: recoverable.missing,
+    reason: recoverable.reason,
+    userText,
+  });
 
   return {
     ok: true,
@@ -263,11 +269,7 @@ export function buildRecoverableAgentErrorResult(input = {}) {
     taskTitle: recoverable.taskTitle,
     progress,
     context: {
-      pendingTask: {
-        missing: recoverable.missing,
-        originalText: userText,
-        reason: recoverable.reason,
-      },
+      pendingTask,
     },
     messages: [
       {
@@ -308,6 +310,57 @@ export function buildRecoverableAgentErrorResult(input = {}) {
       },
     ],
   };
+}
+
+/**
+ * buildRecoverablePendingTask 生成异常恢复后的等待任务上下文。
+ *
+ * 作用：
+ * - 如果异常发生在已有 pendingTask / checkpoint 续跑过程中,保留原任务、runtime 和已补资料。
+ * - 把本轮用户输入作为 supplement 追加,避免下一句继续时像重新开始。
+ * - 如果没有旧 pendingTask,才用本轮输入创建新的可恢复任务。
+ *
+ * 参数：
+ * - input.context：异常发生前的线程上下文。
+ * - input.userText：本轮用户输入。
+ * - input.missing：恢复后前台应提示的缺失项。
+ * - input.reason：恢复原因。
+ *
+ * 返回值：内部 session 可保存的 pendingTask；公开输出会再经过 sanitizePendingTask。
+ * 可能抛出的异常：无。
+ */
+function buildRecoverablePendingTask(input = {}) {
+  const userText = String(input.userText || '').trim();
+  const currentTask = shouldStartWithFreshCustomerContext(userText) ? null : input.context?.pendingTask;
+  const missing = Array.isArray(input.missing) ? input.missing : ['更多业务资料或更明确的产物要求'];
+
+  if (!currentTask || typeof currentTask !== 'object') {
+    return {
+      missing,
+      originalText: userText,
+      reason: input.reason,
+    };
+  }
+
+  const supplements = appendPendingTaskSupplement(currentTask, userText);
+  return {
+    ...currentTask,
+    lastSupplement: userText || currentTask.lastSupplement,
+    missing,
+    reason: input.reason,
+    supplements,
+  };
+}
+
+function appendPendingTaskSupplement(pendingTask = {}, text = '') {
+  const cleanText = String(text || '').trim();
+  const existing = Array.isArray(pendingTask.supplements)
+    ? pendingTask.supplements.filter(Boolean)
+    : [pendingTask.lastSupplement].filter(Boolean);
+  if (!cleanText || existing.includes(cleanText)) {
+    return existing;
+  }
+  return [...existing, cleanText];
 }
 
 function buildRecoverableFailureShape(input = {}) {

@@ -311,6 +311,42 @@ test('buildRecoverableAgentErrorResult keeps resume failures in continue-executi
   assert.equal(payloadText.includes('action.execute'), false);
 });
 
+test('buildRecoverableAgentErrorResult preserves pending runtime checkpoint after resume failures', async () => {
+  const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
+
+  const result = buildRecoverableAgentErrorResult({
+    error: new Error('Raw runtime stack: resume failed after user supplement'),
+    sessionId: 'agent-session-resume-checkpoint-preserved',
+    userText: '产品太阳能路灯',
+    context: {
+      pendingTask: {
+        missing: ['产品资料或报价边界'],
+        originalText: '客户问MOQ和交期，帮我回一下',
+        runtime: {
+          checkpointPath: '/tmp/runtime.checkpoint.json',
+          resumeFrom: 'needs-input:inquiry-reply-draft',
+          runId: 'skill-runtime-resume-checkpoint',
+        },
+        skillId: 'inquiry-reply-draft',
+        skillName: '询盘回复草稿',
+        supplements: ['客户是德国采购商'],
+      },
+    },
+  });
+  const publicResult = sanitizeAgentResultForFrontend(result);
+  const publicText = JSON.stringify(publicResult);
+
+  assert.equal(result.context.pendingTask.originalText, '客户问MOQ和交期，帮我回一下');
+  assert.equal(result.context.pendingTask.runtime.runId, 'skill-runtime-resume-checkpoint');
+  assert.equal(result.context.pendingTask.runtime.resumeFrom, 'needs-input:inquiry-reply-draft');
+  assert.deepEqual(result.context.pendingTask.supplements, ['客户是德国采购商', '产品太阳能路灯']);
+  assert.equal(result.context.pendingTask.lastSupplement, '产品太阳能路灯');
+  assert.deepEqual(publicResult.context.pendingTask.missing, ['更多业务资料或更明确的产物要求']);
+  assert.equal(publicText.includes('skill-runtime-resume-checkpoint'), false);
+  assert.equal(publicText.includes('needs-input:inquiry-reply-draft'), false);
+  assert.equal(publicText.includes('/tmp/runtime.checkpoint.json'), false);
+});
+
 test('buildRecoverableAgentErrorResult treats explicit restart failures as fresh task failures', async () => {
   const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
 
