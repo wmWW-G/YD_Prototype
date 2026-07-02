@@ -30,6 +30,10 @@
   - 复现问题:已有 `pendingTask.runtime` 的缺资料任务在补资料续跑时如果后端异常,`buildRecoverableAgentErrorResult()` 会把 `pendingTask.originalText` 覆盖成本轮补充,并丢掉 `runtime.runId/resumeFrom`,下一句继续时只能重新拼任务,不像 Codex / Claude Code 从刚才卡住的位置继续。
   - 已修复:recoverable waiting 会沿用原 `pendingTask`、runtime checkpoint 和已有 supplements,把本轮补充追加到 supplements;公开 payload 仍只显示业务化缺失项,不泄露 runId、checkpointPath 或 `needs-input:<skillId>`。
   - 新增红绿回归测试 `buildRecoverableAgentErrorResult preserves pending runtime checkpoint after resume failures`,并保留 recoverable 首步进度 `继续执行` 和显式重开任务回到 `识别任务` 的测试。
+- 保留确认动作失败后的续接上下文:
+  - 复现问题:已有 `pendingConfirmation` 的导出/保存/外发/付费确认在续跑时如果后端异常,旧 recoverable fallback 会把本轮 `确认导出` 改写成新的 `pendingTask`,同时丢掉确认卡和当前产物指针。
+  - 已修复:`buildRecoverableAgentErrorResult()` 会在内部保留 `pendingConfirmation`、当前 artifact、period 和 customerSlug;下一句 `继续` 仍能回到刚才的确认点,公开 payload 仍不暴露 `export_file`、runId、checkpointPath、policy action 或本地路径。
+  - 新增红绿回归测试 `buildRecoverableAgentErrorResult preserves pending confirmation and artifact after confirmation failures`;按 sub agent 的 P3 建议补断言 period/customerSlug 保留,并新增 `buildRecoverableAgentErrorResult drops pending confirmation when restart failures start fresh`,防止显式重开任务误沿用旧确认卡。
 
 ## 2026-07-01
 

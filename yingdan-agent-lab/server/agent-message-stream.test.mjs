@@ -347,6 +347,65 @@ test('buildRecoverableAgentErrorResult preserves pending runtime checkpoint afte
   assert.equal(publicText.includes('/tmp/runtime.checkpoint.json'), false);
 });
 
+test('buildRecoverableAgentErrorResult preserves pending confirmation and artifact after confirmation failures', async () => {
+  const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
+
+  const result = buildRecoverableAgentErrorResult({
+    error: new Error('Raw runtime stack: export_file failed for outputPath workbench/exports/quote.xlsx'),
+    sessionId: 'agent-session-confirmation-checkpoint-preserved',
+    userText: '确认导出',
+    context: {
+      artifact: {
+        name: '报价单.xlsx',
+        outputPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/artifacts/quote.xlsx',
+        type: 'xlsx',
+      },
+      customerSlug: 'global-sourcing-inc',
+      period: {
+        from: '2026-07-01',
+        to: '2026-07-02',
+      },
+      pendingConfirmation: {
+        body: '导出前需要检查客户隐私和内部底价。',
+        confirmLabel: '确认导出',
+        originalText: '帮我做报价单并导出文件',
+        runtime: {
+          checkpointPath: '/tmp/export.checkpoint.json',
+          resumeFrom: 'policy:artifact.export_file',
+          runId: 'skill-runtime-export-confirmation',
+        },
+        title: '导出文件前需要确认',
+        type: 'export_file',
+      },
+    },
+  });
+  const publicResult = sanitizeAgentResultForFrontend(result);
+  const publicText = JSON.stringify(publicResult);
+
+  assert.equal(result.context.pendingTask, undefined);
+  assert.equal(result.context.pendingConfirmation.originalText, '帮我做报价单并导出文件');
+  assert.equal(result.context.pendingConfirmation.runtime.runId, 'skill-runtime-export-confirmation');
+  assert.equal(result.context.pendingConfirmation.runtime.resumeFrom, 'policy:artifact.export_file');
+  assert.equal(result.context.artifact.name, '报价单.xlsx');
+  assert.equal(result.context.customerSlug, 'global-sourcing-inc');
+  assert.deepEqual(result.context.period, {
+    from: '2026-07-01',
+    to: '2026-07-02',
+  });
+  assert.equal(publicResult.context.pendingTask, undefined);
+  assert.deepEqual(publicResult.context.artifact, {
+    name: '报价单.xlsx',
+    type: 'xlsx',
+    workbookName: '报价单.xlsx',
+  });
+  assert.deepEqual(publicResult.progress.map((item) => item.label), ['继续执行', '处理卡住', '等待补充']);
+  assert.equal(publicText.includes('export_file'), false);
+  assert.equal(publicText.includes('skill-runtime-export-confirmation'), false);
+  assert.equal(publicText.includes('policy:artifact.export_file'), false);
+  assert.equal(publicText.includes('/tmp/export.checkpoint.json'), false);
+  assert.equal(publicText.includes('workbench/exports/quote.xlsx'), false);
+});
+
 test('buildRecoverableAgentErrorResult treats explicit restart failures as fresh task failures', async () => {
   const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
 
@@ -369,6 +428,44 @@ test('buildRecoverableAgentErrorResult treats explicit restart failures as fresh
   assert.equal(publicResult.messages[0].process.steps.some((item) => item.label === '继续执行'), false);
   assert.equal(publicResult.messages[0].activity.items.some((item) => item.title === '继续执行'), false);
   assert.equal(JSON.stringify(publicResult).includes('skill-runtime-old-pending-task'), false);
+});
+
+test('buildRecoverableAgentErrorResult drops pending confirmation when restart failures start fresh', async () => {
+  const { buildRecoverableAgentErrorResult } = await import('./agent-message-stream.mjs');
+
+  const result = buildRecoverableAgentErrorResult({
+    context: {
+      artifact: {
+        name: '旧报价单.xlsx',
+        outputPath: '/Users/garden/YD/Prototype/yingdan-agent-lab/workbench/artifacts/old-quote.xlsx',
+        type: 'xlsx',
+      },
+      pendingConfirmation: {
+        confirmLabel: '确认导出',
+        originalText: '导出旧报价单',
+        runtime: {
+          resumeFrom: 'policy:artifact.export_file',
+          runId: 'skill-runtime-old-confirmation',
+        },
+        title: '导出文件前需要确认',
+        type: 'export_file',
+      },
+    },
+    error: new Error('Raw runtime stack: fresh restart failed'),
+    sessionId: 'agent-session-restart-confirmation-failure',
+    userText: '重新开始，客户嫌贵，产品是家具，帮我分析怎么推进',
+  });
+  const publicResult = sanitizeAgentResultForFrontend(result);
+  const publicText = JSON.stringify(publicResult);
+
+  assert.equal(result.context.pendingConfirmation, undefined);
+  assert.equal(result.context.artifact, undefined);
+  assert.equal(result.context.pendingTask.originalText, '重新开始，客户嫌贵，产品是家具，帮我分析怎么推进');
+  assert.deepEqual(publicResult.progress.map((item) => item.label), ['识别任务', '处理卡住', '等待补充']);
+  assert.equal(publicResult.context.artifact, null);
+  assert.equal(publicText.includes('skill-runtime-old-confirmation'), false);
+  assert.equal(publicText.includes('policy:artifact.export_file'), false);
+  assert.equal(publicText.includes('old-quote.xlsx'), false);
 });
 
 test('buildRecoverableAgentErrorResult explains typed evaluator failures as a check-result pause', async () => {

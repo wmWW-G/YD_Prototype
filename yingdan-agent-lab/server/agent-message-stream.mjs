@@ -253,7 +253,7 @@ export function buildRecoverableAgentErrorResult(input = {}) {
   });
   const progress = recoverable.progress;
   const content = recoverable.content;
-  const pendingTask = buildRecoverablePendingTask({
+  const recoverableContext = buildRecoverableContext({
     context: input.context,
     missing: recoverable.missing,
     reason: recoverable.reason,
@@ -268,9 +268,7 @@ export function buildRecoverableAgentErrorResult(input = {}) {
     summary: content,
     taskTitle: recoverable.taskTitle,
     progress,
-    context: {
-      pendingTask,
-    },
+    context: recoverableContext,
     messages: [
       {
         id: messageId('assistant'),
@@ -310,6 +308,49 @@ export function buildRecoverableAgentErrorResult(input = {}) {
       },
     ],
   };
+}
+
+/**
+ * buildRecoverableContext 保存异常恢复后的内部线程上下文。
+ *
+ * 作用：
+ * - 如果原本停在保存、导出、外发或付费确认卡,异常后仍保留 pendingConfirmation。
+ * - 同时保留当前 artifact / period / customerSlug,避免下一句“继续”时找不到要导出或写入的产物。
+ * - 只有普通缺资料等待或新失败任务,才落成 pendingTask。
+ *
+ * 参数：
+ * - input.context：异常发生前的线程上下文。
+ * - input.userText：本轮用户输入。
+ * - input.missing：恢复后前台应提示的缺失项。
+ * - input.reason：恢复原因。
+ *
+ * 返回值：内部 session 可保存的 context；公开输出会再经过 sanitizeContext。
+ * 可能抛出的异常：无。
+ */
+function buildRecoverableContext(input = {}) {
+  if (hasRecoverablePendingConfirmation(input.context, input.userText)) {
+    return buildRecoverableConfirmationContext(input.context);
+  }
+
+  return {
+    pendingTask: buildRecoverablePendingTask(input),
+  };
+}
+
+function hasRecoverablePendingConfirmation(context = {}, text = '') {
+  if (shouldStartWithFreshCustomerContext(text)) {
+    return false;
+  }
+  return Boolean(context?.pendingConfirmation && typeof context.pendingConfirmation === 'object');
+}
+
+function buildRecoverableConfirmationContext(context = {}) {
+  return compactObject({
+    artifact: context.artifact,
+    customerSlug: context.customerSlug,
+    pendingConfirmation: context.pendingConfirmation,
+    period: context.period,
+  });
 }
 
 /**
