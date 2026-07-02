@@ -4,5 +4,10 @@ npm-debug.log*
 .DS_Store
 agent-thread-prototype/.npm-cache/
 agent-thread-prototype/dist/
+agent-thread-prototype/design-qa-*.png
 workbench/artifacts/
 workbench/runs/
+workbench/agent-sessions/
+workbench/exports/
+workbench/customers/*/diary/
+*.zip

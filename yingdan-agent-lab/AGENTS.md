@@ -5,6 +5,12 @@
 这个目录用于设计并落地「赢单」从静态 UI 原型,升级成外贸业务员本地 Agent 工作台的方案。
 这里不是线上原型主工程,也不是正式生产代码;作用是先把 Agent 底座、Skill、模型入口、本地文件读写、客户记忆和任务循环跑通,再决定是否迁移到正式工程。
 
+## 独立仓库边界
+
+- `yingdan-agent-lab/` 当前按独立项目维护,目标仓库是 `https://github.com/Garden-g/YD_Agent.git`。
+- 它不是上级 `/Users/garden/YD/Prototype` 原型仓库的一部分;不要把上级目录的 `index.html`、`src/`、`browser-extension/`、历史备份或 GitHub Pages 发布规则当成本项目事实来源。
+- 提交和推送本项目时,只处理本目录内的源码、文档、workbench 配置和原型代码;不要顺手提交上级项目的脏改动、审计输出或临时产物。
+
 当前核心判断:
 
 - 现在的赢单原型更像「外贸场景包装过的 AI Chatbot + 资料工具入口 + 客户上下文雏形」。
@@ -15,6 +21,7 @@
 
 - 一句话:**外贸业务员 AI 作战台**,覆盖 `找线索 → 开发 → 成交 → 客户管理` 全链路。
 - 三层:**Agent = 底座**(产品,保证"智能") / **Runtime Skill = 可执行任务包**(可插拔,保证"对路") / **Tool = 连接器**。赢单 UI 里的市场调研、开发信、询盘分析回复等是现有 chatbot 业务入口,不等于 Runtime 验收 Skill。
+- 「客户开发」是一级业务入口,不放进 `技能Skill` 子菜单。它承接 `找线索 → 筛客户 → 触达 → 入客户Kass` 的获客主流程;`新客开发信` 这类单点写信能力才属于 `技能Skill`。
 - **第一刀验收**:能执行外部 Accio skill 包 `alibaba-inquiry-meeting`,并产出合格 XLSX。当前真实验收入口有两层:命令行 `npm run acceptance:alibaba-inquiry-meeting:real`;前台「新对话」输入 `执行Skill：alibaba-inquiry-meeting` 后调用 `POST /api/agent/message`。落地细节以 `BUILD_SPEC.md` 为准。
 - **"底座做得好" = 智能感四件套**:①过程看得见 ②自动用上客户档案/记忆 ③判断有含金量 ④跨任务记得你。智能来自这四件,**不来自自主程度**。
 - 最不要变成:普通 Chatbot / 复杂 CRM / 工具集合页 / MCP 控制台。

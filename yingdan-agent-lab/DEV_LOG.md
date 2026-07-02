@@ -2,6 +2,10 @@
 
 ## 2026-07-02
 
+- 记录独立仓库边界:
+  - 按用户要求把 `yingdan-agent-lab/` 明确记录为独立项目,目标仓库为 `https://github.com/Garden-g/YD_Agent.git`,不再依附上级 `/Users/garden/YD/Prototype` 的原型仓库和 GitHub Pages 发布规则。
+  - 更新 `AGENTS.md` 和 `CONTEXT.md`,要求后续提交/验证/推送以本目录为项目根,不要把上级 `index.html`、`src/`、`browser-extension/`、审计输出或临时产物混入本项目。
+  - 扩展 `.gitignore`,忽略新对话运行 session、导出副本、客户 diary、设计 QA 截图和 zip 包,避免独立仓库首推时带入本地运行垃圾。
 - 让新对话的 `引用资料` 支持 XLSX/XLSM 表格:
   - 复现问题:前端引用资料只支持 txt/md/csv,用户选择报价表或产品表 `.xlsx` 会被直接拒绝,不像 Codex / Claude Code 能把常见业务附件带进当前任务。
   - 已修复:新增 `server/agent-reference-parser.mjs` 和 `POST /api/agent/reference/parse`,用 bundled Python/openpyxl 读取用户主动选择的 XLSX/XLSM 前几张工作表,整理成有边界的人类可读文本;临时文件解析后立即清理,不会写入客户档案或产物目录。

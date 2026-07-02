@@ -10,6 +10,12 @@
 赢单怎么从「外贸 AI 问答」,升级成「能创建 Agent、用 Skill、调工具,把一个客户线索一步步推进到成交」的外贸作战台?
 ```
 
+## 独立项目边界
+
+- `yingdan-agent-lab/` 现在按独立项目维护,目标 Git 仓库是 `https://github.com/Garden-g/YD_Agent.git`。
+- 上级 `/Users/garden/YD/Prototype` 只是历史放置位置;本项目和上级赢单 UI 原型、GitHub Pages 仓库、浏览器插件包没有提交或发布依赖关系。
+- 后续开发、验证和推送都以本目录为项目根;不要把上级项目的 `index.html`、`src/`、`browser-extension/`、历史备份、审计输出或未跟踪产物混入本项目提交。
+
 ## 当前最新方向（2026-06-30）
 
 ```text
