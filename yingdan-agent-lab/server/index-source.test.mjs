@@ -25,6 +25,33 @@ async function readStreamAgentMessageRouteSource() {
   return source.slice(start, end);
 }
 
+async function readReferenceParserRouteSource() {
+  const source = await readFile(indexSourcePath, 'utf8');
+  const start = source.indexOf("app.post('/api/agent/reference/parse'");
+  const end = source.indexOf("app.use(express.json({ limit: '1mb' }))", start + 1);
+
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  return source.slice(start, end);
+}
+
+test('reference parser route uses a dedicated large body limit while normal APIs stay small', async () => {
+  const source = await readFile(indexSourcePath, 'utf8');
+  const routeSource = await readReferenceParserRouteSource();
+
+  assert.equal(routeSource.includes("express.json({ limit: '8mb' })"), true);
+  assert.equal(source.includes("app.use(express.json({ limit: '1mb' }))"), true);
+  assert.equal(source.includes("app.use(express.json({ limit: '8mb' }))"), false);
+});
+
+test('API CORS only allows local browser origins', async () => {
+  const source = await readFile(indexSourcePath, 'utf8');
+
+  assert.equal(source.includes('function isAllowedCorsOrigin'), true);
+  assert.equal(source.includes("['localhost', '127.0.0.1', '[::1]']"), true);
+  assert.equal(source.includes("Access-Control-Allow-Origin', '*'"), false);
+});
+
 test('JSON agent message route uses merged request context for recoverable failures', async () => {
   const routeSource = await readJsonAgentMessageRouteSource();
   const okFalseStart = routeSource.indexOf('if (result.ok === false) {');

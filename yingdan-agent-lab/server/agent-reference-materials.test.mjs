@@ -12,6 +12,9 @@ function createFakeFile({ name, text, type = '' }) {
   return {
     name,
     type,
+    async arrayBuffer() {
+      return new TextEncoder().encode(text).buffer;
+    },
     async text() {
       return text;
     },
@@ -31,6 +34,33 @@ test('readReferenceFileText imports supported text reference files', async () =>
   });
 });
 
+test('readReferenceFileText imports xlsx through the backend parser', async () => {
+  const reference = await readReferenceFileText(
+    createFakeFile({
+      name: 'quote.xlsx',
+      text: 'fake workbook bytes',
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }),
+    {
+      async parseBinaryReferenceFile(file) {
+        assert.equal(file.name, 'quote.xlsx');
+        return {
+          name: file.name,
+          text: [
+            '工作表: 报价单',
+            '产品 | 数量 | 单价 | 贸易条款',
+            '太阳能路灯 | 500套 | USD 35 | FOB Shanghai',
+          ].join('\n'),
+        };
+      },
+    },
+  );
+
+  assert.equal(reference.name, 'quote.xlsx');
+  assert.match(reference.text, /太阳能路灯/);
+  assert.match(reference.text, /FOB Shanghai/);
+});
+
 test('readReferenceFileText rejects unsupported binary-looking files instead of pretending to parse them', async () => {
   await assert.rejects(
     () => readReferenceFileText(createFakeFile({
@@ -39,7 +69,7 @@ test('readReferenceFileText rejects unsupported binary-looking files instead of 
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     })),
     (error) => error.code === 'REFERENCE_FILE_UNSUPPORTED' &&
-      /txt、md 或 csv/.test(referenceFileErrorMessage(error)),
+      /txt、md、csv 或 xlsx/.test(referenceFileErrorMessage(error)),
   );
 
   await assert.rejects(

@@ -266,9 +266,15 @@ test('New Conversation reference material button imports text into the current t
   assert.equal(threadSource.includes('handleReferenceMaterialClick'), true);
   assert.equal(threadSource.includes('handleReferenceFilesChange'), true);
   assert.equal(threadSource.includes('type="file"'), true);
+  assert.equal(threadSource.includes('.xlsx,.xlsm'), true);
   assert.equal(threadSource.includes('reference-import-status'), true);
   assert.equal(source.includes("from './agentReferenceMaterials.js'"), true);
   assert.equal(source.includes('readReferenceFileText'), true);
+  assert.equal(source.includes('parseReferenceFileViaServer'), true);
+  assert.equal(source.includes('/api/agent/reference/parse'), true);
+  assert.equal(threadSource.includes('parseBinaryReferenceFile: parseReferenceFileViaServer'), true);
+  assert.equal(threadSource.includes('Promise.allSettled'), true);
+  assert.equal(threadSource.includes('没有读入'), true);
   assert.equal(source.includes('referenceFileErrorMessage'), true);
   assert.equal(referenceSource.includes('引用资料：'), true);
 });

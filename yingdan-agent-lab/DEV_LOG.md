@@ -1,5 +1,14 @@
 # DEV_LOG
 
+## 2026-07-02
+
+- 让新对话的 `引用资料` 支持 XLSX/XLSM 表格:
+  - 复现问题:前端引用资料只支持 txt/md/csv,用户选择报价表或产品表 `.xlsx` 会被直接拒绝,不像 Codex / Claude Code 能把常见业务附件带进当前任务。
+  - 已修复:新增 `server/agent-reference-parser.mjs` 和 `POST /api/agent/reference/parse`,用 bundled Python/openpyxl 读取用户主动选择的 XLSX/XLSM 前几张工作表,整理成有边界的人类可读文本;临时文件解析后立即清理,不会写入客户档案或产物目录。
+  - 前端 `agentReferenceMaterials.js` 区分浏览器可直接读取的 txt/md/csv 和需要后端解析的 XLSX/XLSM;`App.jsx` 的引用资料按钮会把表格解析结果追加到当前任务草稿,继续保持自然语言上下文,不暴露 schema、JSON 或工具调用。
+  - sub agent 复核后收紧安全边界:`/api/agent/reference/parse` 使用专用 8MB JSON body limit,普通 API 回到 1MB;CORS 只允许本机浏览器 origin;后端同时限制单元格长度和总返回文本,避免超长表格先撑爆响应再交给前端截断。
+  - 新增红绿回归测试 `readReferenceFileText imports xlsx through the backend parser`、`parseAgentReferenceFile extracts readable text from xlsx workbooks`,并补前端源码测试确认 `/api/agent/reference/parse` 已接入引用资料按钮。PDF 仍不是第一阶段直接引用格式。
+
 ## 2026-07-01
 
 - 修复旧产物卡查看会打开最新产物:

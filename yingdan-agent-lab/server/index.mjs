@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { readAgentArtifactPreview } from './agent-artifact-preview.mjs';
+import { parseAgentReferenceFile } from './agent-reference-parser.mjs';
 import {
   createConsecutiveProgressDeduper,
   createInitialAgentStreamProgress,
@@ -31,19 +32,54 @@ await runtime.ensureWorkbench();
 const app = express();
 const port = Number(process.env.PORT || envFromFile.PORT || 8787);
 
-app.use(express.json({ limit: '1mb' }));
 app.use((request, response, next) => {
-  response.setHeader('Access-Control-Allow-Origin', '*');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  const origin = request.headers.origin || '';
+  const isCorsAllowed = isAllowedCorsOrigin(origin);
+  if (isCorsAllowed && origin) {
+    response.setHeader('Access-Control-Allow-Origin', origin);
+    response.setHeader('Vary', 'Origin');
+  }
+  if (isCorsAllowed) {
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  }
 
   if (request.method === 'OPTIONS') {
+    if (!isCorsAllowed) {
+      response.status(403).end();
+      return;
+    }
     response.status(204).end();
     return;
   }
 
   next();
 });
+
+/**
+ * isAllowedCorsOrigin 判断跨域请求是否来自本机原型页面。
+ *
+ * 作用：
+ * - 这个后端会触发本机文件读取、XLSX 解析和 Agent 执行,不能把能力暴露给任意网页。
+ * - 没有 Origin 的 curl/本机服务端请求继续允许;浏览器跨域只允许 localhost/127.0.0.1。
+ *
+ * 参数：
+ * - origin：请求头里的 Origin。
+ *
+ * 返回值：boolean,true 表示允许继续响应 CORS。
+ * 可能抛出的异常：无。
+ */
+function isAllowedCorsOrigin(origin = '') {
+  if (!origin) {
+    return true;
+  }
+  try {
+    const parsed = new URL(origin);
+    return ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * sendError 把后端异常整理成前端可读的 JSON。
@@ -145,6 +181,21 @@ app.get('/api/health', (request, response) => {
     modelConfigured: Boolean(envFromFile.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY),
   });
 });
+
+app.post('/api/agent/reference/parse', express.json({ limit: '8mb' }), async (request, response) => {
+  try {
+    const reference = await parseAgentReferenceFile({
+      dataBase64: request.body?.dataBase64 || '',
+      mimeType: request.body?.type || request.body?.mimeType || '',
+      name: request.body?.name || '',
+    });
+    response.json({ ok: true, reference });
+  } catch (error) {
+    sendError(response, error);
+  }
+});
+
+app.use(express.json({ limit: '1mb' }));
 
 app.post('/api/inquiry/analyze', async (request, response) => {
   try {

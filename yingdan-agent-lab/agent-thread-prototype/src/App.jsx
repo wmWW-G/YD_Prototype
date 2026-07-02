@@ -467,6 +467,62 @@ const initialProgress = [
 const API_BASE_URL = 'http://127.0.0.1:8787';
 
 /**
+ * parseReferenceFileViaServer 把需要后端解析的引用资料转成文本。
+ *
+ * 作用：
+ * - XLSX 这类二进制资料不能直接用浏览器 text() 当业务上下文。
+ * - 这里把文件体发给本地后端解析,前端只接收已经整理好的人类可读文本。
+ *
+ * 参数：
+ * - file：浏览器 File 对象,需要支持 arrayBuffer()。
+ *
+ * 返回值：Promise<object>,包含 name 和 text。
+ * 可能抛出的异常：网络失败、后端拒绝或解析失败时抛出带 userMessage 的异常。
+ */
+async function parseReferenceFileViaServer(file) {
+  const response = await fetch(`${API_BASE_URL}/api/agent/reference/parse`, {
+    body: JSON.stringify({
+      dataBase64: arrayBufferToBase64(await file.arrayBuffer()),
+      name: file.name,
+      type: file.type,
+    }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.ok === false || !payload.reference?.text) {
+    throw Object.assign(new Error('Reference parse failed'), {
+      code: payload.error || 'REFERENCE_FILE_PARSE_FAILED',
+      userMessage: payload.message || '这份表格暂时解析失败,可以先复制关键内容到输入框。',
+    });
+  }
+  return payload.reference;
+}
+
+/**
+ * arrayBufferToBase64 把浏览器文件二进制转成 base64。
+ *
+ * 作用：
+ * - 后端解析接口用 JSON 接收文件内容,所以需要把 ArrayBuffer 转成可传输字符串。
+ * - 分块转换可以避免较大表格一次性展开参数导致浏览器报错。
+ *
+ * 参数：
+ * - buffer：File.arrayBuffer() 返回的二进制内容。
+ *
+ * 返回值：base64 字符串。
+ * 可能抛出的异常：浏览器不支持 btoa 或 buffer 无效时抛出原始异常。
+ */
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return window.btoa(binary);
+}
+
+/**
  * loadAgentThreadState 从浏览器本地存储恢复新对话线程。
  *
  * 作用：
@@ -1744,7 +1800,18 @@ function NewConversationView({
     }
 
     try {
-      const references = await Promise.all(files.map(readReferenceFileText));
+      const settledReferences = await Promise.allSettled(files.map((file) => readReferenceFileText(file, {
+        parseBinaryReferenceFile: parseReferenceFileViaServer,
+      })));
+      const references = settledReferences
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value);
+      const failedMessages = settledReferences
+        .filter((result) => result.status === 'rejected')
+        .map((result) => referenceFileErrorMessage(result.reason));
+      if (!references.length) {
+        throw settledReferences.find((result) => result.status === 'rejected')?.reason;
+      }
       const referenceBlock = buildReferenceDraftBlock(references);
       const nextDraft = [draft.trim(), referenceBlock].filter(Boolean).join('\n\n');
       onDraftChange(nextDraft);
@@ -1752,7 +1819,8 @@ function NewConversationView({
         inputRef.current.value = nextDraft;
         inputRef.current.focus();
       }
-      setReferenceImportStatus(`已引用 ${references.length} 份资料，会和这次任务一起处理。`);
+      const failureNote = failedMessages.length ? `；${failedMessages.length} 份没有读入：${failedMessages[0]}` : '';
+      setReferenceImportStatus(`已引用 ${references.length} 份资料，会和这次任务一起处理${failureNote}。`);
     } catch (error) {
       setReferenceImportStatus(referenceFileErrorMessage(error));
     }
@@ -1928,7 +1996,7 @@ function NewConversationView({
                 引用资料
               </button>
               <input
-                accept=".txt,.md,.csv,text/plain,text/markdown,text/csv"
+                accept=".txt,.md,.csv,.xlsx,.xlsm,text/plain,text/markdown,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroenabled.12"
                 className="reference-file-input"
                 multiple
                 onChange={handleReferenceFilesChange}
