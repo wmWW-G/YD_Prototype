@@ -9,6 +9,8 @@
 - API 基础 URL：`https://api.dify.ai/v1`
 - 主要接口：`POST /chat-messages`
 - 鉴权方式：`Authorization: Bearer <DIFY_API_KEY>`
+- 当前原型代理：`api/dify-customer-research.js`
+- 代理环境变量：`DIFY_CUSTOMER_RESEARCH_API_KEY`
 
 ## 脱敏 curl 示例
 
@@ -114,7 +116,7 @@ def call_dify_customer_research(
 
 ## 调用注意事项
 
-- 不要在前端写入真实 API Key，正式产品应由后端代理调用。
+- 不要在前端写入真实 API Key；当前原型已通过 Vercel Serverless 代理调用，key 只放在后端环境变量。
 - `user` 要稳定且唯一，便于 Dify 侧统计和排查。
 - 连续追问时要保存 `conversation_id`，否则 Dify 不会带上上一轮上下文。
 - 测试记录里只保存返回结构和必要摘要，不保存真实客户原文。

@@ -124,6 +124,46 @@ GET https://api.dify.ai/v1/parameters
 
 完整参数摘要见 `parameters.snapshot.json`。
 
+## 2026-07-04 代理接口测试
+
+### 测试接口
+
+```text
+POST https://yd-prototype-dify-proxy.vercel.app/api/dify-customer-research
+```
+
+### 测试请求摘要
+
+使用 GitHub Pages 的 Origin 模拟线上原型页面请求：
+
+```text
+Origin: https://wmww-g.github.io
+```
+
+请求体只包含前端需要传给代理的最小字段：
+
+```json
+{
+  "query": "这是一条赢单代理连通性测试。请只用一句中文回复：客户背调代理连通成功。",
+  "conversation_id": "",
+  "user": "yd-prototype-proxy-smoke-20260704"
+}
+```
+
+### 测试结果
+
+- HTTP 状态：`200`
+- CORS：`access-control-allow-origin: https://wmww-g.github.io`
+- 返回包含会话 ID：是
+- 返回包含消息 ID：是
+- 回答摘要：`客户背调代理连通成功。`
+
+### 结论
+
+- GitHub Pages 页面可以跨域请求代理。
+- 代理可以从后端环境变量读取 Dify API Key 并调用 `POST /chat-messages`。
+- 前端不需要再要求用户手动填写 Dify API Key。
+
 ## 当前结论
 
 - API Key 可用。
@@ -131,4 +171,5 @@ GET https://api.dify.ai/v1/parameters
 - `GET /parameters` 可通。
 - 当前 Chatflow 没有暴露额外表单变量，先传 `inputs: {}` 即可。
 - 文件上传当前未启用，客户背调首版应以纯文本 `query` 调用。
-- 正式接入时必须走赢单后端代理，不要把 Dify Key 放进前端或浏览器插件。
+- 当前原型已新增 `api/dify-customer-research.js` 代理，GitHub Pages 前端默认请求该代理，代理再调用 Dify。
+- 正式接入时必须继续走赢单后端代理，不要把 Dify Key 放进前端或浏览器插件。

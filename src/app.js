@@ -58,6 +58,25 @@
 const USER_PREVIEW_DEFAULT_FIELD_IDS = ["logIndex", "usedAt", "userContact", "lastActiveAt", "activeDays", "calledFeature", "calledModel", "callCount", "inputToken", "outputToken", "totalToken", "creditBalance", "runStatus", "estimatedCost", "operationLog", "trialDetails"];
 
 /**
+ * 客户背调代理接口地址。
+ *
+ * 为什么优先走代理：
+ * - GitHub Pages 是静态站，不能安全保存 Dify API Key。
+ * - 用户浏览器直连 Dify 容易被扩展、网络或安全策略拦截。
+ * - 代理会在服务端读取环境变量里的 key，页面无需用户手动填写。
+ *
+ * @type {string}
+ */
+const CUSTOMER_RESEARCH_PROXY_URL = "https://yd-prototype-dify-proxy.vercel.app/api/dify-customer-research";
+
+/**
+ * Dify 官方接口地址，仅保留给调试模式使用。
+ *
+ * @type {string}
+ */
+const CUSTOMER_RESEARCH_DIRECT_DIFY_URL = "https://api.dify.ai/v1/chat-messages";
+
+/**
  * User Preview 报表需要横向冻结的字段。
  *
  * 为什么单独定义：
@@ -221,6 +240,45 @@ function normalizeDifyApiKey(value) {
   const raw = String(value || "").trim();
   const matched = raw.match(/app-[A-Za-z0-9_-]+/);
   return matched ? matched[0] : raw.replace(/\s+/g, "");
+}
+
+/**
+ * 获取当前页面应该调用的客户背调代理地址。
+ *
+ * 为什么支持 window 注入：
+ * - 线上 GitHub Pages 直接使用默认 Vercel 代理。
+ * - 开发同事如果要临时换代理，可以在控制台设置 window.YD_DIFY_CUSTOMER_RESEARCH_PROXY_URL。
+ * - 如果整个原型部署到 Vercel，同源 `/api/...` 也能直接工作。
+ *
+ * @returns {string} 代理地址；空字符串表示没有代理可用。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getCustomerResearchProxyUrl() {
+  const injected = window.YD_DIFY_CUSTOMER_RESEARCH_PROXY_URL;
+
+  if (typeof injected === "string" && injected.trim()) {
+    return injected.trim();
+  }
+
+  if (window.location.hostname.endsWith("vercel.app")) {
+    return "/api/dify-customer-research";
+  }
+
+  return CUSTOMER_RESEARCH_PROXY_URL;
+}
+
+/**
+ * 判断是否启用前端直连 Dify 的调试模式。
+ *
+ * @returns {boolean} URL 上带 ?difyDebug=1 时返回 true。
+ * @throws {Error} 本函数不主动抛异常；URL 解析失败时默认关闭。
+ */
+function isCustomerResearchDirectDebugMode() {
+  try {
+    return new URLSearchParams(window.location.search).get("difyDebug") === "1";
+  } catch (error) {
+    return false;
+  }
 }
 
 /**
@@ -6115,6 +6173,8 @@ function renderCustomerGeneration() {
 function renderCustomerResearchView() {
   const flow = CUSTOMER_RESEARCH_FLOW;
   const hasDraft = state.chatDraft.trim().length > 0;
+  const proxyUrl = getCustomerResearchProxyUrl();
+  const showDirectDebugKey = !proxyUrl || isCustomerResearchDirectDebugMode();
 
   return `
     <section class="customer-research-view workbench-enter" aria-label="客户背调顾问">
@@ -6134,10 +6194,17 @@ function renderCustomerResearchView() {
           ${(flow.chips || []).map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
         </div>
 
-        <label class="customer-research-key-row">
-          <span>Dify API Key</span>
-          <input type="password" placeholder="粘贴 app- 开头的 Dify Key，仅保存在当前页面内存" value="${escapeHtml(state.customerResearchApiKey)}" data-customer-research-key="true" autocomplete="off" />
-        </label>
+        ${showDirectDebugKey ? `
+          <label class="customer-research-key-row">
+            <span>Dify API Key</span>
+            <input type="password" placeholder="调试模式：粘贴 app- 开头的 Dify Key" value="${escapeHtml(state.customerResearchApiKey)}" data-customer-research-key="true" autocomplete="off" />
+          </label>
+        ` : `
+          <div class="customer-research-service-row" aria-label="背调服务状态">
+            <span>实时背调</span>
+            <strong>已接入</strong>
+          </div>
+        `}
 
         <div class="customer-research-box">
           <textarea placeholder="公司名 / 官网 / 国家 / 行业 / 你的产品 / 本次开发目标" data-chat-input="true">${escapeHtml(state.chatDraft)}</textarea>
@@ -7968,9 +8035,11 @@ function sendChatDraft() {
  * @throws {Error} 本函数内部捕获网络和接口异常，不向外抛出。
  */
 async function sendCustomerResearchDraft(draft) {
+  const proxyUrl = getCustomerResearchProxyUrl();
+  const useDirectDify = !proxyUrl || isCustomerResearchDirectDebugMode();
   let apiKey = normalizeDifyApiKey(state.customerResearchApiKey);
 
-  if (!apiKey) {
+  if (useDirectDify && !apiKey) {
     showToast("请先粘贴 Dify API Key。");
     const keyInput = document.querySelector("[data-customer-research-key]");
     keyInput?.focus();
@@ -7986,20 +8055,29 @@ async function sendCustomerResearchDraft(draft) {
   renderApp();
 
   try {
-    const response = await fetch("https://api.dify.ai/v1/chat-messages", {
+    const requestBody = {
+      query: draft,
+      conversation_id: state.customerResearchConversationId || "",
+      user: state.customerResearchUserId
+    };
+    const headers = {
+      "Content-Type": "application/json"
+    };
+    const endpoint = useDirectDify ? CUSTOMER_RESEARCH_DIRECT_DIFY_URL : proxyUrl;
+
+    if (useDirectDify) {
+      headers.Authorization = `Bearer ${apiKey}`;
+    }
+
+    const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
+      headers,
+      body: JSON.stringify(useDirectDify ? {
         inputs: {},
-        query: draft,
         response_mode: "blocking",
-        conversation_id: state.customerResearchConversationId || "",
-        user: state.customerResearchUserId,
-        files: []
-      })
+        files: [],
+        ...requestBody
+      } : requestBody)
     });
 
     const rawText = await response.text();
@@ -8027,7 +8105,7 @@ async function sendCustomerResearchDraft(draft) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Dify 调用失败，请稍后重试。";
     state.customerResearchError = message === "Failed to fetch"
-      ? "浏览器没有连上 Dify。请检查 API Key 是否只包含 app- 开头的内容；如果仍失败，可能是当前网络或浏览器插件拦截了 api.dify.ai。"
+      ? "浏览器没有连上背调代理。请刷新后重试；如果仍失败，说明当前网络或浏览器插件拦截了代理请求。"
       : message;
   } finally {
     state.isGenerating = false;
