@@ -6116,6 +6116,11 @@ function renderCustomerResearchView() {
           ${(flow.chips || []).map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
         </div>
 
+        <label class="customer-research-key-row">
+          <span>Dify API Key</span>
+          <input type="password" placeholder="粘贴 app- 开头的 Dify Key，仅保存在当前页面内存" value="${escapeHtml(state.customerResearchApiKey)}" data-customer-research-key="true" autocomplete="off" />
+        </label>
+
         <div class="customer-research-box">
           <textarea placeholder="公司名 / 官网 / 国家 / 行业 / 你的产品 / 本次开发目标" data-chat-input="true">${escapeHtml(state.chatDraft)}</textarea>
           <div class="customer-research-tools">
@@ -7266,6 +7271,12 @@ function bindEvents() {
     });
   });
 
+  document.querySelectorAll("[data-customer-research-key]").forEach((input) => {
+    input.addEventListener("input", () => {
+      state.customerResearchApiKey = input.value.trim();
+    });
+  });
+
   document.querySelectorAll("[data-dev-prompt]").forEach((button) => {
     button.addEventListener("click", () => {
       state.chatDraft = button.getAttribute("data-dev-prompt") || "";
@@ -7938,12 +7949,9 @@ async function sendCustomerResearchDraft(draft) {
   let apiKey = state.customerResearchApiKey.trim();
 
   if (!apiKey) {
-    apiKey = window.prompt("请输入 Dify API Key。本次只保存在当前页面内存，刷新后消失。") || "";
-    apiKey = apiKey.trim();
-  }
-
-  if (!apiKey) {
-    showToast("未输入 Dify API Key，已取消背调。");
+    showToast("请先粘贴 Dify API Key。");
+    const keyInput = document.querySelector("[data-customer-research-key]");
+    keyInput?.focus();
     return;
   }
 

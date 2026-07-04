@@ -5074,6 +5074,34 @@ button:disabled {
   font-weight: 800;
 }
 
+.customer-research-key-row {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.customer-research-key-row span {
+  color: #6d6259;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.customer-research-key-row input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #eadfd8;
+  border-radius: 8px;
+  outline: 0;
+  padding: 0 12px;
+  background: #fffdfa;
+  color: var(--text);
+}
+
+.customer-research-key-row input:focus {
+  border-color: #f2b68d;
+  box-shadow: 0 0 0 3px rgba(255, 92, 0, 0.08);
+}
+
 .customer-research-box {
   border: 1px solid #eadfd8;
   border-radius: 8px;
