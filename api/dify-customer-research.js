@@ -87,11 +87,77 @@ function buildDifyPayload(body) {
   return {
     inputs: {},
     query,
-    response_mode: "blocking",
+    response_mode: "streaming",
     conversation_id: String(body?.conversation_id || ""),
     user: String(body?.user || `yd-prototype-${Date.now()}`),
     files: []
   };
+}
+
+/**
+ * 将 Dify 的 SSE 流式响应整理成前端现有页面能消费的 JSON。
+ *
+ * 为什么代理里做这一步：
+ * - Dify blocking 模式的完整背调容易超过上游网关 60 秒限制并返回 504。
+ * - streaming 模式可以让上游连接持续产出分片，避免长时间无响应。
+ * - 当前原型前端已经按 JSON answer 渲染；代理累积流式分片后返回 JSON，可以不改页面结构。
+ *
+ * @param {string} rawText - Dify 返回的 text/event-stream 原文。
+ * @returns {{ event: string, answer: string, conversation_id: string, message_id: string, id: string, task_id: string, metadata: object, mode: string }} 合并后的响应对象。
+ * @throws {Error} 当 Dify 流中返回 error 事件时抛出，便于前端显示明确失败原因。
+ */
+function parseDifyStream(rawText) {
+  const result = {
+    event: "message",
+    answer: "",
+    conversation_id: "",
+    message_id: "",
+    id: "",
+    task_id: "",
+    metadata: {},
+    mode: "advanced-chat"
+  };
+
+  rawText.split(/\n\n+/).forEach((block) => {
+    const dataLines = block
+      .split(/\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.replace(/^data:\s?/, ""));
+
+    dataLines.forEach((line) => {
+      if (!line || line === "[DONE]") {
+        return;
+      }
+
+      let payload = null;
+
+      try {
+        payload = JSON.parse(line);
+      } catch (error) {
+        return;
+      }
+
+      if (payload.event === "error") {
+        throw new Error(payload.message || payload.error || "Dify 流式响应返回错误。");
+      }
+
+      if (payload.answer) {
+        result.answer += payload.answer;
+      }
+
+      result.conversation_id = payload.conversation_id || result.conversation_id;
+      result.message_id = payload.message_id || payload.id || result.message_id;
+      result.id = payload.id || result.id;
+      result.task_id = payload.task_id || result.task_id;
+      result.mode = payload.mode || result.mode;
+
+      if (payload.metadata) {
+        result.metadata = payload.metadata;
+      }
+    });
+  });
+
+  return result;
 }
 
 /**
@@ -145,9 +211,21 @@ module.exports = async function handler(req, res) {
     });
     const rawText = await difyResponse.text();
 
+    if (!difyResponse.ok) {
+      res.statusCode = difyResponse.status;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({ message: rawText || `Dify 返回 HTTP ${difyResponse.status}` }));
+      return;
+    }
+
+    const contentType = difyResponse.headers.get("content-type") || "";
+    const responseBody = contentType.includes("text/event-stream")
+      ? JSON.stringify(parseDifyStream(rawText))
+      : rawText;
+
     res.statusCode = difyResponse.status;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.end(rawText || JSON.stringify({ message: `Dify 返回空响应，HTTP ${difyResponse.status}` }));
+    res.end(responseBody || JSON.stringify({ message: `Dify 返回空响应，HTTP ${difyResponse.status}` }));
   } catch (error) {
     const message = error instanceof Error ? error.message : "背调代理调用失败。";
     res.statusCode = 500;

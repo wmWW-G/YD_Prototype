@@ -38,7 +38,7 @@ curl -sS -X POST 'https://api.dify.ai/v1/chat-messages' \
 | --- | --- | --- | --- |
 | `inputs` | object | Dify 应用变量 | 当前参数快照中没有表单变量，可先传 `{}` |
 | `query` | string | 客户背调输入区 | 用户要背调的客户信息和问题 |
-| `response_mode` | string | 后端配置 | `blocking` 便于测试；正式产品更适合 `streaming` |
+| `response_mode` | string | 后端配置 | 当前代理使用 `streaming`，避免完整背调超过 Dify blocking 网关时间 |
 | `conversation_id` | string | 后端会话状态 | 首轮为空，连续追问时传上一轮返回值 |
 | `user` | string | 赢单用户 ID | 用于 Dify 侧区分终端用户 |
 | `files` | array | 文件输入 | 当前文件上传未启用，传空数组 |
@@ -117,6 +117,7 @@ def call_dify_customer_research(
 ## 调用注意事项
 
 - 不要在前端写入真实 API Key；当前原型已通过 Vercel Serverless 代理调用，key 只放在后端环境变量。
+- 完整背调耗时可能超过 60 秒，代理应使用 Dify `streaming` 并在服务端累积 SSE 分片后返回前端。
 - `user` 要稳定且唯一，便于 Dify 侧统计和排查。
 - 连续追问时要保存 `conversation_id`，否则 Dify 不会带上上一轮上下文。
 - 测试记录里只保存返回结构和必要摘要，不保存真实客户原文。

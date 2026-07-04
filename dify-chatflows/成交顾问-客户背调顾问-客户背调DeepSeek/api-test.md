@@ -164,6 +164,36 @@ Origin: https://wmww-g.github.io
 - 代理可以从后端环境变量读取 Dify API Key 并调用 `POST /chat-messages`。
 - 前端不需要再要求用户手动填写 Dify API Key。
 
+## 2026-07-04 完整背调样例超时与流式复测
+
+### 现象
+
+使用 Yellow Door Energy 完整背调样例请求代理时：
+
+- 首次代理配置为 `60s` 时，约 `60.72s` 返回 HTTP `504`。
+- 将 Vercel `maxDuration` 调整为 `300s` 后，blocking 模式仍在约 `60.99s` 返回 `dify.ai | 504: Gateway time-out`。
+
+### 判断
+
+- 代理和 CORS 已经可用，小文本请求可返回 HTTP `200`。
+- 完整背调样例耗时较长，Dify blocking 模式会触发上游约 `60s` 网关超时。
+- 只提高 Vercel 函数执行时间不够，代理必须改为 Dify `streaming` 模式。
+
+### 处理
+
+- 将 `vercel.json` 中 `api/dify-customer-research.js` 的 `maxDuration` 从 `60` 调整为 `300`。
+- 将代理向 Dify 发起的请求从 `response_mode: "blocking"` 改为 `response_mode: "streaming"`。
+- 代理内部解析 Dify SSE 分片，累积 `answer`、`conversation_id`、`message_id` 后再返回前端现有 JSON 结构。
+
+### 最终复测结果
+
+- 测试样例：Yellow Door Energy 完整背调输入。
+- HTTP 状态：`200`
+- 总耗时：约 `170.81s`
+- 返回包含会话 ID：是
+- 返回包含消息 ID：是
+- 回答摘要：已返回 Yellow Door Energy 的 B2B 外贸背调分析报告。
+
 ## 当前结论
 
 - API Key 可用。
