@@ -206,6 +206,24 @@ function stripThinkingTags(answer) {
 }
 
 /**
+ * 从用户粘贴内容里提取 Dify API Key。
+ *
+ * 为什么要做提取：
+ * - 用户经常会连同中文括号、说明文字或 `Authorization: Bearer` 一起复制。
+ * - 浏览器 fetch 的 Header 不能包含中文括号这类非 latin-1 字符，否则可能直接变成网络失败。
+ * - 这里只保留 `app-` 开头的一段 key，避免把多余字符放进 Authorization Header。
+ *
+ * @param {string} value - 用户输入或粘贴的原始 key 文本。
+ * @returns {string} 提取后的 Dify API Key；找不到时返回清理空白后的原文。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function normalizeDifyApiKey(value) {
+  const raw = String(value || "").trim();
+  const matched = raw.match(/app-[A-Za-z0-9_-]+/);
+  return matched ? matched[0] : raw.replace(/\s+/g, "");
+}
+
+/**
  * 渲染导航图标。
  *
  * 作用：
@@ -7273,7 +7291,11 @@ function bindEvents() {
 
   document.querySelectorAll("[data-customer-research-key]").forEach((input) => {
     input.addEventListener("input", () => {
-      state.customerResearchApiKey = input.value.trim();
+      const nextKey = normalizeDifyApiKey(input.value);
+      state.customerResearchApiKey = nextKey;
+      if (nextKey && input.value !== nextKey) {
+        input.value = nextKey;
+      }
     });
   });
 
@@ -7946,7 +7968,7 @@ function sendChatDraft() {
  * @throws {Error} 本函数内部捕获网络和接口异常，不向外抛出。
  */
 async function sendCustomerResearchDraft(draft) {
-  let apiKey = state.customerResearchApiKey.trim();
+  let apiKey = normalizeDifyApiKey(state.customerResearchApiKey);
 
   if (!apiKey) {
     showToast("请先粘贴 Dify API Key。");
@@ -8003,9 +8025,10 @@ async function sendCustomerResearchDraft(draft) {
     state.customerResearchLiveAnswer = answer || "Dify 已返回结果，但 answer 字段为空。";
     state.generatedResult = "customer-research-live";
   } catch (error) {
-    state.customerResearchError = error instanceof Error
-      ? error.message
-      : "Dify 调用失败，请稍后重试。";
+    const message = error instanceof Error ? error.message : "Dify 调用失败，请稍后重试。";
+    state.customerResearchError = message === "Failed to fetch"
+      ? "浏览器没有连上 Dify。请检查 API Key 是否只包含 app- 开头的内容；如果仍失败，可能是当前网络或浏览器插件拦截了 api.dify.ai。"
+      : message;
   } finally {
     state.isGenerating = false;
     renderApp();
