@@ -1,4 +1,4 @@
-/* global NAV_GROUPS, HISTORY_ITEMS, CUSTOMER_DEVELOPMENT, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_USER_PREVIEW_SUB_ACCOUNTS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
+/* global NAV_GROUPS, HISTORY_ITEMS, CUSTOMER_RESEARCH_FLOW, CUSTOMER_DEVELOPMENT, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_USER_PREVIEW_SUB_ACCOUNTS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
 
 /**
  * 页面级状态对象。
@@ -3970,6 +3970,10 @@ function renderWorkspace() {
     return renderCustomerDevelopmentView();
   }
 
+  if (state.activeMain === "customer-research") {
+    return renderCustomerResearchView();
+  }
+
   return renderChatView();
 }
 
@@ -6040,6 +6044,153 @@ function renderCustomerGeneration() {
 }
 
 /**
+ * 渲染成交顾问 > 客户背调顾问。
+ *
+ * 作用：
+ * - 把已经验证过的 Dify `客户背调DeepSeek` 能力放到真实原型入口里。
+ * - 界面只呈现用户会操作的输入、快捷样例和背调报告，不暴露 Dify API Key 或接口细节。
+ * - 当前仍是静态原型，点击发送后用本地样例模拟报告；正式版由后端代理调用 Dify。
+ *
+ * @returns {string} 客户背调顾问页面 HTML。
+ * @throws {Error} 本函数不主动抛异常；数据缺失时会用空数组兜底。
+ */
+function renderCustomerResearchView() {
+  const flow = CUSTOMER_RESEARCH_FLOW;
+  const hasDraft = state.chatDraft.trim().length > 0;
+
+  return `
+    <section class="customer-research-view workbench-enter" aria-label="客户背调顾问">
+      <article class="customer-research-input-card">
+        <header class="customer-research-head">
+          <div>
+            <span class="customer-research-kicker">${escapeHtml(flow.engineName)}</span>
+            <h1>客户背调顾问</h1>
+            <p>粘贴客户公司、官网、国家、行业和业务目标，先判断值不值得推进，再生成沟通切入点。</p>
+          </div>
+          <button class="customer-research-sample" type="button" data-dev-prompt="${escapeHtml(flow.samplePrompt)}">
+            填入示例
+          </button>
+        </header>
+
+        <div class="customer-research-chip-row" aria-label="建议补充的信息">
+          ${(flow.chips || []).map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
+        </div>
+
+        <div class="customer-research-box">
+          <textarea placeholder="公司名 / 官网 / 国家 / 行业 / 你的产品 / 本次开发目标" data-chat-input="true">${escapeHtml(state.chatDraft)}</textarea>
+          <div class="customer-research-tools">
+            <div class="customer-research-quick">
+              ${(flow.quickPrompts || []).map((item) => `
+                <button type="button" data-dev-prompt="${escapeHtml(item.prompt)}">${escapeHtml(item.label)}</button>
+              `).join("")}
+            </div>
+            <button class="customer-research-send ${hasDraft ? "enabled" : ""}" type="button" data-send-chat="true" ${hasDraft || state.isGenerating ? "" : "disabled"}>
+              ${state.isGenerating ? "背调中..." : "开始背调"}
+            </button>
+          </div>
+        </div>
+      </article>
+
+      ${renderCustomerResearchOutput()}
+    </section>
+  `;
+}
+
+/**
+ * 渲染客户背调的生成态和结果态。
+ *
+ * @returns {string} 生成态、结果报告或空态 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerResearchOutput() {
+  if (state.isGenerating) {
+    return `
+      <article class="customer-research-loading" aria-live="polite">
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <p>正在背调客户背景、业务匹配度、风险点和下一步动作...</p>
+      </article>
+    `;
+  }
+
+  if (!state.generatedResult) {
+    return `
+      <article class="customer-research-empty">
+        <h2>等待背调</h2>
+        <p>结果会按客户画像、采购可能性、风险点和下一步动作整理。</p>
+      </article>
+    `;
+  }
+
+  return renderCustomerResearchReport();
+}
+
+/**
+ * 渲染客户背调报告样例。
+ *
+ * 为什么报告结构固定：
+ * - 方便开发同事把 Dify 返回的自由文本整理成稳定的 UI 区块。
+ * - 业务同事评审时能直接判断“结果是不是够用”，而不是只看到一段长文本。
+ *
+ * @returns {string} 背调报告 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerResearchReport() {
+  const report = CUSTOMER_RESEARCH_FLOW.report;
+
+  return `
+    <article class="customer-research-report">
+      <header class="research-report-head">
+        <div>
+          <span>背调报告</span>
+          <h2>${escapeHtml(report.company)}</h2>
+          <p>${escapeHtml(report.country)} · ${escapeHtml(report.industry)}</p>
+        </div>
+        <div class="research-score">
+          <span>匹配度</span>
+          <strong>${escapeHtml(report.fitScore)}</strong>
+        </div>
+      </header>
+
+      <p class="research-summary">${escapeHtml(report.summary)}</p>
+
+      <section class="research-section-grid" aria-label="客户背调分析">
+        ${(report.sections || []).map((section) => `
+          <article class="research-section-card">
+            <h3>${escapeHtml(section.title)}</h3>
+            <ul>
+              ${(section.items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+            </ul>
+          </article>
+        `).join("")}
+      </section>
+
+      <section class="research-risk-panel" aria-label="风险点">
+        <h3>风险点</h3>
+        <div>
+          ${(report.risks || []).map((risk) => `
+            <p><strong>${escapeHtml(risk.level)}</strong><span>${escapeHtml(risk.text)}</span></p>
+          `).join("")}
+        </div>
+      </section>
+
+      <section class="research-next-panel" aria-label="下一步动作">
+        <h3>下一步动作</h3>
+        <ol>
+          ${(report.nextActions || []).map((action) => `<li>${escapeHtml(action)}</li>`).join("")}
+        </ol>
+        <div class="result-actions">
+          <button type="button" data-toast="已模拟保存到客户Kass背调记录。">保存到客户Kass</button>
+          <button type="button" data-toast="已模拟生成首次开发邮件。">生成开发邮件</button>
+          <button type="button" data-toast="复制结果是原型反馈，当前不写入剪贴板。">复制报告</button>
+        </div>
+      </section>
+    </article>
+  `;
+}
+
+/**
  * 渲染通用问答 / 成交顾问 / Skill 的输入壳。
  *
  * @returns {string} 输入工作台 HTML。
@@ -7674,7 +7825,9 @@ function sendChatDraft() {
   window.setTimeout(() => {
     const [title] = getChatLabels();
     state.isGenerating = false;
-    if (state.activeMain === "customer-development") {
+    if (state.activeMain === "customer-research") {
+      state.generatedResult = "customer-research-report";
+    } else if (state.activeMain === "customer-development") {
       state.generatedResult = "已生成客户开发方案：优先开发 UAE 新能源经销商，首轮用公司一句话定位 + 中东案例建立信任，第二轮补认证和交付能力，第三轮切 WhatsApp 或 LinkedIn 确认采购角色；有回复的客户进入客户Kass A/B 分组继续推进。";
     } else {
       state.generatedResult = `${title} 已根据你的输入整理出一版可继续编辑的业务建议。正式版这里会展示 AI 生成内容、引用资料和下一步动作。`;

@@ -84,6 +84,78 @@ window.HISTORY_ITEMS = [
 ];
 
 /**
+ * 客户背调顾问的原型数据。
+ *
+ * 为什么单独维护：
+ * - 这个页面已经对应 Dify 里的 `客户背调DeepSeek` Chatflow。
+ * - 主静态原型不能把 Dify API Key 写进前端，所以这里仅放产品可见的输入模板和结果样例。
+ * - 真实接口路径、鉴权方式和测试记录维护在 `dify-chatflows/`，开发同事接后端时再查那里。
+ *
+ * @type {{
+ *   engineName: string,
+ *   samplePrompt: string,
+ *   chips: string[],
+ *   quickPrompts: Array<{ label: string, prompt: string }>,
+ *   report: {
+ *     company: string,
+ *     country: string,
+ *     industry: string,
+ *     fitScore: string,
+ *     summary: string,
+ *     sections: Array<{ title: string, items: string[] }>,
+ *     risks: Array<{ level: string, text: string }>,
+ *     nextActions: string[]
+ *   }
+ * }}
+ */
+window.CUSTOMER_RESEARCH_FLOW = {
+  engineName: "客户背调DeepSeek",
+  samplePrompt: "公司名：Yellow Door Energy\n国家/地区：阿联酋 / 中东\n行业：新能源、分布式太阳能、储能\n官网：https://www.yellowdoorenergy.com\n我的产品：工商业储能方案、光伏配套设备\n目标：判断客户采购可能性、关键决策链、切入话术和下一步动作",
+  chips: ["公司名", "官网", "国家/地区", "行业标签", "我的产品", "开发目标"],
+  quickPrompts: [
+    {
+      label: "中东新能源客户",
+      prompt: "公司名：Yellow Door Energy\n国家/地区：阿联酋 / 中东\n行业：新能源、分布式太阳能、储能\n官网：https://www.yellowdoorenergy.com\n我的产品：工商业储能方案、光伏配套设备\n目标：判断客户采购可能性、关键决策链、切入话术和下一步动作"
+    },
+    {
+      label: "欧洲工程采购商",
+      prompt: "公司名：SolarTech Solutions GmbH\n国家/地区：德国\n行业：光伏 EPC、工商业项目承包商\n官网：www.solartech-solutions.de\n我的产品：光伏组件 + 工商业储能方案\n目标：判断是否适合作为 A 类客户，并给出首次开发邮件角度"
+    },
+    {
+      label: "询盘前快速背调",
+      prompt: "客户信息：客户通过官网询盘，提到正在找储能系统供应商，但没有给数量和项目地点。\n国家/地区：沙特\n行业：EPC 承包商\n我的产品：5kW-100kW 工商业储能方案\n目标：先判断客户质量，再告诉我第一封回复要问什么"
+    }
+  ],
+  report: {
+    company: "Yellow Door Energy",
+    country: "阿联酋 / 中东",
+    industry: "分布式太阳能、工商业能源服务、PPA",
+    fitScore: "A-",
+    summary: "该客户更像区域能源项目服务商，采购决策会围绕项目收益、交付能力、认证、融资和长期运维展开。适合用中东项目案例、交付周期和质保能力切入，不建议一开始只推单品价格。",
+    sections: [
+      {
+        title: "客户画像",
+        items: ["服务工商业客户，重视项目回报周期和长期稳定性。", "中东市场项目属性明显，通常需要供应商证明本地交付经验。", "采购链条可能包含技术、项目、财务和高层多角色参与。"]
+      },
+      {
+        title: "采购可能性",
+        items: ["若其近期有新建或扩容项目，储能和光伏配套设备有切入空间。", "如果只做 PPA 或项目开发，直接卖设备的转化路径会更长。", "适合先确认项目类型、容量、并网要求、安装地和采购时间表。"]
+      },
+      {
+        title: "切入话术",
+        items: ["先用区域项目经验建立可信度，再问项目阶段。", "强调认证、交付、质保和长期运维配合，而不是只讲价格。", "建议把首次沟通目标设为确认项目需求和约技术会议。"]
+      }
+    ],
+    risks: [
+      { level: "中", text: "决策链可能较长，单个采购联系人未必能直接拍板。" },
+      { level: "中", text: "若没有中东案例或认证材料，容易在供应商筛选阶段被过滤。" },
+      { level: "低", text: "客户方向与新能源高度相关，业务匹配度较高。" }
+    ],
+    nextActions: ["补齐中东项目案例、认证、质保和交付周期资料。", "首封邮件询问项目国家、容量、并网/离网场景和采购时间。", "若客户回复项目已立项，推进一次 20 分钟技术会议。"]
+  }
+};
+
+/**
  * 客户开发工作台示例数据。
  *
  * 为什么放在 data.js：

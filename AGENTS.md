@@ -27,10 +27,10 @@
 协作时要按这个身份理解需求：
 
 - 用户提出的页面调整，通常代表产品原型和用户流程决策，不要当成单纯的代码样式偏好。
-- 用户提供的 AI 工作流、扣子工作流、节点画布、schema、调用函数和真实验证结果，都是项目核心资产，需要按资料库规则沉淀。
+- 用户提供的 AI 工作流、扣子工作流、Dify Chatflow、节点画布、schema/参数、调用函数和真实验证结果，都是项目核心资产，需要按资料库规则沉淀。
 - 如果代码实现和用户的产品判断冲突，优先保留用户的产品判断；除非存在明显安全、隐私、可维护性或浏览器兼容问题，再用简洁中文说明风险。
 - 修改原型时，重点服务“能不能让开发、业务和用户一眼看懂这个功能怎么用”，不要把界面做成技术说明页。
-- 给建议时可以主动指出信息架构、用户路径、字段收集、AI 输出形态和扣子工作流落点是否匹配。
+- 给建议时可以主动指出信息架构、用户路径、字段收集、AI 输出形态、扣子工作流落点和 Dify Chatflow 落点是否匹配。
 
 ## 技术栈约定
 
@@ -75,7 +75,7 @@ Python 后端：
 
 ## 当前真实文件结构（2026-06-18 扫描）
 
-当前项目下已有主静态原型、浏览器插件内测包、扣子工作流资料库和历史备份。后续定位问题时，先按下面优先级读取，不要把历史备份或工作树副本当成当前主工程。
+当前项目下已有主静态原型、浏览器插件内测包、扣子工作流资料库、Dify Chatflow 资料库和历史备份。后续定位问题时，先按下面优先级读取，不要把历史备份或工作树副本当成当前主工程。
 
 活跃主工程：
 
@@ -102,6 +102,7 @@ Python 后端：
 - `coze-workflows/`：扣子工作流资料库，不是页面原型代码。收到调用链接、函数、input schema、output schema 或节点画布时优先维护这里。
 - `coze-workflows/_node-reference/`：扣子节点参考库，只是节点能力索引；`workflow-7645250322341134390.md` 的 `edges` 为空，不是可直接执行的完整业务流程。
 - `coze-workflows/_template/`：新增工作流目录时复制的模板。
+- `dify-chatflows/`：Dify Chatflow 资料库，不是页面原型代码。收到 Dify 应用链接、API 文档、参数快照、调用函数或真实 API 测试结果时优先维护这里。
 - `package.json`：轻量仓库元信息；当前没有正式构建链路。
 
 默认不要作为主工程编辑目标：
@@ -416,6 +417,38 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 
 工作流状态冲突时，以对应目录下的 `workflow.md`、`input.schema.json`、`output.schema.json` 和 `call-function.md` 为准，再更新 `coze-workflows/README.md`。
 
+## Dify Chatflow 资料库维护规则
+
+项目根目录的 `dify-chatflows/` 用于统一记录赢单功能对应的 Dify Chatflow 资料。
+
+当用户提供 Dify 应用链接、API Key、API 文档、调用函数、参数快照或真实测试结果时，优先写入 `dify-chatflows/`，不要写进 `index.html` 原型界面。
+
+如果 Dify 资料会影响页面交互，只在 `dify-chatflows/` 记录接口、参数、调用方式和测试结论；页面里只放用户可见的入口、状态、字段和模拟反馈。不要把完整调用函数、真实返回样例或开发说明塞进 `index.html`、`src/app.js` 或 `src/data.js` 的界面文案里。
+
+每个 Chatflow 必须单独建目录，建议格式：
+
+```text
+dify-chatflows/<一级功能区>-<二级模块>-<chatflow名称>/
+```
+
+每个 Chatflow 目录应包含：
+
+- `chatflow.md`：记录业务用途、赢单功能路径、Dify 应用链接、基础 URL、主要接口、字段映射、异常和版本记录。
+- `call-function.md`：记录脱敏 curl 或后端封装示例，真实 API Key 必须用 `<DIFY_API_KEY>` 或 `$DIFY_API_KEY` 占位。
+- `parameters.snapshot.json`：记录 `GET /parameters` 的参数快照，不能包含 API Key。
+- `api-test.md`：记录真实试跑的 HTTP 状态、耗时、返回字段、异常和结论。
+
+维护要求：
+
+- 真实 API Key 只允许临时用于本机命令或后端环境变量，不要写入任何项目文件、前端代码、插件代码、提交信息或聊天回复。
+- 测试时只用虚拟输入，不要发送真实客户资料、真实聊天记录、手机号、邮箱或其他隐私。
+- 如果返回内容包含 `<think>...</think>` 这类模型思考标签，正式展示前应过滤，只保留用户可读答案。
+- 主静态原型默认不直连 Dify；正式接入时应通过赢单后端代理调用。
+
+当前已记录的 Dify Chatflow：
+
+- `成交顾问 > 客户背调顾问 > 客户背调DeepSeek`：目录 `dify-chatflows/成交顾问-客户背调顾问-客户背调DeepSeek/`；2026-07-04 已完成 `POST /chat-messages` 和 `GET /parameters` 真实调用验证，均返回 HTTP `200`。
+
 ## 浏览器插件维护规则
 
 `browser-extension/` 是「赢单询盘分析助手」Chrome 插件内测包，不是主静态原型页面。
@@ -642,6 +675,7 @@ coze-workflows/<一级功能区>-<二级模块>-<工作流名>/
 - `backups/` 只用于查历史，不主动改里面的旧 HTML。
 - `.claude/worktrees/` 是工具生成的工作树副本，不要把其中的文件当作当前主工程来更新。
 - `coze-workflows/` 虽然在 `.gitignore` 中，但它是本地工作流资料库；用户提供扣子资料时仍然要按规则维护。
+- `dify-chatflows/` 是本地 Dify Chatflow 资料库；用户提供 Dify 资料或要求测试 Dify API 时要按规则维护，且不能写入真实 API Key。
 - `browser-extension/` 目前是内测交付物；如果要提交或发布，必须先确认是否要把内置 Token 改造掉，至少不要在文档或提交信息里暴露具体 Token 值。
 - 新增 SVG 图标优先放 `assets/icons/`，新增原型视觉素材优先放 `assets/generated/`，并在 `src/data.js` 或 `src/app.js` 用相对路径引用。
 
