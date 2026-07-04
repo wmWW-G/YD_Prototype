@@ -35,6 +35,11 @@
  *   chatDraft: string,
  *   isGenerating: boolean,
  *   generatedResult: string,
+ *   customerResearchApiKey: string,
+ *   customerResearchConversationId: string,
+ *   customerResearchUserId: string,
+ *   customerResearchLiveAnswer: string,
+ *   customerResearchError: string,
  *   inviteCodeDraft: string,
  *   inviteRedeemResult: string,
  *   adminInvitePreview: null | string,
@@ -101,6 +106,11 @@ const state = {
   chatDraft: "",
   isGenerating: false,
   generatedResult: "",
+  customerResearchApiKey: "",
+  customerResearchConversationId: "",
+  customerResearchUserId: `yd-prototype-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+  customerResearchLiveAnswer: "",
+  customerResearchError: "",
   inviteCodeDraft: "",
   inviteRedeemResult: "",
   adminInvitePreview: null,
@@ -163,6 +173,36 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+/**
+ * 把普通文本转换成可以保留换行的安全 HTML。
+ *
+ * 作用：
+ * - Dify 返回的是模型生成文本，不能直接作为 HTML 插入页面。
+ * - 先用 escapeHtml 转义，再把换行换成 <br>，既安全又能保留报告段落。
+ *
+ * @param {string} value - 原始文本。
+ * @returns {string} 可安全插入 HTML 的文本。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderMultilineText(value) {
+  return escapeHtml(value).replace(/\n/g, "<br>");
+}
+
+/**
+ * 移除模型思考标签。
+ *
+ * 为什么要过滤：
+ * - 之前真实 Dify smoke test 观察到 DeepSeek 可能把 <think>...</think> 放进 answer。
+ * - 原型用户只需要看背调结论，不应该看到模型内部思考。
+ *
+ * @param {string} answer - Dify 返回的 answer 字段。
+ * @returns {string} 去掉思考标签后的用户可读文本。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function stripThinkingTags(answer) {
+  return String(answer || "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
 /**
@@ -6114,6 +6154,15 @@ function renderCustomerResearchOutput() {
     `;
   }
 
+  if (state.customerResearchError) {
+    return `
+      <article class="customer-research-empty error">
+        <h2>背调失败</h2>
+        <p>${escapeHtml(state.customerResearchError)}</p>
+      </article>
+    `;
+  }
+
   if (!state.generatedResult) {
     return `
       <article class="customer-research-empty">
@@ -6138,6 +6187,38 @@ function renderCustomerResearchOutput() {
  */
 function renderCustomerResearchReport() {
   const report = CUSTOMER_RESEARCH_FLOW.report;
+  const liveAnswer = state.customerResearchLiveAnswer.trim();
+
+  if (liveAnswer) {
+    return `
+      <article class="customer-research-report">
+        <header class="research-report-head">
+          <div>
+            <span>实时背调结果</span>
+            <h2>客户背调报告</h2>
+            <p>已根据当前输入完成分析</p>
+          </div>
+          <div class="research-score live">
+            <span>状态</span>
+            <strong>完成</strong>
+          </div>
+        </header>
+
+        <div class="research-live-answer">
+          ${renderMultilineText(liveAnswer)}
+        </div>
+
+        <section class="research-next-panel" aria-label="结果操作">
+          <h3>下一步动作</h3>
+          <div class="result-actions">
+            <button type="button" data-toast="已模拟保存到客户Kass背调记录。">保存到客户Kass</button>
+            <button type="button" data-toast="已模拟生成首次开发邮件。">生成开发邮件</button>
+            <button type="button" data-toast="复制结果是原型反馈，当前不写入剪贴板。">复制报告</button>
+          </div>
+        </section>
+      </article>
+    `;
+  }
 
   return `
     <article class="customer-research-report">
@@ -7817,6 +7898,11 @@ function sendChatDraft() {
     return;
   }
 
+  if (state.activeMain === "customer-research") {
+    sendCustomerResearchDraft(draft);
+    return;
+  }
+
   state.isGenerating = true;
   state.generatedResult = "";
   state.popup = null;
@@ -7834,6 +7920,88 @@ function sendChatDraft() {
     }
     renderApp();
   }, 900);
+}
+
+/**
+ * 真实调用 Dify 客户背调 Chatflow。
+ *
+ * 作用：
+ * - 让原型里的客户背调入口可以直接试用 Dify。
+ * - API Key 只通过 prompt 临时输入，并保存在当前页面内存里；刷新后消失。
+ * - 不写入前端源码、本地存储或 git，降低内测密钥泄露风险。
+ *
+ * @param {string} draft - 用户输入的客户背调内容。
+ * @returns {Promise<void>} 调用完成后会重绘页面。
+ * @throws {Error} 本函数内部捕获网络和接口异常，不向外抛出。
+ */
+async function sendCustomerResearchDraft(draft) {
+  let apiKey = state.customerResearchApiKey.trim();
+
+  if (!apiKey) {
+    apiKey = window.prompt("请输入 Dify API Key。本次只保存在当前页面内存，刷新后消失。") || "";
+    apiKey = apiKey.trim();
+  }
+
+  if (!apiKey) {
+    showToast("未输入 Dify API Key，已取消背调。");
+    return;
+  }
+
+  state.customerResearchApiKey = apiKey;
+  state.isGenerating = true;
+  state.generatedResult = "";
+  state.customerResearchLiveAnswer = "";
+  state.customerResearchError = "";
+  state.popup = null;
+  renderApp();
+
+  try {
+    const response = await fetch("https://api.dify.ai/v1/chat-messages", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        inputs: {},
+        query: draft,
+        response_mode: "blocking",
+        conversation_id: state.customerResearchConversationId || "",
+        user: state.customerResearchUserId,
+        files: []
+      })
+    });
+
+    const rawText = await response.text();
+    let payload = null;
+
+    try {
+      payload = rawText ? JSON.parse(rawText) : null;
+    } catch (err) {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        state.customerResearchApiKey = "";
+      }
+
+      const message = payload?.message || payload?.error || rawText || `HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    const answer = stripThinkingTags(payload?.answer || "");
+    state.customerResearchConversationId = payload?.conversation_id || state.customerResearchConversationId;
+    state.customerResearchLiveAnswer = answer || "Dify 已返回结果，但 answer 字段为空。";
+    state.generatedResult = "customer-research-live";
+  } catch (error) {
+    state.customerResearchError = error instanceof Error
+      ? error.message
+      : "Dify 调用失败，请稍后重试。";
+  } finally {
+    state.isGenerating = false;
+    renderApp();
+  }
 }
 
 /**

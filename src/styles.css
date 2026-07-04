@@ -5149,6 +5149,15 @@ button:disabled {
   font-size: 18px;
 }
 
+.customer-research-empty.error {
+  border-color: #f3b6a7;
+  background: #fff7f5;
+}
+
+.customer-research-empty.error h2 {
+  color: #b94124;
+}
+
 .customer-research-report {
   padding: 22px;
 }
@@ -5190,6 +5199,20 @@ button:disabled {
 .research-score strong {
   color: var(--accent);
   font-size: 30px;
+}
+
+.research-score.live strong {
+  font-size: 20px;
+}
+
+.research-live-answer {
+  margin-top: 16px;
+  border: 1px solid #f0e7df;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fffdfa;
+  color: #4e4741;
+  line-height: 1.75;
 }
 
 .research-summary {
