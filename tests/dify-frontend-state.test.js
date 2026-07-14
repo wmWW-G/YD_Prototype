@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 
 const {
   CHAT_FEATURE_IDS,
@@ -209,4 +210,34 @@ test("stream scheduler patches only the active message instead of rebuilding the
   assert.ok(schedulerStart >= 0, "应找到流式渲染调度函数");
   assert.match(schedulerSource, /patchDifyStreamMessageDom\(/);
   assert.doesNotMatch(schedulerSource, /renderApp\(/);
+});
+
+test("renders GFM-style Markdown tables as safe semantic table HTML", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const rendererStart = source.indexOf("function escapeHtml");
+  const rendererEnd = source.indexOf("\n/**\n * 移除模型思考标签", rendererStart);
+  const sandbox = {
+    markdownInput: [
+      "| 工具 | 用途 |",
+      "| :--- | :---: |",
+      "| **Tavily Search** | 深度搜索 `advanced` |",
+      "| <img src=x onerror=alert(1)> | [官网](https://example.com) |"
+    ].join("\n"),
+    renderedMarkdown: ""
+  };
+
+  assert.ok(rendererStart >= 0 && rendererEnd > rendererStart, "应找到真实 Markdown 渲染函数");
+  vm.runInNewContext(
+    `${source.slice(rendererStart, rendererEnd)}\nrenderedMarkdown = renderMarkdown(markdownInput);`,
+    sandbox
+  );
+
+  assert.match(sandbox.renderedMarkdown, /<table>/);
+  assert.match(sandbox.renderedMarkdown, /<thead>/);
+  assert.match(sandbox.renderedMarkdown, /<th class="align-left">工具<\/th>/);
+  assert.match(sandbox.renderedMarkdown, /<th class="align-center">用途<\/th>/);
+  assert.match(sandbox.renderedMarkdown, /<strong>Tavily Search<\/strong>/);
+  assert.match(sandbox.renderedMarkdown, /<code>advanced<\/code>/);
+  assert.match(sandbox.renderedMarkdown, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.doesNotMatch(sandbox.renderedMarkdown, /<img\s/i);
 });

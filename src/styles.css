@@ -5370,6 +5370,69 @@ button:disabled {
   color: #5c5148;
 }
 
+.yd-markdown-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0 0 18px;
+  border: 1px solid #eadfd8;
+  border-radius: 8px;
+  background: #fffdfa;
+  scrollbar-color: #d8c8bd transparent;
+  scrollbar-width: thin;
+}
+
+.yd-markdown-table-wrap:focus-visible {
+  outline: 2px solid rgba(255, 92, 0, 0.2);
+  outline-offset: 2px;
+}
+
+.yd-markdown table {
+  width: 100%;
+  min-width: 440px;
+  border-collapse: collapse;
+  color: #4c443e;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.yd-markdown th,
+.yd-markdown td {
+  border-bottom: 1px solid #eee4dc;
+  padding: 10px 12px;
+  vertical-align: top;
+}
+
+.yd-markdown th + th,
+.yd-markdown td + td {
+  border-left: 1px solid #f1e8e1;
+}
+
+.yd-markdown th {
+  background: #fbf4ef;
+  color: #352f2a;
+  font-weight: 850;
+}
+
+.yd-markdown tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.yd-markdown tbody tr:hover td {
+  background: #fff9f5;
+}
+
+.yd-markdown :is(th, td).align-left {
+  text-align: left;
+}
+
+.yd-markdown :is(th, td).align-center {
+  text-align: center;
+}
+
+.yd-markdown :is(th, td).align-right {
+  text-align: right;
+}
+
 .yd-markdown hr {
   height: 1px;
   border: 0;

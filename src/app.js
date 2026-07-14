@@ -296,12 +296,112 @@ function renderInlineMarkdown(value) {
 }
 
 /**
+ * 将 Markdown 表格的一行拆成单元格。
+ *
+ * 为什么不用简单的 split("|")：
+ * - 行内代码可能包含竖线，例如 `a|b`，这时竖线属于内容而不是分栏符。
+ * - 模型也可能输出转义竖线 `\|`，需要保留为普通字符。
+ *
+ * @param {string} value - Markdown 表头、分隔行或数据行。
+ * @returns {string[]} 清理两侧空格后的单元格数组。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function splitMarkdownTableRow(value) {
+  let source = String(value || "").trim();
+  const cells = [];
+  let current = "";
+  let inInlineCode = false;
+  let escaped = false;
+
+  if (source.startsWith("|")) {
+    source = source.slice(1);
+  }
+  if (source.endsWith("|") && !source.endsWith("\\|")) {
+    source = source.slice(0, -1);
+  }
+
+  for (const character of source) {
+    if (escaped) {
+      current += character === "|" ? "|" : `\\${character}`;
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (character === "`") {
+      inInlineCode = !inInlineCode;
+      current += character;
+      continue;
+    }
+    if (character === "|" && !inInlineCode) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += character;
+  }
+
+  if (escaped) {
+    current += "\\";
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+/**
+ * 判断一行是否是 GFM 表格分隔行。
+ *
+ * @param {string} value - 待判断的 Markdown 行。
+ * @returns {boolean} 至少两个单元格且每格符合 `---`、`:---`、`---:` 或 `:---:` 时返回 true。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function isMarkdownTableSeparator(value) {
+  const cells = splitMarkdownTableRow(value);
+  return cells.length >= 2 && cells.every((cell) => /^:?-{3,}:?$/.test(cell.replace(/\s+/g, "")));
+}
+
+/**
+ * 把已经识别出的 Markdown 表格渲染成安全、可横向滚动的语义 HTML。
+ *
+ * @param {string} headerLine - 表头行。
+ * @param {string} separatorLine - 包含列对齐信息的分隔行。
+ * @param {string[]} rowLines - 后续数据行。
+ * @returns {string} table HTML；所有单元格仍经过受控行内 Markdown 渲染和 HTML 转义。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderMarkdownTable(headerLine, separatorLine, rowLines) {
+  const headers = splitMarkdownTableRow(headerLine);
+  const separators = splitMarkdownTableRow(separatorLine);
+  const alignments = headers.map((_header, index) => {
+    const marker = String(separators[index] || "").replace(/\s+/g, "");
+    if (marker.startsWith(":") && marker.endsWith(":")) return "center";
+    if (marker.endsWith(":")) return "right";
+    return "left";
+  });
+  const rows = rowLines.map((line) => {
+    const cells = splitMarkdownTableRow(line);
+    return headers.map((_header, index) => cells[index] || "");
+  });
+
+  return `
+    <div class="yd-markdown-table-wrap" role="region" aria-label="Markdown 表格" tabindex="0">
+      <table>
+        <thead><tr>${headers.map((header, index) => `<th class="align-${alignments[index]}">${renderInlineMarkdown(header)}</th>`).join("")}</tr></thead>
+        <tbody>${rows.map((cells) => `<tr>${cells.map((cell, index) => `<td class="align-${alignments[index]}">${renderInlineMarkdown(cell)}</td>`).join("")}</tr>`).join("")}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+/**
  * 把 AI 返回的 Markdown 转成安全 HTML。
  *
  * 支持范围：
  * - 标题：# / ## / ### / ####
  * - 列表：-、*、+、1.、1)
- * - 段落、引用、分割线、代码块
+ * - GFM 风格表格、段落、引用、分割线、代码块
  * - 行内粗体、斜体、代码和 http/https 链接
  *
  * @param {string} value - AI 返回的 Markdown 文本。
@@ -315,6 +415,7 @@ function renderMarkdown(value) {
   let activeListType = "";
   let inCodeBlock = false;
   let codeLines = [];
+  const consumedTableLines = new Set();
 
   /**
    * 结束当前段落。
@@ -375,7 +476,11 @@ function renderMarkdown(value) {
     inCodeBlock = false;
   }
 
-  lines.forEach((line) => {
+  lines.forEach((line, lineIndex) => {
+    if (consumedTableLines.has(lineIndex)) {
+      return;
+    }
+
     const trimmed = line.trim();
 
     if (trimmed.startsWith("```")) {
@@ -395,6 +500,37 @@ function renderMarkdown(value) {
     if (inCodeBlock) {
       codeLines.push(line);
       return;
+    }
+
+    const nextLine = lines[lineIndex + 1] || "";
+    if (trimmed.includes("|") && isMarkdownTableSeparator(nextLine)) {
+      const headerCells = splitMarkdownTableRow(trimmed);
+      const separatorCells = splitMarkdownTableRow(nextLine);
+
+      if (headerCells.length === separatorCells.length) {
+        const tableRows = [];
+        let rowIndex = lineIndex + 2;
+
+        consumedTableLines.add(lineIndex + 1);
+        while (rowIndex < lines.length) {
+          const row = lines[rowIndex];
+          const rowTrimmed = row.trim();
+          const rowCells = splitMarkdownTableRow(rowTrimmed);
+
+          if (!rowTrimmed || !rowTrimmed.includes("|") || rowCells.length < 2) {
+            break;
+          }
+
+          tableRows.push(row);
+          consumedTableLines.add(rowIndex);
+          rowIndex += 1;
+        }
+
+        flushParagraph();
+        closeList();
+        html.push(renderMarkdownTable(trimmed, nextLine, tableRows));
+        return;
+      }
     }
 
     if (!trimmed) {
