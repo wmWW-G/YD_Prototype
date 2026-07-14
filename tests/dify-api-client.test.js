@@ -99,7 +99,8 @@ test("streams safe process summaries and visible answer chunks as Dify emits the
   const encoder = new TextEncoder();
   const upstreamChunks = [
     'data: {"event":"workflow_started","workflow_run_id":"run-live","conversation_id":"conv-live"}\n\n',
-    'data: {"event":"agent_thought","thought":"内部推理不能展示","conversation_id":"conv-live"}\n\n',
+    'data: {"event":"agent_thought","id":"thought-empty","thought":"","tool":"","conversation_id":"conv-live"}\n\n',
+    'data: {"event":"agent_thought","id":"thought-public","thought":"先确认市场规模，再核对政策与买家信号。","conversation_id":"conv-live"}\n\n',
     'data: {"event":"agent_log","id":"log-search","data":{"label":"CALL Tavily Search;CALL Tavily Search","status":"running","data":{"output":{"tool_call_name":"tavily_search","tool_call_input":"{\\"query\\":\\"墨西哥储能市场规模\\"}"}}}}\n\n',
     'data: {"event":"message","answer":"<thi","conversation_id":"conv-live"}\n\n',
     'data: {"event":"message","answer":"nk>不能展示的思考</think>公开","conversation_id":"conv-live"}\n\n',
@@ -131,6 +132,13 @@ test("streams safe process summaries and visible answer chunks as Dify emits the
   assert.equal(emitted.some((event) => event.type === "process" && event.step.kind === "reasoning"), true);
   assert.equal(emitted.some((event) => (
     event.type === "process"
+    && event.step.id === "thought-public"
+    && event.step.label === "思考过程"
+    && event.step.detail === "先确认市场规模，再核对政策与买家信号。"
+  )), true);
+  assert.equal(emitted.some((event) => event.type === "process" && event.step.id === "thought-empty"), false);
+  assert.equal(emitted.some((event) => (
+    event.type === "process"
     && event.step.kind === "tool"
     && event.step.label === "正在调用Tavily Search"
     && event.step.detail === "墨西哥储能市场规模"
@@ -141,7 +149,9 @@ test("streams safe process summaries and visible answer chunks as Dify emits the
   );
   assert.equal(result.answer, "公开结论");
   assert.equal(result.conversation_id, "conv-live");
-  assert.equal(JSON.stringify(emitted).includes("内部推理不能展示"), false);
+  assert.equal(emitted.filter((event) => event.type === "answer_delta").some((event) => (
+    String(event.delta || "").includes("先确认市场规模")
+  )), false);
   assert.equal(JSON.stringify(emitted).includes("不能展示的思考"), false);
 });
 

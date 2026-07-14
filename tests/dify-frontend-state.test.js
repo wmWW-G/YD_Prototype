@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const {
   CHAT_FEATURE_IDS,
@@ -196,4 +198,15 @@ test("parses proxy SSE events even when JSON is split across browser chunks", ()
   assert.equal(events.length, 2);
   assert.equal(events[0].step.label, "正在搜索");
   assert.equal(events[1].delta, "结论");
+});
+
+test("stream scheduler patches only the active message instead of rebuilding the whole app", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const schedulerStart = source.indexOf("function scheduleDifyStreamRender");
+  const schedulerEnd = source.indexOf("\n/**", schedulerStart + 1);
+  const schedulerSource = source.slice(schedulerStart, schedulerEnd);
+
+  assert.ok(schedulerStart >= 0, "应找到流式渲染调度函数");
+  assert.match(schedulerSource, /patchDifyStreamMessageDom\(/);
+  assert.doesNotMatch(schedulerSource, /renderApp\(/);
 });

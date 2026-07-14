@@ -757,13 +757,19 @@ function getDifyFeatureSession(featureId = state.activeMain) {
 }
 
 /**
- * 将一批 Dify 流事件合并到下一动画帧重绘，并恢复工作区滚动位置。
+ * 将一批 Dify 流事件合并到下一动画帧，并只更新当前助手消息。
+ *
+ * 为什么不能调用 renderApp：
+ * - renderApp 会替换整个 #app.innerHTML，导致导航、输入区、回答区和 CSS 动画全部被销毁重建。
+ * - SSE 可能每几个字就来一个事件，全量重建会表现成整屏持续闪烁。
+ * - 局部补丁保留现有 DOM 和动画实例，只在结构阶段变化时替换单条回答。
  *
  * @param {string} featureId - 发起本轮请求的页面 ID；切换页面后不再重绘旧页面。
+ * @param {string} messageId - 当前流式助手消息的稳定 ID。
  * @returns {void}
- * @throws {Error} renderApp 找不到根节点时会在动画帧回调中抛出。
+ * @throws {Error} 本函数不主动抛异常。
  */
-function scheduleDifyStreamRender(featureId) {
+function scheduleDifyStreamRender(featureId, messageId) {
   if (state.activeMain !== featureId || difyStreamRenderFrame !== null) {
     return;
   }
@@ -780,7 +786,7 @@ function scheduleDifyStreamRender(featureId) {
       ? workspace.scrollHeight - workspace.clientHeight - workspace.scrollTop < 80
       : true;
 
-    renderApp();
+    patchDifyStreamMessageDom(featureId, messageId);
 
     const nextWorkspace = document.querySelector(".workspace");
     if (nextWorkspace) {
@@ -7086,7 +7092,7 @@ function renderConversationAnswer() {
  * 渲染 Dify 的安全执行过程。
  *
  * 生成期间只画 `currentProcess`，新事件到达后自然覆盖上一条；正式答案开始后默认折叠，用户点击后才查看完整步骤。
- * 这里展示的是后端整理过的节点、工具和搜索词摘要，不展示模型原始 thought 或 `<think>` 内容。
+ * 这里展示节点、工具、搜索词，以及 Dify API 明确公开的 `agent_thought.thought`；模型隐藏的 `<think>` 内容仍不展示。
  *
  * @param {object} message - 当前助手消息，包含 currentProcess、processSteps 和展开状态。
  * @returns {string} 过程区 HTML；没有过程事件时返回空字符串。
@@ -7107,7 +7113,7 @@ function renderDifyProcessPanel(message) {
         <span class="dify-process-pulse" aria-hidden="true"></span>
         <div class="dify-process-current">
           <p>${escapeHtml(currentStep.label || "正在分析问题")}</p>
-          ${currentStep.detail ? `<small>${escapeHtml(currentStep.detail)}</small>` : ""}
+          <small data-dify-process-detail="true" ${currentStep.detail ? "" : "hidden"}>${escapeHtml(currentStep.detail || "")}</small>
         </div>
       </section>
     `;
@@ -7122,7 +7128,7 @@ function renderDifyProcessPanel(message) {
       <button type="button" class="dify-process-toggle" data-dify-process-toggle="${escapeHtml(message.id || "")}" aria-expanded="${expanded ? "true" : "false"}">
         <span class="dify-process-mark ${interrupted ? "error" : ""}" aria-hidden="true"></span>
         <span>分析过程</span>
-        <small>${escapeHtml(summary)}</small>
+        <small data-dify-process-count="true">${escapeHtml(summary)}</small>
         <span class="dify-process-chevron" aria-hidden="true">⌄</span>
       </button>
       ${expanded ? `
@@ -7143,12 +7149,194 @@ function renderDifyProcessPanel(message) {
 }
 
 /**
+ * 判断一条 Dify 助手消息当前需要哪种 DOM 结构。
+ *
+ * @param {object} message - 当前助手消息。
+ * @returns {"loading" | "process" | "answer" | "done" | "error"} 用于局部 DOM 补丁的结构阶段。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getDifyAnswerRenderPhase(message) {
+  if (message?.status === "error") return "error";
+  if (message?.status === "done") return "done";
+  if (message?.answerStarted) return "answer";
+  if (message?.currentProcess || (Array.isArray(message?.processSteps) && message.processSteps.length > 0)) return "process";
+  return "loading";
+}
+
+/**
+ * 渲染单轮 Dify 助手回答。
+ *
+ * 单独抽出这一层，是为了让 SSE 更新只替换当前回答，而不是重建整个 #app。
+ * 同一阶段内会进一步只修改文字节点；只有 loading/process/answer/done 结构切换时才替换本轮 section。
+ *
+ * @param {object} message - 当前助手消息。
+ * @param {number} index - 助手回答在当前会话中的序号。
+ * @param {string} title - 当前功能名称，用于生成中占位文案。
+ * @returns {string} 单轮回答 section HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderDifyAnswerTurn(message, index, title) {
+  const isLoading = message.status === "loading";
+  const isError = message.status === "error";
+  const processPanel = renderDifyProcessPanel(message);
+  const hasStreamingAnswer = isLoading && message.answerStarted;
+  const renderPhase = getDifyAnswerRenderPhase(message);
+
+  return `
+    <section class="customer-research-answer-turn ${isError ? "error" : ""}" data-dify-message-id="${escapeHtml(message.id || "")}" data-dify-render-phase="${renderPhase}">
+      <div class="chat-thread-heading accent">
+        <span>回答 ${index + 1}</span>
+        <i aria-hidden="true"></i>
+      </div>
+      ${processPanel}
+      ${isLoading && !hasStreamingAnswer ? (processPanel ? "" : `
+        <div class="conversation-loading-row">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <p>${escapeHtml(message.content || `正在生成${title}结果...`)}</p>
+        </div>
+      `) : `
+        <div class="conversation-answer-body customer-research-answer ${isError ? "error" : ""}">
+          ${isError ? `
+            <h2>生成失败</h2>
+            <p>${escapeHtml(message.content)}</p>
+            <div class="result-actions">
+              <button type="button" data-toast="请检查顶部应用配置、当前网络或 Dify 执行耗时后重新发送。">查看处理建议</button>
+            </div>
+          ` : `
+            <div class="research-live-answer ${hasStreamingAnswer ? "streaming" : ""}">
+              ${renderMarkdown(message.content)}
+            </div>
+            ${hasStreamingAnswer ? "" : `
+              <div class="result-actions">
+                ${state.activeMain === "customer-research" ? `
+                  <button type="button" data-toast="已模拟保存到客户Kass背调记录。">保存到客户Kass</button>
+                  <button type="button" data-toast="已模拟生成首次开发邮件。">生成开发邮件</button>
+                ` : `<button type="button" data-toast="已模拟保存到当前会话历史。">保存到历史</button>`}
+                <button type="button" data-toast="复制结果是原型反馈，当前不写入剪贴板。">复制结果</button>
+              </div>
+              ${state.activeMain === "customer-research" ? renderCustomerResearchBillingTracePanel(message) : ""}
+            `}
+          `}
+        </div>
+      `}
+    </section>
+  `;
+}
+
+/**
+ * 为局部插入的回答节点补上过程折叠和结果按钮事件。
+ *
+ * @param {Element} turn - 刚插入 DOM 的单轮回答节点。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function bindDifyInsertedTurnEvents(turn) {
+  turn.querySelectorAll("[data-dify-process-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const messageId = button.getAttribute("data-dify-process-toggle") || "";
+      const session = getDifyFeatureSession();
+      session.messages = session.messages.map((message) => (
+        message.id === messageId
+          ? { ...message, processExpanded: !message.processExpanded }
+          : message
+      ));
+      patchDifyStreamMessageDom(state.activeMain, messageId, true);
+    });
+  });
+
+  turn.querySelectorAll("[data-toast]").forEach((node) => {
+    node.addEventListener("click", () => {
+      state.popup = null;
+      renderApp();
+      showToast(node.getAttribute("data-toast") || "操作已触发。");
+    });
+  });
+}
+
+/**
+ * 在现有页面上局部更新一条 Dify 助手消息。
+ *
+ * 更新策略：
+ * 1. 同处“过程”阶段时只改标题和详情的 textContent，呼吸点不会重启。
+ * 2. 同处“答案流”阶段时只更新答案容器，侧栏、输入框和过程按钮保持不动。
+ * 3. 只有结构阶段变化或用户展开历史时才替换当前回答 section。
+ *
+ * @param {string} featureId - 消息所属的页面 ID。
+ * @param {string} messageId - 助手消息稳定 ID。
+ * @param {boolean} [forceStructure=false] - 是否强制重画本轮，用于展开/折叠历史。
+ * @returns {boolean} 找到并更新目标节点时返回 true。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function patchDifyStreamMessageDom(featureId, messageId, forceStructure = false) {
+  if (state.activeMain !== featureId || !messageId) {
+    return false;
+  }
+
+  const assistantMessages = getCustomerResearchAssistantMessages();
+  const messageIndex = assistantMessages.findIndex((message) => message.id === messageId);
+  const message = assistantMessages[messageIndex];
+  const turn = Array.from(document.querySelectorAll("[data-dify-message-id]")).find((node) => (
+    node.getAttribute("data-dify-message-id") === messageId
+  ));
+
+  if (!message || !turn) {
+    return false;
+  }
+
+  const nextPhase = getDifyAnswerRenderPhase(message);
+  if (forceStructure || turn.getAttribute("data-dify-render-phase") !== nextPhase) {
+    const template = document.createElement("template");
+    template.innerHTML = renderDifyAnswerTurn(message, messageIndex, getChatLabels()[0]).trim();
+    const nextTurn = template.content.firstElementChild;
+
+    if (!nextTurn) {
+      return false;
+    }
+
+    turn.replaceWith(nextTurn);
+    bindDifyInsertedTurnEvents(nextTurn);
+    return true;
+  }
+
+  if (nextPhase === "process") {
+    const currentStep = message.currentProcess || message.processSteps?.[message.processSteps.length - 1] || {};
+    const label = turn.querySelector(".dify-process-current p");
+    const detail = turn.querySelector("[data-dify-process-detail]");
+
+    if (label) label.textContent = currentStep.label || "正在分析问题";
+    if (detail) {
+      detail.textContent = currentStep.detail || "";
+      detail.hidden = !currentStep.detail;
+    }
+    return true;
+  }
+
+  if (nextPhase === "answer") {
+    const answer = turn.querySelector(".research-live-answer");
+    const count = turn.querySelector("[data-dify-process-count]");
+    if (answer) answer.innerHTML = renderMarkdown(message.content || "");
+    if (count) count.textContent = `${Array.isArray(message.processSteps) ? message.processSteps.length : 0} 个步骤`;
+    return true;
+  }
+
+  if (nextPhase === "loading") {
+    const loadingText = turn.querySelector(".conversation-loading-row p");
+    if (loadingText) loadingText.textContent = message.content || `正在生成${getChatLabels()[0]}结果...`;
+    return true;
+  }
+
+  return true;
+}
+
+/**
  * 渲染所有 Dify 对话功能页的右侧多轮回答。
  *
  * 作用：
  * - 页面结构复用普通 AI 对话 UI，保证和其它成交顾问入口一致。
  * - 内容层统一适配 Dify：生成中、失败和实时 answer 都按轮次展示。
- * - Dify 返回文本先过滤思考标签，再用安全换行渲染，避免 XSS 和内部思考外露。
+ * - 正式答案先过滤隐藏 think 标签，再用安全 Markdown 渲染；Dify 明确公开的 Agent 思考放在独立过程区。
  *
  * @returns {string} 客户背调回答区 HTML。
  * @throws {Error} 本函数不主动抛异常。
@@ -7160,54 +7348,7 @@ function renderCustomerResearchConversationAnswer() {
   if (assistantMessages.length > 0) {
     return `
       <article class="conversation-answer customer-research-answer-list" aria-live="polite">
-        ${assistantMessages.map((message, index) => {
-          const isLoading = message.status === "loading";
-          const isError = message.status === "error";
-          const processPanel = renderDifyProcessPanel(message);
-          const hasStreamingAnswer = isLoading && message.answerStarted;
-
-          return `
-            <section class="customer-research-answer-turn ${isError ? "error" : ""}">
-              <div class="chat-thread-heading accent">
-                <span>回答 ${index + 1}</span>
-                <i aria-hidden="true"></i>
-              </div>
-              ${processPanel}
-              ${isLoading && !hasStreamingAnswer ? (processPanel ? "" : `
-                <div class="conversation-loading-row">
-                  <span class="typing-dot"></span>
-                  <span class="typing-dot"></span>
-                  <span class="typing-dot"></span>
-                  <p>${escapeHtml(message.content || `正在生成${title}结果...`)}</p>
-                </div>
-              `) : `
-                <div class="conversation-answer-body customer-research-answer ${isError ? "error" : ""}">
-                  ${isError ? `
-                    <h2>生成失败</h2>
-                    <p>${escapeHtml(message.content)}</p>
-                    <div class="result-actions">
-                      <button type="button" data-toast="请检查顶部应用配置、当前网络或 Dify 执行耗时后重新发送。">查看处理建议</button>
-                    </div>
-                  ` : `
-                    <div class="research-live-answer ${hasStreamingAnswer ? "streaming" : ""}">
-                      ${renderMarkdown(message.content)}
-                    </div>
-                    ${hasStreamingAnswer ? "" : `
-                      <div class="result-actions">
-                        ${state.activeMain === "customer-research" ? `
-                          <button type="button" data-toast="已模拟保存到客户Kass背调记录。">保存到客户Kass</button>
-                          <button type="button" data-toast="已模拟生成首次开发邮件。">生成开发邮件</button>
-                        ` : `<button type="button" data-toast="已模拟保存到当前会话历史。">保存到历史</button>`}
-                        <button type="button" data-toast="复制结果是原型反馈，当前不写入剪贴板。">复制结果</button>
-                      </div>
-                      ${state.activeMain === "customer-research" ? renderCustomerResearchBillingTracePanel(message) : ""}
-                    `}
-                  `}
-                </div>
-              `}
-            </section>
-          `;
-        }).join("")}
+        ${assistantMessages.map((message, index) => renderDifyAnswerTurn(message, index, title)).join("")}
       </article>
     `;
   }
@@ -8797,6 +8938,27 @@ function syncSendButton() {
 }
 
 /**
+ * 在 Dify 流结束后恢复当前对话页的生成按钮，而不重绘整页。
+ *
+ * @param {string} featureId - 本轮请求所属页面；用户已切页时不更新其它页面的 DOM。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function syncDifyGenerationControls(featureId) {
+  if (state.activeMain !== featureId) {
+    return;
+  }
+
+  const button = document.querySelector("[data-send-chat]");
+  if (button) {
+    button.textContent = getDifyFeatureSession(featureId).isGenerating
+      ? "AI 正在生成..."
+      : "立即由AI生成报告";
+  }
+  syncSendButton();
+}
+
+/**
  * 同步客户Kass发送按钮状态。
  *
  * @returns {void}
@@ -8961,7 +9123,7 @@ async function sendDifyFeatureDraft(draft) {
         session.conversationId = event.result?.conversation_id || session.conversationId;
       }
 
-      scheduleDifyStreamRender(featureId);
+      scheduleDifyStreamRender(featureId, pendingAnswerId);
     };
 
     try {
@@ -9063,7 +9225,9 @@ async function sendDifyFeatureDraft(draft) {
         window.cancelAnimationFrame(difyStreamRenderFrame);
         difyStreamRenderFrame = null;
       }
-      renderApp();
+      // 把最后一个 done/error 状态直接补到当前回答，避免流结束时再闪一次整页。
+      patchDifyStreamMessageDom(featureId, pendingAnswerId);
+      syncDifyGenerationControls(featureId);
     }
   }
 }
