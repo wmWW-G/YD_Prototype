@@ -84,6 +84,30 @@ test("uses existing Vercel environment keys as a compatibility fallback", async 
   assert.equal(marketResearch.apiKey, "app-market-secret");
 });
 
+test("accepts the KV_REST_API variables injected by Vercel Marketplace", async () => {
+  const fakeRedis = createFakeRedis();
+  const store = createDifyConfigStore({
+    fetchImpl: fakeRedis.fetchImpl,
+    env: {
+      KV_REST_API_URL: "https://redis.example.test",
+      KV_REST_API_TOKEN: "vercel-kv-test-token",
+      DIFY_CONFIG_ENCRYPTION_KEY: "v".repeat(64)
+    }
+  });
+
+  const saved = await store.save({
+    featureId: "market-research",
+    appType: APP_TYPES.DIALOGUE,
+    apiKey: "app-market-secret",
+    appInfo: { name: "市场调研", mode: "agent-chat" },
+    parameters: {}
+  });
+
+  assert.equal(saved.storageReady, true);
+  assert.equal(saved.source, "redis");
+  assert.equal(saved.appMode, "agent-chat");
+});
+
 test("refuses browser saves until persistent Redis and encryption settings exist", async () => {
   const store = createDifyConfigStore({ env: {}, fetchImpl: global.fetch });
 
