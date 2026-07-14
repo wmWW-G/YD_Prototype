@@ -6,7 +6,7 @@
 
 当前目录还包含一个「赢单询盘分析助手」Chrome 浏览器插件内测包，用于把网页里的客户询盘抓取到右侧分析面板，并通过 Coze 生成询盘分析和回复建议。它是独立于主原型页面的内测交付物，不是 GitHub Pages 静态原型的一部分。
 
-当前目录还新增了 `dify-chatflows/`，用于记录用户在 Dify 创建、并准备应用于赢单业务的 Chatflow。它和 `coze-workflows/` 一样属于工作流资料库，不是主静态原型代码。
+当前目录还新增了 `dify-chatflows/`，用于记录用户在 Dify 创建、并准备应用于赢单业务的对话型应用和 Chatflow。它和 `coze-workflows/` 一样属于工作流资料库，不是主静态原型代码。
 
 当前版本重点复刻销售准备和客户Kass两块核心工作台，包括：
 
@@ -23,7 +23,7 @@
 - 抽屉、toast、菜单展开和阶段切换动效。
 - 本地 SVG 导航图标，来源为 `/Users/garden/Desktop/1/vinco-icons`，已复制到 `assets/icons/`。
 - 侧边栏历史搜索、历史项编辑/删除图标、顶部历史下拉。
-- 通用聊天输入框的附件弹层、模型下拉、输入后发送按钮启用、模拟生成态和结果卡片。
+- 通用聊天输入框的附件弹层、模型下拉、输入后发送按钮启用；用户输入后切到左右分栏对话态，左侧保留问题和继续输入区，右侧展示回答正文和复制入口。
 - 客户Kass入口设置弹层和账号设置弹层。
 - 账号弹层里的邀请码兑换积分、团队/企业空间切换飞出层、用量明细跳转和升级入口。
 - 透明后台入口：`#/ask` 顶部右侧有一个 hover 才轻微显色的圆形按钮，点击进入后台管理。
@@ -34,9 +34,11 @@
 - `后台管理 > 代理` 分组：经销代理总览，含拉新数、付费数、累计分成和状态。
 - `后台管理 > 邀请码管理`：生成邀请码表单、预览提示和邀请码列表，用于表达销售同事发放试用福利的原型流程。
 - `客户开发`：一级业务入口，用于通过 AI 获客目标生成候选客户名单，不归入 `技能Skill` 子菜单；当前原型链路为「输入开发目标/产品/国家/客户类型 → AI 找客户中 → 生成客户列表 → 点公司只看右侧公司信息 → 点获取联系人信息跳到联系人新界面 → 在联系人表里点某个人获取邮箱」。先保持轻量，不做客户分级、状态分栏和复杂推进流。
-- `成交顾问 > 客户背调顾问`：已从通用聊天壳升级为 `客户背调DeepSeek` 专用原型页，包含客户信息输入、快捷样例、背调生成态和结果区；当前默认通过 `api/dify-customer-research.js` 代理调用 Dify，前端不要求用户填写 API Key。真实 Dify 调用细节仍维护在 `dify-chatflows/成交顾问-客户背调顾问-客户背调DeepSeek/`。
+- 所有通用 AI 对话功能页：顶部左侧固定显示 Dify 应用类型和 API Key 配置栏，支持选择「对话型应用」或「Chatflow」。每个功能页独立保存配置，重复保存会覆盖更新；前端只能读取掩码，原始 Key 由后端加密保存。发送后左侧按轮次保留问题，右侧展示生成态、失败态或安全 Markdown 正文，并按页面独立复用 `conversation_id`。
+- `成交顾问 > 客户背调顾问`：默认类型为 Chatflow，继续沿用现有背调 Dify 配置和成本追踪能力。
+- `技能Skill > 市场调研`：默认类型为对话型应用，已适配普通 Chatbot/Agent 的流式事件和多轮上下文。
 
-主原型只复刻界面结构和交互手感，不接真实接口，不写入真实客户资料，不复制线上历史记录和账号隐私。浏览器插件内测包是例外：它当前会调用 Coze 接口验证真实询盘分析链路，但仍只能作为内部测试包使用。
+主原型大部分只复刻界面结构和交互手感，不写入真实客户资料，不复制线上历史记录和账号隐私。当前真实调用例外包括：白名单内的通用对话页会通过 Dify 代理调用各自保存的应用，浏览器插件内测包会调用 Coze 接口验证真实询盘分析链路。它们都只能作为内部验证或原型验证使用，不能当作公开生产能力直接发布。
 
 ## 项目负责人和工作方式
 
@@ -47,9 +49,9 @@
 - AI 工作流设计者：设计各功能背后的 AI 生成、提炼、归类、判断和成交建议逻辑。
 - AI 工作流维护者：提供、验证和整理 Coze/扣子工作流、Dify Chatflow 的调用链接、schema/参数、调用函数、节点画布和真实测试结果。
 
-因此后续协作时，代码修改要服务于用户的产品原型判断。界面上只呈现用户真实会操作的内容；产品意图、技术说明、扣子调用细节、Dify 调用细节和后续开发注意事项，应沉淀在 `CONTEXT.md`、`AGENTS.md`、`coze-workflows/` 或 `dify-chatflows/`，不要写进用户可见的原型页面。
+因此后续协作时，代码修改要服务于用户的产品原型判断。界面上只呈现用户真实会操作的内容；产品意图、技术说明、扣子调用细节、Dify 调用细节和后续开发注意事项，应沉淀在 `CONTEXT.md`、代码注释、`coze-workflows/` 或 `dify-chatflows/`，不要写进用户可见的原型页面。
 
-AI 工作流是本项目的重要组成部分，但当前主原型仍保持静态前端形态。Coze/扣子工作流资料统一维护在 `coze-workflows/`，Dify Chatflow 资料统一维护在 `dify-chatflows/`。页面中只表现入口、字段、状态和模拟反馈；除非用户明确要求接真实接口，否则不要把真实 API 调用写进 `src/app.js`。
+AI 工作流是本项目的重要组成部分，但当前主原型仍保持静态前端形态。Coze/扣子工作流资料统一维护在 `coze-workflows/`，Dify 对话应用与 Chatflow 资料统一维护在 `dify-chatflows/`。页面中只表现用户真实会操作的入口、字段和状态；Dify 对话页统一经 Vercel 后端代理调用，新增其它真实 API 前仍必须先确认安全边界和代理方案。
 
 ## 入口在哪里
 
@@ -90,9 +92,21 @@ reverse-yingdan/
   CONTEXT.md
   AGENTS.md
   AI板块统计.md
+  赢单api.md
   index.html
   package.json
+  vercel.json
+  sw.js
   yingdan-inquiry-extension-v0.2.0.zip
+  api/
+    dify-chat.js
+    dify-config.js
+    dify-customer-research.js
+  lib/
+    dify-api-client.js
+    dify-config-store.js
+    dify-core.js
+    dify-http.js
   assets/
     icons/
     generated/
@@ -101,33 +115,47 @@ reverse-yingdan/
     background.js
     content-script.js
     inquiry-analyzer.js
+    inquiry-analyzer.test.js
     icons/
   coze-workflows/
   dify-chatflows/
   src/
     app.js
     data.js
+    dify-config.js
     styles.css
+  tests/
 ```
 
 各文件职责：
 
 - `index.html`：页面骨架，只放必要容器和脚本引用。
+- `sw.js`：自动刷新 Service Worker，让 GitHub Pages 上的 HTML、JS、CSS 优先走网络，减少同事看到旧缓存的概率；由 `src/app.js` 注册。
+- `vercel.json`：Vercel Serverless 配置，用于设置 Dify 配置和聊天代理的最大执行时间。
+- `api/dify-config.js`：Dify 配置接口；GET 只返回掩码和应用摘要，POST 校验 Key 对应的真实 App 类型并覆盖保存。
+- `api/dify-chat.js`：通用 Dify 聊天代理；按 `feature_id` 解密对应 Key，调用 `/chat-messages`，聚合普通对话、Agent 和 Chatflow 流式事件。
+- `api/dify-customer-research.js`：旧客户背调专用代理，保留兼容和排障用途。
+- `lib/dify-*.js`：Dify 模式识别、SSE 解析、加解密、Upstash Redis 存储和 HTTP 共用逻辑。
 - `src/styles.css`：全部视觉样式、响应式规则和动效。
 - `src/data.js`：用户侧导航、销售准备标签、成交阶段、后台菜单、User Preview 报表、邀请码、AI 人设和模型等静态数据。
 - `src/app.js`：渲染函数、hash 路由、事件绑定、抽屉、toast、弹层、账号弹层、后台管理和状态切换。
+- `src/dify-config.js`：Dify 对话页白名单、每页独立配置状态和会话状态。
 - `assets/icons/`：本地 SVG 图标。后续新增图标时优先复制进这里，再在 `src/data.js` 引用相对路径。
 - `assets/generated/`：当前原型使用的本地视觉素材。
 - `browser-extension/manifest.json`：Chrome MV3 插件清单，定义 action、background service worker、content script、权限和图标。
 - `browser-extension/background.js`：插件后台逻辑，负责右键菜单、点击插件图标打开分析面板、调用 Coze `/v3/chat`、解析 SSE、保存本地 conversation/user id。
 - `browser-extension/content-script.js`：注入网页的右侧询盘分析面板，负责抓取页面文本、展示「开始分析」、发送追问、渲染安全 Markdown。
 - `browser-extension/inquiry-analyzer.js`：本地询盘提取和初步分析 helper，content script 依赖它做文本归一化和页面内容判断。
+- `browser-extension/inquiry-analyzer.test.js`：本地询盘提取 helper 的 Node 测试。
 - `browser-extension/icons/`：插件图标，当前来自 `/Users/garden/YD/logo/logo1.svg`，已处理透明底。
 - `yingdan-inquiry-extension-v0.2.0.zip`：当前内部测试用插件压缩包。
-- `package.json`：轻量仓库元信息；当前没有正式构建链路。
+- `package.json`：轻量仓库元信息和插件验证脚本；当前没有正式构建链路。
 - `AI板块统计.md`：统计客户Kass、销售准备等区域的 AI 能力现状和后续整理建议。
+- `赢单api.md`：赢单后端接口文档快照，用于查阅 auth、账号、邀请码、计费、积分等接口路径、请求参数和字段口径。它是接口参考资料，不是主静态原型代码；涉及线上真实行为、安全暴露或返回字段时，必须重新做 live 验证，不能只按文档下结论。
 - `coze-workflows/`：扣子工作流资料库，记录工作流用途、schema、调用函数、字段映射和验证状态。
-- `dify-chatflows/`：Dify Chatflow 资料库，记录 Dify 应用入口、参数快照、调用函数、API 测试记录和赢单字段映射。
+- `dify-chatflows/`：Dify 对话应用与 Chatflow 资料库，记录应用类型、入口、参数快照、调用函数、API 测试记录和赢单字段映射。
+- `backups/`：历史备份，只用于查旧实现或回看改动前状态，不主动修改。
+- `.claude/`、`audits/`、`workbench/`：工具运行、截图审计或临时运行记录目录，默认不作为主工程编辑目标。
 
 ## 当前技术栈
 
@@ -145,6 +173,22 @@ reverse-yingdan/
 - 优点：可以直接在客户询盘所在网页上打开右侧面板，贴近真实业务动作。
 - 缺点：当前内测版有内置 Coze 测试 Token，不能作为公开上架版本。
 - 缺点：`host_permissions` 覆盖 `http://*/*` 和 `https://*/*`，公开上架前需要重新评估最小权限、隐私政策和登录方案。
+
+## 界面和原型设计规则
+
+- 第一屏直接展示可操作界面，不做营销式落地页。
+- 优先复刻赢单的真实信息架构：左侧导航 + 右侧任务工作区。
+- 原型要能表达用户流程，不只是静态好看的图。
+- 原型不是功能讲解稿，界面里不要出现解释产品能力、说明设计目的、介绍开发计划或指导用户如何理解原型的文字。
+- 如果某段文案不能直接帮助用户完成当前业务动作，就不要放进界面；尤其避免大段说明卡片、流程教学卡片、功能介绍卡片和“这里用于……”式占位文字。
+- 动画必须服务功能理解和操作手感，不要做无意义装饰；优先使用轻量的 hover、active、loading、展开收起、结果生成、卡片进入和状态切换动画。
+- 新增交互或动画时，只实现用户明确要求的对应流程和反馈，不要擅自增加保存、发送、生成、同步、待办等额外功能入口，避免原型交付给开发时产生多余需求坑。
+- 每个页面必须能看出当前是什么业务场景、用户要输入什么、有哪些可选条件、点击后预期会生成什么、下一步可以去哪里。
+- 新增功能时，优先补齐用户流程，再考虑视觉细节。
+- 不要为了炫技引入复杂动画、复杂框架或过多视觉装饰。
+- 操作型界面要安静、清晰、适合反复使用。
+- 卡片、按钮、输入框要有稳定尺寸，避免文字挤压和布局跳动。
+- 移动端和桌面端都要检查文字不重叠、不溢出。
 
 ## 状态和数据结构
 
@@ -165,6 +209,8 @@ reverse-yingdan/
 - `historySearchOpen` / `historySearchQuery`：侧边栏历史搜索状态。
 - `selectedModel`：当前模型选择。
 - `chatDraft` / `isGenerating` / `generatedResult`：聊天输入、模拟生成和结果状态。
+- `difyFeatureConfigs`：按功能页 ID 保存顶栏的应用类型、掩码、应用摘要、加载和保存状态；不保存原始 API Key。
+- `difyFeatureSessions`：按功能页 ID 保存 `messages`、`conversationId`、`userId`、错误和生成状态，避免不同 Dify App 串上下文。
 - `inviteCodeDraft` / `inviteRedeemResult`：账号弹层里的邀请码输入和模拟兑换结果。
 - `adminInvitePreview`：后台邀请码管理里点击生成后的预览文案。
 - `userPreviewFields` / `userPreviewFieldsOpen`：后台 User Preview 用户字段报表显示哪些列，以及字段配置是否展开。
@@ -206,6 +252,72 @@ reverse-yingdan/
 - `YD_GET_PAGE_CONTEXT`：background 或 content script 获取当前网页可分析文本。
 - `YD_SAVE_COZE_TOKEN` / `YD_GET_COZE_SETTINGS` / `YD_RESET_COZE_CONVERSATION`：保留的设置和会话管理消息，当前主 UI 不暴露 Token 输入。
 
+## 功能区域命名约定
+
+后续讨论和修改需求时，统一使用下面这套命名，避免“页面、模块、区域”混用导致定位不清。
+
+一级功能区是左侧主导航里的大入口：
+
+- `问一下`：通用外贸问答。
+- `销售准备`：成交前资料准备、外贸流程、公司资料、产品市场和案例知识库。
+- `客户开发`：一级获客入口，不属于 `技能Skill`；负责找客户、筛线索、生成触达动作和入客户Kass。
+- `成交顾问`：围绕具体客户和成交动作的顾问。
+- `技能Skill`：更细的外贸工作流工具。
+- `客户Kass`：客户档案/客户上下文。
+- `历史记录`：历史会话和历史任务。
+- `账号/用量/升级`：通过账号卡、用量页和升级支付路径进入，不是左侧一级导航。
+- `后台管理`：通过隐藏后台入口或后台路径进入，不是用户侧左侧导航。
+
+`销售准备` 下的二级模块：
+
+- `外贸流程`
+- `了解公司`
+- `产品&市场`
+- `案例知识库`
+
+历史资料里出现过 `了解产品和市场`、`公司资产`、`外贸全流程 SOP` 等叫法。实现时以当前 `src/data.js` 的 `SALES_TABS` 和 `src/app.js` 的路由为准；如果要恢复旧模块，必须同步补导航、路由、渲染函数和样式。
+
+`成交顾问` 下的二级模块：
+
+- `客户背调顾问`
+- `场景谈判顾问`
+- `询盘分析回复`
+
+`技能Skill` 下的二级模块：
+
+- `市场调研`
+- `新客开发信`
+- `客诉处理`
+- `客户激活`
+- `关系维护`
+- `海外电销`
+- `视频会议`
+- `地推陌拜`
+- `来访接待`
+- `展会成交`
+- `组合标题`
+
+当前代码里没有独立的 `技能Skill > 谈判` 左侧入口；谈判能力主要体现在 `成交顾问 > 场景谈判顾问`、`技能Skill > 展会成交` 和外贸流程阶段按钮中。
+
+右侧主内容区域统一叫 `工作区`。工作区内固定区域命名：
+
+- `输入区`：大文本框、附件、模型选择、语音、发送按钮。
+- `筛选条件区`：国家、客户类型、谈判场景、开发目的等 chip 或下拉项。
+- `推荐动作区`：输入区下方的快捷任务卡片，例如客户画像、报价邮件、现场话术。
+- `流程说明区`：用 1、2、3 卡片说明这个功能怎么走的区域。
+- `结果预览区`：点击发送或 AI 生成后出现的结果内容。
+- `抽屉`：右侧滑出的面板，例如历史、教学视频。
+- `弹窗`：居中弹出的面板，例如附件、账号设置、客户编辑。
+- `插件侧边面板`：浏览器插件注入到网页右侧的 Shadow DOM 面板，不属于主原型工作区。
+
+需求描述优先按这个格式：
+
+```text
+一级功能区 > 二级模块 > 子流程/子页面 > 具体区域
+```
+
+示例：`销售准备 > 了解公司 > 输入区`、`技能Skill > 展会成交 > 展中客户接待 > 结果预览区`。
+
 ## URL 路由
 
 为了方便每个界面单独维护、刷新和分享，原型用 hash 路由（不依赖任何静态服务器 rewrite），全部映射定义在 `src/app.js` 顶部的 `ROUTES` 数组里。
@@ -227,6 +339,7 @@ reverse-yingdan/
 | `#/admin/invite-code` | 后台管理 > 邀请码管理 |
 | `#/admin/ai-character` | 后台管理 > AI 人设管理 |
 | `#/admin/ai-model` | 后台管理 > AI 模型管理 |
+| `#/sales-prep` | 销售准备默认入口，等同外贸流程 |
 | `#/sales-prep/flow` | 销售准备 > 外贸流程 Flow：问 AI 按钮 + 资料预览卡 + 教学视频 |
 | `#/sales-prep/company` | 销售准备 > 了解公司 |
 | `#/sales-prep/market` | 销售准备 > 产品&市场 |
@@ -236,6 +349,11 @@ reverse-yingdan/
 | `#/agents/inquiry-reply` | 成交顾问 > 询盘分析回复 |
 | `#/skills/market-research` | 技能 > 市场调研 |
 | `#/customer-development` | 客户开发 |
+| `#/customer-development/searching` | 客户开发 > AI 找客户中 |
+| `#/customer-development/results` | 客户开发 > 候选客户列表 |
+| `#/customer-development/contacts` | 客户开发 > 联系人信息 |
+| `#/customer-development/contacts/0`、`#/customer-development/contacts/1`、`#/customer-development/contacts/2` | 客户开发 > 联系人邮箱揭示状态 |
+| `#/skills/customer-development` | 客户开发旧兼容入口，仍打开一级客户开发页面 |
 | `#/skills/cold-email` | 技能 > 新客开发信 |
 | `#/skills/complaint` | 技能 > 客诉处理 |
 | `#/skills/reactivation` | 技能 > 客户激活 |
@@ -272,7 +390,8 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 改产品与市场表格：优先改 `src/data.js` 的 `PRODUCT_ROWS`。
 - 改案例知识库：优先改 `src/data.js` 的 `CASE_CATEGORIES` 和 `CASE_ITEMS`。
 - 改客户开发：它是一级入口，不是 `技能Skill` 子菜单；优先改 `src/data.js` 的 `CUSTOMER_DEVELOPMENT`；页面结构改 `src/app.js` 的 `renderCustomerDevelopmentView()`；样式改 `src/styles.css` 的 `.customer-dev-*`。
-- 改客户背调顾问：数据改 `src/data.js` 的 `CUSTOMER_RESEARCH_FLOW`；页面结构改 `src/app.js` 的 `renderCustomerResearchView()`、`renderCustomerResearchOutput()` 和 `renderCustomerResearchReport()`；样式改 `src/styles.css` 的 `.customer-research-*`、`.research-*`。
+- 改通用 Dify 对话页：页面白名单和默认类型改 `src/dify-config.js`；顶栏配置看 `renderDifyConfigBar()`、`loadDifyFeatureConfig()`、`saveDifyFeatureConfig()`；多轮消息存在 `state.difyFeatureSessions[featureId]`；真实调用看 `sendDifyFeatureDraft()`；Markdown 渲染看 `renderMarkdown()` / `renderInlineMarkdown()`。后端配置和聊天分别看 `api/dify-config.js`、`api/dify-chat.js`。
+- 改客户背调顾问：数据改 `src/data.js` 的 `CUSTOMER_RESEARCH_FLOW`；它复用上述通用 Dify 对话壳，但默认应用类型是 Chatflow，内部成本面板仍由 `renderCustomerResearchBillingTracePanel()` 控制。
 - 改客户Kass：优先改 `src/data.js` 的 `KASS_GROUPS` 和 `KASS_FLOW_STAGES`。如果改分组顶部「今日该推进」，看 `src/app.js` 的 `buildKassTodayReminder()` / `renderKassGroupTodayCard()` 和 `src/styles.css` 的 `.kass-today-*` / `.kass-group-today-*`。
 - 改账号弹层、邀请码兑换、团队/企业切换：优先改 `src/app.js` 的 `renderAccountSettingsPopup()`、`renderInviteRedeemModal()` 和相关事件绑定。
 - 改后台菜单：优先改 `src/data.js` 的 `ADMIN_NAV_ITEMS`，再看 `src/app.js` 的后台路由映射。
@@ -282,7 +401,8 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 改后台邀请码管理：优先改 `src/data.js` 的 `ADMIN_INVITE_ROWS`；生成邀请码表单和反馈改 `src/app.js` 的 `renderAdminInviteCodes()` 和相关事件绑定。
 - 改后台 AI 人设/模型管理：优先改 `src/data.js` 的 `ADMIN_CHARACTER_ROWS`、`ADMIN_MODEL_ROWS`；弹窗和表格行为改 `src/app.js`。
 - 新增或更新 Coze/扣子工作流资料：优先维护 `coze-workflows/`，不要把 schema、调用函数或真实返回样例塞进页面文案。
-- 新增或更新 Dify Chatflow 资料：优先维护 `dify-chatflows/`，每个 Chatflow 单独建目录，记录 `chatflow.md`、`call-function.md`、`parameters.snapshot.json` 和 `api-test.md`。
+- 新增或更新 Dify 对话应用或 Chatflow 资料：优先维护 `dify-chatflows/`，每个 App 单独建目录，记录应用类型、`chatflow.md`、`call-function.md`、`parameters.snapshot.json` 和 `api-test.md`。
+- 查赢单后端账号、邀请码、计费或积分接口：可先看 `赢单api.md` 的接口路径和参数说明；如果要判断线上是否真的可用、是否需要鉴权、返回哪些敏感字段，必须用当前环境重新验证。
 - 改界面样式和动效：改 `src/styles.css`。
 - 改点击行为、抽屉、toast：改 `src/app.js`。
 - 改浏览器插件：优先改 `browser-extension/content-script.js` 的面板体验、`browser-extension/background.js` 的 Coze 调用和消息分发、`browser-extension/inquiry-analyzer.js` 的本地询盘判断、`browser-extension/manifest.json` 的权限和图标声明。改完要重新打包 `yingdan-inquiry-extension-v0.2.0.zip`。
@@ -297,19 +417,26 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 不要把 `browser-extension/` 当作正式生产插件直接上架 Chrome Web Store；上架前必须先做权限收敛、隐私说明、登录/鉴权改造和 Token 移除。
 - 后台刷新数据、导出报表、生成邀请码、AI 人设保存、AI 模型保存、账号团队/企业切换都必须保持为原型反馈。
 - 不要在页面里写开发说明；说明写在 `CONTEXT.md` 或代码注释中。
+- `backups/` 只用于查历史，不主动改里面的旧 HTML。
+- `.claude/worktrees/` 是工具生成的工作树副本，不要把其中的文件当作当前主工程来更新。
+- `.claude/`、`audits/`、`workbench/` 默认不主动修改、不主动提交。
 
-## Dify Chatflow 资料库
+## Dify 对话应用与 Chatflow 资料库
 
-`dify-chatflows/` 用于记录用户在 Dify 里创建的、准备应用到赢单业务的 Chatflow。它与 `coze-workflows/` 平行维护：Coze 资料放 `coze-workflows/`，Dify 资料放 `dify-chatflows/`，不要混写。
+`dify-chatflows/` 用于记录用户在 Dify 里创建的、准备应用到赢单业务的对话型应用和 Chatflow。它与 `coze-workflows/` 平行维护：Coze 资料放 `coze-workflows/`，Dify 资料放 `dify-chatflows/`，不要混写。
 
 当前已记录：
 
 - `成交顾问 > 客户背调顾问 > 客户背调DeepSeek`：目录为 `dify-chatflows/成交顾问-客户背调顾问-客户背调DeepSeek/`。2026-07-04 已完成 `POST /chat-messages` 连通性测试和 `GET /parameters` 参数快照测试，均返回 HTTP `200`。
+- `技能Skill > 市场调研`：使用对话型应用模式，通过页面顶栏绑定 Key；具体 Key 只保存在 Vercel 环境变量或加密后的 Upstash Redis 中，不进入资料库。
+
+类型识别规则：Dify `/info` 的 `chat`、`agent-chat` 对应页面「对话型应用」，`advanced-chat` 对应「Chatflow」。两类都由 API Key 识别具体 App，并调用 `/chat-messages`；`workflow` 不属于当前对话页适配范围。
 
 每个 Dify Chatflow 目录建议包含：
 
 - `chatflow.md`：记录赢单功能路径、Dify 应用名称、页面链接、基础 URL、主要接口、字段映射和维护状态。
 - `call-function.md`：记录脱敏 curl 或后端封装示例，真实 API Key 必须用 `<DIFY_API_KEY>` 或 `$DIFY_API_KEY` 占位。
+- `developer-handoff.md`：给开发同事的接入交接，说明前端、代理、Dify、上下文会话和正式产品建议。
 - `parameters.snapshot.json`：记录 `GET /parameters` 的参数快照，不包含 API Key。
 - `api-test.md`：记录真实试跑的 HTTP 状态、耗时、返回字段、异常和结论。
 
@@ -318,7 +445,12 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 只用虚拟输入做连通性测试，不发送真实客户资料。
 - 真实 API Key 只允许临时用于本机命令或后端环境变量，不落盘。
 - 如果返回包含 `<think>...</think>` 等模型思考标签，正式展示前应过滤，只保留用户可读答案。
-- 当前 `成交顾问 > 客户背调顾问` 已接入 Vercel Serverless 代理：GitHub Pages 页面调用代理，代理从后端环境变量读取 Dify API Key。URL 带 `?difyDebug=1` 时才显示前端直连 Dify 的临时调试 key 输入框。
+- 所有通用对话页都通过 Vercel Serverless 代理调用 Dify。顶栏保存时先请求 `/info` 校验类型，再用 AES-256-GCM 加密 Key 并写入 Upstash Redis；GET 只返回掩码和应用摘要。未配置 Redis 时，可读取该功能对应的服务端环境变量作为兼容兜底。
+- 配置存储所需环境变量：`DIFY_CONFIG_ENCRYPTION_KEY`、`KV_REST_API_URL`、`KV_REST_API_TOKEN`；也兼容 Upstash 常见的 `UPSTASH_REDIS_REST_URL`、`UPSTASH_REDIS_REST_TOKEN`。
+- 市场调研兜底 Key 使用 `DIFY_MARKET_RESEARCH_API_KEY`；客户背调兼容 `DIFY_CUSTOMER_RESEARCH_API_KEY` 或 `DIFY_API_KEY`。任何环境变量值都不能写入仓库或日志。
+- 2026-07-08 已把本地静态服务 `http://localhost:8765`、`http://127.0.0.1:8765` 加入背调代理默认 CORS 白名单，并部署到 `yd-prototype-dify-proxy.vercel.app`；如果仍长时间无结果，优先排查 Dify Chatflow 执行耗时，而不是先怀疑浏览器没连上代理。
+- 2026-07-08 已让 `api/dify-customer-research.js` 在聚合 Dify streaming 响应时保留 `billing_trace`，用于内部查看 `workflow_run_id`、节点事件、Agent 日志、Tavily 调用次数、`search_depth` 和估算 credits；这些字段只用于成本核算和排障，不应直接展示给普通用户。
+- 2026-07-08 已在客户背调前端增加内部成本面板：URL 带 `?costDebug=1` 或 `?difyTrace=1` 时，每轮 Dify 回答下方会展示 `metadata.usage` 和 `billing_trace` 摘要，包括 token、模型费用、Tavily 调用次数、credits、搜索档位和 `workflow_run_id`。
 
 ## 如何验证
 
@@ -342,7 +474,11 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 16. 进入 `#/admin/user`（原用户总表），确认页面与之前一致、未被破坏。
 17. 进入 `#/admin/invite-code`，检查生成邀请码表单和邀请码列表。
 18. 进入 `#/admin/knowledge-base`、`#/admin/ai-character`、`#/admin/ai-model`，确认后台菜单切换和表格布局正常。
-19. 调整到窄屏，确认文字不重叠、不溢出。
+19. 逐一打开 `src/dify-config.js` 白名单中的对话页，确认顶栏左侧都有应用类型、API Key、保存按钮和状态，销售准备、客户开发、客户Kass和后台页不出现该配置栏。
+20. 在 `#/skills/market-research` 选择「对话型应用」并保存有效 Key，确认显示应用摘要；刷新后只显示掩码，不回传原始 Key。发送两轮消息，确认第二轮复用 `conversation_id`。
+21. 在 `#/agents/customer-research` 选择「Chatflow」验证同样流程；故意选错类型时，保存应提示 Key 实际对应的应用类型，且不落库。
+22. 运行 `npm test`，确认浏览器插件和 Dify 的模式识别、加密存储、API handler、SSE 解析与前端状态测试全部通过。
+23. 调整到窄屏，确认顶栏配置项、正文和按钮不重叠、不溢出。
 
 浏览器插件验证方式：
 
@@ -352,3 +488,16 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 4. 回归检查：确认 `browser-extension/` 里没有 `default_popup`、`popup.html`、`popup.js`、`popup.css`、`补充产品/底线`、`Coze 连接`、`开启新会话` 这些旧弹窗残留。
 5. 浏览器检查：在当前 Chrome 扩展管理页点击重新加载插件，打开含客户询盘的网页，点击插件图标后应先出现右侧面板和「开始分析」按钮；只有用户点击「开始分析」后才调用 Coze。
 6. Markdown 检查：Coze 返回的标题、列表、加粗、代码块和链接应按安全 Markdown 渲染，不显示裸露的 `###` 或 `**`。
+
+Excel 交付验证方式：
+
+1. 先用 LibreOffice headless 重存。
+2. 清理 `xl/tables/`。
+3. 清理空 `xl/drawings/`。
+4. 清理 `tableParts`。
+5. 清理 drawing/table relationships。
+6. 通过 `unzip -t` 验证。
+7. 通过 `openpyxl.load_workbook()` 验证。
+8. 扫描包内 table/drawing 残留。
+
+任一步失败都不能交付 `.xlsx`。

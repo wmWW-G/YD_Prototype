@@ -1,4 +1,4 @@
-/* global NAV_GROUPS, HISTORY_ITEMS, CUSTOMER_RESEARCH_FLOW, CUSTOMER_DEVELOPMENT, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_USER_PREVIEW_SUB_ACCOUNTS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS */
+/* global NAV_GROUPS, HISTORY_ITEMS, CUSTOMER_RESEARCH_FLOW, CUSTOMER_DEVELOPMENT, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_USER_PREVIEW_SUB_ACCOUNTS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS, YD_DIFY */
 
 /**
  * 页面级状态对象。
@@ -33,6 +33,7 @@
  *   historySearchQuery: string,
  *   selectedModel: string,
  *   chatDraft: string,
+ *   chatQuestion: string,
  *   isGenerating: boolean,
  *   generatedResult: string,
  *   customerResearchApiKey: string,
@@ -40,6 +41,9 @@
  *   customerResearchUserId: string,
  *   customerResearchLiveAnswer: string,
  *   customerResearchError: string,
+ *   customerResearchMessages: Array<{ id: string, role: "user" | "assistant", content: string, status?: "loading" | "error" | "done", usage?: object | null, billingTrace?: object | null, workflowRunId?: string }>,
+ *   difyFeatureConfigs: Record<string, { appType: "dialogue" | "chatflow", apiKeyDraft: string, hasKey: boolean, maskedKey: string, appName: string, appMode: string, loaded: boolean, loading: boolean, saving: boolean, error: string, storageReady: boolean }>,
+ *   difyFeatureSessions: Record<string, { messages: object[], conversationId: string, userId: string, error: string, isGenerating: boolean }>,
  *   inviteCodeDraft: string,
  *   inviteRedeemResult: string,
  *   adminInvitePreview: null | string,
@@ -75,6 +79,40 @@ const CUSTOMER_RESEARCH_PROXY_URL = "https://yd-prototype-dify-proxy.vercel.app/
  * @type {string}
  */
 const CUSTOMER_RESEARCH_DIRECT_DIFY_URL = "https://api.dify.ai/v1/chat-messages";
+
+/**
+ * 客户背调前端等待上限。
+ *
+ * 为什么前端也要设上限：
+ * - Dify 工作流可能因为检索、长思考或外部节点变慢，导致浏览器一直停在生成态。
+ * - 超时后给出准确提示，比误报“浏览器没连上代理”更利于排查。
+ *
+ * @type {number}
+ */
+const CUSTOMER_RESEARCH_REQUEST_TIMEOUT_MS = 240000;
+
+/**
+ * 所有对话功能页面共用的 Dify 配置与对话代理。
+ *
+ * 为什么使用两个服务端接口：
+ * - 配置接口负责校验并加密保存 Key，聊天接口只按页面 ID 读取配置并调用 Dify。
+ * - 浏览器永远拿不到已保存的原始 Key，只能看到“已配置”和应用名称。
+ *
+ * @type {{ config: string, chat: string }}
+ */
+const DIFY_PROXY_ENDPOINTS = Object.freeze({
+  config: "https://yd-prototype-dify-proxy.vercel.app/api/dify-config",
+  chat: "https://yd-prototype-dify-proxy.vercel.app/api/dify-chat"
+});
+
+/**
+ * 通用 Dify 请求的前端等待上限。
+ *
+ * Chatflow 可能包含搜索、Agent 或人工输入节点，因此沿用客户背调的长等待策略。
+ *
+ * @type {number}
+ */
+const DIFY_REQUEST_TIMEOUT_MS = 240000;
 
 /**
  * User Preview 报表需要横向冻结的字段。
@@ -123,6 +161,7 @@ const state = {
   historySearchQuery: "",
   selectedModel: "A",
   chatDraft: "",
+  chatQuestion: "",
   isGenerating: false,
   generatedResult: "",
   customerResearchApiKey: "",
@@ -130,6 +169,9 @@ const state = {
   customerResearchUserId: `yd-prototype-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
   customerResearchLiveAnswer: "",
   customerResearchError: "",
+  customerResearchMessages: [],
+  difyFeatureConfigs: Object.create(null),
+  difyFeatureSessions: Object.create(null),
   inviteCodeDraft: "",
   inviteRedeemResult: "",
   adminInvitePreview: null,
@@ -210,6 +252,204 @@ function renderMultilineText(value) {
 }
 
 /**
+ * 渲染 Markdown 行内语法。
+ *
+ * 为什么先转义再替换：
+ * - Dify 返回内容属于外部模型输出，不能直接作为 HTML 放进页面。
+ * - 先转义可以挡住脚本和任意标签，再只开放少量可控 Markdown 标签。
+ *
+ * @param {string} value - 单行 Markdown 文本。
+ * @returns {string} 安全的行内 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderInlineMarkdown(value) {
+  const segments = String(value || "").split(/(`[^`]*`)/g);
+
+  return segments.map((segment) => {
+    if (segment.startsWith("`") && segment.endsWith("`") && segment.length >= 2) {
+      return `<code>${escapeHtml(segment.slice(1, -1))}</code>`;
+    }
+
+    let html = escapeHtml(segment);
+
+    // 有些模型会输出 \*\*重点\*\* 这种转义写法，先恢复常见 Markdown 转义。
+    html = html.replace(/\\([*_`[\]()])/g, "$1");
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_match, label, href) => (
+      `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`
+    ));
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+    html = html.replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+    html = html.replace(/(^|[\s(])_([^_\n]+)_/g, "$1<em>$2</em>");
+
+    return html;
+  }).join("");
+}
+
+/**
+ * 把 AI 返回的 Markdown 转成安全 HTML。
+ *
+ * 支持范围：
+ * - 标题：# / ## / ### / ####
+ * - 列表：-、*、+、1.、1)
+ * - 段落、引用、分割线、代码块
+ * - 行内粗体、斜体、代码和 http/https 链接
+ *
+ * @param {string} value - AI 返回的 Markdown 文本。
+ * @returns {string} 安全 Markdown HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderMarkdown(value) {
+  const lines = String(value || "").replace(/\r\n/g, "\n").split("\n");
+  const html = [];
+  let paragraphLines = [];
+  let activeListType = "";
+  let inCodeBlock = false;
+  let codeLines = [];
+
+  /**
+   * 结束当前段落。
+   *
+   * @returns {void}
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function flushParagraph() {
+    if (paragraphLines.length === 0) {
+      return;
+    }
+
+    html.push(`<p>${paragraphLines.map(renderInlineMarkdown).join("<br>")}</p>`);
+    paragraphLines = [];
+  }
+
+  /**
+   * 结束当前列表。
+   *
+   * @returns {void}
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function closeList() {
+    if (!activeListType) {
+      return;
+    }
+
+    html.push(`</${activeListType}>`);
+    activeListType = "";
+  }
+
+  /**
+   * 确保列表容器存在。
+   *
+   * @param {"ul" | "ol"} type - 列表类型。
+   * @returns {void}
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function ensureList(type) {
+    if (activeListType === type) {
+      return;
+    }
+
+    closeList();
+    html.push(`<${type}>`);
+    activeListType = type;
+  }
+
+  /**
+   * 结束代码块。
+   *
+   * @returns {void}
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function flushCodeBlock() {
+    html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+    codeLines = [];
+    inCodeBlock = false;
+  }
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith("```")) {
+      flushParagraph();
+      closeList();
+
+      if (inCodeBlock) {
+        flushCodeBlock();
+        return;
+      }
+
+      inCodeBlock = true;
+      codeLines = [];
+      return;
+    }
+
+    if (inCodeBlock) {
+      codeLines.push(line);
+      return;
+    }
+
+    if (!trimmed) {
+      flushParagraph();
+      closeList();
+      return;
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+    const unorderedMatch = trimmed.match(/^[-*+]\s+(.+)$/);
+    const orderedMatch = trimmed.match(/^\d+[.)]\s+(.+)$/);
+    const quoteMatch = trimmed.match(/^>\s?(.+)$/);
+
+    if (/^-{3,}$/.test(trimmed)) {
+      flushParagraph();
+      closeList();
+      html.push("<hr>");
+      return;
+    }
+
+    if (headingMatch) {
+      flushParagraph();
+      closeList();
+      const level = Math.min(4, headingMatch[1].length + 1);
+      html.push(`<h${level}>${renderInlineMarkdown(headingMatch[2])}</h${level}>`);
+      return;
+    }
+
+    if (orderedMatch) {
+      flushParagraph();
+      ensureList("ol");
+      html.push(`<li>${renderInlineMarkdown(orderedMatch[1])}</li>`);
+      return;
+    }
+
+    if (unorderedMatch) {
+      flushParagraph();
+      ensureList("ul");
+      html.push(`<li>${renderInlineMarkdown(unorderedMatch[1])}</li>`);
+      return;
+    }
+
+    if (quoteMatch) {
+      flushParagraph();
+      closeList();
+      html.push(`<blockquote>${renderInlineMarkdown(quoteMatch[1])}</blockquote>`);
+      return;
+    }
+
+    closeList();
+    paragraphLines.push(trimmed);
+  });
+
+  if (inCodeBlock) {
+    flushCodeBlock();
+  }
+
+  flushParagraph();
+  closeList();
+
+  return `<div class="yd-markdown">${html.join("")}</div>`;
+}
+
+/**
  * 移除模型思考标签。
  *
  * 为什么要过滤：
@@ -276,6 +516,27 @@ function getCustomerResearchProxyUrl() {
 function isCustomerResearchDirectDebugMode() {
   try {
     return new URLSearchParams(window.location.search).get("difyDebug") === "1";
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * 判断是否展示客户背调成本追踪面板。
+ *
+ * 为什么单独用 costDebug:
+ * - `?difyDebug=1` 已经被用于前端直连 Dify 和临时填写 Key。
+ * - 成本追踪必须走代理才能拿到聚合后的 billing_trace, 不能复用直连开关。
+ * - 普通用户不应该看到 workflow、token、工具调用等内部信息。
+ *
+ * @returns {boolean} URL 上带 ?costDebug=1 或 ?difyTrace=1 时返回 true。
+ * @throws {Error} 本函数不主动抛异常；URL 解析失败时默认关闭。
+ */
+function isCustomerResearchCostDebugMode() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+
+    return params.get("costDebug") === "1" || params.get("difyTrace") === "1";
   } catch (error) {
     return false;
   }
@@ -438,6 +699,226 @@ function getChatLabels() {
 }
 
 /**
+ * 判断指定页面是否属于本次接入的 Dify 对话功能页。
+ *
+ * @param {string} featureId - 页面路由 ID；默认使用当前 activeMain。
+ * @returns {boolean} 只有明确登记的对话页返回 true。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function isDifyChatFeaturePage(featureId = state.activeMain) {
+  return Boolean(window.YD_DIFY?.isDifyChatFeature(featureId));
+}
+
+/**
+ * 获取或创建某个页面独立的 Dify 配置状态。
+ *
+ * @param {string} featureId - 对话页面 ID。
+ * @returns {ReturnType<typeof YD_DIFY.createFeatureConfigState>} 页面配置状态。
+ * @throws {Error} 缺少 src/dify-config.js 时抛出，便于发现 HTML 引用错误。
+ */
+function getDifyFeatureConfig(featureId = state.activeMain) {
+  if (!window.YD_DIFY) {
+    throw new Error("缺少 Dify 前端配置模块，请刷新页面。");
+  }
+
+  if (!state.difyFeatureConfigs[featureId]) {
+    state.difyFeatureConfigs[featureId] = window.YD_DIFY.createFeatureConfigState(featureId);
+  }
+
+  return state.difyFeatureConfigs[featureId];
+}
+
+/**
+ * 获取或创建某个页面独立的多轮会话状态。
+ *
+ * @param {string} featureId - 对话页面 ID。
+ * @returns {ReturnType<typeof YD_DIFY.createFeatureSessionState>} 页面会话状态。
+ * @throws {Error} 缺少 src/dify-config.js 时抛出。
+ */
+function getDifyFeatureSession(featureId = state.activeMain) {
+  if (!window.YD_DIFY) {
+    throw new Error("缺少 Dify 前端会话模块，请刷新页面。");
+  }
+
+  if (!state.difyFeatureSessions[featureId]) {
+    state.difyFeatureSessions[featureId] = window.YD_DIFY.createFeatureSessionState(featureId);
+  }
+
+  return state.difyFeatureSessions[featureId];
+}
+
+/**
+ * 获取配置或聊天代理地址。
+ *
+ * 为什么允许运行时覆盖：
+ * - 正式 GitHub Pages 使用已部署的 Vercel 域名。
+ * - 开发同事用 `vercel dev` 时可设置 window.YD_DIFY_PROXY_ENDPOINTS 指向本机接口。
+ *
+ * @param {"config" | "chat"} kind - 需要的代理类型。
+ * @returns {string} 完整接口地址。
+ * @throws {Error} kind 不存在时抛出。
+ */
+function getDifyProxyEndpoint(kind) {
+  const injected = window.YD_DIFY_PROXY_ENDPOINTS?.[kind];
+  const endpoint = typeof injected === "string" && injected.trim()
+    ? injected.trim()
+    : DIFY_PROXY_ENDPOINTS[kind];
+
+  if (!endpoint) {
+    throw new Error("Dify 代理地址未配置。");
+  }
+
+  return endpoint;
+}
+
+/**
+ * 把后端返回的安全 metadata 合并进页面配置状态。
+ *
+ * @param {object} config - 当前页面配置状态。
+ * @param {object} payload - `/api/dify-config` 返回的摘要，不包含原始 Key。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常；缺字段时保留当前默认值。
+ */
+function applyDifyConfigMetadata(config, payload) {
+  config.appType = payload?.appType === "chatflow" ? "chatflow" : "dialogue";
+  config.hasKey = Boolean(payload?.hasKey);
+  config.maskedKey = String(payload?.maskedKey || "");
+  config.appName = String(payload?.appName || "");
+  config.appMode = String(payload?.appMode || "");
+  config.storageReady = Boolean(payload?.storageReady);
+  config.loaded = true;
+  config.error = "";
+}
+
+/**
+ * 从 Vercel 后端读取当前页面的已保存配置状态。
+ *
+ * @param {string} featureId - 对话页面 ID。
+ * @returns {Promise<void>} 完成后按需重绘当前页。
+ * @throws {Error} 网络异常会被捕获并写入 config.error，不向外抛出。
+ */
+async function loadDifyFeatureConfig(featureId = state.activeMain) {
+  if (!isDifyChatFeaturePage(featureId)) {
+    return;
+  }
+
+  const config = getDifyFeatureConfig(featureId);
+  if (config.loaded || config.loading) {
+    return;
+  }
+
+  config.loading = true;
+
+  try {
+    const endpoint = new URL(getDifyProxyEndpoint("config"));
+    endpoint.searchParams.set("feature_id", featureId);
+    const response = await fetch(endpoint.toString(), { headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(payload?.message || `配置读取失败（HTTP ${response.status}）`);
+    }
+
+    applyDifyConfigMetadata(config, payload);
+  } catch (error) {
+    config.loaded = true;
+    config.error = window.YD_DIFY.getFriendlyConfigError(error);
+    console.error("[reverse-yingdan] Dify 配置读取失败", { featureId, message: config.error });
+  } finally {
+    config.loading = false;
+    if (state.activeMain === featureId) {
+      renderApp();
+    }
+  }
+}
+
+/**
+ * 保存并覆盖当前页面的 Dify 应用配置。
+ *
+ * 保存成功后清空旧 conversation_id：新 Key 可能绑定另一个 App，继续传旧会话会导致 404 或串上下文。
+ *
+ * @param {string} featureId - 对话页面 ID。
+ * @returns {Promise<void>} 保存完成后重绘并显示 toast。
+ * @throws {Error} 网络和校验错误会被捕获并展示在配置栏。
+ */
+async function saveDifyFeatureConfig(featureId = state.activeMain) {
+  const config = getDifyFeatureConfig(featureId);
+  const apiKey = normalizeDifyApiKey(config.apiKeyDraft);
+
+  if (!apiKey) {
+    config.error = "请填写 app- 开头的 Dify API Key。";
+    renderApp();
+    document.querySelector("[data-dify-api-key]")?.focus();
+    return;
+  }
+
+  config.saving = true;
+  config.error = "";
+  renderApp();
+
+  try {
+    const response = await fetch(getDifyProxyEndpoint("config"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        feature_id: featureId,
+        app_type: config.appType,
+        api_key: apiKey
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(payload?.message || `配置保存失败（HTTP ${response.status}）`);
+    }
+
+    applyDifyConfigMetadata(config, payload);
+    config.apiKeyDraft = "";
+    state.difyFeatureSessions[featureId] = window.YD_DIFY.createFeatureSessionState(featureId);
+    showToast(`已保存 ${config.appName || "Dify 应用"}，新配置立即生效。`);
+  } catch (error) {
+    config.error = window.YD_DIFY.getFriendlyConfigError(error);
+    console.error("[reverse-yingdan] Dify 配置保存失败", { featureId, message: config.error });
+  } finally {
+    config.saving = false;
+    renderApp();
+  }
+}
+
+/**
+ * 渲染用户标注的顶部 Dify 配置栏。
+ *
+ * @returns {string} 应用类型、Key、保存按钮和安全状态提示。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderDifyConfigBar() {
+  const config = getDifyFeatureConfig(state.activeMain);
+  const statusText = config.loading
+    ? "正在读取配置…"
+    : config.saving
+      ? "正在校验并保存…"
+      : config.error
+        ? config.error
+        : config.hasKey
+          ? `已配置 · ${config.appName || (config.appType === "chatflow" ? "Chatflow" : "对话型应用")}`
+          : "尚未配置";
+
+  return `
+    <section class="dify-config-bar ${config.error ? "error" : ""}" aria-label="当前对话应用配置">
+      <select data-dify-app-type="true" aria-label="Dify 应用类型" ${config.saving ? "disabled" : ""}>
+        <option value="dialogue" ${config.appType === "dialogue" ? "selected" : ""}>对话型应用</option>
+        <option value="chatflow" ${config.appType === "chatflow" ? "selected" : ""}>Chatflow</option>
+      </select>
+      <input type="password" value="${escapeHtml(config.apiKeyDraft)}" placeholder="${escapeHtml(config.hasKey ? config.maskedKey : "填写 app- 开头的 API Key")}" data-dify-api-key="true" autocomplete="off" aria-label="Dify API Key" ${config.saving ? "disabled" : ""} />
+      <button type="button" data-save-dify-config="true" ${config.saving || !config.apiKeyDraft.trim() ? "disabled" : ""}>
+        ${config.saving ? "保存中" : config.hasKey ? "覆盖更新" : "保存"}
+      </button>
+      <span class="dify-config-status" title="${escapeHtml(statusText)}">${escapeHtml(statusText)}</span>
+    </section>
+  `;
+}
+
+/**
  * 渲染整个应用。
  *
  * 作用：
@@ -488,6 +969,8 @@ function renderApp() {
   bindEvents();
   syncHashFromState();
   scrollFlowAiToBottom();
+  // 配置读取是异步的；先把页面画出来，再在后台读取掩码状态，避免首屏被网络阻塞。
+  void loadDifyFeatureConfig(state.activeMain);
   console.log("[reverse-yingdan] 页面已渲染", {
     activeMain: state.activeMain,
     activeSalesTab: state.activeSalesTab,
@@ -3996,9 +4479,24 @@ function renderTopbar() {
   }
 
   if (state.activeMain !== "sales-prep") {
+    const [title] = getChatLabels();
+    const shouldShowChatTab = ["ask", "negotiation-scene", "inquiry-reply"].includes(state.activeMain);
+    const topbarLeading = isDifyChatFeaturePage()
+      ? renderDifyConfigBar()
+      : shouldShowChatTab
+        ? `
+          <nav class="sales-tabs chat-top-tabs" aria-label="${escapeHtml(title)}">
+            <button class="sales-tab active" type="button">
+              <span class="sales-tab-icon" aria-hidden="true">?</span>
+              <span>${escapeHtml(title)}</span>
+            </button>
+          </nav>
+        `
+        : `<div></div>`;
+
     return `
       <header class="topbar">
-        <div></div>
+        ${topbarLeading}
         ${renderTopActions()}
       </header>
     `;
@@ -4032,11 +4530,15 @@ function renderTopbar() {
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderTopActions() {
-  const canExport = state.activeMain === "sales-prep" || state.activeMain.startsWith("customer-kass");
+  const canExport = state.activeMain === "ask" || state.activeMain === "sales-prep" || state.activeMain.startsWith("customer-kass");
 
   return `
     <div class="top-actions">
       <a class="admin-ghost-entry" href="#/admin/home" aria-label="进入后台管理"></a>
+      <button class="service-pill" type="button" data-toast="客服入口是原型反馈，当前不打开真实客服。">
+        <span class="service-pill-icon" aria-hidden="true">◎</span>
+        <span>客服</span>
+      </button>
       <button class="teach-pill" type="button" data-toast="无教学视频资源">
         <span class="teach-play" aria-hidden="true">▶</span>
         <span>教学视频</span>
@@ -4084,10 +4586,6 @@ function renderWorkspace() {
 
   if (state.activeMain === "customer-development") {
     return renderCustomerDevelopmentView();
-  }
-
-  if (state.activeMain === "customer-research") {
-    return renderCustomerResearchView();
   }
 
   return renderChatView();
@@ -6160,208 +6658,6 @@ function renderCustomerGeneration() {
 }
 
 /**
- * 渲染成交顾问 > 客户背调顾问。
- *
- * 作用：
- * - 把已经验证过的 Dify `客户背调DeepSeek` 能力放到真实原型入口里。
- * - 界面只呈现用户会操作的输入、快捷样例和背调报告，不暴露 Dify API Key 或接口细节。
- * - 当前仍是静态原型，点击发送后用本地样例模拟报告；正式版由后端代理调用 Dify。
- *
- * @returns {string} 客户背调顾问页面 HTML。
- * @throws {Error} 本函数不主动抛异常；数据缺失时会用空数组兜底。
- */
-function renderCustomerResearchView() {
-  const flow = CUSTOMER_RESEARCH_FLOW;
-  const hasDraft = state.chatDraft.trim().length > 0;
-  const proxyUrl = getCustomerResearchProxyUrl();
-  const showDirectDebugKey = !proxyUrl || isCustomerResearchDirectDebugMode();
-
-  return `
-    <section class="customer-research-view workbench-enter" aria-label="客户背调顾问">
-      <article class="customer-research-input-card">
-        <header class="customer-research-head">
-          <div>
-            <span class="customer-research-kicker">${escapeHtml(flow.engineName)}</span>
-            <h1>客户背调顾问</h1>
-            <p>粘贴客户公司、官网、国家、行业和业务目标，先判断值不值得推进，再生成沟通切入点。</p>
-          </div>
-          <button class="customer-research-sample" type="button" data-dev-prompt="${escapeHtml(flow.samplePrompt)}">
-            填入示例
-          </button>
-        </header>
-
-        <div class="customer-research-chip-row" aria-label="建议补充的信息">
-          ${(flow.chips || []).map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
-        </div>
-
-        ${showDirectDebugKey ? `
-          <label class="customer-research-key-row">
-            <span>Dify API Key</span>
-            <input type="password" placeholder="调试模式：粘贴 app- 开头的 Dify Key" value="${escapeHtml(state.customerResearchApiKey)}" data-customer-research-key="true" autocomplete="off" />
-          </label>
-        ` : `
-          <div class="customer-research-service-row" aria-label="背调服务状态">
-            <span>实时背调</span>
-            <strong>已接入</strong>
-          </div>
-        `}
-
-        <div class="customer-research-box">
-          <textarea placeholder="公司名 / 官网 / 国家 / 行业 / 你的产品 / 本次开发目标" data-chat-input="true">${escapeHtml(state.chatDraft)}</textarea>
-          <div class="customer-research-tools">
-            <div class="customer-research-quick">
-              ${(flow.quickPrompts || []).map((item) => `
-                <button type="button" data-dev-prompt="${escapeHtml(item.prompt)}">${escapeHtml(item.label)}</button>
-              `).join("")}
-            </div>
-            <button class="customer-research-send ${hasDraft ? "enabled" : ""}" type="button" data-send-chat="true" ${hasDraft || state.isGenerating ? "" : "disabled"}>
-              ${state.isGenerating ? "背调中..." : "开始背调"}
-            </button>
-          </div>
-        </div>
-      </article>
-
-      ${renderCustomerResearchOutput()}
-    </section>
-  `;
-}
-
-/**
- * 渲染客户背调的生成态和结果态。
- *
- * @returns {string} 生成态、结果报告或空态 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderCustomerResearchOutput() {
-  if (state.isGenerating) {
-    return `
-      <article class="customer-research-loading" aria-live="polite">
-        <span class="typing-dot"></span>
-        <span class="typing-dot"></span>
-        <span class="typing-dot"></span>
-        <p>正在背调客户背景、业务匹配度、风险点和下一步动作...</p>
-      </article>
-    `;
-  }
-
-  if (state.customerResearchError) {
-    return `
-      <article class="customer-research-empty error">
-        <h2>背调失败</h2>
-        <p>${escapeHtml(state.customerResearchError)}</p>
-      </article>
-    `;
-  }
-
-  if (!state.generatedResult) {
-    return `
-      <article class="customer-research-empty">
-        <h2>等待背调</h2>
-        <p>结果会按客户画像、采购可能性、风险点和下一步动作整理。</p>
-      </article>
-    `;
-  }
-
-  return renderCustomerResearchReport();
-}
-
-/**
- * 渲染客户背调报告样例。
- *
- * 为什么报告结构固定：
- * - 方便开发同事把 Dify 返回的自由文本整理成稳定的 UI 区块。
- * - 业务同事评审时能直接判断“结果是不是够用”，而不是只看到一段长文本。
- *
- * @returns {string} 背调报告 HTML。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderCustomerResearchReport() {
-  const report = CUSTOMER_RESEARCH_FLOW.report;
-  const liveAnswer = state.customerResearchLiveAnswer.trim();
-
-  if (liveAnswer) {
-    return `
-      <article class="customer-research-report">
-        <header class="research-report-head">
-          <div>
-            <span>实时背调结果</span>
-            <h2>客户背调报告</h2>
-            <p>已根据当前输入完成分析</p>
-          </div>
-          <div class="research-score live">
-            <span>状态</span>
-            <strong>完成</strong>
-          </div>
-        </header>
-
-        <div class="research-live-answer">
-          ${renderMultilineText(liveAnswer)}
-        </div>
-
-        <section class="research-next-panel" aria-label="结果操作">
-          <h3>下一步动作</h3>
-          <div class="result-actions">
-            <button type="button" data-toast="已模拟保存到客户Kass背调记录。">保存到客户Kass</button>
-            <button type="button" data-toast="已模拟生成首次开发邮件。">生成开发邮件</button>
-            <button type="button" data-toast="复制结果是原型反馈，当前不写入剪贴板。">复制报告</button>
-          </div>
-        </section>
-      </article>
-    `;
-  }
-
-  return `
-    <article class="customer-research-report">
-      <header class="research-report-head">
-        <div>
-          <span>背调报告</span>
-          <h2>${escapeHtml(report.company)}</h2>
-          <p>${escapeHtml(report.country)} · ${escapeHtml(report.industry)}</p>
-        </div>
-        <div class="research-score">
-          <span>匹配度</span>
-          <strong>${escapeHtml(report.fitScore)}</strong>
-        </div>
-      </header>
-
-      <p class="research-summary">${escapeHtml(report.summary)}</p>
-
-      <section class="research-section-grid" aria-label="客户背调分析">
-        ${(report.sections || []).map((section) => `
-          <article class="research-section-card">
-            <h3>${escapeHtml(section.title)}</h3>
-            <ul>
-              ${(section.items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-            </ul>
-          </article>
-        `).join("")}
-      </section>
-
-      <section class="research-risk-panel" aria-label="风险点">
-        <h3>风险点</h3>
-        <div>
-          ${(report.risks || []).map((risk) => `
-            <p><strong>${escapeHtml(risk.level)}</strong><span>${escapeHtml(risk.text)}</span></p>
-          `).join("")}
-        </div>
-      </section>
-
-      <section class="research-next-panel" aria-label="下一步动作">
-        <h3>下一步动作</h3>
-        <ol>
-          ${(report.nextActions || []).map((action) => `<li>${escapeHtml(action)}</li>`).join("")}
-        </ol>
-        <div class="result-actions">
-          <button type="button" data-toast="已模拟保存到客户Kass背调记录。">保存到客户Kass</button>
-          <button type="button" data-toast="已模拟生成首次开发邮件。">生成开发邮件</button>
-          <button type="button" data-toast="复制结果是原型反馈，当前不写入剪贴板。">复制报告</button>
-        </div>
-      </section>
-    </article>
-  `;
-}
-
-/**
  * 渲染通用问答 / 成交顾问 / Skill 的输入壳。
  *
  * @returns {string} 输入工作台 HTML。
@@ -6371,6 +6667,13 @@ function renderChatView() {
   const [title, desc, placeholder] = getChatLabels();
   const hasDraft = state.chatDraft.trim().length > 0;
   const needsScenePicker = state.activeMain === "negotiation-scene";
+  const session = getDifyFeatureSession();
+  const hasConversation = session.messages.length > 0;
+  const isGenerating = session.isGenerating;
+
+  if (hasConversation) {
+    return renderChatConversationView(title, placeholder, hasDraft, needsScenePicker);
+  }
 
   return `
     <section class="chat-view">
@@ -6405,13 +6708,286 @@ function renderChatView() {
               </svg>
             </button>
             <span class="chat-tools-divider" aria-hidden="true"></span>
-            <button class="send-btn ${hasDraft ? "enabled" : ""}" type="button" data-send-chat="true" ${hasDraft || state.isGenerating ? "" : "disabled"} aria-label="发送">
-              ${state.isGenerating ? `<span>…</span>` : `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M3.4 11.2 20.2 4.1c.6-.3 1.2.3.9.9l-7.1 16.8c-.3.6-1.1.6-1.4 0l-3-6.1-6.1-3c-.6-.3-.6-1.1-.1-1.5z"/></svg>`}
+            <button class="send-btn ${hasDraft ? "enabled" : ""}" type="button" data-send-chat="true" ${hasDraft && !isGenerating ? "" : "disabled"} aria-label="发送">
+              ${isGenerating ? `<span>…</span>` : `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M3.4 11.2 20.2 4.1c.6-.3 1.2.3.9.9l-7.1 16.8c-.3.6-1.1.6-1.4 0l-3-6.1-6.1-3c-.6-.3-.6-1.1-.1-1.5z"/></svg>`}
             </button>
           </div>
         </div>
         ${renderGenerationPanel()}
       </div>
+    </section>
+  `;
+}
+
+/**
+ * 渲染用户输入后的左右分栏对话态。
+ *
+ * 作用：
+ * - 对齐线上截图里的“左边问题、右边回答”结构。
+ * - 用户问题单独留在左侧，输入框清空后继续接受下一轮追问。
+ * - 右侧回答用正文排版承载长内容，避免旧结果卡片把答案压得太窄。
+ *
+ * @param {string} title - 当前功能标题，例如“问一下”。
+ * @param {string} placeholder - 当前输入框占位文案。
+ * @param {boolean} hasDraft - 输入框里是否已有新内容，用于控制生成按钮状态。
+ * @param {boolean} needsScenePicker - 场景谈判顾问是否需要展示场景选择入口。
+ * @returns {string} 左右分栏对话态 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderChatConversationView(title, placeholder, hasDraft, needsScenePicker) {
+  const session = getDifyFeatureSession();
+  const isGenerating = session.isGenerating;
+
+  return `
+    <section class="chat-conversation-view workbench-enter" aria-label="${escapeHtml(title)}对话">
+      <aside class="chat-question-pane">
+        ${renderCustomerResearchQuestionThread()}
+
+        <div class="chat-compose-panel">
+          <label class="chat-compose-box">
+            <span class="sr-only">继续输入问题</span>
+            <textarea placeholder="${escapeHtml(placeholder)}" data-chat-input="true">${escapeHtml(state.chatDraft)}</textarea>
+            <button class="compose-attach" type="button" data-popup="attachment" aria-label="附件">⌘</button>
+          </label>
+          <div class="chat-compose-tools">
+            <button class="model-pill compact ${state.popup === "model" ? "active" : ""}" type="button" data-popup="model">
+              <span class="model-pill-label">${escapeHtml(state.selectedModel)}</span>
+              <span class="model-pill-caret" aria-hidden="true">⌄</span>
+            </button>
+            <button class="new-chat-btn" type="button" data-new-chat="true">
+              <span aria-hidden="true">＋</span>
+              <span>开启新对话</span>
+            </button>
+            <span class="chat-tools-spacer"></span>
+            ${needsScenePicker ? `
+              <button class="scene-picker" type="button" data-toast="谈判场景选择是原型反馈，不接真实场景库。">
+                <span>请选择谈判场景</span>
+                <span class="scene-picker-caret" aria-hidden="true">⌄</span>
+              </button>
+            ` : ""}
+          </div>
+          <button class="generate-report-btn ${hasDraft ? "enabled" : ""}" type="button" data-send-chat="true" ${hasDraft && !isGenerating ? "" : "disabled"}>
+            ${isGenerating ? "AI 正在生成..." : "立即由AI生成报告"}
+          </button>
+          <p class="chat-compose-note">本回答由AI生成，内容仅供参考，请仔细甄别</p>
+        </div>
+      </aside>
+
+      <main class="chat-answer-pane">
+        ${renderConversationAnswer()}
+      </main>
+    </section>
+  `;
+}
+
+/**
+ * 创建客户背调消息 ID。
+ *
+ * 为什么不用数组下标当 ID：
+ * - 多轮对话后续可能会支持重试、删除或插入系统提示。
+ * - 稳定 ID 可以降低 DOM key/定位混乱风险。
+ *
+ * @returns {string} 客户背调消息 ID。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function createCustomerResearchMessageId() {
+  return `research-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * 获取当前 Dify 对话页里的用户消息。
+ *
+ * @returns {Array<{ id: string, role: "user" | "assistant", content: string, status?: "loading" | "error" | "done", usage?: object | null, billingTrace?: object | null, workflowRunId?: string }>} 用户消息列表。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getCustomerResearchUserMessages() {
+  return getDifyFeatureSession().messages.filter((message) => message.role === "user");
+}
+
+/**
+ * 获取当前 Dify 对话页里的助手消息。
+ *
+ * @returns {Array<{ id: string, role: "user" | "assistant", content: string, status?: "loading" | "error" | "done", usage?: object | null, billingTrace?: object | null, workflowRunId?: string }>} 助手消息列表。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getCustomerResearchAssistantMessages() {
+  return getDifyFeatureSession().messages.filter((message) => message.role === "assistant");
+}
+
+/**
+ * 渲染当前 Dify 对话页左侧多轮问题列表。
+ *
+ * 作用：
+ * - 解决旧实现只显示最后一个问题、让用户误以为前文丢失的问题。
+ * - 左侧继续保持“问题列表”的产品形态，不把回答和问题混在一起。
+ *
+ * @returns {string} 客户背调问题列表 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerResearchQuestionThread() {
+  const userMessages = getCustomerResearchUserMessages();
+
+  return `
+    <div class="chat-question-scroll customer-research-question-thread">
+      ${userMessages.map((message, index) => `
+        <section class="chat-question-turn">
+          <div class="chat-thread-heading muted">
+            <span>问题 ${index + 1}</span>
+            <i aria-hidden="true"></i>
+          </div>
+          <div class="chat-user-row">
+            <div class="chat-user-bubble">${renderMultilineText(message.content)}</div>
+          </div>
+        </section>
+      `).join("")}
+      <button class="chat-copy-question" type="button" data-toast="复制问题是原型反馈，当前不写入剪贴板。">
+        <span aria-hidden="true">⧉</span>
+        <span>复制</span>
+      </button>
+    </div>
+  `;
+}
+
+/**
+ * 渲染客户背调的 Dify 调试 Key 输入框。
+ *
+ * 为什么只在调试模式显示：
+ * - 正常体验应该和其它 AI 对话入口一致，用户不需要看到接口细节。
+ * - `?difyDebug=1` 是开发/排障入口，才允许临时直连 Dify 并粘贴 Key。
+ * - Key 只存在当前页面内存，不落本地存储，也不会写进源码。
+ *
+ * @param {"default" | "compact"} variant - 控件形态；对话态左侧用 compact 版本，避免挤压输入区。
+ * @returns {string} 调试输入框 HTML；非客户背调或非调试模式时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerResearchDebugKeyField(variant = "default") {
+  if (state.activeMain !== "customer-research") {
+    return "";
+  }
+
+  const proxyUrl = getCustomerResearchProxyUrl();
+
+  if (proxyUrl && !isCustomerResearchDirectDebugMode()) {
+    return "";
+  }
+
+  return `
+    <label class="customer-research-debug-key ${variant === "compact" ? "compact" : ""}">
+      <span>Dify API Key</span>
+      <input type="password" placeholder="调试模式：粘贴 app- 开头的 Dify Key" value="${escapeHtml(state.customerResearchApiKey)}" data-customer-research-key="true" autocomplete="off" />
+    </label>
+  `;
+}
+
+/**
+ * 把计费追踪里的数字格式化为易读文本。
+ *
+ * @param {unknown} value - 可能来自 Dify metadata 或 billing_trace 的数字。
+ * @returns {string} 格式化后的数字；无法解析时返回 `-`。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function formatTraceNumber(value) {
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return "-";
+  }
+
+  return numberValue.toLocaleString();
+}
+
+/**
+ * 把 Dify 返回的金额字段格式化为人民币文本。
+ *
+ * @param {unknown} value - 金额数值或字符串。
+ * @param {unknown} currency - Dify 返回的币种，当前通常是 RMB。
+ * @returns {string} 格式化后的金额。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function formatTraceMoney(value, currency = "RMB") {
+  const numberValue = Number(value);
+  const prefix = String(currency || "RMB").toUpperCase() === "RMB" ? "¥" : `${currency} `;
+
+  if (!Number.isFinite(numberValue)) {
+    return "-";
+  }
+
+  return `${prefix}${numberValue.toFixed(6)}`;
+}
+
+/**
+ * 渲染成本追踪面板中的单个指标。
+ *
+ * @param {string} label - 指标名称。
+ * @param {string} value - 指标值。
+ * @returns {string} 指标 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderTraceMetric(label, value) {
+  return `
+    <div class="research-cost-metric">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+    </div>
+  `;
+}
+
+/**
+ * 渲染客户背调的内部成本追踪面板。
+ *
+ * 作用：
+ * - 只在 URL 带 `?costDebug=1` 或 `?difyTrace=1` 时显示。
+ * - 让内部人员能直接核对模型 token、Dify 金额、Tavily 调用次数和档位。
+ * - 不把完整工具输出、网页正文或 Dify API Key 展示出来，避免把排障信息变成用户界面。
+ *
+ * @param {{ usage?: object | null, billingTrace?: object | null, workflowRunId?: string }} message - 当前助手消息。
+ * @returns {string} 成本追踪面板 HTML；非调试模式或无数据时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerResearchBillingTracePanel(message) {
+  if (!isCustomerResearchCostDebugMode()) {
+    return "";
+  }
+
+  const usage = message?.usage || {};
+  const trace = message?.billingTrace || {};
+  const tavily = trace?.tavily || {};
+  const tavilyCalls = Array.isArray(tavily.calls) ? tavily.calls : [];
+  const toolConfig = tavily.tool_config || {};
+  const workflowRunId = message?.workflowRunId || trace.workflow_run_id || "-";
+  const eventCounts = trace.event_counts || {};
+  const searchDepth = toolConfig.search_depth || [...new Set(tavilyCalls.map((call) => call.search_depth).filter(Boolean))].join(" / ") || "-";
+  const tavilyCallCount = tavily.call_count ?? tavilyCalls.length;
+  const tavilyCredits = tavily.estimated_credits ?? "-";
+  const queryRows = tavilyCalls.slice(0, 8).map((call, index) => `
+    <li>
+      <span>${index + 1}</span>
+      <p>${escapeHtml(call?.tool_input?.query || call?.query || call?.tool || "tavily_search")}</p>
+      <b>${escapeHtml(call?.search_depth || searchDepth || "-")}</b>
+    </li>
+  `).join("");
+
+  return `
+    <section class="research-cost-panel" aria-label="内部成本追踪">
+      <header>
+        <strong>成本追踪</strong>
+        <span>workflow ${escapeHtml(workflowRunId)}</span>
+      </header>
+      <div class="research-cost-grid">
+        ${renderTraceMetric("输入 Token", formatTraceNumber(usage.prompt_tokens))}
+        ${renderTraceMetric("输出 Token", formatTraceNumber(usage.completion_tokens))}
+        ${renderTraceMetric("总 Token", formatTraceNumber(usage.total_tokens))}
+        ${renderTraceMetric("模型费用", formatTraceMoney(usage.total_price, usage.currency))}
+        ${renderTraceMetric("Tavily 次数", formatTraceNumber(tavilyCallCount))}
+        ${renderTraceMetric("Tavily credits", formatTraceNumber(tavilyCredits))}
+        ${renderTraceMetric("搜索档位", String(searchDepth || "-"))}
+        ${renderTraceMetric("Agent 日志", formatTraceNumber(eventCounts.agent_log))}
+      </div>
+      ${queryRows ? `
+        <ol class="research-cost-query-list">
+          ${queryRows}
+        </ol>
+      ` : ""}
     </section>
   `;
 }
@@ -6447,6 +7023,116 @@ function renderGenerationPanel() {
         <button type="button" data-toast="已模拟保存到当前会话。">保存到历史</button>
       </div>
     </article>
+  `;
+}
+
+/**
+ * 渲染对话态右侧回答区。
+ *
+ * 作用：
+ * - 生成中显示三点动效，让用户知道发送动作已经触发。
+ * - 生成完成后展示接近截图的长回答结构，便于对齐真实产品样式。
+ *
+ * @returns {string} 回答区 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderConversationAnswer() {
+  return renderCustomerResearchConversationAnswer();
+}
+
+/**
+ * 渲染所有 Dify 对话功能页的右侧多轮回答。
+ *
+ * 作用：
+ * - 页面结构复用普通 AI 对话 UI，保证和其它成交顾问入口一致。
+ * - 内容层统一适配 Dify：生成中、失败和实时 answer 都按轮次展示。
+ * - Dify 返回文本先过滤思考标签，再用安全换行渲染，避免 XSS 和内部思考外露。
+ *
+ * @returns {string} 客户背调回答区 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerResearchConversationAnswer() {
+  const assistantMessages = getCustomerResearchAssistantMessages();
+  const [title] = getChatLabels();
+
+  if (assistantMessages.length > 0) {
+    return `
+      <article class="conversation-answer customer-research-answer-list" aria-live="polite">
+        ${assistantMessages.map((message, index) => {
+          const isLoading = message.status === "loading";
+          const isError = message.status === "error";
+
+          return `
+            <section class="customer-research-answer-turn ${isError ? "error" : ""}">
+              <div class="chat-thread-heading accent">
+                <span>回答 ${index + 1}</span>
+                <i aria-hidden="true"></i>
+              </div>
+              ${isLoading ? `
+                <div class="conversation-loading-row">
+                  <span class="typing-dot"></span>
+                  <span class="typing-dot"></span>
+                  <span class="typing-dot"></span>
+                  <p>${escapeHtml(message.content || `正在生成${title}结果...`)}</p>
+                </div>
+              ` : `
+                <div class="conversation-answer-body customer-research-answer ${isError ? "error" : ""}">
+                  ${isError ? `
+                    <h2>生成失败</h2>
+                    <p>${escapeHtml(message.content)}</p>
+                    <div class="result-actions">
+                      <button type="button" data-toast="请检查顶部应用配置、当前网络或 Dify 执行耗时后重新发送。">查看处理建议</button>
+                    </div>
+                  ` : `
+                    <div class="research-live-answer">
+                      ${renderMarkdown(message.content)}
+                    </div>
+                    <div class="result-actions">
+                      ${state.activeMain === "customer-research" ? `
+                        <button type="button" data-toast="已模拟保存到客户Kass背调记录。">保存到客户Kass</button>
+                        <button type="button" data-toast="已模拟生成首次开发邮件。">生成开发邮件</button>
+                      ` : `<button type="button" data-toast="已模拟保存到当前会话历史。">保存到历史</button>`}
+                      <button type="button" data-toast="复制结果是原型反馈，当前不写入剪贴板。">复制结果</button>
+                    </div>
+                    ${state.activeMain === "customer-research" ? renderCustomerResearchBillingTracePanel(message) : ""}
+                  `}
+                </div>
+              `}
+            </section>
+          `;
+        }).join("")}
+      </article>
+    `;
+  }
+
+  return "";
+}
+
+/**
+ * 把客户背调本地样例整理成通用对话回答内容。
+ *
+ * 作用：
+ * - 当没有真实 Dify answer 时，页面仍有稳定的样例结果可评审。
+ * - 这里不再用旧的大报告卡片，避免和通用对话界面割裂。
+ *
+ * @returns {string} 样例回答 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerResearchSampleAnswer() {
+  const report = CUSTOMER_RESEARCH_FLOW.report;
+
+  return `
+    <h2>${escapeHtml(report.company)} 客户背调报告</h2>
+    <p>${escapeHtml(report.country)} · ${escapeHtml(report.industry)} · 匹配度 ${escapeHtml(report.fitScore)}</p>
+    <p>${escapeHtml(report.summary)}</p>
+    ${(report.sections || []).map((section) => `
+      <p><strong>${escapeHtml(section.title)}：</strong>${(section.items || []).map((item) => escapeHtml(item)).join(" ")}</p>
+    `).join("")}
+    <p><strong>风险点：</strong>${(report.risks || []).map((risk) => `${escapeHtml(risk.level)}：${escapeHtml(risk.text)}`).join(" ")}</p>
+    <ol>
+      ${(report.nextActions || []).map((action) => `<li>${escapeHtml(action)}</li>`).join("")}
+    </ol>
+    <button class="answer-copy-icon" type="button" data-toast="复制回答是原型反馈，当前不写入剪贴板。" aria-label="复制回答">⧉</button>
   `;
 }
 
@@ -7356,13 +8042,34 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll("[data-customer-research-key]").forEach((input) => {
+  document.querySelectorAll("[data-dify-app-type]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const config = getDifyFeatureConfig();
+      config.appType = select.value === "chatflow" ? "chatflow" : "dialogue";
+      config.error = "";
+    });
+  });
+
+  document.querySelectorAll("[data-dify-api-key]").forEach((input) => {
     input.addEventListener("input", () => {
       const nextKey = normalizeDifyApiKey(input.value);
-      state.customerResearchApiKey = nextKey;
+      const config = getDifyFeatureConfig();
+      config.apiKeyDraft = nextKey;
+      config.error = "";
       if (nextKey && input.value !== nextKey) {
         input.value = nextKey;
       }
+
+      const saveButton = document.querySelector("[data-save-dify-config]");
+      if (saveButton) {
+        saveButton.disabled = !nextKey || config.saving;
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-save-dify-config]").forEach((button) => {
+    button.addEventListener("click", () => {
+      void saveDifyFeatureConfig(state.activeMain);
     });
   });
 
@@ -7394,6 +8101,12 @@ function bindEvents() {
   document.querySelectorAll("[data-send-chat]").forEach((button) => {
     button.addEventListener("click", () => {
       sendChatDraft();
+    });
+  });
+
+  document.querySelectorAll("[data-new-chat]").forEach((button) => {
+    button.addEventListener("click", () => {
+      startNewChatConversation();
     });
   });
 
@@ -7953,12 +8666,13 @@ function toggleHistorySearch() {
 function syncSendButton() {
   const button = document.querySelector("[data-send-chat]");
   const hasDraft = state.chatDraft.trim().length > 0;
+  const isGenerating = isDifyChatFeaturePage() ? getDifyFeatureSession().isGenerating : state.isGenerating;
 
   if (!button) {
     return;
   }
 
-  button.disabled = !hasDraft && !state.isGenerating;
+  button.disabled = !hasDraft || isGenerating;
   button.classList.toggle("enabled", hasDraft);
 }
 
@@ -7998,12 +8712,14 @@ function sendChatDraft() {
     return;
   }
 
-  if (state.activeMain === "customer-research") {
-    sendCustomerResearchDraft(draft);
+  if (isDifyChatFeaturePage()) {
+    void sendDifyFeatureDraft(draft);
     return;
   }
 
   state.isGenerating = true;
+  state.chatQuestion = draft;
+  state.chatDraft = "";
   state.generatedResult = "";
   state.popup = null;
   renderApp();
@@ -8011,9 +8727,7 @@ function sendChatDraft() {
   window.setTimeout(() => {
     const [title] = getChatLabels();
     state.isGenerating = false;
-    if (state.activeMain === "customer-research") {
-      state.generatedResult = "customer-research-report";
-    } else if (state.activeMain === "customer-development") {
+    if (state.activeMain === "customer-development") {
       state.generatedResult = "已生成客户开发方案：优先开发 UAE 新能源经销商，首轮用公司一句话定位 + 中东案例建立信任，第二轮补认证和交付能力，第三轮切 WhatsApp 或 LinkedIn 确认采购角色；有回复的客户进入客户Kass A/B 分组继续推进。";
     } else {
       state.generatedResult = `${title} 已根据你的输入整理出一版可继续编辑的业务建议。正式版这里会展示 AI 生成内容、引用资料和下一步动作。`;
@@ -8023,93 +8737,152 @@ function sendChatDraft() {
 }
 
 /**
- * 真实调用 Dify 客户背调 Chatflow。
+ * 开启一轮新的通用对话。
  *
  * 作用：
- * - 让原型里的客户背调入口可以直接试用 Dify。
- * - API Key 只通过 prompt 临时输入，并保存在当前页面内存里；刷新后消失。
- * - 不写入前端源码、本地存储或 git，降低内测密钥泄露风险。
+ * - 清空上一轮问题和回答，回到输入首屏。
+ * - 只影响当前静态原型的内存状态，不删除真实历史记录。
  *
- * @param {string} draft - 用户输入的客户背调内容。
- * @returns {Promise<void>} 调用完成后会重绘页面。
- * @throws {Error} 本函数内部捕获网络和接口异常，不向外抛出。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
  */
-async function sendCustomerResearchDraft(draft) {
-  const proxyUrl = getCustomerResearchProxyUrl();
-  const useDirectDify = !proxyUrl || isCustomerResearchDirectDebugMode();
-  let apiKey = normalizeDifyApiKey(state.customerResearchApiKey);
+function startNewChatConversation() {
+  state.chatDraft = "";
+  state.chatQuestion = "";
+  state.isGenerating = false;
+  state.generatedResult = "";
 
-  if (useDirectDify && !apiKey) {
-    showToast("请先粘贴 Dify API Key。");
-    const keyInput = document.querySelector("[data-customer-research-key]");
-    keyInput?.focus();
+  if (isDifyChatFeaturePage()) {
+    state.difyFeatureSessions[state.activeMain] = window.YD_DIFY.createFeatureSessionState(state.activeMain);
+  }
+
+  state.popup = null;
+  renderApp();
+}
+
+/**
+ * 通过统一 Vercel 代理调用当前页面绑定的 Dify 应用。
+ *
+ * 作用：
+ * - 普通对话应用、Agent 和 Chatflow 都走同一个前端数据结构。
+ * - 每个页面维护独立 conversation_id 和稳定 user，避免跨 App 串上下文。
+ * - 浏览器只发送 feature_id，已保存的 API Key 由后端从 Redis 解密使用。
+ *
+ * @param {string} draft - 当前对话页的用户输入。
+ * @returns {Promise<void>} 完成后更新当前页面的多轮消息并重绘。
+ * @throws {Error} 本函数捕获网络和业务异常，不向事件监听器继续抛出。
+ */
+async function sendDifyFeatureDraft(draft) {
+  const featureId = state.activeMain;
+  const config = getDifyFeatureConfig(featureId);
+  const session = getDifyFeatureSession(featureId);
+  const [title] = getChatLabels();
+
+  if (!config.hasKey) {
+    showToast("请先在顶部填写并保存 Dify API Key。");
+    document.querySelector("[data-dify-api-key]")?.focus();
     return;
   }
 
-  state.customerResearchApiKey = apiKey;
+  session.isGenerating = true;
+  session.error = "";
   state.isGenerating = true;
+  state.chatQuestion = draft;
+  state.chatDraft = "";
   state.generatedResult = "";
-  state.customerResearchLiveAnswer = "";
-  state.customerResearchError = "";
+  const pendingAnswerId = createCustomerResearchMessageId();
+  session.messages.push(
+    {
+      id: createCustomerResearchMessageId(),
+      role: "user",
+      content: draft,
+      status: "done"
+    },
+    {
+      id: pendingAnswerId,
+      role: "assistant",
+      content: `正在生成${title}结果...`,
+      status: "loading"
+    }
+  );
   state.popup = null;
   renderApp();
 
   try {
-    const requestBody = {
-      query: draft,
-      conversation_id: state.customerResearchConversationId || "",
-      user: state.customerResearchUserId
-    };
-    const headers = {
-      "Content-Type": "application/json"
-    };
-    const endpoint = useDirectDify ? CUSTOMER_RESEARCH_DIRECT_DIFY_URL : proxyUrl;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), DIFY_REQUEST_TIMEOUT_MS);
+    let response;
 
-    if (useDirectDify) {
-      headers.Authorization = `Bearer ${apiKey}`;
+    try {
+      response = await fetch(getDifyProxyEndpoint("chat"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          feature_id: featureId,
+          query: draft,
+          conversation_id: session.conversationId,
+          user: session.userId,
+          inputs: {},
+          files: []
+        })
+      });
+    } finally {
+      window.clearTimeout(timeoutId);
     }
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(useDirectDify ? {
-        inputs: {},
-        response_mode: "blocking",
-        files: [],
-        ...requestBody
-      } : requestBody)
-    });
 
     const rawText = await response.text();
     let payload = null;
 
     try {
       payload = rawText ? JSON.parse(rawText) : null;
-    } catch (err) {
+    } catch (_error) {
       payload = null;
     }
 
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        state.customerResearchApiKey = "";
-      }
-
-      const message = payload?.message || payload?.error || rawText || `HTTP ${response.status}`;
-      throw new Error(message);
+      throw new Error(payload?.message || rawText || `Dify 代理返回 HTTP ${response.status}`);
     }
 
-    const answer = stripThinkingTags(payload?.answer || "");
-    state.customerResearchConversationId = payload?.conversation_id || state.customerResearchConversationId;
-    state.customerResearchLiveAnswer = answer || "Dify 已返回结果，但 answer 字段为空。";
-    state.generatedResult = "customer-research-live";
+    const answer = stripThinkingTags(payload?.answer || "") || "Dify 已完成执行，但没有返回可展示的 answer。";
+    session.conversationId = payload?.conversation_id || session.conversationId;
+    const usage = payload?.metadata?.usage || null;
+    const billingTrace = payload?.billing_trace || null;
+    const workflowRunId = payload?.workflow_run_id || billingTrace?.workflow_run_id || "";
+    session.messages = session.messages.map((message) => (
+      message.id === pendingAnswerId
+        ? {
+            ...message,
+            content: answer,
+            status: "done",
+            usage,
+            billingTrace,
+            workflowRunId
+          }
+        : message
+    ));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Dify 调用失败，请稍后重试。";
-    state.customerResearchError = message === "Failed to fetch"
-      ? "浏览器没有连上背调代理。请刷新后重试；如果仍失败，说明当前网络或浏览器插件拦截了代理请求。"
-      : message;
+
+    if (error instanceof DOMException && error.name === "AbortError") {
+      session.error = "Dify 响应超时。代理已经连通，但上游应用暂时没有在 240 秒内返回结果。";
+    } else if (message === "Failed to fetch") {
+      session.error = "Dify 代理请求失败。请检查当前网络、代理部署或 CORS 配置后重试。";
+    } else {
+      session.error = message;
+    }
+
+    session.messages = session.messages.map((messageItem) => (
+      messageItem.id === pendingAnswerId
+        ? { ...messageItem, content: session.error, status: "error" }
+        : messageItem
+    ));
   } finally {
+    session.isGenerating = false;
     state.isGenerating = false;
-    renderApp();
+    if (state.activeMain === featureId) {
+      renderApp();
+    }
   }
 }
 

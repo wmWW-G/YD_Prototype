@@ -2,6 +2,12 @@
   "functions": {
     "api/dify-customer-research.js": {
       "maxDuration": 300
+    },
+    "api/dify-chat.js": {
+      "maxDuration": 300
+    },
+    "api/dify-config.js": {
+      "maxDuration": 60
     }
   }
 }
