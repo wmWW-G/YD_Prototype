@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { APP_TYPES } = require("../lib/dify-core");
-const { inspectDifyApp, sendDifyChat } = require("../lib/dify-api-client");
+const { inspectDifyApp, sendDifyChat, streamDifyChat } = require("../lib/dify-api-client");
 
 test("inspects app info and parameters before accepting a saved key", async () => {
   const calls = [];
@@ -93,4 +93,120 @@ test("turns Dify HTTP errors into safe Chinese messages without echoing the API 
       throw error;
     }
   }, /API Key 无效/);
+});
+
+test("streams safe process summaries and visible answer chunks as Dify emits them", async () => {
+  const encoder = new TextEncoder();
+  const upstreamChunks = [
+    'data: {"event":"workflow_started","workflow_run_id":"run-live","conversation_id":"conv-live"}\n\n',
+    'data: {"event":"agent_thought","thought":"内部推理不能展示","conversation_id":"conv-live"}\n\n',
+    'data: {"event":"agent_log","id":"log-search","data":{"label":"CALL Tavily Search;CALL Tavily Search","status":"running","data":{"output":{"tool_call_name":"tavily_search","tool_call_input":"{\\"query\\":\\"墨西哥储能市场规模\\"}"}}}}\n\n',
+    'data: {"event":"message","answer":"<thi","conversation_id":"conv-live"}\n\n',
+    'data: {"event":"message","answer":"nk>不能展示的思考</think>公开","conversation_id":"conv-live"}\n\n',
+    'data: {"event":"message","answer":"结论","conversation_id":"conv-live"}\n\n',
+    'data: {"event":"message_end","conversation_id":"conv-live","metadata":{"usage":{"total_tokens":23}}}\n\n'
+  ];
+  const fetchImpl = async () => new Response(new ReadableStream({
+    start(controller) {
+      upstreamChunks.forEach((chunk) => controller.enqueue(encoder.encode(chunk)));
+      controller.close();
+    }
+  }), {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" }
+  });
+  const emitted = [];
+
+  const result = await streamDifyChat({
+    apiKey: "app-live-secret",
+    query: "分析墨西哥市场",
+    user: "yd-user-live",
+    fetchImpl,
+    onEvent(event) {
+      emitted.push(event);
+    }
+  });
+
+  assert.equal(emitted[0].type, "process");
+  assert.equal(emitted.some((event) => event.type === "process" && event.step.kind === "reasoning"), true);
+  assert.equal(emitted.some((event) => (
+    event.type === "process"
+    && event.step.kind === "tool"
+    && event.step.label === "正在调用Tavily Search"
+    && event.step.detail === "墨西哥储能市场规模"
+  )), true);
+  assert.deepEqual(
+    emitted.filter((event) => event.type === "answer_delta").map((event) => event.delta),
+    ["公开", "结论"]
+  );
+  assert.equal(result.answer, "公开结论");
+  assert.equal(result.conversation_id, "conv-live");
+  assert.equal(JSON.stringify(emitted).includes("内部推理不能展示"), false);
+  assert.equal(JSON.stringify(emitted).includes("不能展示的思考"), false);
+});
+
+test("emits a generic reasoning step when a chatbot only exposes split think tags", async () => {
+  const streamText = [
+    'data: {"event":"message","answer":"<thi","conversation_id":"conv-think"}',
+    'data: {"event":"message","answer":"nk>隐藏内容</think>公开答案","conversation_id":"conv-think"}',
+    'data: {"event":"message_end","conversation_id":"conv-think"}'
+  ].join("\n\n");
+  const fetchImpl = async () => new Response(streamText, {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" }
+  });
+  const emitted = [];
+
+  await streamDifyChat({
+    apiKey: "app-think-secret",
+    query: "分析",
+    user: "yd-user-think",
+    fetchImpl,
+    onEvent(event) {
+      emitted.push(event);
+    }
+  });
+
+  assert.equal(emitted.some((event) => (
+    event.type === "process"
+    && event.step.kind === "reasoning"
+    && event.step.label === "正在分析问题"
+  )), true);
+  assert.equal(JSON.stringify(emitted).includes("隐藏内容"), false);
+});
+
+test("keeps Agent interim messages in the process stream and promotes only the last segment", async () => {
+  const streamText = [
+    'data: {"event":"agent_thought","id":"reason-a","thought":"隐藏思考"}',
+    'data: {"event":"agent_message","answer":"Google 限流，换关键词继续搜索。","conversation_id":"conv-agent"}',
+    'data: {"event":"agent_log","id":"tool-b","data":{"label":"Tavily Search","status":"running","data":{"output":{"tool_call_name":"tavily_search","tool_call_input":{"query":"德国储能"}}}}}',
+    'data: {"event":"agent_message","answer":"正式","conversation_id":"conv-agent"}',
+    'data: {"event":"agent_message","answer":"结论","conversation_id":"conv-agent"}',
+    'data: {"event":"agent_log","id":"tool-b","data":{"label":"Tavily Search","status":"success"}}',
+    'data: {"event":"message_end","conversation_id":"conv-agent"}'
+  ].join("\n\n");
+  const fetchImpl = async () => new Response(streamText, {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" }
+  });
+  const emitted = [];
+
+  const result = await streamDifyChat({
+    apiKey: "app-agent-secret",
+    query: "调研",
+    user: "yd-user-agent",
+    fetchImpl,
+    onEvent(event) {
+      emitted.push(event);
+    }
+  });
+
+  assert.equal(emitted.some((event) => (
+    event.type === "process"
+    && event.step.kind === "reasoning"
+    && event.step.detail.includes("Google 限流")
+  )), true);
+  assert.equal(emitted.some((event) => event.type === "answer_delta"), false);
+  assert.equal(emitted.find((event) => event.type === "answer_replace").answer, "正式结论");
+  assert.equal(result.answer, "正式结论");
 });

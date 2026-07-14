@@ -73,7 +73,7 @@
    *
    * @param {unknown} featureId - 对话页面 ID。
    * @param {unknown} seed - 当前浏览器会话种子；测试可传固定值。
-   * @returns {{ messages: object[], conversationId: string, userId: string, error: string, isGenerating: boolean }} 页面会话状态。
+   * @returns {{ messages: Array<{ id: string, role: string, content: string, status: string, processSteps?: object[], currentProcess?: object | null, processCollapsed?: boolean, processExpanded?: boolean, answerStarted?: boolean }>, conversationId: string, userId: string, error: string, isGenerating: boolean }} 页面会话状态。
    * @throws {Error} 本函数不主动抛异常。
    */
   function createFeatureSessionState(featureId, seed = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`) {
@@ -109,8 +109,205 @@
     return message || "Dify 配置操作失败。";
   }
 
+  /**
+   * 将一条代理 SSE 事件应用到当前助手消息。
+   *
+   * 这个纯函数集中维护过程区的产品规则：
+   * - 新过程覆盖 `currentProcess`，所以生成中永远只看到最新一步。
+   * - `processSteps` 保留最多 40 步，正式答案出现后可由用户展开回看。
+   * - 第一个 answer 事件到达时自动折叠过程，避免过程信息抢占最终结论。
+   *
+   * @param {object} message - 当前助手消息对象。
+   * @param {object} event - 后端公开 SSE 事件。
+   * @returns {object} 更新后的新消息对象，不直接修改传入对象。
+   * @throws {Error} 本函数不主动抛异常；未知事件原样返回消息副本。
+   */
+  function applyDifyStreamEventToMessage(message, event) {
+    const currentMessage = message && typeof message === "object" ? message : {};
+    const eventType = String(event?.type || "");
+    const existingSteps = Array.isArray(currentMessage.processSteps) ? currentMessage.processSteps : [];
+
+    if (eventType === "process" && event.step && typeof event.step === "object") {
+      const nextStep = { ...event.step };
+      const matchingIndex = existingSteps.findIndex((step) => (
+        nextStep.id && step?.id && String(step.id) === String(nextStep.id)
+      ));
+      const nextSteps = [...existingSteps];
+
+      if (matchingIndex >= 0) {
+        nextSteps[matchingIndex] = nextStep;
+      } else {
+        nextSteps.push(nextStep);
+      }
+
+      return {
+        ...currentMessage,
+        processSteps: nextSteps.slice(-40),
+        currentProcess: nextStep,
+        processCollapsed: Boolean(currentMessage.answerStarted),
+        processExpanded: currentMessage.answerStarted ? false : Boolean(currentMessage.processExpanded)
+      };
+    }
+
+    if (eventType === "answer_delta") {
+      const delta = String(event.delta || "");
+
+      // Dify 的部分 Chatflow 会在正式正文前先发送换行符。
+      // 这些空白不是用户能看到的答案；如果据此切换 `answerStarted`，过程区会在正文尚未出现时提前折叠。
+      // 正文已经开始后仍保留空白增量，避免破坏 Markdown 段落和列表格式。
+      if (!currentMessage.answerStarted && !delta.trim()) {
+        return { ...currentMessage };
+      }
+
+      return {
+        ...currentMessage,
+        content: currentMessage.answerStarted ? `${String(currentMessage.content || "")}${delta}` : delta,
+        answerStarted: true,
+        processCollapsed: true,
+        processExpanded: false
+      };
+    }
+
+    if (eventType === "answer_replace") {
+      const removeProcessId = String(event.remove_process_id || "");
+      const nextSteps = removeProcessId
+        ? existingSteps.filter((step) => String(step?.id || "") !== removeProcessId)
+        : existingSteps;
+      const nextCurrentProcess = removeProcessId && String(currentMessage.currentProcess?.id || "") === removeProcessId
+        ? (nextSteps[nextSteps.length - 1] || null)
+        : (currentMessage.currentProcess || null);
+
+      return {
+        ...currentMessage,
+        content: String(event.answer || ""),
+        answerStarted: true,
+        processSteps: nextSteps,
+        currentProcess: nextCurrentProcess,
+        processCollapsed: true,
+        processExpanded: false
+      };
+    }
+
+    if (eventType === "done") {
+      const result = event.result && typeof event.result === "object" ? event.result : {};
+      const finalAnswer = currentMessage.answerStarted
+        ? String(currentMessage.content || "")
+        : String(result.answer || "Dify 已完成执行，但没有返回可展示的 answer。");
+
+      return {
+        ...currentMessage,
+        content: finalAnswer,
+        status: "done",
+        answerStarted: Boolean(finalAnswer) || Boolean(currentMessage.answerStarted),
+        processCollapsed: true,
+        processExpanded: false,
+        conversationId: String(result.conversation_id || ""),
+        usage: result.metadata?.usage || null,
+        billingTrace: result.billing_trace || null,
+        workflowRunId: String(result.workflow_run_id || result.billing_trace?.workflow_run_id || ""),
+        appType: String(result.app_type || "")
+      };
+    }
+
+    if (eventType === "error") {
+      const interruptedStep = currentMessage.currentProcess
+        ? {
+            ...currentMessage.currentProcess,
+            label: String(currentMessage.currentProcess.label || "当前步骤").replace(/（已中断）$/, "") + "（已中断）",
+            status: "error"
+          }
+        : null;
+      const nextSteps = interruptedStep
+        ? existingSteps.map((step) => (
+            step?.id && interruptedStep.id && String(step.id) === String(interruptedStep.id)
+              ? interruptedStep
+              : step
+          ))
+        : existingSteps;
+
+      return {
+        ...currentMessage,
+        content: String(event.message || "Dify 调用失败，请稍后重试。"),
+        status: "error",
+        processSteps: nextSteps,
+        currentProcess: interruptedStep,
+        processCollapsed: true,
+        processExpanded: false
+      };
+    }
+
+    return { ...currentMessage };
+  }
+
+  /**
+   * 创建浏览器端增量 SSE 解析器。
+   *
+   * fetch 的 ReadableStream 分块位置和 SSE 事件边界无关，因此 JSON 可能被切在任意字符中间。
+   * 解析器先缓存到空行，再提取 data 字段，确保不会因为网络分块而丢事件。
+   *
+   * @param {(event: object) => void} onEvent - 每获得一条完整公开事件时调用。
+   * @returns {{ push: (chunk: string) => void, finish: () => void }} 增量写入和结束接口。
+   * @throws {Error} 完整 data JSON 损坏，或 onEvent 回调抛错时向外抛出。
+   */
+  function createDifySseEventParser(onEvent) {
+    let buffer = "";
+
+    /**
+     * 解析一个由空行分隔的完整 SSE 事件块。
+     *
+     * @param {string} block - 完整 SSE 事件块。
+     * @returns {void}
+     * @throws {Error} data 不是合法 JSON 时抛出。
+     */
+    function parseBlock(block) {
+      const dataText = block
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trimStart())
+        .join("\n")
+        .trim();
+
+      if (!dataText || dataText === "[DONE]") {
+        return;
+      }
+
+      onEvent(JSON.parse(dataText));
+    }
+
+    return {
+      /**
+       * 写入新读取到的响应文本。
+       *
+       * @param {string} chunk - TextDecoder 解码后的文本块。
+       * @returns {void}
+       * @throws {Error} 完整事件解析失败时抛出。
+       */
+      push(chunk) {
+        buffer += String(chunk || "");
+        const blocks = buffer.split(/\r?\n\r?\n/);
+        buffer = blocks.pop() || "";
+        blocks.forEach(parseBlock);
+      },
+
+      /**
+       * 处理没有尾随空行的最后一个事件。
+       *
+       * @returns {void}
+       * @throws {Error} 最后一个完整事件解析失败时抛出。
+       */
+      finish() {
+        if (buffer.trim()) {
+          parseBlock(buffer);
+        }
+        buffer = "";
+      }
+    };
+  }
+
   const publicApi = {
     CHAT_FEATURE_IDS,
+    applyDifyStreamEventToMessage,
+    createDifySseEventParser,
     createFeatureConfigState,
     createFeatureSessionState,
     getFriendlyConfigError,

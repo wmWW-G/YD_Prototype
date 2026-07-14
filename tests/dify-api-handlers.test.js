@@ -7,20 +7,43 @@ const { createChatHandler } = require("../api/dify-chat");
 /**
  * 创建兼容 Vercel Node Handler 的响应假对象。
  *
- * @returns {{ statusCode: number, headers: object, body: string, setHeader: Function, end: Function }} 可读取最终响应的对象。
+ * @returns {{ statusCode: number, headers: object, body: string, writes: string[], setHeader: Function, write: Function, flushHeaders: Function, end: Function }} 可读取最终响应的对象。
  */
 function createResponse() {
   return {
     statusCode: 200,
     headers: {},
     body: "",
+    writes: [],
     setHeader(name, value) {
       this.headers[String(name).toLowerCase()] = value;
     },
+    write(value = "") {
+      const text = String(value);
+      this.writes.push(text);
+      this.body += text;
+      return true;
+    },
+    flushHeaders() {},
     end(value = "") {
-      this.body = String(value);
+      this.body += String(value);
     }
   };
+}
+
+/**
+ * 解析代理返回给浏览器的 SSE data 事件。
+ *
+ * @param {string} rawText - 完整 SSE 响应文本。
+ * @returns {object[]} 逐条解析后的公开事件。
+ * @throws {Error} data 不是合法 JSON 时抛出，帮助测试直接暴露协议损坏。
+ */
+function parseProxyEvents(rawText) {
+  return String(rawText || "")
+    .split(/\r?\n\r?\n/)
+    .map((block) => block.split(/\r?\n/).find((line) => line.startsWith("data:")))
+    .filter(Boolean)
+    .map((line) => JSON.parse(line.slice(5).trim()));
 }
 
 /**
@@ -105,7 +128,7 @@ test("config endpoint validates, saves, and returns only masked metadata", async
   assert.equal(readResponse.body.includes("app-market-secret"), false);
 });
 
-test("chat endpoint loads the saved feature key and returns a normalized conversation response", async () => {
+test("chat endpoint loads the saved feature key and writes a real normalized SSE stream", async () => {
   const backend = createBackendFetch();
   const env = {
     UPSTASH_REDIS_REST_URL: "https://redis.example.test",
@@ -133,11 +156,17 @@ test("chat endpoint loads the saved feature key and returns a normalized convers
     }
   }, chatResponse);
 
-  const payload = JSON.parse(chatResponse.body);
+  const events = parseProxyEvents(chatResponse.body);
+  const answerEvent = events.find((event) => event.type === "answer_delta");
+  const doneEvent = events.find((event) => event.type === "done");
+
   assert.equal(chatResponse.statusCode, 200);
-  assert.equal(payload.answer, "真实市场调研结果");
-  assert.equal(payload.conversation_id, "conv-market");
-  assert.equal(payload.app_type, "dialogue");
+  assert.match(chatResponse.headers["content-type"], /text\/event-stream/);
+  assert.equal(chatResponse.headers["cache-control"], "no-cache, no-transform");
+  assert.equal(chatResponse.writes.length >= 2, true);
+  assert.equal(answerEvent.delta, "真实市场调研结果");
+  assert.equal(doneEvent.result.conversation_id, "conv-market");
+  assert.equal(doneEvent.result.app_type, "dialogue");
 });
 
 test("chat endpoint returns a clear 409 when the current page has no saved key", async () => {

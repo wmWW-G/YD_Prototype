@@ -34,7 +34,7 @@
 - `后台管理 > 代理` 分组：经销代理总览，含拉新数、付费数、累计分成和状态。
 - `后台管理 > 邀请码管理`：生成邀请码表单、预览提示和邀请码列表，用于表达销售同事发放试用福利的原型流程。
 - `客户开发`：一级业务入口，用于通过 AI 获客目标生成候选客户名单，不归入 `技能Skill` 子菜单；当前原型链路为「输入开发目标/产品/国家/客户类型 → AI 找客户中 → 生成客户列表 → 点公司只看右侧公司信息 → 点获取联系人信息跳到联系人新界面 → 在联系人表里点某个人获取邮箱」。先保持轻量，不做客户分级、状态分栏和复杂推进流。
-- 所有通用 AI 对话功能页：顶部左侧固定显示 Dify 应用类型和 API Key 配置栏，支持选择「对话型应用」或「Chatflow」。每个功能页独立保存配置，重复保存会覆盖更新；前端只能读取掩码，原始 Key 由后端加密保存。发送后左侧按轮次保留问题，右侧展示生成态、失败态或安全 Markdown 正文，并按页面独立复用 `conversation_id`。
+- 所有通用 AI 对话功能页：顶部左侧固定显示 Dify 应用类型和 API Key 配置栏，支持选择「对话型应用」或「Chatflow」。每个功能页独立保存配置，重复保存会覆盖更新；前端只能读取掩码，原始 Key 由后端加密保存。发送后左侧按轮次保留问题，右侧通过真实 SSE 实时展示最新的安全过程摘要和 Markdown 答案，并按页面独立复用 `conversation_id`。过程区只展示节点、工具名和显式搜索词，新步骤覆盖当前可见步骤；正式答案开始后自动折叠，用户可展开历史。原始 `thought` 和 `<think>` 内容不会发给浏览器。
 - `成交顾问 > 客户背调顾问`：默认类型为 Chatflow，继续沿用现有背调 Dify 配置和成本追踪能力。
 - `技能Skill > 市场调研`：默认类型为对话型应用，已适配普通 Chatbot/Agent 的流式事件和多轮上下文。
 
@@ -133,13 +133,13 @@ reverse-yingdan/
 - `sw.js`：自动刷新 Service Worker，让 GitHub Pages 上的 HTML、JS、CSS 优先走网络，减少同事看到旧缓存的概率；由 `src/app.js` 注册。
 - `vercel.json`：Vercel Serverless 配置，用于设置 Dify 配置和聊天代理的最大执行时间。
 - `api/dify-config.js`：Dify 配置接口；GET 只返回掩码和应用摘要，POST 校验 Key 对应的真实 App 类型并覆盖保存。
-- `api/dify-chat.js`：通用 Dify 聊天代理；按 `feature_id` 解密对应 Key，调用 `/chat-messages`，聚合普通对话、Agent 和 Chatflow 流式事件。
+- `api/dify-chat.js`：通用 Dify 聊天代理；按 `feature_id` 解密对应 Key，调用 `/chat-messages`，将普通对话、Agent 和 Chatflow 事件实时归一化为浏览器 SSE。响应使用 `no-cache, no-transform` 并关闭代理缓冲；流开始后的错误通过 SSE `error` 事件结束。
 - `api/dify-customer-research.js`：旧客户背调专用代理，保留兼容和排障用途。
-- `lib/dify-*.js`：Dify 模式识别、SSE 解析、加解密、Upstash Redis 存储和 HTTP 共用逻辑。
+- `lib/dify-*.js`：Dify 模式识别、增量 SSE 解析、跨分块 `<think>` 过滤、公开过程摘要、加解密、Upstash Redis 存储和 HTTP 共用逻辑。
 - `src/styles.css`：全部视觉样式、响应式规则和动效。
 - `src/data.js`：用户侧导航、销售准备标签、成交阶段、后台菜单、User Preview 报表、邀请码、AI 人设和模型等静态数据。
 - `src/app.js`：渲染函数、hash 路由、事件绑定、抽屉、toast、弹层、账号弹层、后台管理和状态切换。
-- `src/dify-config.js`：Dify 对话页白名单、每页独立配置状态和会话状态。
+- `src/dify-config.js`：Dify 对话页白名单、每页独立配置状态和会话状态、浏览器 SSE 增量解析器，以及过程覆盖/历史/折叠状态归并函数。
 - `assets/icons/`：本地 SVG 图标。后续新增图标时优先复制进这里，再在 `src/data.js` 引用相对路径。
 - `assets/generated/`：当前原型使用的本地视觉素材。
 - `browser-extension/manifest.json`：Chrome MV3 插件清单，定义 action、background service worker、content script、权限和图标。
@@ -210,7 +210,7 @@ reverse-yingdan/
 - `selectedModel`：当前模型选择。
 - `chatDraft` / `isGenerating` / `generatedResult`：聊天输入、模拟生成和结果状态。
 - `difyFeatureConfigs`：按功能页 ID 保存顶栏的应用类型、掩码、应用摘要、加载和保存状态；不保存原始 API Key。
-- `difyFeatureSessions`：按功能页 ID 保存 `messages`、`conversationId`、`userId`、错误和生成状态，避免不同 Dify App 串上下文。
+- `difyFeatureSessions`：按功能页 ID 保存 `messages`、`conversationId`、`userId`、错误和生成状态，避免不同 Dify App 串上下文。助手消息还保存 `processSteps`、`currentProcess`、`processCollapsed`、`processExpanded` 和 `answerStarted`，用于“最新过程覆盖显示、最终答案折叠、按需展开历史”。
 - `inviteCodeDraft` / `inviteRedeemResult`：账号弹层里的邀请码输入和模拟兑换结果。
 - `adminInvitePreview`：后台邀请码管理里点击生成后的预览文案。
 - `userPreviewFields` / `userPreviewFieldsOpen`：后台 User Preview 用户字段报表显示哪些列，以及字段配置是否展开。
@@ -390,7 +390,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 改产品与市场表格：优先改 `src/data.js` 的 `PRODUCT_ROWS`。
 - 改案例知识库：优先改 `src/data.js` 的 `CASE_CATEGORIES` 和 `CASE_ITEMS`。
 - 改客户开发：它是一级入口，不是 `技能Skill` 子菜单；优先改 `src/data.js` 的 `CUSTOMER_DEVELOPMENT`；页面结构改 `src/app.js` 的 `renderCustomerDevelopmentView()`；样式改 `src/styles.css` 的 `.customer-dev-*`。
-- 改通用 Dify 对话页：页面白名单和默认类型改 `src/dify-config.js`；顶栏配置看 `renderDifyConfigBar()`、`loadDifyFeatureConfig()`、`saveDifyFeatureConfig()`；多轮消息存在 `state.difyFeatureSessions[featureId]`；真实调用看 `sendDifyFeatureDraft()`；Markdown 渲染看 `renderMarkdown()` / `renderInlineMarkdown()`。后端配置和聊天分别看 `api/dify-config.js`、`api/dify-chat.js`。
+- 改通用 Dify 对话页：页面白名单和默认类型改 `src/dify-config.js`；顶栏配置看 `renderDifyConfigBar()`、`loadDifyFeatureConfig()`、`saveDifyFeatureConfig()`；多轮消息存在 `state.difyFeatureSessions[featureId]`；真实调用和浏览器流读取看 `sendDifyFeatureDraft()`；过程 UI 看 `renderDifyProcessPanel()`；Markdown 渲染看 `renderMarkdown()` / `renderInlineMarkdown()`。后端配置和聊天分别看 `api/dify-config.js`、`api/dify-chat.js`，上游增量流和过程脱敏看 `lib/dify-api-client.js`。
 - 改客户背调顾问：数据改 `src/data.js` 的 `CUSTOMER_RESEARCH_FLOW`；它复用上述通用 Dify 对话壳，但默认应用类型是 Chatflow，内部成本面板仍由 `renderCustomerResearchBillingTracePanel()` 控制。
 - 改客户Kass：优先改 `src/data.js` 的 `KASS_GROUPS` 和 `KASS_FLOW_STAGES`。如果改分组顶部「今日该推进」，看 `src/app.js` 的 `buildKassTodayReminder()` / `renderKassGroupTodayCard()` 和 `src/styles.css` 的 `.kass-today-*` / `.kass-group-today-*`。
 - 改账号弹层、邀请码兑换、团队/企业切换：优先改 `src/app.js` 的 `renderAccountSettingsPopup()`、`renderInviteRedeemModal()` 和相关事件绑定。
@@ -446,6 +446,9 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 真实 API Key 只允许临时用于本机命令或后端环境变量，不落盘。
 - 如果返回包含 `<think>...</think>` 等模型思考标签，正式展示前应过滤，只保留用户可读答案。
 - 所有通用对话页都通过 Vercel Serverless 代理调用 Dify。顶栏保存时先请求 `/info` 校验类型，再用 AES-256-GCM 加密 Key 并写入 Upstash Redis；GET 只返回掩码和应用摘要。未配置 Redis 时，可读取该功能对应的服务端环境变量作为兼容兜底。
+- 2026-07-14 通用 `/api/dify-chat` 已改为端到端真流式 SSE：Vercel 边读 Dify 边写浏览器，不再等待完整 answer 后返回 JSON。公开事件为 `process`、`answer_delta`、`answer_replace`、`done` 和 `error`；`process` 只包含节点/工具/搜索词摘要。前端收到新 `process` 时覆盖当前显示并保留最多 40 步历史，收到首个正式答案时自动折叠过程。
+- Agent 的 `agent_message` 可能既包含“换关键词继续搜索”这类中间话术，也包含最后结论。代理会按新的工具/思考步骤 ID 分段：中间段作为浅色 `process` 覆盖显示，只在 `message_end` 时把最后一段提升为正式 `answer_replace`；普通 Chatbot/Chatflow 的 `message` 仍按 `answer_delta` 逐块展示。
+- 2026-07-14 增加跨事件 `<think>` 过滤器，标签即使被拆在两个网络块中也不会短暂泄露；最终返回的 `billing_trace` 同样移除了 Agent thought、节点 inputs/outputs 和工具输出，只保留成本面板需要的事件计数、Tavily 查询和 credits。
 - 配置存储所需环境变量：`DIFY_CONFIG_ENCRYPTION_KEY`、`KV_REST_API_URL`、`KV_REST_API_TOKEN`；也兼容 Upstash 常见的 `UPSTASH_REDIS_REST_URL`、`UPSTASH_REDIS_REST_TOKEN`。
 - 市场调研兜底 Key 使用 `DIFY_MARKET_RESEARCH_API_KEY`；客户背调兼容 `DIFY_CUSTOMER_RESEARCH_API_KEY` 或 `DIFY_API_KEY`。任何环境变量值都不能写入仓库或日志。
 - 2026-07-08 已把本地静态服务 `http://localhost:8765`、`http://127.0.0.1:8765` 加入背调代理默认 CORS 白名单，并部署到 `yd-prototype-dify-proxy.vercel.app`；如果仍长时间无结果，优先排查 Dify Chatflow 执行耗时，而不是先怀疑浏览器没连上代理。

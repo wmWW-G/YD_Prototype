@@ -5089,6 +5089,194 @@ button:disabled {
   line-height: 1.75;
 }
 
+.dify-process-panel {
+  max-width: 860px;
+  color: #9b9189;
+  font-size: 13px;
+}
+
+.dify-process-panel.live {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-height: 48px;
+  padding: 8px 2px 14px;
+}
+
+.dify-process-pulse {
+  position: relative;
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin: 7px 3px 0;
+  border-radius: 50%;
+  background: #d2b9aa;
+}
+
+.dify-process-pulse::after {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid rgba(210, 185, 170, 0.48);
+  border-radius: inherit;
+  content: "";
+  animation: dify-process-breathe 1.8s ease-out infinite;
+}
+
+@keyframes dify-process-breathe {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.72);
+  }
+
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.65);
+  }
+}
+
+.dify-process-current {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dify-process-current p,
+.dify-process-history p {
+  margin: 0;
+  color: #968b83;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.dify-process-current small,
+.dify-process-history small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #b0a69e;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dify-process-panel.settled {
+  margin: 0 0 12px;
+}
+
+.dify-process-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #91877f;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dify-process-toggle:hover,
+.dify-process-toggle:focus-visible {
+  color: #6f655d;
+}
+
+.dify-process-toggle:focus-visible {
+  border-radius: 5px;
+  outline: 2px solid rgba(255, 92, 0, 0.18);
+  outline-offset: 3px;
+}
+
+.dify-process-toggle small {
+  color: #b3aaa3;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dify-process-mark {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c5b7ad;
+  box-shadow: 0 0 0 3px rgba(197, 183, 173, 0.16);
+}
+
+.dify-process-mark.error {
+  background: #d49a88;
+  box-shadow: 0 0 0 3px rgba(212, 154, 136, 0.14);
+}
+
+.dify-process-chevron {
+  color: #b8afa8;
+  font-size: 15px;
+  line-height: 1;
+  transform: translateY(-1px);
+  transition: transform 0.18s ease-out;
+}
+
+.dify-process-panel.expanded .dify-process-chevron {
+  transform: rotate(180deg) translateY(1px);
+}
+
+.dify-process-history {
+  display: grid;
+  gap: 10px;
+  margin: 7px 0 2px 3px;
+  padding: 8px 0 4px 12px;
+  border-left: 1px solid #eee5df;
+  list-style: none;
+}
+
+.dify-process-history li {
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+}
+
+.dify-process-history li > span {
+  width: 5px;
+  height: 5px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: #d4c8c0;
+}
+
+.dify-process-history li.error > span {
+  background: #d49a88;
+}
+
+.dify-process-history li > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.research-live-answer.streaming::after {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 3px;
+  border-radius: 2px;
+  background: rgba(255, 92, 0, 0.58);
+  content: "";
+  vertical-align: -0.12em;
+  animation: dify-stream-caret 0.9s steps(1, end) infinite;
+}
+
+@keyframes dify-stream-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dify-process-pulse::after,
+  .research-live-answer.streaming::after {
+    animation: none;
+  }
+}
+
 .yd-markdown {
   min-width: 0;
   overflow-wrap: anywhere;

@@ -43,7 +43,7 @@
  *   customerResearchError: string,
  *   customerResearchMessages: Array<{ id: string, role: "user" | "assistant", content: string, status?: "loading" | "error" | "done", usage?: object | null, billingTrace?: object | null, workflowRunId?: string }>,
  *   difyFeatureConfigs: Record<string, { appType: "dialogue" | "chatflow", apiKeyDraft: string, hasKey: boolean, maskedKey: string, appName: string, appMode: string, loaded: boolean, loading: boolean, saving: boolean, error: string, storageReady: boolean }>,
- *   difyFeatureSessions: Record<string, { messages: object[], conversationId: string, userId: string, error: string, isGenerating: boolean }>,
+ *   difyFeatureSessions: Record<string, { messages: Array<{ id: string, role: "user" | "assistant", content: string, status: "loading" | "error" | "done", processSteps?: object[], currentProcess?: object | null, processCollapsed?: boolean, processExpanded?: boolean, answerStarted?: boolean }>, conversationId: string, userId: string, error: string, isGenerating: boolean }>,
  *   inviteCodeDraft: string,
  *   inviteRedeemResult: string,
  *   adminInvitePreview: null | string,
@@ -197,6 +197,15 @@ const state = {
  * @type {number | null}
  */
 let toastTimer = null;
+
+/**
+ * Dify 流式回答的下一次页面重绘帧。
+ *
+ * 模型 token 可能非常密集；把同一动画帧内的多次事件合并，可以避免整页原型每个字符都重建 DOM。
+ *
+ * @type {number | null}
+ */
+let difyStreamRenderFrame = null;
 
 /**
  * 后台弹窗打开前的滚动位置快照。
@@ -745,6 +754,39 @@ function getDifyFeatureSession(featureId = state.activeMain) {
   }
 
   return state.difyFeatureSessions[featureId];
+}
+
+/**
+ * 将一批 Dify 流事件合并到下一动画帧重绘，并恢复工作区滚动位置。
+ *
+ * @param {string} featureId - 发起本轮请求的页面 ID；切换页面后不再重绘旧页面。
+ * @returns {void}
+ * @throws {Error} renderApp 找不到根节点时会在动画帧回调中抛出。
+ */
+function scheduleDifyStreamRender(featureId) {
+  if (state.activeMain !== featureId || difyStreamRenderFrame !== null) {
+    return;
+  }
+
+  difyStreamRenderFrame = window.requestAnimationFrame(() => {
+    difyStreamRenderFrame = null;
+    if (state.activeMain !== featureId) {
+      return;
+    }
+
+    const workspace = document.querySelector(".workspace");
+    const previousScrollTop = workspace ? workspace.scrollTop : 0;
+    const nearBottom = workspace
+      ? workspace.scrollHeight - workspace.clientHeight - workspace.scrollTop < 80
+      : true;
+
+    renderApp();
+
+    const nextWorkspace = document.querySelector(".workspace");
+    if (nextWorkspace) {
+      nextWorkspace.scrollTop = nearBottom ? nextWorkspace.scrollHeight : previousScrollTop;
+    }
+  });
 }
 
 /**
@@ -7041,6 +7083,66 @@ function renderConversationAnswer() {
 }
 
 /**
+ * 渲染 Dify 的安全执行过程。
+ *
+ * 生成期间只画 `currentProcess`，新事件到达后自然覆盖上一条；正式答案开始后默认折叠，用户点击后才查看完整步骤。
+ * 这里展示的是后端整理过的节点、工具和搜索词摘要，不展示模型原始 thought 或 `<think>` 内容。
+ *
+ * @param {object} message - 当前助手消息，包含 currentProcess、processSteps 和展开状态。
+ * @returns {string} 过程区 HTML；没有过程事件时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderDifyProcessPanel(message) {
+  const steps = Array.isArray(message?.processSteps) ? message.processSteps : [];
+  const currentStep = message?.currentProcess || steps[steps.length - 1] || null;
+
+  if (!currentStep || steps.length === 0) {
+    return "";
+  }
+
+  const isLive = message.status === "loading" && !message.answerStarted;
+  if (isLive) {
+    return `
+      <section class="dify-process-panel live" aria-live="polite" aria-label="AI 当前执行过程">
+        <span class="dify-process-pulse" aria-hidden="true"></span>
+        <div class="dify-process-current">
+          <p>${escapeHtml(currentStep.label || "正在分析问题")}</p>
+          ${currentStep.detail ? `<small>${escapeHtml(currentStep.detail)}</small>` : ""}
+        </div>
+      </section>
+    `;
+  }
+
+  const expanded = Boolean(message.processExpanded);
+  const interrupted = message.status === "error" || currentStep.status === "error";
+  const summary = interrupted ? "执行中断" : `${steps.length} 个步骤`;
+
+  return `
+    <section class="dify-process-panel settled ${expanded ? "expanded" : ""}">
+      <button type="button" class="dify-process-toggle" data-dify-process-toggle="${escapeHtml(message.id || "")}" aria-expanded="${expanded ? "true" : "false"}">
+        <span class="dify-process-mark ${interrupted ? "error" : ""}" aria-hidden="true"></span>
+        <span>分析过程</span>
+        <small>${escapeHtml(summary)}</small>
+        <span class="dify-process-chevron" aria-hidden="true">⌄</span>
+      </button>
+      ${expanded ? `
+        <ol class="dify-process-history">
+          ${steps.map((step) => `
+            <li class="${step.status === "error" ? "error" : ""}">
+              <span aria-hidden="true"></span>
+              <div>
+                <p>${escapeHtml(step.label || "分析步骤")}</p>
+                ${step.detail ? `<small>${escapeHtml(step.detail)}</small>` : ""}
+              </div>
+            </li>
+          `).join("")}
+        </ol>
+      ` : ""}
+    </section>
+  `;
+}
+
+/**
  * 渲染所有 Dify 对话功能页的右侧多轮回答。
  *
  * 作用：
@@ -7061,6 +7163,8 @@ function renderCustomerResearchConversationAnswer() {
         ${assistantMessages.map((message, index) => {
           const isLoading = message.status === "loading";
           const isError = message.status === "error";
+          const processPanel = renderDifyProcessPanel(message);
+          const hasStreamingAnswer = isLoading && message.answerStarted;
 
           return `
             <section class="customer-research-answer-turn ${isError ? "error" : ""}">
@@ -7068,14 +7172,15 @@ function renderCustomerResearchConversationAnswer() {
                 <span>回答 ${index + 1}</span>
                 <i aria-hidden="true"></i>
               </div>
-              ${isLoading ? `
+              ${processPanel}
+              ${isLoading && !hasStreamingAnswer ? (processPanel ? "" : `
                 <div class="conversation-loading-row">
                   <span class="typing-dot"></span>
                   <span class="typing-dot"></span>
                   <span class="typing-dot"></span>
                   <p>${escapeHtml(message.content || `正在生成${title}结果...`)}</p>
                 </div>
-              ` : `
+              `) : `
                 <div class="conversation-answer-body customer-research-answer ${isError ? "error" : ""}">
                   ${isError ? `
                     <h2>生成失败</h2>
@@ -7084,17 +7189,19 @@ function renderCustomerResearchConversationAnswer() {
                       <button type="button" data-toast="请检查顶部应用配置、当前网络或 Dify 执行耗时后重新发送。">查看处理建议</button>
                     </div>
                   ` : `
-                    <div class="research-live-answer">
+                    <div class="research-live-answer ${hasStreamingAnswer ? "streaming" : ""}">
                       ${renderMarkdown(message.content)}
                     </div>
-                    <div class="result-actions">
-                      ${state.activeMain === "customer-research" ? `
-                        <button type="button" data-toast="已模拟保存到客户Kass背调记录。">保存到客户Kass</button>
-                        <button type="button" data-toast="已模拟生成首次开发邮件。">生成开发邮件</button>
-                      ` : `<button type="button" data-toast="已模拟保存到当前会话历史。">保存到历史</button>`}
-                      <button type="button" data-toast="复制结果是原型反馈，当前不写入剪贴板。">复制结果</button>
-                    </div>
-                    ${state.activeMain === "customer-research" ? renderCustomerResearchBillingTracePanel(message) : ""}
+                    ${hasStreamingAnswer ? "" : `
+                      <div class="result-actions">
+                        ${state.activeMain === "customer-research" ? `
+                          <button type="button" data-toast="已模拟保存到客户Kass背调记录。">保存到客户Kass</button>
+                          <button type="button" data-toast="已模拟生成首次开发邮件。">生成开发邮件</button>
+                        ` : `<button type="button" data-toast="已模拟保存到当前会话历史。">保存到历史</button>`}
+                        <button type="button" data-toast="复制结果是原型反馈，当前不写入剪贴板。">复制结果</button>
+                      </div>
+                      ${state.activeMain === "customer-research" ? renderCustomerResearchBillingTracePanel(message) : ""}
+                    `}
                   `}
                 </div>
               `}
@@ -8073,6 +8180,19 @@ function bindEvents() {
     });
   });
 
+  document.querySelectorAll("[data-dify-process-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const messageId = button.getAttribute("data-dify-process-toggle") || "";
+      const session = getDifyFeatureSession();
+      session.messages = session.messages.map((message) => (
+        message.id === messageId
+          ? { ...message, processExpanded: !message.processExpanded }
+          : message
+      ));
+      renderApp();
+    });
+  });
+
   document.querySelectorAll("[data-dev-prompt]").forEach((button) => {
     button.addEventListener("click", () => {
       state.chatDraft = button.getAttribute("data-dev-prompt") || "";
@@ -8802,7 +8922,12 @@ async function sendDifyFeatureDraft(draft) {
       id: pendingAnswerId,
       role: "assistant",
       content: `正在生成${title}结果...`,
-      status: "loading"
+      status: "loading",
+      processSteps: [],
+      currentProcess: null,
+      processCollapsed: false,
+      processExpanded: false,
+      answerStarted: false
     }
   );
   state.popup = null;
@@ -8811,10 +8936,36 @@ async function sendDifyFeatureDraft(draft) {
   try {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), DIFY_REQUEST_TIMEOUT_MS);
-    let response;
+    let doneReceived = false;
+
+    /**
+     * 把一条公开 SSE 事件合并进本轮助手消息。
+     *
+     * @param {object} event - process、answer_delta、answer_replace 或 done 事件。
+     * @returns {void}
+     * @throws {Error} error 事件会转换成异常，交给外层统一显示失败态。
+     */
+    const applyStreamEvent = (event) => {
+      if (event?.type === "error") {
+        throw new Error(event.message || "Dify 流式响应中断。");
+      }
+
+      session.messages = session.messages.map((message) => (
+        message.id === pendingAnswerId
+          ? window.YD_DIFY.applyDifyStreamEventToMessage(message, event)
+          : message
+      ));
+
+      if (event?.type === "done") {
+        doneReceived = true;
+        session.conversationId = event.result?.conversation_id || session.conversationId;
+      }
+
+      scheduleDifyStreamRender(featureId);
+    };
 
     try {
-      response = await fetch(getDifyProxyEndpoint("chat"), {
+      const response = await fetch(getDifyProxyEndpoint("chat"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
@@ -8827,40 +8978,67 @@ async function sendDifyFeatureDraft(draft) {
           files: []
         })
       });
+
+      const contentType = response.headers.get("content-type") || "";
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorPayload = null;
+        try {
+          errorPayload = errorText ? JSON.parse(errorText) : null;
+        } catch (_error) {
+          errorPayload = null;
+        }
+        throw new Error(errorPayload?.message || errorText || `Dify 代理返回 HTTP ${response.status}`);
+      }
+
+      if (contentType.includes("text/event-stream")) {
+        if (!response.body) {
+          throw new Error("Dify 代理没有返回可读取的流式响应。");
+        }
+
+        const parser = window.YD_DIFY.createDifySseEventParser(applyStreamEvent);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break;
+          }
+          parser.push(decoder.decode(value, { stream: true }));
+        }
+
+        const remainingText = decoder.decode();
+        if (remainingText) {
+          parser.push(remainingText);
+        }
+        parser.finish();
+
+        if (!doneReceived) {
+          throw new Error("Dify 流式响应提前结束，请重新发送。");
+        }
+      } else {
+        // 兼容 Vercel 新版本部署完成前的旧 JSON 代理，部署切换期间不会让正在使用的页面突然报错。
+        const rawText = await response.text();
+        let payload = null;
+        try {
+          payload = rawText ? JSON.parse(rawText) : null;
+        } catch (_error) {
+          payload = null;
+        }
+
+        if (!payload) {
+          throw new Error("Dify 代理返回了无法识别的响应。");
+        }
+        applyStreamEvent({
+          type: "done",
+          result: { ...payload, answer: stripThinkingTags(payload.answer || "") }
+        });
+      }
     } finally {
+      // 超时必须覆盖整个响应流读取过程，而不是只覆盖拿到 HTTP 响应头之前。
       window.clearTimeout(timeoutId);
     }
-
-    const rawText = await response.text();
-    let payload = null;
-
-    try {
-      payload = rawText ? JSON.parse(rawText) : null;
-    } catch (_error) {
-      payload = null;
-    }
-
-    if (!response.ok) {
-      throw new Error(payload?.message || rawText || `Dify 代理返回 HTTP ${response.status}`);
-    }
-
-    const answer = stripThinkingTags(payload?.answer || "") || "Dify 已完成执行，但没有返回可展示的 answer。";
-    session.conversationId = payload?.conversation_id || session.conversationId;
-    const usage = payload?.metadata?.usage || null;
-    const billingTrace = payload?.billing_trace || null;
-    const workflowRunId = payload?.workflow_run_id || billingTrace?.workflow_run_id || "";
-    session.messages = session.messages.map((message) => (
-      message.id === pendingAnswerId
-        ? {
-            ...message,
-            content: answer,
-            status: "done",
-            usage,
-            billingTrace,
-            workflowRunId
-          }
-        : message
-    ));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Dify 调用失败，请稍后重试。";
 
@@ -8874,13 +9052,17 @@ async function sendDifyFeatureDraft(draft) {
 
     session.messages = session.messages.map((messageItem) => (
       messageItem.id === pendingAnswerId
-        ? { ...messageItem, content: session.error, status: "error" }
+        ? window.YD_DIFY.applyDifyStreamEventToMessage(messageItem, { type: "error", message: session.error })
         : messageItem
     ));
   } finally {
     session.isGenerating = false;
     state.isGenerating = false;
     if (state.activeMain === featureId) {
+      if (difyStreamRenderFrame !== null) {
+        window.cancelAnimationFrame(difyStreamRenderFrame);
+        difyStreamRenderFrame = null;
+      }
       renderApp();
     }
   }
