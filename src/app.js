@@ -106,15 +106,6 @@ const DIFY_PROXY_ENDPOINTS = Object.freeze({
 });
 
 /**
- * 通用 Dify 请求的前端等待上限。
- *
- * Chatflow 可能包含搜索、Agent 或人工输入节点，因此沿用客户背调的长等待策略。
- *
- * @type {number}
- */
-const DIFY_REQUEST_TIMEOUT_MS = 240000;
-
-/**
  * User Preview 报表需要横向冻结的字段。
  *
  * 为什么单独定义：
@@ -9232,8 +9223,6 @@ async function sendDifyFeatureDraft(draft) {
   renderApp();
 
   try {
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), DIFY_REQUEST_TIMEOUT_MS);
     let doneReceived = false;
 
     /**
@@ -9262,87 +9251,79 @@ async function sendDifyFeatureDraft(draft) {
       scheduleDifyStreamRender(featureId, pendingAnswerId);
     };
 
-    try {
-      const response = await fetch(getDifyProxyEndpoint("chat"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          feature_id: featureId,
-          query: draft,
-          conversation_id: session.conversationId,
-          user: session.userId,
-          inputs: {},
-          files: []
-        })
+    const response = await fetch(getDifyProxyEndpoint("chat"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        feature_id: featureId,
+        query: draft,
+        conversation_id: session.conversationId,
+        user: session.userId,
+        inputs: {},
+        files: []
+      })
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorPayload = null;
+      try {
+        errorPayload = errorText ? JSON.parse(errorText) : null;
+      } catch (_error) {
+        errorPayload = null;
+      }
+      throw new Error(errorPayload?.message || errorText || `Dify 代理返回 HTTP ${response.status}`);
+    }
+
+    if (contentType.includes("text/event-stream")) {
+      if (!response.body) {
+        throw new Error("Dify 代理没有返回可读取的流式响应。");
+      }
+
+      const parser = window.YD_DIFY.createDifySseEventParser(applyStreamEvent);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+        parser.push(decoder.decode(value, { stream: true }));
+      }
+
+      const remainingText = decoder.decode();
+      if (remainingText) {
+        parser.push(remainingText);
+      }
+      parser.finish();
+
+      if (!doneReceived) {
+        throw new Error("Dify 流式响应提前结束，请重新发送。");
+      }
+    } else {
+      // 兼容 Vercel 新版本部署完成前的旧 JSON 代理，部署切换期间不会让正在使用的页面突然报错。
+      const rawText = await response.text();
+      let payload = null;
+      try {
+        payload = rawText ? JSON.parse(rawText) : null;
+      } catch (_error) {
+        payload = null;
+      }
+
+      if (!payload) {
+        throw new Error("Dify 代理返回了无法识别的响应。");
+      }
+      applyStreamEvent({
+        type: "done",
+        result: { ...payload, answer: stripThinkingTags(payload.answer || "") }
       });
-
-      const contentType = response.headers.get("content-type") || "";
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorPayload = null;
-        try {
-          errorPayload = errorText ? JSON.parse(errorText) : null;
-        } catch (_error) {
-          errorPayload = null;
-        }
-        throw new Error(errorPayload?.message || errorText || `Dify 代理返回 HTTP ${response.status}`);
-      }
-
-      if (contentType.includes("text/event-stream")) {
-        if (!response.body) {
-          throw new Error("Dify 代理没有返回可读取的流式响应。");
-        }
-
-        const parser = window.YD_DIFY.createDifySseEventParser(applyStreamEvent);
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) {
-            break;
-          }
-          parser.push(decoder.decode(value, { stream: true }));
-        }
-
-        const remainingText = decoder.decode();
-        if (remainingText) {
-          parser.push(remainingText);
-        }
-        parser.finish();
-
-        if (!doneReceived) {
-          throw new Error("Dify 流式响应提前结束，请重新发送。");
-        }
-      } else {
-        // 兼容 Vercel 新版本部署完成前的旧 JSON 代理，部署切换期间不会让正在使用的页面突然报错。
-        const rawText = await response.text();
-        let payload = null;
-        try {
-          payload = rawText ? JSON.parse(rawText) : null;
-        } catch (_error) {
-          payload = null;
-        }
-
-        if (!payload) {
-          throw new Error("Dify 代理返回了无法识别的响应。");
-        }
-        applyStreamEvent({
-          type: "done",
-          result: { ...payload, answer: stripThinkingTags(payload.answer || "") }
-        });
-      }
-    } finally {
-      // 超时必须覆盖整个响应流读取过程，而不是只覆盖拿到 HTTP 响应头之前。
-      window.clearTimeout(timeoutId);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Dify 调用失败，请稍后重试。";
 
-    if (error instanceof DOMException && error.name === "AbortError") {
-      session.error = "Dify 响应超时。代理已经连通，但上游应用暂时没有在 240 秒内返回结果。";
-    } else if (message === "Failed to fetch") {
+    if (message === "Failed to fetch") {
       session.error = "Dify 代理请求失败。请检查当前网络、代理部署或 CORS 配置后重试。";
     } else {
       session.error = message;

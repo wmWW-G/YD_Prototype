@@ -212,6 +212,18 @@ test("stream scheduler patches only the active message instead of rebuilding the
   assert.doesNotMatch(schedulerSource, /renderApp\(/);
 });
 
+test("does not abort a healthy Dify stream after a fixed absolute duration", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const senderStart = source.indexOf("async function sendDifyFeatureDraft");
+  const senderEnd = source.indexOf("\n/**", senderStart + 1);
+  const senderSource = source.slice(senderStart, senderEnd);
+
+  assert.ok(senderStart >= 0 && senderEnd > senderStart, "应找到真实 Dify 发送函数");
+  assert.doesNotMatch(senderSource, /new AbortController\(/);
+  assert.doesNotMatch(senderSource, /DIFY_REQUEST_TIMEOUT_MS/);
+  assert.doesNotMatch(senderSource, /240 秒/);
+});
+
 test("renders GFM-style Markdown tables as safe semantic table HTML", () => {
   const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
   const rendererStart = source.indexOf("function escapeHtml");
