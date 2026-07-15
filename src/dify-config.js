@@ -114,20 +114,23 @@
    *
    * 为什么只取整秒：
    * - 毫秒对用户判断任务快慢没有帮助，反而会让过程标题持续抖动。
-   * - 开始或结束时间缺失时返回空字符串，兼容升级前已经存在的历史消息。
+   * - 开始时间缺失时返回空字符串，兼容升级前已经存在的历史消息。
+   * - 结束时间为空时使用当前时间，供生成中的界面每秒刷新；结束后则固定使用真实结束时间。
    *
    * @param {unknown} startedAt - 用户发送问题时记录的 Unix 毫秒时间戳。
    * @param {unknown} endedAt - 第一段正式答案、完成或失败事件到达时的 Unix 毫秒时间戳。
+   * @param {unknown} [currentTime=Date.now()] - 仍在思考时用于动态计算的当前 Unix 毫秒时间戳。
    * @returns {string} 例如“思考了 8 秒”或“思考了 2 分 9 秒”；时间不完整时返回空字符串。
    * @throws {Error} 本函数不主动抛异常。
    */
-  function formatDifyThinkingDuration(startedAt, endedAt) {
-    if (startedAt === null || startedAt === undefined || endedAt === null || endedAt === undefined) {
+  function formatDifyThinkingDuration(startedAt, endedAt, currentTime = Date.now()) {
+    if (startedAt === null || startedAt === undefined) {
       return "";
     }
 
     const start = Number(startedAt);
-    const end = Number(endedAt);
+    const effectiveEnd = endedAt === null || endedAt === undefined ? currentTime : endedAt;
+    const end = Number(effectiveEnd);
     if (!Number.isFinite(start) || !Number.isFinite(end)) {
       return "";
     }

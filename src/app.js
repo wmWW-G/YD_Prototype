@@ -200,6 +200,15 @@ let toastTimer = null;
 let difyStreamRenderFrame = null;
 
 /**
+ * 当前 Dify 思考耗时的每秒刷新计时器。
+ *
+ * 这里只更新一处文字节点，不触发 `renderApp`，避免长任务重新出现整屏闪烁。
+ *
+ * @type {number | null}
+ */
+let difyThinkingDurationTimer = null;
+
+/**
  * 后台弹窗打开前的滚动位置快照。
  *
  * 为什么用 mousedown 提前记录：
@@ -7236,6 +7245,22 @@ function getDifyProcessSummary(message, stepCount, interrupted) {
 }
 
 /**
+ * 获取某条消息此刻应该显示的思考耗时。
+ *
+ * @param {object} message - 当前助手消息。
+ * @param {number} [currentTime=Date.now()] - 当前 Unix 毫秒时间戳；测试或定时刷新可显式传入。
+ * @returns {string} 动态或已冻结的思考耗时文案。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getDifyThinkingDurationText(message, currentTime = Date.now()) {
+  return window.YD_DIFY?.formatDifyThinkingDuration(
+    message?.thinkingStartedAt,
+    message?.thinkingEndedAt,
+    currentTime
+  ) || "";
+}
+
+/**
  * 渲染 Dify 的安全执行过程。
  *
  * 生成期间只画 `currentProcess`，新事件到达后自然覆盖上一条；正式答案开始后默认折叠，用户点击后才查看完整步骤。
@@ -7249,19 +7274,25 @@ function getDifyProcessSummary(message, stepCount, interrupted) {
 function renderDifyProcessPanel(message) {
   const steps = Array.isArray(message?.processSteps) ? message.processSteps : [];
   const currentStep = message?.currentProcess || steps[steps.length - 1] || null;
+  const isLive = message?.status === "loading" && !message?.answerStarted;
 
-  if (!currentStep || steps.length === 0) {
+  if (!isLive && (!currentStep || steps.length === 0)) {
     return "";
   }
 
-  const isLive = message.status === "loading" && !message.answerStarted;
   if (isLive) {
+    const thinkingDuration = getDifyThinkingDurationText(message);
+
     return `
       <section class="dify-process-panel live" aria-live="polite" aria-label="AI 当前执行过程">
         <span class="dify-process-pulse" aria-hidden="true"></span>
         <div class="dify-process-current">
-          <p>${escapeHtml(currentStep.label || "正在分析问题")}</p>
-          <small data-dify-process-detail="true" ${currentStep.detail ? "" : "hidden"}>${escapeHtml(currentStep.detail || "")}</small>
+          <div class="dify-process-live-summary">
+            <strong>分析过程</strong>
+            <small data-dify-thinking-duration="true">${escapeHtml(thinkingDuration)}</small>
+          </div>
+          <p>${escapeHtml(currentStep?.label || "正在分析问题")}</p>
+          <small data-dify-process-detail="true" ${currentStep?.detail ? "" : "hidden"}>${escapeHtml(currentStep?.detail || "")}</small>
         </div>
       </section>
     `;
@@ -7294,6 +7325,68 @@ function renderDifyProcessPanel(message) {
       ` : ""}
     </section>
   `;
+}
+
+/**
+ * 停止当前思考耗时刷新器。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function stopDifyThinkingDurationTicker() {
+  if (difyThinkingDurationTimer !== null) {
+    window.clearInterval(difyThinkingDurationTimer);
+    difyThinkingDurationTimer = null;
+  }
+}
+
+/**
+ * 只刷新当前回答里的“思考了 X 秒”文字节点。
+ *
+ * @param {string} featureId - 本轮请求所属的对话页面 ID。
+ * @param {string} messageId - 当前助手消息 ID。
+ * @returns {boolean} 找到并刷新计时文字时返回 true。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function refreshDifyThinkingDurationDom(featureId, messageId) {
+  if (state.activeMain !== featureId || !messageId) {
+    return false;
+  }
+
+  const message = getDifyFeatureSession(featureId).messages.find((item) => item.id === messageId);
+  const turn = Array.from(document.querySelectorAll("[data-dify-message-id]")).find((node) => (
+    node.getAttribute("data-dify-message-id") === messageId
+  ));
+  const durationNode = turn?.querySelector("[data-dify-thinking-duration]");
+
+  if (!message || !durationNode) {
+    return false;
+  }
+
+  const nextText = getDifyThinkingDurationText(message);
+  if (durationNode.textContent !== nextText) {
+    durationNode.textContent = nextText;
+  }
+  return true;
+}
+
+/**
+ * 启动当前 Dify 回答的动态思考计时。
+ *
+ * 每秒只调用局部文字刷新函数。正式答案、失败或完成后由请求 `finally` 统一停止，
+ * 因此计时不会在后台持续运行，也不会影响其它对话页面。
+ *
+ * @param {string} featureId - 本轮请求所属的对话页面 ID。
+ * @param {string} messageId - 当前助手消息 ID。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function startDifyThinkingDurationTicker(featureId, messageId) {
+  stopDifyThinkingDurationTicker();
+  refreshDifyThinkingDurationDom(featureId, messageId);
+  difyThinkingDurationTimer = window.setInterval(() => {
+    refreshDifyThinkingDurationDom(featureId, messageId);
+  }, 1000);
 }
 
 /**
@@ -7458,6 +7551,7 @@ function patchDifyStreamMessageDom(featureId, messageId, forceStructure = false)
       detail.textContent = currentStep.detail || "";
       detail.hidden = !currentStep.detail;
     }
+    refreshDifyThinkingDurationDom(featureId, messageId);
     return true;
   }
 
@@ -7475,6 +7569,7 @@ function patchDifyStreamMessageDom(featureId, messageId, forceStructure = false)
   if (nextPhase === "loading") {
     const loadingText = turn.querySelector(".conversation-loading-row p");
     if (loadingText) loadingText.textContent = message.content || `正在生成${getChatLabels()[0]}结果...`;
+    refreshDifyThinkingDurationDom(featureId, messageId);
     return true;
   }
 
@@ -9180,6 +9275,7 @@ function sendChatDraft() {
  * @throws {Error} 本函数不主动抛异常。
  */
 function startNewChatConversation() {
+  stopDifyThinkingDurationTicker();
   state.chatDraft = "";
   state.chatQuestion = "";
   state.isGenerating = false;
@@ -9248,6 +9344,7 @@ async function sendDifyFeatureDraft(draft) {
   );
   state.popup = null;
   renderApp();
+  startDifyThinkingDurationTicker(featureId, pendingAnswerId);
 
   try {
     let doneReceived = false;
@@ -9362,6 +9459,7 @@ async function sendDifyFeatureDraft(draft) {
         : messageItem
     ));
   } finally {
+    stopDifyThinkingDurationTicker();
     session.isGenerating = false;
     state.isGenerating = false;
     if (state.activeMain === featureId) {

@@ -54,6 +54,7 @@ test("turns browser network errors into clear Chinese configuration feedback", (
 test("formats the completed thinking time in minutes and seconds", () => {
   assert.equal(formatDifyThinkingDuration(1_000, 9_000), "思考了 8 秒");
   assert.equal(formatDifyThinkingDuration(1_000, 130_999), "思考了 2 分 9 秒");
+  assert.equal(formatDifyThinkingDuration(1_000, null, 9_000), "思考了 8 秒");
   assert.equal(formatDifyThinkingDuration(5_000, 4_000), "思考了 0 秒");
   assert.equal(formatDifyThinkingDuration(null, 9_000), "");
 });
@@ -101,6 +102,36 @@ test("shows the completed thinking time beside the process step count", () => {
   );
 
   assert.equal(sandbox.renderedSummary, "8 个步骤 · 思考了 2 分 9 秒");
+});
+
+test("updates the visible thinking duration every second without rebuilding the page", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const panelStart = source.indexOf("function renderDifyProcessPanel");
+  const panelEnd = source.indexOf("\n/**", panelStart + 1);
+  const tickerStart = source.indexOf("function startDifyThinkingDurationTicker");
+  const tickerEnd = source.indexOf("\n/**", tickerStart + 1);
+  const panelSource = source.slice(panelStart, panelEnd);
+  const tickerSource = source.slice(tickerStart, tickerEnd);
+
+  assert.ok(panelStart >= 0 && panelEnd > panelStart, "应找到过程区渲染函数");
+  assert.ok(tickerStart >= 0 && tickerEnd > tickerStart, "应找到动态计时器函数");
+  assert.match(panelSource, /data-dify-thinking-duration/);
+  assert.match(tickerSource, /window\.setInterval\(/);
+  assert.match(tickerSource, /refreshDifyThinkingDurationDom\(/);
+  assert.doesNotMatch(tickerSource, /renderApp\(/);
+});
+
+test("starts the dynamic thinking ticker only for the pending Dify answer", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const newChatStart = source.indexOf("function startNewChatConversation");
+  const newChatEnd = source.indexOf("\n/**", newChatStart + 1);
+  const senderStart = source.indexOf("async function sendDifyFeatureDraft");
+  const senderEnd = source.indexOf("\n/**", senderStart + 1);
+  const newChatSource = source.slice(newChatStart, newChatEnd);
+  const senderSource = source.slice(senderStart, senderEnd);
+
+  assert.doesNotMatch(newChatSource, /startDifyThinkingDurationTicker\(/);
+  assert.match(senderSource, /renderApp\(\);\s*startDifyThinkingDurationTicker\(featureId, pendingAnswerId\);/);
 });
 
 test("replaces the visible process step while preserving expandable history", () => {

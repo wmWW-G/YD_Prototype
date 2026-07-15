@@ -5141,6 +5141,25 @@ button:disabled {
   min-width: 0;
 }
 
+.dify-process-live-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 20px;
+}
+
+.dify-process-live-summary strong {
+  color: #91877f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dify-process-live-summary small {
+  color: #b3aaa3;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .dify-process-current p,
 .dify-process-history p {
   margin: 0;
