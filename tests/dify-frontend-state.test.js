@@ -10,6 +10,7 @@ const {
   createDifySseEventParser,
   createFeatureConfigState,
   createFeatureSessionState,
+  formatDifyThinkingDuration,
   getFriendlyConfigError,
   isDifyChatFeature
 } = require("../src/dify-config");
@@ -48,6 +49,58 @@ test("turns browser network errors into clear Chinese configuration feedback", (
   assert.equal(getFriendlyConfigError(new Error("Failed to fetch")), "配置服务暂未连接，请稍后重试。");
   assert.equal(getFriendlyConfigError(new TypeError("Load failed")), "配置服务暂未连接，请稍后重试。");
   assert.equal(getFriendlyConfigError(new Error("API Key 无效")), "API Key 无效");
+});
+
+test("formats the completed thinking time in minutes and seconds", () => {
+  assert.equal(formatDifyThinkingDuration(1_000, 9_000), "思考了 8 秒");
+  assert.equal(formatDifyThinkingDuration(1_000, 130_999), "思考了 2 分 9 秒");
+  assert.equal(formatDifyThinkingDuration(5_000, 4_000), "思考了 0 秒");
+  assert.equal(formatDifyThinkingDuration(null, 9_000), "");
+});
+
+test("stops counting thinking time when the first visible answer arrives", () => {
+  let message = {
+    id: "assistant-timer",
+    role: "assistant",
+    content: "正在生成...",
+    status: "loading",
+    processSteps: [],
+    currentProcess: null,
+    processCollapsed: false,
+    processExpanded: false,
+    answerStarted: false,
+    thinkingStartedAt: 1_000,
+    thinkingEndedAt: null
+  };
+
+  message = applyDifyStreamEventToMessage(message, { type: "answer_delta", delta: "\n" }, 8_000);
+  assert.equal(message.thinkingEndedAt, null);
+
+  message = applyDifyStreamEventToMessage(message, { type: "answer_delta", delta: "正式结论" }, 130_999);
+  assert.equal(message.thinkingEndedAt, 130_999);
+
+  message = applyDifyStreamEventToMessage(message, { type: "done", result: {} }, 180_000);
+  assert.equal(message.thinkingEndedAt, 130_999);
+  assert.equal(formatDifyThinkingDuration(message.thinkingStartedAt, message.thinkingEndedAt), "思考了 2 分 9 秒");
+});
+
+test("shows the completed thinking time beside the process step count", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const formatterStart = source.indexOf("function getDifyProcessSummary");
+  const formatterEnd = source.indexOf("\n/**", formatterStart + 1);
+  const sandbox = {
+    message: { thinkingStartedAt: 1_000, thinkingEndedAt: 130_999 },
+    renderedSummary: "",
+    window: { YD_DIFY: { formatDifyThinkingDuration } }
+  };
+
+  assert.ok(formatterStart >= 0 && formatterEnd > formatterStart, "应找到过程摘要格式化函数");
+  vm.runInNewContext(
+    `${source.slice(formatterStart, formatterEnd)}\nrenderedSummary = getDifyProcessSummary(message, 8, false);`,
+    sandbox
+  );
+
+  assert.equal(sandbox.renderedSummary, "8 个步骤 · 思考了 2 分 9 秒");
 });
 
 test("replaces the visible process step while preserving expandable history", () => {

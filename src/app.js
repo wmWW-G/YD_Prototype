@@ -7217,12 +7217,32 @@ function renderConversationAnswer() {
 }
 
 /**
+ * 组合折叠过程栏里的步骤数量和最终思考耗时。
+ *
+ * @param {object} message - 当前助手消息，包含思考开始和结束时间。
+ * @param {number} stepCount - 本轮保留下来的公开过程步骤数。
+ * @param {boolean} interrupted - 本轮是否因错误而中断。
+ * @returns {string} 例如“8 个步骤 · 思考了 2 分 9 秒”。
+ * @throws {Error} 本函数不主动抛异常；计时字段缺失时只返回原步骤摘要。
+ */
+function getDifyProcessSummary(message, stepCount, interrupted) {
+  const stepSummary = interrupted ? "执行中断" : `${stepCount} 个步骤`;
+  const thinkingDuration = window.YD_DIFY?.formatDifyThinkingDuration(
+    message?.thinkingStartedAt,
+    message?.thinkingEndedAt
+  ) || "";
+
+  return thinkingDuration ? `${stepSummary} · ${thinkingDuration}` : stepSummary;
+}
+
+/**
  * 渲染 Dify 的安全执行过程。
  *
  * 生成期间只画 `currentProcess`，新事件到达后自然覆盖上一条；正式答案开始后默认折叠，用户点击后才查看完整步骤。
  * 这里展示节点、工具、搜索词，以及 Dify API 明确公开的 `agent_thought.thought`；模型隐藏的 `<think>` 内容仍不展示。
+ * 完成后在步骤数量旁显示从发送到第一段正式答案之间的思考耗时。
  *
- * @param {object} message - 当前助手消息，包含 currentProcess、processSteps 和展开状态。
+ * @param {object} message - 当前助手消息，包含 currentProcess、processSteps、展开状态和思考计时。
  * @returns {string} 过程区 HTML；没有过程事件时返回空字符串。
  * @throws {Error} 本函数不主动抛异常。
  */
@@ -7249,7 +7269,7 @@ function renderDifyProcessPanel(message) {
 
   const expanded = Boolean(message.processExpanded);
   const interrupted = message.status === "error" || currentStep.status === "error";
-  const summary = interrupted ? "执行中断" : `${steps.length} 个步骤`;
+  const summary = getDifyProcessSummary(message, steps.length, interrupted);
 
   return `
     <section class="dify-process-panel settled ${expanded ? "expanded" : ""}">
@@ -7445,7 +7465,10 @@ function patchDifyStreamMessageDom(featureId, messageId, forceStructure = false)
     const answer = turn.querySelector(".research-live-answer");
     const count = turn.querySelector("[data-dify-process-count]");
     if (answer) answer.innerHTML = renderMarkdown(message.content || "");
-    if (count) count.textContent = `${Array.isArray(message.processSteps) ? message.processSteps.length : 0} 个步骤`;
+    if (count) {
+      const steps = Array.isArray(message.processSteps) ? message.processSteps : [];
+      count.textContent = getDifyProcessSummary(message, steps.length, false);
+    }
     return true;
   }
 
@@ -9217,7 +9240,10 @@ async function sendDifyFeatureDraft(draft) {
       currentProcess: null,
       processCollapsed: false,
       processExpanded: false,
-      answerStarted: false
+      answerStarted: false,
+      // 从用户点击发送开始计时；第一段正式答案、完成或失败事件到达时由状态归并函数停止。
+      thinkingStartedAt: Date.now(),
+      thinkingEndedAt: null
     }
   );
   state.popup = null;

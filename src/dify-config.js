@@ -110,6 +110,38 @@
   }
 
   /**
+   * 把一轮 Dify 分析耗时格式化为用户可读的“分、秒”。
+   *
+   * 为什么只取整秒：
+   * - 毫秒对用户判断任务快慢没有帮助，反而会让过程标题持续抖动。
+   * - 开始或结束时间缺失时返回空字符串，兼容升级前已经存在的历史消息。
+   *
+   * @param {unknown} startedAt - 用户发送问题时记录的 Unix 毫秒时间戳。
+   * @param {unknown} endedAt - 第一段正式答案、完成或失败事件到达时的 Unix 毫秒时间戳。
+   * @returns {string} 例如“思考了 8 秒”或“思考了 2 分 9 秒”；时间不完整时返回空字符串。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function formatDifyThinkingDuration(startedAt, endedAt) {
+    if (startedAt === null || startedAt === undefined || endedAt === null || endedAt === undefined) {
+      return "";
+    }
+
+    const start = Number(startedAt);
+    const end = Number(endedAt);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) {
+      return "";
+    }
+
+    const totalSeconds = Math.max(0, Math.floor((end - start) / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return minutes > 0
+      ? `思考了 ${minutes} 分 ${seconds} 秒`
+      : `思考了 ${seconds} 秒`;
+  }
+
+  /**
    * 将一条代理 SSE 事件应用到当前助手消息。
    *
    * 这个纯函数集中维护过程区的产品规则：
@@ -119,13 +151,15 @@
    *
    * @param {object} message - 当前助手消息对象。
    * @param {object} event - 后端公开 SSE 事件。
+   * @param {number} [receivedAt=Date.now()] - 当前事件到达浏览器的时间；测试可传固定值。
    * @returns {object} 更新后的新消息对象，不直接修改传入对象。
    * @throws {Error} 本函数不主动抛异常；未知事件原样返回消息副本。
    */
-  function applyDifyStreamEventToMessage(message, event) {
+  function applyDifyStreamEventToMessage(message, event, receivedAt = Date.now()) {
     const currentMessage = message && typeof message === "object" ? message : {};
     const eventType = String(event?.type || "");
     const existingSteps = Array.isArray(currentMessage.processSteps) ? currentMessage.processSteps : [];
+    const safeReceivedAt = Number.isFinite(Number(receivedAt)) ? Number(receivedAt) : Date.now();
 
     if (eventType === "process" && event.step && typeof event.step === "object") {
       const nextStep = { ...event.step };
@@ -163,6 +197,7 @@
         ...currentMessage,
         content: currentMessage.answerStarted ? `${String(currentMessage.content || "")}${delta}` : delta,
         answerStarted: true,
+        thinkingEndedAt: currentMessage.thinkingEndedAt ?? safeReceivedAt,
         processCollapsed: true,
         processExpanded: false
       };
@@ -181,6 +216,7 @@
         ...currentMessage,
         content: String(event.answer || ""),
         answerStarted: true,
+        thinkingEndedAt: currentMessage.thinkingEndedAt ?? safeReceivedAt,
         processSteps: nextSteps,
         currentProcess: nextCurrentProcess,
         processCollapsed: true,
@@ -199,6 +235,7 @@
         content: finalAnswer,
         status: "done",
         answerStarted: Boolean(finalAnswer) || Boolean(currentMessage.answerStarted),
+        thinkingEndedAt: currentMessage.thinkingEndedAt ?? safeReceivedAt,
         processCollapsed: true,
         processExpanded: false,
         conversationId: String(result.conversation_id || ""),
@@ -229,6 +266,7 @@
         ...currentMessage,
         content: String(event.message || "Dify 调用失败，请稍后重试。"),
         status: "error",
+        thinkingEndedAt: currentMessage.thinkingEndedAt ?? safeReceivedAt,
         processSteps: nextSteps,
         currentProcess: interruptedStep,
         processCollapsed: true,
@@ -310,6 +348,7 @@
     createDifySseEventParser,
     createFeatureConfigState,
     createFeatureSessionState,
+    formatDifyThinkingDuration,
     getFriendlyConfigError,
     isDifyChatFeature
   };
