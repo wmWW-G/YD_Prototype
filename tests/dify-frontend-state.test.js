@@ -224,6 +224,18 @@ test("does not abort a healthy Dify stream after a fixed absolute duration", () 
   assert.doesNotMatch(senderSource, /240 秒/);
 });
 
+test("uses Cloudflare for long chat streams while keeping config saves on Vercel", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const endpointsStart = source.indexOf("const DIFY_PROXY_ENDPOINTS");
+  const endpointsEnd = source.indexOf("});", endpointsStart) + 3;
+  const endpointsSource = source.slice(endpointsStart, endpointsEnd);
+
+  assert.ok(endpointsStart >= 0 && endpointsEnd > endpointsStart, "应找到 Dify 代理地址配置");
+  assert.match(endpointsSource, /config:\s*"https:\/\/yd-prototype-dify-proxy\.vercel\.app\/api\/dify-config"/);
+  assert.match(endpointsSource, /chat:\s*"https:\/\/yd-prototype-dify-chat\.gardengaoo\.workers\.dev\/api\/dify-chat"/);
+  assert.doesNotMatch(endpointsSource, /chat:\s*"https:\/\/yd-prototype-dify-proxy\.vercel\.app/);
+});
+
 test("renders GFM-style Markdown tables as safe semantic table HTML", () => {
   const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
   const rendererStart = source.indexOf("function escapeHtml");

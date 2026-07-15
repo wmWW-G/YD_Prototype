@@ -8,6 +8,9 @@
     },
     "api/dify-config.js": {
       "maxDuration": 60
+    },
+    "api/dify-runtime-config.js": {
+      "maxDuration": 60
     }
   }
 }

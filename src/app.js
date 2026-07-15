@@ -92,17 +92,18 @@ const CUSTOMER_RESEARCH_DIRECT_DIFY_URL = "https://api.dify.ai/v1/chat-messages"
 const CUSTOMER_RESEARCH_REQUEST_TIMEOUT_MS = 240000;
 
 /**
- * 所有对话功能页面共用的 Dify 配置与对话代理。
+ * 所有对话功能页面共用的 Dify 配置与对话服务。
  *
  * 为什么使用两个服务端接口：
- * - 配置接口负责校验并加密保存 Key，聊天接口只按页面 ID 读取配置并调用 Dify。
+ * - Vercel 配置接口负责校验并加密保存 Key，继续复用现有 Redis 数据。
+ * - Cloudflare 聊天接口负责长 SSE，避免 Vercel 300 秒函数时限中断长任务。
  * - 浏览器永远拿不到已保存的原始 Key，只能看到“已配置”和应用名称。
  *
  * @type {{ config: string, chat: string }}
  */
 const DIFY_PROXY_ENDPOINTS = Object.freeze({
   config: "https://yd-prototype-dify-proxy.vercel.app/api/dify-config",
-  chat: "https://yd-prototype-dify-proxy.vercel.app/api/dify-chat"
+  chat: "https://yd-prototype-dify-chat.gardengaoo.workers.dev/api/dify-chat"
 });
 
 /**
@@ -926,8 +927,8 @@ function scheduleDifyStreamRender(featureId, messageId) {
  * 获取配置或聊天代理地址。
  *
  * 为什么允许运行时覆盖：
- * - 正式 GitHub Pages 使用已部署的 Vercel 域名。
- * - 开发同事用 `vercel dev` 时可设置 window.YD_DIFY_PROXY_ENDPOINTS 指向本机接口。
+ * - 正式 GitHub Pages 的配置请求走 Vercel，聊天长流走 Cloudflare。
+ * - 本地开发时可设置 window.YD_DIFY_PROXY_ENDPOINTS，分别覆盖两个接口地址。
  *
  * @param {"config" | "chat"} kind - 需要的代理类型。
  * @returns {string} 完整接口地址。

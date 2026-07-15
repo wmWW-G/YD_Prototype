@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "yd-prototype-dify-chat",
+  "main": "cloudflare-worker/dify-chat-worker.mjs",
+  "compatibility_date": "2026-07-15",
+  "compatibility_flags": ["nodejs_compat_v2"],
+  "workers_dev": true,
+  "vars": {
+    "DIFY_RUNTIME_CONFIG_URL": "https://yd-prototype-dify-proxy.vercel.app/api/dify-runtime-config"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

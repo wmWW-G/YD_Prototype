@@ -6,6 +6,8 @@
   "scripts": {
     "test": "node --test browser-extension/inquiry-analyzer.test.js tests/*.test.js",
     "test:dify": "node --test tests/*.test.js",
+    "check:cloudflare": "npx wrangler deploy --dry-run",
+    "deploy:cloudflare": "npx wrangler deploy",
     "check:extension": "node --check browser-extension/content-script.js && node --check browser-extension/background.js && node --check browser-extension/inquiry-analyzer.js && python3 -m json.tool browser-extension/manifest.json >/dev/null && unzip -t yingdan-inquiry-extension-v0.2.0.zip >/dev/null"
   },
   "repository": {
