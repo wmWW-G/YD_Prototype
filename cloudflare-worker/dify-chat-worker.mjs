@@ -181,11 +181,11 @@ function createDifyChatWorker({
      *
      * @param {Request} request - OPTIONS 或 POST `/api/dify-chat` 请求。
      * @param {Record<string, unknown>} env - 私有配置桥接、CORS 等 Worker 绑定。
-     * @param {{ waitUntil?: Function }} ctx - Worker 生命周期上下文。
+     * @param {{ waitUntil?: Function }} _ctx - Worker 生命周期上下文；长流不能放进 30 秒后台任务，因此当前不调用 waitUntil。
      * @returns {Promise<Response>} JSON 错误或持续输出的 SSE Response。
      * @throws {Error} 已开始 SSE 后的异常会被协议内 error 事件吸收，不继续抛给 Worker 平台。
      */
-    async fetch(request, env = {}, ctx = {}) {
+    async fetch(request, env = {}, _ctx = {}) {
       const url = new URL(request.url);
       const allowedOrigin = resolveAllowedOrigin(request, env);
 
@@ -286,10 +286,8 @@ function createDifyChatWorker({
           }
         })();
 
-        if (typeof ctx.waitUntil === "function") {
-          ctx.waitUntil(streamTask);
-        }
-
+        // 不调用 ctx.waitUntil：这项任务直接决定响应内容，TransformStream 本身会让
+        // Worker 在客户端保持连接期间继续运行；waitUntil 只适合响应后的后台工作。
         return new Response(transform.readable, { status: 200, headers });
       } catch (error) {
         const message = sanitizeError(error instanceof Error ? error.message : "Dify 调用失败，请稍后重试。");

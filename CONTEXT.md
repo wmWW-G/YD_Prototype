@@ -460,6 +460,8 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 2026-07-14 安全 Markdown 渲染增加 GFM 风格表格：识别表头、分隔行、列对齐和数据行，单元格继续支持粗体、行内代码与链接，并保持先转义后渲染；窄屏表格只在自身容器横向滚动。
 - 2026-07-15 移除通用 Dify 对话页前端自设的 240 秒绝对超时：浏览器不再用 `AbortController` 提前中止仍在正常输出的 SSE，流保持到代理或 Dify 明确结束。
 - 2026-07-15 正式聊天代理迁移到 `yd-prototype-dify-chat.gardengaoo.workers.dev`：Cloudflare 直接维持 Dify SSE，并每 15 秒发送注释心跳；Vercel 只承担毫秒级配置读写和受保护的运行时配置桥接，因此其 300 秒函数上限不再截断聊天回答。迁移时未导出、复制或提交原始 Dify Key；真实市场调研 smoke test 收到 `process`、`answer_replace`、`done`，HTTP 200 且成功创建 `conversation_id`。
+- 2026-07-15 长 Agent 任务复核发现第一版 Worker 把响应依赖的流任务注册进 `ctx.waitUntil()`，约 30 秒后触发 `Network connection lost`；现已移除该调用，由仍在输出的 `TransformStream` 自身维持请求生命周期。随后又发现逐 token 过程事件和结束时二次解析整段 SSE 会触发 Workers Free 10 ms CPU 压力；现改为同一 Agent 段落最多发送少量覆盖更新，并在第一次解析时增量累计最终 ID、usage 和精简计费追踪，不再缓存后二次解析完整原文。
+- 2026-07-15 使用“欧洲手持小风扇市场与销量”做最终长流验收：跨过原 30 秒断点并收到 8 次心跳，最终事件序列包含 `process`、`answer_replace`、`done`；正式答案 6188 字、成功创建 `conversation_id`、无 `error`。优化前同类流约 1.5 MB / 4106 个事件且没有 `done`，优化后约 19 KB / 19 个事件并完整结束。
 - 配置存储所需环境变量：`DIFY_CONFIG_ENCRYPTION_KEY`、`KV_REST_API_URL`、`KV_REST_API_TOKEN`；也兼容 Upstash 常见的 `UPSTASH_REDIS_REST_URL`、`UPSTASH_REDIS_REST_TOKEN`。
 - 市场调研兜底 Key 使用 `DIFY_MARKET_RESEARCH_API_KEY`；客户背调兼容 `DIFY_CUSTOMER_RESEARCH_API_KEY` 或 `DIFY_API_KEY`。任何环境变量值都不能写入仓库或日志。
 - 2026-07-08 已把本地静态服务 `http://localhost:8765`、`http://127.0.0.1:8765` 加入背调代理默认 CORS 白名单，并部署到 `yd-prototype-dify-proxy.vercel.app`；如果仍长时间无结果，优先排查 Dify Chatflow 执行耗时，而不是先怀疑浏览器没连上代理。

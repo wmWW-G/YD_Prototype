@@ -96,6 +96,33 @@ test("Cloudflare Worker keeps a quiet long stream alive with SSE comments", asyn
   assert.match(streamText, /"type":"done"/);
 });
 
+test("Cloudflare Worker keeps response-dependent streaming work out of waitUntil", async () => {
+  const { createDifyChatWorker } = await loadWorkerModule();
+  let waitUntilCalls = 0;
+  const worker = createDifyChatWorker({
+    createConfigStore() {
+      return { async read() { return { appType: "dialogue", apiKey: "app-test-key" }; } };
+    },
+    async streamChat(options) {
+      await options.onEvent({ type: "done", result: { answer: "完成" } });
+    }
+  });
+  const request = new Request("https://worker.example/api/dify-chat", {
+    method: "POST",
+    headers: { Origin: "https://wmww-g.github.io", "Content-Type": "application/json" },
+    body: JSON.stringify({ feature_id: "market-research", query: "长流生命周期", user: "yd-test-user" })
+  });
+
+  const response = await worker.fetch(request, {}, {
+    waitUntil() {
+      waitUntilCalls += 1;
+    }
+  });
+  await response.text();
+
+  assert.equal(waitUntilCalls, 0, "响应内容依赖的长流不能注册为 30 秒后台任务");
+});
+
 test("Cloudflare Worker rejects disallowed origins before reading stored API keys", async () => {
   const { createDifyChatWorker } = await loadWorkerModule();
   let storeCreated = false;

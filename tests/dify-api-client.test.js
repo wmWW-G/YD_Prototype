@@ -220,3 +220,58 @@ test("keeps Agent interim messages in the process stream and promotes only the l
   assert.equal(emitted.find((event) => event.type === "answer_replace").answer, "正式结论");
   assert.equal(result.answer, "正式结论");
 });
+
+test("coalesces token-heavy Agent messages instead of emitting one process event per token", async () => {
+  const tokenEvents = Array.from({ length: 1200 }, () => (
+    'data: {"event":"agent_message","answer":"字","conversation_id":"conv-heavy"}'
+  ));
+  const streamText = [...tokenEvents, 'data: {"event":"message_end","conversation_id":"conv-heavy"}'].join("\n\n");
+  const fetchImpl = async () => new Response(streamText, {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" }
+  });
+  const emitted = [];
+
+  const result = await streamDifyChat({
+    apiKey: "app-heavy-secret",
+    query: "长任务",
+    user: "yd-user-heavy",
+    fetchImpl,
+    onEvent(event) {
+      emitted.push(event);
+    }
+  });
+
+  const agentProcessEvents = emitted.filter((event) => (
+    event.type === "process" && String(event.step?.id || "").startsWith("agent-message-")
+  ));
+  assert.equal(agentProcessEvents.length <= 8, true, "同一 Agent 段落只能发送少量覆盖更新");
+  assert.equal(emitted.find((event) => event.type === "answer_replace").answer.length, 1200);
+  assert.equal(result.answer.length, 1200);
+});
+
+test("promotes the last Agent segment when a clean upstream EOF has no message_end event", async () => {
+  const fetchImpl = async () => new Response([
+    'data: {"event":"agent_message","answer":"最终市场","conversation_id":"conv-eof"}',
+    'data: {"event":"agent_message","answer":"报告","conversation_id":"conv-eof"}'
+  ].join("\n\n"), {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" }
+  });
+  const emitted = [];
+
+  const result = await streamDifyChat({
+    apiKey: "app-eof-secret",
+    query: "长任务",
+    user: "yd-user-eof",
+    fetchImpl,
+    onEvent(event) {
+      emitted.push(event);
+    }
+  });
+
+  assert.equal(emitted.find((event) => event.type === "answer_replace").answer, "最终市场报告");
+  assert.equal(emitted.at(-1).type, "done");
+  assert.equal(result.answer, "最终市场报告");
+  assert.equal(result.conversation_id, "conv-eof");
+});
