@@ -36,6 +36,7 @@
 - `客户开发`：一级业务入口，用于通过 AI 获客目标生成候选客户名单，不归入 `技能Skill` 子菜单；当前原型链路为「输入开发目标/产品/国家/客户类型 → AI 找客户中 → 生成客户列表 → 点公司只看右侧公司信息 → 点获取联系人信息跳到联系人新界面 → 在联系人表里点某个人获取邮箱」。先保持轻量，不做客户分级、状态分栏和复杂推进流。
 - 所有通用 AI 对话功能页：顶部左侧固定显示 Dify 应用类型和 API Key 配置栏，支持选择「对话型应用」或「Chatflow」。每个功能页独立保存配置，重复保存会覆盖更新；前端只能读取掩码，原始 Key 由后端加密保存。发送后左侧按轮次保留问题，右侧通过真实 SSE 实时展示最新过程和 Markdown 答案，并按页面独立复用 `conversation_id`。过程区展示节点、工具名、显式搜索词，以及 Dify API 明确定义为公开步骤的 `agent_thought.thought`；新步骤覆盖当前可见步骤，正式答案开始后自动折叠，用户可展开历史。思考耗时从发送开始就每秒动态更新，正式答案、完成或失败事件到达后冻结；折叠标题继续显示“步骤数 · 思考了 X 分 X 秒”。计时只更新对应文字节点，不触发整页重绘。模型隐藏的 `<think>`、prompt、observation 和工具输出仍不会发给浏览器。流式期间只局部更新当前回答 DOM，不再重建整个 `#app`，避免每个字符到达时整屏闪烁。
 - `成交顾问 > 客户背调顾问`：默认类型为 Chatflow，继续沿用现有背调 Dify 配置和成本追踪能力。
+- `技能Skill > YD Artifact`：默认类型为 Chatflow，沿用通用 Dify 对话、SSE 和多轮上下文；回答中的受控代码块会在正文原位置转换为流程图、时间线、数据图、指标卡或隔离预览。已适配 `mermaid`、`echarts`、`svg`、受控 `ui` JSON 和显式 `html-artifact`。`html-artifact` 可在 opaque-origin iframe 内运行本地 HTML/CSS/JavaScript，但只授予 `allow-scripts`，并通过 CSP、源码预检和宿主桥接阻断联网、外部资源、存储、表单提交、弹窗和越界导航；普通 `html` 代码块仍不会执行。
 - `技能Skill > 市场调研`：默认类型为对话型应用，已适配普通 Chatbot/Agent 的流式事件和多轮上下文。
 
 主原型大部分只复刻界面结构和交互手感，不写入真实客户资料，不复制线上历史记录和账号隐私。当前真实调用例外包括：白名单内的通用对话页会通过 Dify 代理调用各自保存的应用，浏览器插件内测包会调用 Coze 接口验证真实询盘分析链路。它们都只能作为内部验证或原型验证使用，不能当作公开生产能力直接发布。
@@ -126,6 +127,7 @@ reverse-yingdan/
   src/
     app.js
     data.js
+    dify-artifact.js
     dify-config.js
     styles.css
   tests/
@@ -146,6 +148,7 @@ reverse-yingdan/
 - `src/styles.css`：全部视觉样式、响应式规则和动效。
 - `src/data.js`：用户侧导航、销售准备标签、成交阶段、后台菜单、User Preview 报表、邀请码、AI 人设和模型等静态数据。
 - `src/app.js`：渲染函数、hash 路由、事件绑定、抽屉、toast、弹层、账号弹层、后台管理和状态切换。
+- `src/dify-artifact.js`：YD Artifact 的前端富内容适配层；识别特殊 fenced code block，生成安全的本地 SVG/结构化卡片，或把静态 SVG、显式交互式 HTML Artifact 放入受 CSP 和 `sandbox` 约束的 iframe。交互式 iframe 通过受校验的 `postMessage` 只向宿主回报内容高度，不获得宿主数据或 API。
 - `src/dify-config.js`：Dify 对话页白名单、每页独立配置状态和会话状态、浏览器 SSE 增量解析器，以及过程覆盖/历史/折叠状态归并函数。
 - `assets/icons/`：本地 SVG 图标。后续新增图标时优先复制进这里，再在 `src/data.js` 引用相对路径。
 - `assets/generated/`：当前原型使用的本地视觉素材。
@@ -292,6 +295,7 @@ reverse-yingdan/
 
 `技能Skill` 下的二级模块：
 
+- `YD Artifact`
 - `市场调研`
 - `新客开发信`
 - `客诉处理`
@@ -354,6 +358,7 @@ reverse-yingdan/
 | `#/agents/customer-research` | 成交顾问 > 客户背调顾问 |
 | `#/agents/negotiation-scene` | 成交顾问 > 场景谈判顾问 |
 | `#/agents/inquiry-reply` | 成交顾问 > 询盘分析回复 |
+| `#/skills/yd-artifact` | 技能 > YD Artifact |
 | `#/skills/market-research` | 技能 > 市场调研 |
 | `#/customer-development` | 客户开发 |
 | `#/customer-development/searching` | 客户开发 > AI 找客户中 |
@@ -398,6 +403,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 改案例知识库：优先改 `src/data.js` 的 `CASE_CATEGORIES` 和 `CASE_ITEMS`。
 - 改客户开发：它是一级入口，不是 `技能Skill` 子菜单；优先改 `src/data.js` 的 `CUSTOMER_DEVELOPMENT`；页面结构改 `src/app.js` 的 `renderCustomerDevelopmentView()`；样式改 `src/styles.css` 的 `.customer-dev-*`。
 - 改通用 Dify 对话页：页面白名单和默认类型改 `src/dify-config.js`；顶栏配置看 `renderDifyConfigBar()`、`loadDifyFeatureConfig()`、`saveDifyFeatureConfig()`；多轮消息存在 `state.difyFeatureSessions[featureId]`；真实调用和浏览器流读取看 `sendDifyFeatureDraft()`；过程 UI 看 `renderDifyProcessPanel()`；Markdown 渲染看 `renderMarkdown()` / `renderInlineMarkdown()`。配置保存看 `api/dify-config.js`，Cloudflare 长流看 `cloudflare-worker/dify-chat-worker.mjs`，私有配置桥接看 `api/dify-runtime-config.js`，上游增量流和过程脱敏看 `lib/dify-api-client.js`；`api/dify-chat.js` 仅保留回滚。
+- 改 YD Artifact：入口、Dify 配置和会话仍走上述通用链路；特殊代码块识别、Mermaid/ECharts 本地渲染、受控 `ui` 组件和沙箱策略改 `src/dify-artifact.js`，页面视觉改 `src/styles.css` 的 `.yd-artifact-*`；Dify LLM System Prompt 改 `dify-chatflows/技能Skill-YD-Artifact/prompt.md`。不要执行普通 `html`、远程脚本或未经校验的 SVG；交互代码只能放在显式 `html-artifact` 中，并保持 `sandbox="allow-scripts"`、无 `allow-same-origin` 的边界。
 - 改客户背调顾问：数据改 `src/data.js` 的 `CUSTOMER_RESEARCH_FLOW`；它复用上述通用 Dify 对话壳，但默认应用类型是 Chatflow，内部成本面板仍由 `renderCustomerResearchBillingTracePanel()` 控制。
 - 改客户Kass：优先改 `src/data.js` 的 `KASS_GROUPS` 和 `KASS_FLOW_STAGES`。如果改分组顶部「今日该推进」，看 `src/app.js` 的 `buildKassTodayReminder()` / `renderKassGroupTodayCard()` 和 `src/styles.css` 的 `.kass-today-*` / `.kass-group-today-*`。
 - 改账号弹层、邀请码兑换、团队/企业切换：优先改 `src/app.js` 的 `renderAccountSettingsPopup()`、`renderInviteRedeemModal()` 和相关事件绑定。
@@ -435,6 +441,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 当前已记录：
 
 - `成交顾问 > 客户背调顾问 > 客户背调DeepSeek`：目录为 `dify-chatflows/成交顾问-客户背调顾问-客户背调DeepSeek/`。2026-07-04 已完成 `POST /chat-messages` 连通性测试和 `GET /parameters` 参数快照测试，均返回 HTTP `200`。
+- `技能Skill > YD Artifact`：默认使用 Chatflow，通过页面顶栏绑定 Key。原发布版只约定 `mermaid`、`echarts`、`svg`；2026-07-20 已在 `dify-chatflows/技能Skill-YD-Artifact/prompt.md` 准备完整替换提示词，新增必须使用 `html-artifact` 的交互场景与自包含 HTML/CSS/原生 JavaScript 约束。该文件需要粘贴到 Dify LLM 节点并重新发布后才会影响线上回答。
 - `技能Skill > 市场调研`：使用对话型应用模式，通过页面顶栏绑定 Key；具体 Key 只保存在 Vercel 环境变量或加密后的 Upstash Redis 中，不进入资料库。
 
 类型识别规则：Dify `/info` 的 `chat`、`agent-chat` 对应页面「对话型应用」，`advanced-chat` 对应「Chatflow」。两类都由 API Key 识别具体 App，并调用 `/chat-messages`；`workflow` 不属于当前对话页适配范围。
@@ -458,12 +465,13 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 2026-07-14 增加跨事件 `<think>` 过滤器，标签即使被拆在两个网络块中也不会短暂泄露；最终返回的 `billing_trace` 同样移除了 Agent thought、节点 inputs/outputs 和工具输出，只保留成本面板需要的事件计数、Tavily 查询和 credits。
 - 2026-07-14 修复 SSE 每次到达都重建 `#app.innerHTML` 引发的整屏闪烁：同一过程阶段只更新 label/detail 文本，同一答案阶段只更新当前 Markdown 容器，结构切换也仅替换本轮回答。恢复展示 Dify 对话 API 明确公开的 `agent_thought.thought`，继续过滤 `<think>` 等隐藏思考；没有公开 thought、工具名或搜索词的空 Agent 协议步骤不再生成通用占位。
 - 2026-07-14 安全 Markdown 渲染增加 GFM 风格表格：识别表头、分隔行、列对齐和数据行，单元格继续支持粗体、行内代码与链接，并保持先转义后渲染；窄屏表格只在自身容器横向滚动。
+- 2026-07-20 新增 `技能Skill > YD Artifact`：沿用归一化 SSE 与安全 Markdown，只在该页面识别特殊 fenced code block；流式代码块未闭合时显示稳定骨架，闭合后在原位置替换为图形。Mermaid/ECharts 在本地解析为静态、安全 SVG；原始 SVG 继续使用无脚本 iframe；显式 `html-artifact` 使用只授予 `allow-scripts` 的 opaque-origin iframe，并以 CSP 阻断网络、外部资源、Worker、表单和子 frame。宿主只接受来源 iframe 匹配的限幅高度消息；其它 Dify 页面渲染路径保持不变。
 - 2026-07-15 移除通用 Dify 对话页前端自设的 240 秒绝对超时：浏览器不再用 `AbortController` 提前中止仍在正常输出的 SSE，流保持到代理或 Dify 明确结束。
 - 2026-07-15 正式聊天代理迁移到 `yd-prototype-dify-chat.gardengaoo.workers.dev`：Cloudflare 直接维持 Dify SSE，并每 15 秒发送注释心跳；Vercel 只承担毫秒级配置读写和受保护的运行时配置桥接，因此其 300 秒函数上限不再截断聊天回答。迁移时未导出、复制或提交原始 Dify Key；真实市场调研 smoke test 收到 `process`、`answer_replace`、`done`，HTTP 200 且成功创建 `conversation_id`。
 - 2026-07-15 长 Agent 任务复核发现第一版 Worker 把响应依赖的流任务注册进 `ctx.waitUntil()`，约 30 秒后触发 `Network connection lost`；现已移除该调用，由仍在输出的 `TransformStream` 自身维持请求生命周期。随后又发现逐 token 过程事件和结束时二次解析整段 SSE 会触发 Workers Free 10 ms CPU 压力；现改为同一 Agent 段落最多发送少量覆盖更新，并在第一次解析时增量累计最终 ID、usage 和精简计费追踪，不再缓存后二次解析完整原文。
 - 2026-07-15 使用“欧洲手持小风扇市场与销量”做最终长流验收：跨过原 30 秒断点并收到 8 次心跳，最终事件序列包含 `process`、`answer_replace`、`done`；正式答案 6188 字、成功创建 `conversation_id`、无 `error`。优化前同类流约 1.5 MB / 4106 个事件且没有 `done`，优化后约 19 KB / 19 个事件并完整结束。
 - 配置存储所需环境变量：`DIFY_CONFIG_ENCRYPTION_KEY`、`KV_REST_API_URL`、`KV_REST_API_TOKEN`；也兼容 Upstash 常见的 `UPSTASH_REDIS_REST_URL`、`UPSTASH_REDIS_REST_TOKEN`。
-- 市场调研兜底 Key 使用 `DIFY_MARKET_RESEARCH_API_KEY`；客户背调兼容 `DIFY_CUSTOMER_RESEARCH_API_KEY` 或 `DIFY_API_KEY`。任何环境变量值都不能写入仓库或日志。
+- YD Artifact 兜底 Key 使用 `DIFY_YD_ARTIFACT_API_KEY`；市场调研兜底 Key 使用 `DIFY_MARKET_RESEARCH_API_KEY`；客户背调兼容 `DIFY_CUSTOMER_RESEARCH_API_KEY` 或 `DIFY_API_KEY`。任何环境变量值都不能写入仓库或日志。
 - 2026-07-08 已把本地静态服务 `http://localhost:8765`、`http://127.0.0.1:8765` 加入背调代理默认 CORS 白名单，并部署到 `yd-prototype-dify-proxy.vercel.app`；如果仍长时间无结果，优先排查 Dify Chatflow 执行耗时，而不是先怀疑浏览器没连上代理。
 - 2026-07-08 已让 `api/dify-customer-research.js` 在聚合 Dify streaming 响应时保留 `billing_trace`，用于内部查看 `workflow_run_id`、节点事件、Agent 日志、Tavily 调用次数、`search_depth` 和估算 credits；这些字段只用于成本核算和排障，不应直接展示给普通用户。
 - 2026-07-08 已在客户背调前端增加内部成本面板：URL 带 `?costDebug=1` 或 `?difyTrace=1` 时，每轮 Dify 回答下方会展示 `metadata.usage` 和 `billing_trace` 摘要，包括 token、模型费用、Tavily 调用次数、credits、搜索档位和 `workflow_run_id`。
@@ -493,10 +501,11 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 19. 逐一打开 `src/dify-config.js` 白名单中的对话页，确认顶栏左侧都有应用类型、API Key、保存按钮和状态，销售准备、客户开发、客户Kass和后台页不出现该配置栏。
 20. 在 `#/skills/market-research` 选择「对话型应用」并保存有效 Key，确认显示应用摘要；刷新后只显示掩码，不回传原始 Key。发送两轮消息，确认第二轮复用 `conversation_id`。
 21. 在 `#/agents/customer-research` 选择「Chatflow」验证同样流程；故意选错类型时，保存应提示 Key 实际对应的应用类型，且不落库。
-22. 运行 `npm test`，确认浏览器插件和 Dify 的模式识别、加密存储、API handler、SSE 解析与前端状态测试全部通过。
-23. 运行 `npm run check:cloudflare`，确认 Worker 能完整打包且没有把 Secret 写进 `wrangler.jsonc`。
-24. 无内部令牌 POST `https://yd-prototype-dify-proxy.vercel.app/api/dify-runtime-config`，应返回 401；从正式对话页发送消息，应由 Cloudflare 返回 `process` / 正式答案 / `done`。
-25. 调整到窄屏，确认顶栏配置项、正文和按钮不重叠、不溢出。
+22. 进入 `#/skills/yd-artifact`，确认默认类型为「Chatflow」；用脱敏测试回答检查普通 Markdown、Mermaid、ECharts、SVG 在正文中的顺序、流式骨架和窄屏布局。再用 `html-artifact` 检查按钮、Tab 或筛选交互真实生效、iframe 高度自适应，同时确认普通 `html` 只显示源码，外链/联网/跳转代码会降级为错误卡而不执行。
+23. 运行 `npm test`，确认浏览器插件和 Dify 的模式识别、加密存储、API handler、SSE 解析、YD Artifact 渲染与前端状态测试全部通过。
+24. 运行 `npm run check:cloudflare`，确认 Worker 能完整打包且没有把 Secret 写进 `wrangler.jsonc`。
+25. 无内部令牌 POST `https://yd-prototype-dify-proxy.vercel.app/api/dify-runtime-config`，应返回 401；从正式对话页发送消息，应由 Cloudflare 返回 `process` / 正式答案 / `done`。
+26. 调整到窄屏，确认顶栏配置项、正文和按钮不重叠、不溢出。
 
 浏览器插件验证方式：
 

@@ -38,6 +38,7 @@ dify-chatflows/客户Kass-客户档案-跟进建议/
 | 赢单功能路径 | Chatflow 目录 | Dify 应用 | 状态 |
 | --- | --- | --- | --- |
 | `成交顾问 > 客户背调顾问` | `成交顾问-客户背调顾问-客户背调DeepSeek/` | `客户背调DeepSeek` | 已完成 2026-07-04 API 连通性测试，`POST /chat-messages` 和 `GET /parameters` 均返回 `200` |
+| `技能Skill > YD Artifact` | `技能Skill-YD-Artifact/` | `YD Artifact` | `prompt.md` 提供可直接替换的 LLM System Prompt，支持交互式 `html-artifact` 及现有 Mermaid、ECharts、SVG 输出 |
 | `技能Skill > 市场调研` | 由页面顶栏配置保存 | 对话型应用 | 使用普通对话应用模式；API Key 由 Vercel 后端读取或加密保存，不写入仓库 |
 
 ## 每个应用目录应包含
@@ -47,6 +48,7 @@ dify-chatflows/客户Kass-客户档案-跟进建议/
 - `developer-handoff.md`：给开发同事的接入交接，说明前端、代理、Dify、上下文会话和正式产品建议。
 - `parameters.snapshot.json`：从 `GET /parameters` 读取的应用参数快照，不能包含 API Key。
 - `api-test.md`：真实试跑记录，包括测试时间、请求摘要、HTTP 状态、返回结构、异常和结论。
+- `prompt.md`：需要人工粘贴到 Dify LLM 节点的系统提示词；必须记录对应输出协议和前端安全边界，不包含真实 Key。
 
 ## 维护流程
 

@@ -8,6 +8,7 @@ const {
   decryptApiKey,
   encryptApiKey,
   getAppTypeForMode,
+  getDefaultAppTypeForFeature,
   normalizeFeatureId,
   parseDifyStream
 } = require("../lib/dify-core");
@@ -17,6 +18,12 @@ test("maps Dify app modes to the two selectable application types", () => {
   assert.equal(getAppTypeForMode("agent-chat"), APP_TYPES.DIALOGUE);
   assert.equal(getAppTypeForMode("advanced-chat"), APP_TYPES.CHATFLOW);
   assert.equal(getAppTypeForMode("workflow"), null);
+});
+
+test("keeps Chatflow defaults aligned for dedicated workflow pages", () => {
+  assert.equal(getDefaultAppTypeForFeature("customer-research"), APP_TYPES.CHATFLOW);
+  assert.equal(getDefaultAppTypeForFeature("yd-artifact"), APP_TYPES.CHATFLOW);
+  assert.equal(getDefaultAppTypeForFeature("market-research"), APP_TYPES.DIALOGUE);
 });
 
 test("rejects a saved application type that disagrees with Dify app info", () => {

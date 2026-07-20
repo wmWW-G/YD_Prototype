@@ -15,6 +15,7 @@
     "customer-research",
     "negotiation-scene",
     "inquiry-reply",
+    "yd-artifact",
     "market-research",
     "cold-email",
     "complaint",
@@ -29,6 +30,16 @@
   ]);
 
   const CHAT_FEATURE_SET = new Set(CHAT_FEATURE_IDS);
+
+  /**
+   * 默认绑定 Chatflow 的功能页。
+   *
+   * 客户背调和 YD Artifact 都依赖 Dify `advanced-chat` 的多轮流程能力；
+   * 其余通用页面仍默认选择普通对话型应用，用户也可以在顶部手动切换。
+   *
+   * @type {ReadonlySet<string>}
+   */
+  const DEFAULT_CHATFLOW_FEATURE_IDS = new Set(["customer-research", "yd-artifact"]);
 
   /**
    * 判断某个路由是否属于可配置 Dify 的对话功能页。
@@ -50,7 +61,7 @@
    */
   function createFeatureConfigState(featureId) {
     return {
-      appType: String(featureId || "") === "customer-research" ? "chatflow" : "dialogue",
+      appType: DEFAULT_CHATFLOW_FEATURE_IDS.has(String(featureId || "")) ? "chatflow" : "dialogue",
       apiKeyDraft: "",
       hasKey: false,
       maskedKey: "",

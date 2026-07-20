@@ -36,6 +36,7 @@ window.NAV_GROUPS = [
     icon: "assets/icons/00b_skills.svg",
     type: "group",
     children: [
+      { id: "yd-artifact", label: "YD Artifact", icon: "assets/icons/16_yd_artifact.svg" },
       { id: "market-research", label: "市场调研", icon: "assets/icons/03_market_research.svg" },
       { id: "cold-email", label: "新客开发信", icon: "assets/icons/04_new_client_letter.svg" },
       { id: "complaint", label: "客诉处理", icon: "assets/icons/08_complaint.svg" },

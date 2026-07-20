@@ -18,6 +18,7 @@ const {
 test("marks only real conversation pages as Dify-configurable", () => {
   assert.equal(isDifyChatFeature("ask"), true);
   assert.equal(isDifyChatFeature("customer-research"), true);
+  assert.equal(isDifyChatFeature("yd-artifact"), true);
   assert.equal(isDifyChatFeature("market-research"), true);
   assert.equal(isDifyChatFeature("trade-show"), true);
   assert.equal(isDifyChatFeature("sales-prep"), false);
@@ -27,8 +28,9 @@ test("marks only real conversation pages as Dify-configurable", () => {
   assert.equal(CHAT_FEATURE_IDS.includes("cold-email"), true);
 });
 
-test("defaults customer research to Chatflow and other pages to dialogue apps", () => {
+test("defaults customer research and YD Artifact to Chatflow and other pages to dialogue apps", () => {
   assert.equal(createFeatureConfigState("customer-research").appType, "chatflow");
+  assert.equal(createFeatureConfigState("yd-artifact").appType, "chatflow");
   assert.equal(createFeatureConfigState("market-research").appType, "dialogue");
 });
 

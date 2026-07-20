@@ -71,15 +71,19 @@ test("uses existing Vercel environment keys as a compatibility fallback", async 
     fetchImpl: async () => new Response(JSON.stringify({ result: null }), { status: 200 }),
     env: {
       DIFY_CUSTOMER_RESEARCH_API_KEY: "app-customer-secret",
+      DIFY_YD_ARTIFACT_API_KEY: "app-artifact-secret",
       DIFY_MARKET_RESEARCH_API_KEY: "app-market-secret"
     }
   });
 
   const customerResearch = await store.read("customer-research");
+  const ydArtifact = await store.read("yd-artifact");
   const marketResearch = await store.read("market-research");
 
   assert.equal(customerResearch.appType, APP_TYPES.CHATFLOW);
   assert.equal(customerResearch.apiKey, "app-customer-secret");
+  assert.equal(ydArtifact.appType, APP_TYPES.CHATFLOW);
+  assert.equal(ydArtifact.apiKey, "app-artifact-secret");
   assert.equal(marketResearch.appType, APP_TYPES.DIALOGUE);
   assert.equal(marketResearch.apiKey, "app-market-secret");
 });

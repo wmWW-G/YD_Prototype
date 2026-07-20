@@ -1,4 +1,4 @@
-/* global NAV_GROUPS, HISTORY_ITEMS, CUSTOMER_RESEARCH_FLOW, CUSTOMER_DEVELOPMENT, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_USER_PREVIEW_SUB_ACCOUNTS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS, YD_DIFY */
+/* global NAV_GROUPS, HISTORY_ITEMS, CUSTOMER_RESEARCH_FLOW, CUSTOMER_DEVELOPMENT, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_USER_PREVIEW_SUB_ACCOUNTS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS, YD_DIFY, YD_ARTIFACT */
 
 /**
  * 页面级状态对象。
@@ -406,15 +406,17 @@ function renderMarkdownTable(headerLine, separatorLine, rowLines) {
  * - 行内粗体、斜体、代码和 http/https 链接
  *
  * @param {string} value - AI 返回的 Markdown 文本。
+ * @param {{ renderCodeBlock?: (block: { language: string, code: string, isComplete: boolean }) => string | null }} [options={}] - 可选的受控代码块渲染器。
  * @returns {string} 安全 Markdown HTML。
  * @throws {Error} 本函数不主动抛异常。
  */
-function renderMarkdown(value) {
+function renderMarkdown(value, options = {}) {
   const lines = String(value || "").replace(/\r\n/g, "\n").split("\n");
   const html = [];
   let paragraphLines = [];
   let activeListType = "";
   let inCodeBlock = false;
+  let codeLanguage = "";
   let codeLines = [];
   const consumedTableLines = new Set();
 
@@ -468,12 +470,34 @@ function renderMarkdown(value) {
   /**
    * 结束代码块。
    *
+   * @param {boolean} [isComplete=true] - fenced block 是否已经收到闭合标记。
    * @returns {void}
    * @throws {Error} 本函数不主动抛异常。
    */
-  function flushCodeBlock() {
-    html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+  function flushCodeBlock(isComplete = true) {
+    const code = codeLines.join("\n");
+    const customRenderer = typeof options.renderCodeBlock === "function" ? options.renderCodeBlock : null;
+    let customHtml = null;
+
+    try {
+      customHtml = customRenderer
+        ? customRenderer({ language: codeLanguage, code, isComplete })
+        : null;
+    } catch (error) {
+      console.warn("[reverse-yingdan] 自定义代码块渲染失败，已降级为安全源码", {
+        language: codeLanguage,
+        message: error instanceof Error ? error.message : "未知错误"
+      });
+    }
+
+    if (typeof customHtml === "string") {
+      html.push(customHtml);
+    } else {
+      const languageClass = codeLanguage ? ` class="language-${escapeHtml(codeLanguage)}"` : "";
+      html.push(`<pre><code${languageClass}>${escapeHtml(code)}</code></pre>`);
+    }
     codeLines = [];
+    codeLanguage = "";
     inCodeBlock = false;
   }
 
@@ -489,11 +513,12 @@ function renderMarkdown(value) {
       closeList();
 
       if (inCodeBlock) {
-        flushCodeBlock();
+        flushCodeBlock(true);
         return;
       }
 
       inCodeBlock = true;
+      codeLanguage = trimmed.slice(3).trim().split(/\s+/)[0] || "";
       codeLines = [];
       return;
     }
@@ -586,13 +611,33 @@ function renderMarkdown(value) {
   });
 
   if (inCodeBlock) {
-    flushCodeBlock();
+    // 流式回答可能暂时只有半个 fenced block。专用渲染器会先显示骨架，
+    // 普通代码块仍安全地展示当前已收到的源码。
+    flushCodeBlock(false);
   }
 
   flushParagraph();
   closeList();
 
   return `<div class="yd-markdown">${html.join("")}</div>`;
+}
+
+/**
+ * 根据当前 Dify 页面选择正式回答渲染方式。
+ *
+ * YD Artifact 才会把 mermaid、echarts、svg、ui 和显式 artifact 代码块交给
+ * 专用适配器；其它功能页继续使用原来的安全 Markdown，普通 HTML 永远不会被执行。
+ *
+ * @param {object} message - 当前助手消息。
+ * @returns {string} 可插入回答区的安全 HTML。
+ * @throws {Error} 缺少 Artifact 模块时自动退回普通 Markdown，不影响对话。
+ */
+function renderDifyAnswerContent(message) {
+  const artifactRenderer = state.activeMain === "yd-artifact"
+    ? window.YD_ARTIFACT?.renderArtifactCodeBlock
+    : null;
+
+  return renderMarkdown(message?.content || "", artifactRenderer ? { renderCodeBlock: artifactRenderer } : {});
 }
 
 /**
@@ -825,6 +870,7 @@ function getChatLabels() {
     "customer-research": ["客户背调顾问", "输入「复制你的客户信息或输入客户所在国家/地区 + 行业/标签 + 公司名称（可选加官网链接），用于做客户背景调研。", "背调：中东·新能源行业·Yellow Door Energy"],
     "negotiation-scene": ["场景谈判顾问", "选择常见的谈判场景", "在右下角选择谈判场景，附带你的问题详情"],
     "inquiry-reply": ["询盘分析回复", "直接粘贴「客户询盘/聊天记录全文」，可补充「你的产品基本信息、价格区间、底线要求」，用于分析询盘质量并生成回复。", "询盘分析：这是客户的英文询盘内容…… 帮我判断客户诚意并给一封回复建议"],
+    "yd-artifact": ["YD Artifact", "直接提问；回答会把流程图、数据图和结构图自然穿插在文字中。", "用户注册到完成付款的流程是怎样的？"],
     "market-research": ["市场调研", "输入「核心产品」为主，可选加上「目标国家/地区」和「目标客户类型」，用于整体市场调研与选品推荐。", "市场调研：墨西哥·建筑材料行业·PVC地板·目标客户是工程采购商和批发商"],
     "customer-development": ["客户开发", "输入「目标国家 + 客户类型 + 主推产品 + 开发目标」，AI 会帮你拆客户画像、开发渠道和多轮触达动作。", "客户开发：中东·新能源经销商·主推 5kW 户储套件·想找 20 个高匹配客户"],
     "cold-email": ["新客开发信", "输入「目标客户类型 + 产品 + 国家/地区」，AI 会帮你生成一封针对性的开发信。", "新客开发信：中东·光伏经销商·要主推 5kW 户用储能套件"],
@@ -965,8 +1011,12 @@ function getDifyProxyEndpoint(kind) {
  * @throws {Error} 本函数不主动抛异常；缺字段时保留当前默认值。
  */
 function applyDifyConfigMetadata(config, payload) {
-  config.appType = payload?.appType === "chatflow" ? "chatflow" : "dialogue";
   config.hasKey = Boolean(payload?.hasKey);
+  // 老版本配置服务对“未配置页面”统一返回 dialogue。没有 Key 时保留前端页面默认值，
+  // 让新增的 YD Artifact 即使在灰度部署期间也仍默认显示 Chatflow。
+  if (config.hasKey) {
+    config.appType = payload?.appType === "chatflow" ? "chatflow" : "dialogue";
+  }
   config.maskedKey = String(payload?.maskedKey || "");
   config.appName = String(payload?.appName || "");
   config.appMode = String(payload?.appMode || "");
@@ -6924,7 +6974,7 @@ function renderChatConversationView(title, placeholder, hasDraft, needsScenePick
   const isGenerating = session.isGenerating;
 
   return `
-    <section class="chat-conversation-view workbench-enter" aria-label="${escapeHtml(title)}对话">
+    <section class="chat-conversation-view workbench-enter ${state.activeMain === "yd-artifact" ? "yd-artifact-conversation" : ""}" aria-label="${escapeHtml(title)}对话">
       <aside class="chat-question-pane">
         ${renderCustomerResearchQuestionThread()}
 
@@ -7447,7 +7497,7 @@ function renderDifyAnswerTurn(message, index, title) {
             </div>
           ` : `
             <div class="research-live-answer ${hasStreamingAnswer ? "streaming" : ""}">
-              ${renderMarkdown(message.content)}
+              ${renderDifyAnswerContent(message)}
             </div>
             ${hasStreamingAnswer ? "" : `
               <div class="result-actions">
@@ -7558,7 +7608,7 @@ function patchDifyStreamMessageDom(featureId, messageId, forceStructure = false)
   if (nextPhase === "answer") {
     const answer = turn.querySelector(".research-live-answer");
     const count = turn.querySelector("[data-dify-process-count]");
-    if (answer) answer.innerHTML = renderMarkdown(message.content || "");
+    if (answer) answer.innerHTML = renderDifyAnswerContent(message);
     if (count) {
       const steps = Array.isArray(message.processSteps) ? message.processSteps : [];
       count.textContent = getDifyProcessSummary(message, steps.length, false);
@@ -9575,6 +9625,7 @@ const ROUTES = [
   { hash: "/agents/customer-research", main: "customer-research" },
   { hash: "/agents/negotiation-scene", main: "negotiation-scene" },
   { hash: "/agents/inquiry-reply", main: "inquiry-reply" },
+  { hash: "/skills/yd-artifact", main: "yd-artifact" },
   { hash: "/skills/market-research", main: "market-research" },
   // 旧入口兼容：客户开发已升为一级入口，老链接仍可打开同一个页面。
   { hash: "/skills/customer-development", main: "customer-development" },
