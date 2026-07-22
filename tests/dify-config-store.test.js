@@ -50,6 +50,7 @@ test("saves one encrypted configuration per feature and never returns the origin
     featureId: "market-research",
     appType: APP_TYPES.DIALOGUE,
     apiKey: "app-market-secret",
+    skillKey: "market-research",
     appInfo: { name: "外贸市场调研", mode: "chat" },
     parameters: { user_input_form: [] }
   });
@@ -60,8 +61,10 @@ test("saves one encrypted configuration per feature and never returns the origin
 
   assert.equal(storedText.includes("app-market-secret"), false);
   assert.equal(resolved.apiKey, "app-market-secret");
+  assert.equal(resolved.skillKey, "market-research");
   assert.equal(metadata.hasKey, true);
   assert.equal(metadata.maskedKey, "app-••••••••••••••••••••••••••••••");
+  assert.equal(metadata.skillKey, "market-research");
   assert.equal(JSON.stringify(metadata).includes("app-market-secret"), false);
   assert.equal(metadata.appName, "外贸市场调研");
 });
@@ -84,7 +87,7 @@ test("uses existing Vercel environment keys as a compatibility fallback", async 
   assert.equal(customerResearch.apiKey, "app-customer-secret");
   assert.equal(ydArtifact.appType, APP_TYPES.CHATFLOW);
   assert.equal(ydArtifact.apiKey, "app-artifact-secret");
-  assert.equal(marketResearch.appType, APP_TYPES.DIALOGUE);
+  assert.equal(marketResearch.appType, APP_TYPES.CHATFLOW);
   assert.equal(marketResearch.apiKey, "app-market-secret");
 });
 

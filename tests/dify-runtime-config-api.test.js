@@ -58,6 +58,7 @@ test("runtime config endpoint returns a decrypted config only to the authorized 
             featureId,
             appType: "dialogue",
             apiKey: "app-runtime-secret",
+            skillKey: "market-research",
             appName: "市场调研",
             appMode: "chat",
             parameters: {}
@@ -79,5 +80,6 @@ test("runtime config endpoint returns a decrypted config only to the authorized 
   assert.deepEqual(reads, ["market-research"]);
   assert.equal(payload.apiKey, "app-runtime-secret");
   assert.equal(payload.appType, "dialogue");
+  assert.equal(payload.skillKey, "market-research");
   assert.equal(response.headers["cache-control"], "no-store");
 });

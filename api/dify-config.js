@@ -44,7 +44,11 @@ function createConfigHandler({ env = process.env, fetchImpl = global.fetch } = {
 
       const featureId = req.body?.feature_id;
       const appType = req.body?.app_type;
-      const apiKey = String(req.body?.api_key || "").trim();
+      const submittedApiKey = String(req.body?.api_key || "").trim();
+      // 已保存过 Key 时，管理员可以只修改 Skill ID，不需要再次粘贴密钥。
+      // 原始 Key 仍只在服务端读取和重新加密，不会返回浏览器。
+      const existingConfig = submittedApiKey ? null : await store.read(featureId);
+      const apiKey = submittedApiKey || existingConfig?.apiKey || "";
       const inspected = await inspectDifyApp({
         apiKey,
         selectedAppType: appType,
@@ -54,6 +58,7 @@ function createConfigHandler({ env = process.env, fetchImpl = global.fetch } = {
         featureId,
         appType,
         apiKey,
+        skillKey: req.body?.skill_key,
         appInfo: inspected.info,
         parameters: inspected.parameters
       });
@@ -62,6 +67,7 @@ function createConfigHandler({ env = process.env, fetchImpl = global.fetch } = {
         featureId: metadata.featureId,
         appType: metadata.appType,
         appMode: metadata.appMode,
+        hasSkillKey: Boolean(metadata.skillKey),
         source: metadata.source
       });
       sendJson(res, 200, metadata);

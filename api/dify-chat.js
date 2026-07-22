@@ -1,6 +1,6 @@
 const { sanitizeDifyError, streamDifyChat } = require("../lib/dify-api-client");
 const { createDifyConfigStore } = require("../lib/dify-config-store");
-const { normalizeFeatureId } = require("../lib/dify-core");
+const { buildConfiguredChatInputs, normalizeFeatureId } = require("../lib/dify-core");
 const { applyCors, getStatusForError, sendJson, sendSseEvent, startSse } = require("../lib/dify-http");
 
 /**
@@ -50,6 +50,7 @@ function createChatHandler({ env = process.env, fetchImpl = global.fetch } = {})
       console.info("[dify-chat] started", {
         featureId,
         appType: config.appType,
+        hasSkillKey: Boolean(config.skillKey),
         hasConversation: Boolean(req.body?.conversation_id)
       });
 
@@ -60,7 +61,7 @@ function createChatHandler({ env = process.env, fetchImpl = global.fetch } = {})
         query: req.body?.query,
         conversationId: req.body?.conversation_id,
         user: req.body?.user,
-        inputs: req.body?.inputs,
+        inputs: buildConfiguredChatInputs({ inputs: req.body?.inputs, skillKey: config.skillKey }),
         files: req.body?.files,
         fetchImpl,
         onEvent(event) {

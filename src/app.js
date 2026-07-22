@@ -42,7 +42,7 @@
  *   customerResearchLiveAnswer: string,
  *   customerResearchError: string,
  *   customerResearchMessages: Array<{ id: string, role: "user" | "assistant", content: string, status?: "loading" | "error" | "done", usage?: object | null, billingTrace?: object | null, workflowRunId?: string }>,
- *   difyFeatureConfigs: Record<string, { appType: "dialogue" | "chatflow", apiKeyDraft: string, hasKey: boolean, maskedKey: string, appName: string, appMode: string, loaded: boolean, loading: boolean, saving: boolean, error: string, storageReady: boolean }>,
+ *   difyFeatureConfigs: Record<string, { appType: "dialogue" | "chatflow", apiKeyDraft: string, skillKey: string, skillKeyDraft: string, hasKey: boolean, maskedKey: string, appName: string, appMode: string, loaded: boolean, loading: boolean, saving: boolean, error: string, storageReady: boolean }>,
  *   difyFeatureSessions: Record<string, { messages: Array<{ id: string, role: "user" | "assistant", content: string, status: "loading" | "error" | "done", processSteps?: object[], currentProcess?: object | null, processCollapsed?: boolean, processExpanded?: boolean, answerStarted?: boolean }>, conversationId: string, userId: string, error: string, isGenerating: boolean }>,
  *   inviteCodeDraft: string,
  *   inviteRedeemResult: string,
@@ -107,6 +107,30 @@ const DIFY_PROXY_ENDPOINTS = Object.freeze({
 });
 
 /**
+ * 聊天框允许用户实际选择的两个总控模型。
+ *
+ * label 是产品界面展示名；value 必须严格匹配两个 Dify Chatflow 的 model_key。
+ * DeepSeek 的当前路由值沿用已发布 Workflow 中的 `deepseek-v4-pro`，避免只改前端后调用落入错误分支。
+ *
+ * @type {ReadonlyArray<{ value: string, label: string, badge: string }>}
+ */
+const DIFY_CHAT_MODELS = Object.freeze([
+  Object.freeze({ value: "deepseek-v4-pro", label: "DeepSeek V4 Flash", badge: "DS" }),
+  Object.freeze({ value: "gemini-3.5-flash", label: "Gemini 3.5 Flash", badge: "G" })
+]);
+
+/**
+ * 根据 model_key 获取聊天框显示资料。
+ *
+ * @param {unknown} modelKey - 当前 state.selectedModel。
+ * @returns {{ value: string, label: string, badge: string }} 已匹配的模型；无效值回退到第一项。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getDifyChatModel(modelKey) {
+  return DIFY_CHAT_MODELS.find((model) => model.value === String(modelKey || "")) || DIFY_CHAT_MODELS[0];
+}
+
+/**
  * User Preview 报表需要横向冻结的字段。
  *
  * 为什么单独定义：
@@ -151,7 +175,7 @@ const state = {
   popup: null,
   historySearchOpen: false,
   historySearchQuery: "",
-  selectedModel: "A",
+  selectedModel: "deepseek-v4-pro",
   chatDraft: "",
   chatQuestion: "",
   isGenerating: false,
@@ -1018,6 +1042,8 @@ function applyDifyConfigMetadata(config, payload) {
     config.appType = payload?.appType === "chatflow" ? "chatflow" : "dialogue";
   }
   config.maskedKey = String(payload?.maskedKey || "");
+  config.skillKey = String(payload?.skillKey || "");
+  config.skillKeyDraft = config.skillKey;
   config.appName = String(payload?.appName || "");
   config.appMode = String(payload?.appMode || "");
   config.storageReady = Boolean(payload?.storageReady);
@@ -1079,8 +1105,9 @@ async function loadDifyFeatureConfig(featureId = state.activeMain) {
 async function saveDifyFeatureConfig(featureId = state.activeMain) {
   const config = getDifyFeatureConfig(featureId);
   const apiKey = normalizeDifyApiKey(config.apiKeyDraft);
+  const skillKey = String(config.skillKeyDraft || "").trim();
 
-  if (!apiKey) {
+  if (!apiKey && !config.hasKey) {
     config.error = "请填写 app- 开头的 Dify API Key。";
     renderApp();
     document.querySelector("[data-dify-api-key]")?.focus();
@@ -1098,7 +1125,8 @@ async function saveDifyFeatureConfig(featureId = state.activeMain) {
       body: JSON.stringify({
         feature_id: featureId,
         app_type: config.appType,
-        api_key: apiKey
+        api_key: apiKey,
+        skill_key: skillKey
       })
     });
     const payload = await response.json().catch(() => ({}));
@@ -1128,6 +1156,7 @@ async function saveDifyFeatureConfig(featureId = state.activeMain) {
  */
 function renderDifyConfigBar() {
   const config = getDifyFeatureConfig(state.activeMain);
+  const skillStatus = config.skillKey ? ` · Skill ${config.skillKey}` : " · 独立应用";
   const statusText = config.loading
     ? "正在读取配置…"
     : config.saving
@@ -1135,7 +1164,7 @@ function renderDifyConfigBar() {
       : config.error
         ? config.error
         : config.hasKey
-          ? `已配置 · ${config.appName || (config.appType === "chatflow" ? "Chatflow" : "对话型应用")}`
+          ? `已配置 · ${config.appName || (config.appType === "chatflow" ? "Chatflow" : "对话型应用")}${skillStatus}`
           : "尚未配置";
 
   return `
@@ -1145,7 +1174,8 @@ function renderDifyConfigBar() {
         <option value="chatflow" ${config.appType === "chatflow" ? "selected" : ""}>Chatflow</option>
       </select>
       <input type="password" value="${escapeHtml(config.apiKeyDraft)}" placeholder="${escapeHtml(config.hasKey ? config.maskedKey : "填写 app- 开头的 API Key")}" data-dify-api-key="true" autocomplete="off" aria-label="Dify API Key" ${config.saving ? "disabled" : ""} />
-      <button type="button" data-save-dify-config="true" ${config.saving || !config.apiKeyDraft.trim() ? "disabled" : ""}>
+      <input type="text" value="${escapeHtml(config.skillKeyDraft)}" placeholder="Skill ID（独立 App 可留空）" data-dify-skill-key="true" autocomplete="off" aria-label="业务 Skill ID" ${config.saving ? "disabled" : ""} />
+      <button type="button" data-save-dify-config="true" ${config.saving || (!config.apiKeyDraft.trim() && !config.hasKey) ? "disabled" : ""}>
         ${config.saving ? "保存中" : config.hasKey ? "覆盖更新" : "保存"}
       </button>
       <span class="dify-config-status" title="${escapeHtml(statusText)}">${escapeHtml(statusText)}</span>
@@ -4219,6 +4249,10 @@ function renderAdminCharacterDialog(title) {
       ${renderAdminInput("人设名称", "请输入人设名称", true, "0 / 50")}
       ${renderAdminSelect("选择知识库", ["请选择知识库（可选），最多选择8个", "询盘分析回复", "新客开发信", "场景谈判顾问"], false)}
       ${renderAdminInput("排序", "请输入排序", false)}
+      ${renderAdminSelect("角色模型", ["Dify"], true)}
+      <span aria-hidden="true"></span>
+      ${renderAdminPasswordInput("APP API Key", "请输入 app- 开头的 Dify App API Key", true)}
+      ${renderAdminInput("Skill ID", "总控 Chatflow 填写；独立 App 可留空", false)}
       ${renderAdminTextarea("人设描述", "请输入人设描述", false)}
       <label class="admin-form-field">
         <span>Logo</span>
@@ -4327,6 +4361,26 @@ function renderAdminInput(label, placeholder, required, counter) {
       <span>${required ? "<strong>*</strong> " : ""}${escapeHtml(label)}</span>
       <input type="text" placeholder="${escapeHtml(placeholder)}" />
       ${counter ? `<em>${escapeHtml(counter)}</em>` : ""}
+    </label>
+  `;
+}
+
+/**
+ * 渲染后台密钥输入框。
+ *
+ * 为什么单独封装：APP API Key 不能使用普通文本框明文展示；独立函数也方便开发同事替换成真实掩码回填。
+ *
+ * @param {string} label - 字段名。
+ * @param {string} placeholder - 占位提示。
+ * @param {boolean} required - 是否显示必填标记。
+ * @returns {string} 密码输入框 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminPasswordInput(label, placeholder, required) {
+  return `
+    <label class="admin-form-field">
+      <span>${required ? "<strong>*</strong> " : ""}${escapeHtml(label)}</span>
+      <input type="password" placeholder="${escapeHtml(placeholder)}" autocomplete="new-password" />
     </label>
   `;
 }
@@ -6894,6 +6948,7 @@ function renderChatView() {
   const session = getDifyFeatureSession();
   const hasConversation = session.messages.length > 0;
   const isGenerating = session.isGenerating;
+  const selectedModel = getDifyChatModel(state.selectedModel);
 
   if (hasConversation) {
     return renderChatConversationView(title, placeholder, hasDraft, needsScenePicker);
@@ -6914,7 +6969,7 @@ function renderChatView() {
               </svg>
             </button>
             <button class="model-pill ${state.popup === "model" ? "active" : ""}" type="button" data-popup="model">
-              <span class="model-pill-label">${escapeHtml(state.selectedModel)}</span>
+              <span class="model-pill-label">${escapeHtml(selectedModel.label)}</span>
               <span class="model-pill-caret" aria-hidden="true">⌄</span>
             </button>
             <span class="chat-tools-spacer"></span>
@@ -6961,6 +7016,7 @@ function renderChatView() {
 function renderChatConversationView(title, placeholder, hasDraft, needsScenePicker) {
   const session = getDifyFeatureSession();
   const isGenerating = session.isGenerating;
+  const selectedModel = getDifyChatModel(state.selectedModel);
 
   return `
     <section class="chat-conversation-view workbench-enter ${state.activeMain === "yd-artifact" ? "yd-artifact-conversation" : ""}" aria-label="${escapeHtml(title)}对话">
@@ -6975,7 +7031,7 @@ function renderChatConversationView(title, placeholder, hasDraft, needsScenePick
           </label>
           <div class="chat-compose-tools">
             <button class="model-pill compact ${state.popup === "model" ? "active" : ""}" type="button" data-popup="model">
-              <span class="model-pill-label">${escapeHtml(state.selectedModel)}</span>
+              <span class="model-pill-label">${escapeHtml(selectedModel.label)}</span>
               <span class="model-pill-caret" aria-hidden="true">⌄</span>
             </button>
             <button class="new-chat-btn" type="button" data-new-chat="true">
@@ -7766,10 +7822,13 @@ function renderAttachmentPopup() {
 function renderModelPopup() {
   return `
     <section class="floating-popover model-popover" data-popup-surface="true">
-      <button class="model-option active" type="button" data-model="A">
-        <span>1</span>
-        <strong>A</strong>
-      </button>
+      ${DIFY_CHAT_MODELS.map((model) => `
+        <button class="model-option ${state.selectedModel === model.value ? "active" : ""}" type="button" data-model="${escapeHtml(model.value)}">
+          <span class="model-option-badge">${escapeHtml(model.badge)}</span>
+          <strong>${escapeHtml(model.label)}</strong>
+          <small>${escapeHtml(model.value)}</small>
+        </button>
+      `).join("")}
     </section>
   `;
 }
@@ -8561,10 +8620,11 @@ function bindEvents() {
 
   document.querySelectorAll("[data-model]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.selectedModel = button.getAttribute("data-model") || "A";
+      const requestedModel = button.getAttribute("data-model") || DIFY_CHAT_MODELS[0].value;
+      state.selectedModel = getDifyChatModel(requestedModel).value;
       state.popup = null;
       renderApp();
-      showToast(`已选择模型 ${state.selectedModel}`);
+      showToast(`已选择 ${getDifyChatModel(state.selectedModel).label}`);
     });
   });
 
@@ -8597,6 +8657,14 @@ function bindEvents() {
       if (saveButton) {
         saveButton.disabled = !nextKey || config.saving;
       }
+    });
+  });
+
+  document.querySelectorAll("[data-dify-skill-key]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const config = getDifyFeatureConfig();
+      config.skillKeyDraft = input.value;
+      config.error = "";
     });
   });
 
@@ -9422,7 +9490,9 @@ async function sendDifyFeatureDraft(draft) {
         query: draft,
         conversation_id: session.conversationId,
         user: session.userId,
-        inputs: {},
+        // 只有配置了 Skill ID 的总控 App 才接收模型路由值；独立 App 保持自己的输入协议。
+        // skill_key 不从浏览器发送，而由代理按后台已保存配置注入，避免临时切换到其它 Skill。
+        inputs: config.skillKey ? { model_key: getDifyChatModel(state.selectedModel).value } : {},
         files: []
       })
     });

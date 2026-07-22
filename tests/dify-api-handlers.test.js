@@ -49,13 +49,15 @@ function parseProxyEvents(rawText) {
 /**
  * 创建同时模拟 Upstash 和 Dify 的 fetch。
  *
- * @returns {{ fetchImpl: Function, redis: Map<string, string> }} 测试网络层。
+ * @returns {{ fetchImpl: Function, redis: Map<string, string>, chatPayloads: object[] }} 测试网络层。
  */
 function createBackendFetch() {
   const redis = new Map();
+  const chatPayloads = [];
 
   return {
     redis,
+    chatPayloads,
     fetchImpl: async (url, options = {}) => {
       if (url === "https://redis.example.test") {
         const [command, key, value] = JSON.parse(options.body);
@@ -77,6 +79,7 @@ function createBackendFetch() {
       }
 
       if (url.endsWith("/chat-messages")) {
+        chatPayloads.push(JSON.parse(options.body));
         return new Response([
           'data: {"event":"message","answer":"真实市场调研结果","conversation_id":"conv-market"}',
           'data: {"event":"message_end","conversation_id":"conv-market","metadata":{"usage":{"total_tokens":12}}}'
@@ -107,7 +110,8 @@ test("config endpoint validates, saves, and returns only masked metadata", async
     body: {
       feature_id: "market-research",
       app_type: "dialogue",
-      api_key: "app-market-secret"
+      api_key: "app-market-secret",
+      skill_key: "market-research"
     }
   }, saveResponse);
 
@@ -115,6 +119,7 @@ test("config endpoint validates, saves, and returns only masked metadata", async
   assert.equal(saveResponse.statusCode, 200);
   assert.equal(saved.hasKey, true);
   assert.equal(saved.appName, "外贸市场调研");
+  assert.equal(saved.skillKey, "market-research");
   assert.equal(saveResponse.body.includes("app-market-secret"), false);
 
   const readResponse = createResponse();
@@ -140,7 +145,12 @@ test("chat endpoint loads the saved feature key and writes a real normalized SSE
   await configHandler({
     method: "POST",
     headers: {},
-    body: { feature_id: "market-research", app_type: "dialogue", api_key: "app-market-secret" }
+    body: {
+      feature_id: "market-research",
+      app_type: "dialogue",
+      api_key: "app-market-secret",
+      skill_key: "market-research"
+    }
   }, saveResponse);
 
   const chatHandler = createChatHandler({ env, fetchImpl: backend.fetchImpl });
@@ -152,7 +162,8 @@ test("chat endpoint loads the saved feature key and writes a real normalized SSE
       feature_id: "market-research",
       query: "分析墨西哥市场",
       conversation_id: "",
-      user: "yd-user-1"
+      user: "yd-user-1",
+      inputs: { skill_key: "tampered-skill", model_key: "gemini-3.5-flash" }
     }
   }, chatResponse);
 
@@ -167,6 +178,10 @@ test("chat endpoint loads the saved feature key and writes a real normalized SSE
   assert.equal(answerEvent.delta, "真实市场调研结果");
   assert.equal(doneEvent.result.conversation_id, "conv-market");
   assert.equal(doneEvent.result.app_type, "dialogue");
+  assert.deepEqual(backend.chatPayloads[0].inputs, {
+    skill_key: "market-research",
+    model_key: "gemini-3.5-flash"
+  });
 });
 
 test("chat endpoint returns a clear 409 when the current page has no saved key", async () => {

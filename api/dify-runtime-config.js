@@ -89,6 +89,7 @@ function createRuntimeConfigHandler({
         featureId,
         appType: config.appType,
         apiKey: config.apiKey,
+        skillKey: config.skillKey || "",
         appName: config.appName || "Dify 应用",
         appMode: config.appMode || "",
         parameters: config.parameters || {}

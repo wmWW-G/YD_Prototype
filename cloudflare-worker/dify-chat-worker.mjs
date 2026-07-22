@@ -1,8 +1,10 @@
 import configStorePackage from "../lib/dify-config-store.js";
 import difyApiClientPackage from "../lib/dify-api-client.js";
+import difyCorePackage from "../lib/dify-core.js";
 
 const { createDifyConfigStore } = configStorePackage;
 const { sanitizeDifyError, streamDifyChat } = difyApiClientPackage;
+const { buildConfiguredChatInputs } = difyCorePackage;
 
 const DEFAULT_ALLOWED_ORIGINS = Object.freeze([
   "https://wmww-g.github.io",
@@ -231,6 +233,7 @@ function createDifyChatWorker({
         logger.info("[cloudflare-dify-chat] started", {
           featureId: config.featureId || String(body?.feature_id || ""),
           appType: config.appType,
+          hasSkillKey: Boolean(config.skillKey),
           hasConversation: Boolean(body?.conversation_id)
         });
 
@@ -253,7 +256,7 @@ function createDifyChatWorker({
               query: body?.query,
               conversationId: body?.conversation_id,
               user: body?.user,
-              inputs: body?.inputs,
+              inputs: buildConfiguredChatInputs({ inputs: body?.inputs, skillKey: config.skillKey }),
               files: body?.files,
               fetchImpl,
               async onEvent(event) {

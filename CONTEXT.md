@@ -34,7 +34,7 @@
 - `后台管理 > 代理` 分组：经销代理总览，含拉新数、付费数、累计分成和状态。
 - `后台管理 > 邀请码管理`：生成邀请码表单、预览提示和邀请码列表，用于表达销售同事发放试用福利的原型流程。
 - `客户开发`：一级业务入口，用于通过 AI 获客目标生成候选客户名单，不归入 `技能Skill` 子菜单；当前原型链路为「输入开发目标/产品/国家/客户类型 → AI 找客户中 → 生成客户列表 → 点公司只看右侧公司信息 → 点获取联系人信息跳到联系人新界面 → 在联系人表里点某个人获取邮箱」。先保持轻量，不做客户分级、状态分栏和复杂推进流。
-- 所有通用 AI 对话功能页：顶部左侧固定显示 Dify 应用类型和 API Key 配置栏，支持选择「对话型应用」或「Chatflow」。每个功能页独立保存配置，重复保存会覆盖更新；前端只能读取掩码，原始 Key 由后端加密保存。发送后左侧按轮次保留问题，右侧通过真实 SSE 实时展示最新过程和 Markdown 答案，并按页面独立复用 `conversation_id`。过程区展示节点、工具名、显式搜索词，以及 Dify API 明确定义为公开步骤的 `agent_thought.thought`；新步骤覆盖当前可见步骤，正式答案开始后自动折叠，用户可展开历史。思考耗时从发送开始就每秒动态更新，正式答案、完成或失败事件到达后冻结；折叠标题继续显示“步骤数 · 思考了 X 分 X 秒”。计时只更新对应文字节点，不触发整页重绘。模型隐藏的 `<think>`、prompt、observation 和工具输出仍不会发给浏览器。流式期间只局部更新当前回答 DOM，不再重建整个 `#app`，避免每个字符到达时整屏闪烁。
+- 所有通用 AI 对话功能页：顶部左侧固定显示 Dify 应用类型、App API Key 和可选 Skill ID 配置栏，支持选择「对话型应用」或「Chatflow」。每个功能页独立保存配置，重复保存会覆盖更新；前端只能读取掩码，原始 Key 由后端加密保存。填写 Skill ID 时进入两个总控 Chatflow 的路由模式，后端从已保存配置注入 `inputs.skill_key`，浏览器不能临时改成其它 Skill；Skill ID 留空时保持独立 Dify App 模式。聊天框模型下拉只显示 `DeepSeek V4 Flash` 与 `Gemini 3.5 Flash`，总控模式分别传入 `deepseek-v4-pro` 与 `gemini-3.5-flash` 的 `inputs.model_key`。发送后左侧按轮次保留问题，右侧通过真实 SSE 实时展示最新过程和 Markdown 答案，并按页面独立复用 `conversation_id`。过程区展示节点、工具名、显式搜索词，以及 Dify API 明确定义为公开步骤的 `agent_thought.thought`；新步骤覆盖当前可见步骤，正式答案开始后自动折叠，用户可展开历史。思考耗时从发送开始就每秒动态更新，正式答案、完成或失败事件到达后冻结；折叠标题继续显示“步骤数 · 思考了 X 分 X 秒”。计时只更新对应文字节点，不触发整页重绘。模型隐藏的 `<think>`、prompt、observation 和工具输出仍不会发给浏览器。流式期间只局部更新当前回答 DOM，不再重建整个 `#app`，避免每个字符到达时整屏闪烁。
 - `成交顾问 > 客户背调顾问`：默认类型为 Chatflow，继续沿用现有背调 Dify 配置和成本追踪能力。
 - `技能Skill > YD Artifact`：默认类型为 Chatflow，沿用通用 Dify 对话、SSE 和多轮上下文；回答中的受控代码块会在正文原位置转换为流程图、时间线、数据图、指标卡或隔离预览。已适配 `mermaid`、`echarts`、`svg`、受控 `ui` JSON 和显式 `html-artifact`。`html-artifact` 可在 opaque-origin iframe 内运行本地 HTML/CSS/JavaScript，但只授予 `allow-scripts`，并通过 CSP、源码预检和宿主桥接阻断联网、外部资源、存储、表单提交、弹窗和越界导航；普通 `html` 代码块仍不会执行。
 - `技能Skill > 市场调研`：默认类型为对话型应用，已适配普通 Chatbot/Agent 的流式事件和多轮上下文。
@@ -219,7 +219,7 @@ reverse-yingdan/
 - `historySearchOpen` / `historySearchQuery`：侧边栏历史搜索状态。
 - `selectedModel`：当前模型选择。
 - `chatDraft` / `isGenerating` / `generatedResult`：聊天输入、模拟生成和结果状态。
-- `difyFeatureConfigs`：按功能页 ID 保存顶栏的应用类型、掩码、应用摘要、加载和保存状态；不保存原始 API Key。
+- `difyFeatureConfigs`：按功能页 ID 保存顶栏的应用类型、掩码、Skill ID、应用摘要、加载和保存状态；不保存原始 API Key。Skill ID 为空代表独立 App，非空代表总控路由模式。
 - `difyFeatureSessions`：按功能页 ID 保存 `messages`、`conversationId`、`userId`、错误和生成状态，避免不同 Dify App 串上下文。助手消息还保存 `processSteps`、`currentProcess`、`processCollapsed`、`processExpanded` 和 `answerStarted`，用于“最新过程覆盖显示、最终答案折叠、按需展开历史”。
 - `inviteCodeDraft` / `inviteRedeemResult`：账号弹层里的邀请码输入和模拟兑换结果。
 - `adminInvitePreview`：后台邀请码管理里点击生成后的预览文案。
@@ -443,6 +443,9 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - `成交顾问 > 客户背调顾问 > 客户背调DeepSeek`：目录为 `dify-chatflows/成交顾问-客户背调顾问-客户背调DeepSeek/`。2026-07-04 已完成 `POST /chat-messages` 连通性测试和 `GET /parameters` 参数快照测试，均返回 HTTP `200`。
 - `技能Skill > YD Artifact`：默认使用 Chatflow，通过页面顶栏绑定 Key。原发布版只约定 `mermaid`、`echarts`、`svg`；2026-07-20 已在 `dify-chatflows/技能Skill-YD-Artifact/prompt.md` 准备完整替换提示词，新增必须使用 `html-artifact` 的交互场景与自包含 HTML/CSS/原生 JavaScript 约束。该文件需要粘贴到 Dify LLM 节点并重新发布后才会影响线上回答。
 - `技能Skill > 市场调研`：使用对话型应用模式，通过页面顶栏绑定 Key；具体 Key 只保存在 Vercel 环境变量或加密后的 Upstash Redis 中，不进入资料库。
+- `Chatflow-图片与文档识别示例/workflow.yml`：演示图片与常见文档并行解析，再按前端模型选择路由 Gemini 或 DeepSeek。
+- `Chatflow-全技能总控示例/workflow.yml`：汇总当前 14 份需要共享知识库的业务 Skill 提示词；前端通过 `skill_key` 选择业务 Skill、通过 `model_key` 选择最终模型，共用一次知识库检索、文件解析与 Tavily 工具配置。客户背调和市场调研已移出此总控。
+- `Chatflow-不需要知识库的总库/workflow.yml`：只汇总客户背调与市场调研两个不需要共享知识库的 Skill；保留图片/文档解析、Tavily 和 Gemini/DeepSeek 路由，不包含检索问题节点、知识库节点、知识库连线或知识库 Prompt 注入。
 
 类型识别规则：Dify `/info` 的 `chat`、`agent-chat` 对应页面「对话型应用」，`advanced-chat` 对应「Chatflow」。两类都由 API Key 识别具体 App，并调用 `/chat-messages`；`workflow` 不属于当前对话页适配范围。
 

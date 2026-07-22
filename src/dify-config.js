@@ -34,12 +34,28 @@
   /**
    * 默认绑定 Chatflow 的功能页。
    *
-   * 客户背调和 YD Artifact 都依赖 Dify `advanced-chat` 的多轮流程能力；
-   * 其余通用页面仍默认选择普通对话型应用，用户也可以在顶部手动切换。
+   * 两个总控应用覆盖的成交顾问和技能页都默认使用 Dify `advanced-chat`；
+   * `问一下` 保持普通对话型应用默认值，所有页面仍允许管理员手动切换。
    *
    * @type {ReadonlySet<string>}
    */
-  const DEFAULT_CHATFLOW_FEATURE_IDS = new Set(["customer-research", "yd-artifact"]);
+  const DEFAULT_CHATFLOW_FEATURE_IDS = new Set([
+    "customer-research",
+    "negotiation-scene",
+    "inquiry-reply",
+    "yd-artifact",
+    "market-research",
+    "cold-email",
+    "complaint",
+    "reactivation",
+    "relationship",
+    "phone-sales",
+    "video-meeting",
+    "field-visit",
+    "visit-reception",
+    "title-combo",
+    "trade-show"
+  ]);
 
   /**
    * 判断某个路由是否属于可配置 Dify 的对话功能页。
@@ -56,13 +72,15 @@
    * 创建一个页面独立的配置状态。
    *
    * @param {unknown} featureId - 对话页面 ID。
-   * @returns {{ appType: "dialogue" | "chatflow", apiKeyDraft: string, hasKey: boolean, maskedKey: string, appName: string, appMode: string, loaded: boolean, loading: boolean, saving: boolean, error: string, storageReady: boolean }} 前端配置状态。
+   * @returns {{ appType: "dialogue" | "chatflow", apiKeyDraft: string, skillKey: string, skillKeyDraft: string, hasKey: boolean, maskedKey: string, appName: string, appMode: string, loaded: boolean, loading: boolean, saving: boolean, error: string, storageReady: boolean }} 前端配置状态。
    * @throws {Error} 本函数不主动抛异常。
    */
   function createFeatureConfigState(featureId) {
     return {
       appType: DEFAULT_CHATFLOW_FEATURE_IDS.has(String(featureId || "")) ? "chatflow" : "dialogue",
       apiKeyDraft: "",
+      skillKey: "",
+      skillKeyDraft: "",
       hasKey: false,
       maskedKey: "",
       appName: "",

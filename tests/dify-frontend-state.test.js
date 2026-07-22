@@ -28,10 +28,23 @@ test("marks only real conversation pages as Dify-configurable", () => {
   assert.equal(CHAT_FEATURE_IDS.includes("cold-email"), true);
 });
 
-test("defaults customer research and YD Artifact to Chatflow and other pages to dialogue apps", () => {
+test("defaults the total-controller skill pages to Chatflow while keeping Ask flexible", () => {
   assert.equal(createFeatureConfigState("customer-research").appType, "chatflow");
   assert.equal(createFeatureConfigState("yd-artifact").appType, "chatflow");
-  assert.equal(createFeatureConfigState("market-research").appType, "dialogue");
+  assert.equal(createFeatureConfigState("market-research").appType, "chatflow");
+  assert.equal(createFeatureConfigState("cold-email").appType, "chatflow");
+  assert.equal(createFeatureConfigState("ask").appType, "dialogue");
+  assert.equal(createFeatureConfigState("market-research").skillKey, "");
+  assert.equal(createFeatureConfigState("market-research").skillKeyDraft, "");
+});
+
+test("renders the two real model choices and sends the selected model_key only for routed skills", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+
+  assert.match(source, /DeepSeek V4 Flash/);
+  assert.match(source, /Gemini 3\.5 Flash/);
+  assert.match(source, /data-dify-skill-key/);
+  assert.match(source, /inputs: config\.skillKey \? \{ model_key:/);
 });
 
 test("creates independent message and conversation state for every page", () => {

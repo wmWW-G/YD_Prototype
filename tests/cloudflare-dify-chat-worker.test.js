@@ -26,12 +26,12 @@ test("Cloudflare Worker streams normalized Dify events with the existing Redis c
       return {
         async read(featureId) {
           calls.push({ type: "read", featureId });
-          return { featureId, appType: "dialogue", apiKey: "app-test-key" };
+          return { featureId, appType: "dialogue", apiKey: "app-test-key", skillKey: "market-research" };
         }
       };
     },
     async streamChat(options) {
-      calls.push({ type: "stream", query: options.query, user: options.user });
+      calls.push({ type: "stream", query: options.query, user: options.user, inputs: options.inputs });
       await options.onEvent({ type: "process", step: { id: "search-1", label: "正在搜索" } });
       await options.onEvent({ type: "answer_delta", delta: "市场" });
       await options.onEvent({ type: "done", result: { answer: "市场", conversation_id: "conversation-1" } });
@@ -49,7 +49,7 @@ test("Cloudflare Worker streams normalized Dify events with the existing Redis c
       query: "调研泰国储能市场",
       conversation_id: "",
       user: "yd-test-user",
-      inputs: {},
+      inputs: { skill_key: "tampered-skill", model_key: "deepseek-v4-pro" },
       files: []
     })
   });
@@ -64,7 +64,12 @@ test("Cloudflare Worker streams normalized Dify events with the existing Redis c
   assert.equal(response.headers.get("access-control-allow-origin"), "https://wmww-g.github.io");
   assert.deepEqual(calls, [
     { type: "read", featureId: "market-research" },
-    { type: "stream", query: "调研泰国储能市场", user: "yd-test-user" }
+    {
+      type: "stream",
+      query: "调研泰国储能市场",
+      user: "yd-test-user",
+      inputs: { skill_key: "market-research", model_key: "deepseek-v4-pro" }
+    }
   ]);
   assert.match(streamText, /"type":"process"/);
   assert.match(streamText, /"type":"answer_delta"/);
@@ -172,6 +177,10 @@ test("Cloudflare Worker reads runtime config from the private Vercel bridge", as
   const worker = createDifyChatWorker({
     async streamChat(options) {
       assert.equal(options.apiKey, "app-runtime-secret");
+      assert.deepEqual(options.inputs, {
+        skill_key: "market-research",
+        model_key: "gemini-3.5-flash"
+      });
       await options.onEvent({ type: "done", result: { answer: "桥接成功" } });
     },
     fetchImpl: async (url, options = {}) => {
@@ -183,7 +192,8 @@ test("Cloudflare Worker reads runtime config from the private Vercel bridge", as
       return new Response(JSON.stringify({
         featureId: "market-research",
         appType: "dialogue",
-        apiKey: "app-runtime-secret"
+        apiKey: "app-runtime-secret",
+        skillKey: "market-research"
       }), {
         status: 200,
         headers: { "Content-Type": "application/json" }
@@ -193,7 +203,12 @@ test("Cloudflare Worker reads runtime config from the private Vercel bridge", as
   const request = new Request("https://worker.example/api/dify-chat", {
     method: "POST",
     headers: { Origin: "https://wmww-g.github.io", "Content-Type": "application/json" },
-    body: JSON.stringify({ feature_id: "market-research", query: "测试桥接", user: "yd-test-user" })
+    body: JSON.stringify({
+      feature_id: "market-research",
+      query: "测试桥接",
+      user: "yd-test-user",
+      inputs: { model_key: "gemini-3.5-flash" }
+    })
   });
 
   const response = await worker.fetch(request, {

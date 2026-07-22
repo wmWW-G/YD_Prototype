@@ -5,10 +5,12 @@ const {
   APP_TYPES,
   assertModeMatchesAppType,
   buildChatPayload,
+  buildConfiguredChatInputs,
   decryptApiKey,
   encryptApiKey,
   getAppTypeForMode,
   getDefaultAppTypeForFeature,
+  normalizeDifySkillKey,
   normalizeFeatureId,
   parseDifyStream
 } = require("../lib/dify-core");
@@ -23,7 +25,9 @@ test("maps Dify app modes to the two selectable application types", () => {
 test("keeps Chatflow defaults aligned for dedicated workflow pages", () => {
   assert.equal(getDefaultAppTypeForFeature("customer-research"), APP_TYPES.CHATFLOW);
   assert.equal(getDefaultAppTypeForFeature("yd-artifact"), APP_TYPES.CHATFLOW);
-  assert.equal(getDefaultAppTypeForFeature("market-research"), APP_TYPES.DIALOGUE);
+  assert.equal(getDefaultAppTypeForFeature("market-research"), APP_TYPES.CHATFLOW);
+  assert.equal(getDefaultAppTypeForFeature("cold-email"), APP_TYPES.CHATFLOW);
+  assert.equal(getDefaultAppTypeForFeature("ask"), APP_TYPES.DIALOGUE);
 });
 
 test("rejects a saved application type that disagrees with Dify app info", () => {
@@ -39,6 +43,20 @@ test("normalizes only known-safe feature identifiers", () => {
   assert.equal(normalizeFeatureId(" market-research "), "market-research");
   assert.throws(() => normalizeFeatureId("../market-research"), /功能标识/);
   assert.throws(() => normalizeFeatureId(""), /功能标识/);
+});
+
+test("keeps the saved Skill ID authoritative when building total-controller inputs", () => {
+  assert.equal(normalizeDifySkillKey(" inquiry-reply "), "inquiry-reply");
+  assert.equal(normalizeDifySkillKey(""), "");
+  assert.throws(() => normalizeDifySkillKey("询盘 分析"), /Skill ID/);
+
+  assert.deepEqual(buildConfiguredChatInputs({
+    inputs: { skill_key: "tampered-skill", model_key: "gemini-3.5-flash" },
+    skillKey: "inquiry-reply"
+  }), {
+    skill_key: "inquiry-reply",
+    model_key: "gemini-3.5-flash"
+  });
 });
 
 test("builds the shared chat-messages payload with conversation continuity", () => {

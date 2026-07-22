@@ -1595,6 +1595,6 @@ window.ADMIN_MENU_ROWS = [
  * @type {Array<{ id: number, modelId: string, thinking: string }>}
  */
 window.ADMIN_MODEL_ROWS = [
-  { id: 1, modelId: "gemini-3.0-pro-preview", thinking: "高" },
-  { id: 2, modelId: "gemini-3.1-pro-preview", thinking: "高" }
+  { id: 1, modelId: "deepseek-v4-pro", thinking: "高" },
+  { id: 2, modelId: "gemini-3.5-flash", thinking: "低" }
 ];

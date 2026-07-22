@@ -40,6 +40,8 @@ dify-chatflows/客户Kass-客户档案-跟进建议/
 | `成交顾问 > 客户背调顾问` | `成交顾问-客户背调顾问-客户背调DeepSeek/` | `客户背调DeepSeek` | 已完成 2026-07-04 API 连通性测试，`POST /chat-messages` 和 `GET /parameters` 均返回 `200` |
 | `技能Skill > YD Artifact` | `技能Skill-YD-Artifact/` | `YD Artifact` | `prompt.md` 提供可直接替换的 LLM System Prompt，支持交互式 `html-artifact` 及现有 Mermaid、ECharts、SVG 输出 |
 | `技能Skill > 市场调研` | 由页面顶栏配置保存 | 对话型应用 | 使用普通对话应用模式；API Key 由 Vercel 后端读取或加密保存，不写入仓库 |
+| `总控 > 需要共享知识库` | `Chatflow-全技能总控示例/` | `赢单｜全技能总控 Chatflow` | 汇总 14 个需要共享知识库的业务 Skill |
+| `总控 > 不需要知识库` | `Chatflow-不需要知识库的总库/` | `赢单｜不需要知识库的总库` | 只包含客户背调和市场调研，不创建或注入知识库检索链路 |
 
 ## 每个应用目录应包含
 
