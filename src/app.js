@@ -4896,17 +4896,6 @@ function renderCustomerDevBriefPanel() {
           `).join("")}
         </div>
       </article>
-      <aside class="customer-dev-brief-preview">
-        <h3>AI 将按这个路径生成名单</h3>
-        ${[
-          ["01", "拆目标客户画像", "把国家、产品和客户角色转成可搜索条件"],
-          ["02", "搜索候选客户", "模拟从官网、LinkedIn、展会名录和推荐客户里找线索"],
-          ["03", "生成客户列表", "整理公司、国家、客户类型和来源"],
-          ["04", "查看联系人", "点进公司后再获取关键联系人方式"]
-        ].map(([index, title, desc]) => `
-          <p><b>${escapeHtml(index)}</b><strong>${escapeHtml(title)}</strong><span>${escapeHtml(desc)}</span></p>
-        `).join("")}
-      </aside>
     </section>
   `;
 }
