@@ -3938,14 +3938,12 @@ button:disabled {
 
 .customer-dev-brief-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 520px;
   align-items: stretch;
 }
 
 .customer-dev-brief-card,
-.customer-dev-brief-preview,
 .customer-dev-searching article,
 .customer-dev-brief-summary {
   border: 1px solid #eadfd8;
@@ -4047,50 +4045,6 @@ button:disabled {
   background: #fff8f3;
   color: #5a5048;
   font-weight: 800;
-}
-
-.customer-dev-brief-preview {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  padding: 22px;
-}
-
-.customer-dev-brief-preview h3 {
-  margin: 0 0 4px;
-  font-size: 18px;
-}
-
-.customer-dev-brief-preview p {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 4px 10px;
-  margin: 0;
-  padding: 12px;
-  border: 1px solid #f1e4db;
-  border-radius: 8px;
-  background: #fffdfa;
-}
-
-.customer-dev-brief-preview b {
-  display: grid;
-  grid-row: 1 / span 2;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #fff1e8;
-  color: var(--accent);
-  font-size: 12px;
-}
-
-.customer-dev-brief-preview strong {
-  color: #2f2924;
-}
-
-.customer-dev-brief-preview span {
-  color: var(--muted);
-  line-height: 1.5;
 }
 
 .customer-dev-searching {
