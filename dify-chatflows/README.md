@@ -42,6 +42,7 @@ dify-chatflows/客户Kass-客户档案-跟进建议/
 | `技能Skill > 市场调研` | 由页面顶栏配置保存 | 对话型应用 | 使用普通对话应用模式；API Key 由 Vercel 后端读取或加密保存，不写入仓库 |
 | `总控 > 需要共享知识库` | `Chatflow-全技能总控示例/` | `赢单｜全技能总控 Chatflow` | 汇总 14 个需要共享知识库的业务 Skill |
 | `总控 > 不需要知识库` | `Chatflow-不需要知识库的总库/` | `赢单｜不需要知识库的总库` | 只包含客户背调和市场调研，不创建或注入知识库检索链路 |
+| `客户Kass > 客户管理` | `客户Kass-客户管理-KASS-Agent/` | `赢单｜客户 KASS CRM Agent` | 本地 DSL 已生成；Agent 使用 `yingdan-kass` Tool Plugin 的 12 个非文件工具，导入前需先安装插件并配置 Provider 凭证 |
 
 ## 每个应用目录应包含
 

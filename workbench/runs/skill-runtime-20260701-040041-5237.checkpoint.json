@@ -1,0 +1,13 @@
+{
+  "createdAt": "2026-07-01T04:00:41.978Z",
+  "missing": [
+    "单价或报价区间"
+  ],
+  "originalText": "帮我做PI，太阳能路灯500套，sample fee USD 35，FOB上海",
+  "resume_from": "needs-input:quotation-sheet",
+  "runId": "skill-runtime-20260701-040041-5237",
+  "sessionId": "agent-session-20260701T040041-9ehpv8",
+  "skillId": "quotation-sheet",
+  "skillName": "报价单",
+  "status": "waiting"
+}

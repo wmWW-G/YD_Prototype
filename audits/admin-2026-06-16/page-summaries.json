@@ -1,0 +1,925 @@
+[
+  {
+    "routeName": "00-admin-root",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/00-admin-root.png",
+    "activeNav": "",
+    "breadcrumb": "",
+    "buttons": [
+      "▶ 教学视频",
+      "▤ 历史",
+      "A ⌄"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [],
+    "hash": "#/admin/",
+    "headings": [
+      "问一下"
+    ],
+    "mainTextExcerpt": "Vinco Order 外贸成交顾问 问一下 销售准备 成交顾问 + 客户背调顾问 场景谈判顾问 询盘分析回复 技能Skill › 市场调研 新客开发信 客诉处理 客户激活 关系维护 海外电销 视频会议 地推陌拜 来访接待 标题组合 展会成交 客户Kass ⚙ ◎ A ◎ B ⌃ 历史记录 ⌕ 输出html ✎ ⌫ 卡死了? ✎ ⌫ 付款条件,、 ✎ ⌫ 重中之重? ✎ ⌫ ? ✎ ⌫ Yellow Door Energy... ✎ ⌫ 在吗 ✎ ⌫ ? ✎ ⌫ ? ? ✎ ⌫ 在不 ✎ ⌫ 加载更多 ? Vinco Order 外贸成交顾问 180****9154 445 / 520 积分 · 已用 86% ⌃ ▶ 教学视频 ▤ 历史 问一下 请输入关于外贸相关的问题 A ⌄",
+    "statusTexts": [],
+    "tables": [],
+    "url": "http://localhost:8765/#/admin/"
+  },
+  {
+    "routeName": "01-home",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/01-home.png",
+    "activeNav": "▣ 首页",
+    "breadcrumb": "首页",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [],
+    "hash": "#/admin/home",
+    "headings": [
+      "敬请期待"
+    ],
+    "mainTextExcerpt": "☰ 首页 用户界面 ⛶ ◎ Admin 敬请期待",
+    "statusTexts": [],
+    "tables": [],
+    "url": "http://localhost:8765/#/admin/home"
+  },
+  {
+    "routeName": "02-business",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/02-business.png",
+    "activeNav": "◈ 经营分析",
+    "breadcrumb": "经营分析",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "管理员",
+      "运营",
+      "客服",
+      "刷新数据",
+      "今日",
+      "近 7 日",
+      "近 30 日",
+      "经营看板 趋势 · 漏斗 · 渠道",
+      "功能洞察 ROI · 留存 · 象限"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [],
+    "hash": "#/admin/business",
+    "headings": [
+      "经营分析"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / 经营分析 用户界面 ⛶ ◎ Admin 经营分析 以角色为中心的运营驾驶舱:今日大盘 + 功能 ROI。用户运营请去左侧\"用户\"分组。 当前视角 管理员 运营 客服 刷新数据 今日 近 7 日 近 30 日 当前口径:2026/05/15 - 2026/06/13 经营看板 趋势 · 漏斗 · 渠道 功能洞察 ROI · 留存 · 象限 今日新增 48 ▲ +12% vs 昨日 今日付费 9 ▲ +50% vs 昨日 今日成交金额 ¥8,920 ▲ +22% vs 昨日 今日活跃 326 付费会员总数 186 累计成交 ¥286,400 Token 总消耗 3.28M Token 成本 ¥412 30 日续费率 78% 近 30 日增长趋势 注册 / 付费 / 成交金额每日变化, 拐点直观可见。 注册数 48 ▼ 8% 付费数 9 ▲ 29% 成交金额 ¥8,920 ▲ 72% 新用户转化漏斗 注册 → 首用 → 回访 → 付费 → 续费, 哪一步最漏水。 注册 近 30 日累计 482 人 · 100% 首次使用 ↳ 上一步 80% 386 人 · 80% 7 天回访 ↳ 上一步 58% 224 人 · 46% 付费 ↳ 上一步 28% 62 人 · 13% 30 日续费 ↳ 上一步 77% 48 人 · 10% 渠道效率对比 看 LTV / CPA 比, 决定下一笔预算投哪。 渠道 注册数 激活率 付费率 CPA LTV 销售邀请 186 82% 21% ¥38 ¥420 展会二维码 92 76% 18% ¥52 ¥360 搜索投放 142 58% 9% ¥86 ¥280 自然注册 62 44% 6% ¥0 ¥180 销售业绩 TOP 3 邀请码带来的注册和付费贡献, 直接可截图发周报。 1 销售主管 邀请 24 · 付费 9 ¥4,491 2 销售B 邀请 18 · 付费 6 ¥2,594 3 销售A 邀请 16 · 付费 4 ¥1,996",
+    "statusTexts": [],
+    "tables": [
+      {
+        "bodyRows": 4,
+        "firstRow": "销售邀请 186 82% 21% ¥38 ¥420",
+        "headers": [
+          "渠道",
+          "注册数",
+          "激活率",
+          "付费率",
+          "CPA",
+          "LTV"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/business"
+  },
+  {
+    "routeName": "03-user-total",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/03-user-total.png",
+    "activeNav": "♟ 用户总表",
+    "breadcrumb": "用户总表",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "刷新数据",
+      "导出报表",
+      "今日",
+      "本周",
+      "本月",
+      "应用时间",
+      "默认字段",
+      "字段配置 16 个字段 点击展开",
+      "查看详情",
+      "查看详情",
+      "查看详情",
+      "查看详情",
+      "查看详情",
+      "查看详情",
+      "查看详情",
+      "查看详情"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [
+      "开始",
+      "结束"
+    ],
+    "hash": "#/admin/user",
+    "headings": [
+      "User Preview"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / 用户总表 用户界面 ⛶ ◎ Admin User Preview 用户增长、成交金额、活跃、付费和 Token 成本的运营看板。 刷新数据 导出报表 时间范围 2026/06/13 - 2026/06/13 今日 本周 本月 开始 结束 应用时间 累计用户总数 2,130 累计成交金额 ¥286,400 今日新增注册 48 今日活跃用户 326 今日付费用户 9 付费会员总数 186 今日成交金额 ¥8,920 今日 Token 总消耗 3,286,500 Token成本(估算) ¥412 功能调用总看板 大家都用什么功能，用于观察功能调用、使用人数、Token 消耗和成本分布。 排行 功能调用排行 调用总次数 使用人数 人均使用时长/次数 模型分配 功能价值判断 Token 总消耗 占总消耗比例 成本(估算) 1 问一下 1,268 342 4分12秒 3.7 次 标准 68% / Plus 32% 刚需 918K 28% ¥86 2 客户背调顾问 936 188 7分40秒 5.0 次 Plus 62% / 标准 38% 刚需 1,108K 34% ¥142 3 询盘分析回复 642 156 6分18秒 4.1 次 标准 72% / Plus 28% 刚需 672K 20% ¥61 4 市场调研 420 96 8分05秒 4.4 次 Flash 40% / 标准 60% 需优化 498K 15% ¥49 5 新客开发信 386 121 3分56秒 3.2 次 标准 81% / Plus 19% 刚需 286K 9% ¥24 6 场景谈判顾问 304 87 6分44秒 3.5 次 Plus 51% / 标准 49% 需优化 318K 10% ¥31 7 客户Kass 218 73 5分20秒 3.0 次 标准 64% / Plus 36% 观察 226K 7% ¥22 8 案例知识库搜索 186 64 2分48秒 2.9 次 标准 90% / Flash 10% 鸡肋 142K 4% ¥13 9 产品&市场 164 52 4分36秒 3.2 次 标准 70% / Plus 30% 观察 126K 4% ¥12 10 报价邮件 132 48 3分12秒 2.8 次 标准 86% / Plus 14% 需优化 96K 3% ¥9 用户字段报表 默认展示用户功能调用记录；需要改字段时打开字段配置。 默认字段 字段配置 16 个字段 点击展开 序号 使用时间 手机号 最后活跃时间 活跃天数 调用功能 调用模型 使用次数 输入消耗 Token 输出消耗 Token 消耗总计 剩余积分 成状态（成功/失败） 成本（估算） 操作日志 试用详情 1 2026/06/13 10:05 180****9154 2026/06/13 15:42 6 问一下 标准 200 200 500 700 9,480 成功 ¥0.01 查看所有记录 查看详情 2 2026/06/13 10:05 137****3499 2026/06/13 14:18 1 询盘分析回复 标准 1,500 1,500 2,000 3,500 0 成功 ¥0.07 查看所有记录 查看详情 3 2026/06/13 10:12 136****9392 2026/06/13 13:06 1 询盘分析回复 标准 2 2,400 3,400 5,800 300 成功 ¥0.11 查看所有记录 查看详情 4 2026/06/13 10:18 158****8358 2026/06/13 10:12 1 新客开发信 标准 1 520 680 1,200 520 成功 ¥0.02 查看所有记录 查看详情 5 2026/05/09 18:20 133****9094 2026/05/09 1",
+    "statusTexts": [],
+    "tables": [
+      {
+        "bodyRows": 10,
+        "firstRow": "1 问一下 1,268 342 4分12秒 3.7 次 标准 68% / Plus 32% 刚需 918K 28% ¥86",
+        "headers": [
+          "排行",
+          "功能调用排行",
+          "调用总次数",
+          "使用人数",
+          "人均使用时长/次数",
+          "模型分配",
+          "功能价值判断",
+          "Token 总消耗",
+          "占总消耗比例",
+          "成本(估算)"
+        ]
+      },
+      {
+        "bodyRows": 8,
+        "firstRow": "1 2026/06/13 10:05 180****9154 2026/06/13 15:42 6 问一下 标准 200 200 500 700 9,480 成功 ¥0.01 查看所有记录 查看详情",
+        "headers": [
+          "序号",
+          "使用时间",
+          "手机号",
+          "最后活跃时间",
+          "活跃天数",
+          "调用功能",
+          "调用模型",
+          "使用次数",
+          "输入消耗 Token",
+          "输出消耗 Token",
+          "消耗总计",
+          "剩余积分",
+          "成状态（成功/失败）",
+          "成本（估算）",
+          "操作日志",
+          "试用详情"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/user"
+  },
+  {
+    "routeName": "04-user-pool",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/04-user-pool.png",
+    "activeNav": "♟ 公海客户",
+    "breadcrumb": "公海客户",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "导出名单",
+      "批量分配销售",
+      "查 询",
+      "重 置",
+      "分配销售",
+      "标记",
+      "分配销售",
+      "标记",
+      "分配销售",
+      "标记",
+      "分配销售",
+      "标记",
+      "分配销售",
+      "标记",
+      "分配销售",
+      "标记",
+      "分配销售",
+      "标记",
+      "‹",
+      "1",
+      "›"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [
+      "注册时间:",
+      "注册时间:"
+    ],
+    "hash": "#/admin/user-pool",
+    "headings": [
+      "公海客户"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / 公海客户 用户界面 ⛶ ◎ Admin 公海客户 注册后尚未分配销售的免费用户,运营和销售可在此挑选跟进。 导出名单 批量分配销售 待分配用户 7 今日新增 12 沉默 7+ 天 3 失败异常 2 注册时间: 至 查 询 重 置 序号 用户 注册时间 注册来源 最近活跃 累计调用 状态 操作 1 137****3499 2026/06/13 09:53 自然注册 2026/06/13 14:18 13 待分配 分配销售 标记 2 133****9094 2026/06/13 09:48 自然注册 2026/05/09 18:20 1 沉默 分配销售 标记 3 189****4871 2026/06/13 09:49 搜索投放 2026/06/12 21:04 7 待分配 分配销售 标记 4 134****9547 2026/06/13 09:51 自然注册 2026/06/13 09:55 1 失败异常 分配销售 标记 5 188****1044 2026/06/13 09:53 自然注册 - 0 未激活 分配销售 标记 6 152****4480 2026/06/12 18:42 搜索投放 2026/06/13 14:12 7 失败异常 分配销售 标记 7 135****0024 2026/06/13 10:02 自然注册 - 0 未激活 分配销售 标记 共 7 条 ‹ 1 ›",
+    "statusTexts": [
+      "待分配",
+      "沉默",
+      "待分配",
+      "失败异常",
+      "未激活",
+      "失败异常",
+      "未激活"
+    ],
+    "tables": [
+      {
+        "bodyRows": 7,
+        "firstRow": "1 137****3499 2026/06/13 09:53 自然注册 2026/06/13 14:18 13 待分配 分配销售 标记",
+        "headers": [
+          "序号",
+          "用户",
+          "注册时间",
+          "注册来源",
+          "最近活跃",
+          "累计调用",
+          "状态",
+          "操作"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/user-pool"
+  },
+  {
+    "routeName": "05-paid-pool",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/05-paid-pool.png",
+    "activeNav": "♟ 付费公海",
+    "breadcrumb": "付费公海",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "导出名单",
+      "转交销售",
+      "查 询",
+      "重 置",
+      "转交销售",
+      "续费提醒",
+      "转交销售",
+      "续费提醒",
+      "转交销售",
+      "续费提醒",
+      "转交销售",
+      "续费提醒",
+      "转交销售",
+      "续费提醒",
+      "转交销售",
+      "续费提醒",
+      "‹",
+      "1",
+      "›"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [
+      "注册时间:",
+      "注册时间:",
+      "套餐:",
+      "套餐:"
+    ],
+    "hash": "#/admin/paid-pool",
+    "headings": [
+      "付费公海"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / 付费公海 用户界面 ⛶ ◎ Admin 付费公海 已付费但还没绑定销售的用户,续费临近时务必转交销售跟进。 导出名单 转交销售 付费公海 6 累计消费 ¥1,392 30 日内续费 2 团队版 2 注册时间: 至 套餐: 查 询 重 置 序号 用户 套餐 累计消费 最近活跃 续费倒计时 操作 1 180****9154 专业版 ¥99 2026/06/13 15:42 362 天 转交销售 续费提醒 2 139****2207 专业版 ¥99 2026/06/06 17:02 14 天 转交销售 续费提醒 3 176****3380 团队版 ¥499 2026/06/13 09:18 180 天 转交销售 续费提醒 4 186****8810 专业版 ¥99 2026/06/05 11:30 9 天 转交销售 续费提醒 5 162****1190 专业版 ¥198 2026/06/13 11:20 26 天 转交销售 续费提醒 6 159****8077 团队版 ¥499 2026/06/11 16:08 320 天 转交销售 续费提醒 共 6 条 ‹ 1 ›",
+    "statusTexts": [],
+    "tables": [
+      {
+        "bodyRows": 6,
+        "firstRow": "1 180****9154 专业版 ¥99 2026/06/13 15:42 362 天 转交销售 续费提醒",
+        "headers": [
+          "序号",
+          "用户",
+          "套餐",
+          "累计消费",
+          "最近活跃",
+          "续费倒计时",
+          "操作"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/paid-pool"
+  },
+  {
+    "routeName": "06-sales",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/06-sales.png",
+    "activeNav": "♟ 销售信息",
+    "breadcrumb": "销售信息",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "导出业绩表",
+      "下发激励",
+      "查看用户",
+      "查看用户",
+      "查看用户",
+      "查看用户",
+      "查看用户",
+      "查看用户",
+      "‹",
+      "1",
+      "›"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [],
+    "hash": "#/admin/sales",
+    "headings": [
+      "销售信息"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / 销售信息 用户界面 ⛶ ◎ Admin 销售信息 按销售维度统计业绩,直接拿来发周报或月度激励。 导出业绩表 下发激励 销售人数 6 名下用户 86 付费用户 22 累计成交 ¥9,378 排名 销售姓名 名下用户 付费用户 累计成交 平均 LTV 付费转化率 操作 1 销售主管 24 9 ¥4,491 ¥499 38% 查看用户 2 销售B 18 6 ¥2,594 ¥432 33% 查看用户 3 销售A 16 4 ¥1,996 ¥499 25% 查看用户 4 销售C 12 2 ¥198 ¥99 17% 查看用户 5 销售D 9 1 ¥99 ¥99 11% 查看用户 6 销售E 7 0 ¥0 ¥0 0% 查看用户 共 6 条 ‹ 1 ›",
+    "statusTexts": [],
+    "tables": [
+      {
+        "bodyRows": 6,
+        "firstRow": "1 销售主管 24 9 ¥4,491 ¥499 38% 查看用户",
+        "headers": [
+          "排名",
+          "销售姓名",
+          "名下用户",
+          "付费用户",
+          "累计成交",
+          "平均 LTV",
+          "付费转化率",
+          "操作"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/sales"
+  },
+  {
+    "routeName": "07-active-user",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/07-active-user.png",
+    "activeNav": "♟ 活跃用户",
+    "breadcrumb": "活跃用户",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "导出名单",
+      "发送问卷",
+      "查 询",
+      "重 置",
+      "详情",
+      "加积分",
+      "详情",
+      "加积分",
+      "详情",
+      "加积分",
+      "详情",
+      "加积分",
+      "详情",
+      "加积分",
+      "详情",
+      "加积分",
+      "详情",
+      "加积分",
+      "详情",
+      "加积分",
+      "‹",
+      "1",
+      "›"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [
+      "注册时间:",
+      "注册时间:",
+      "套餐:",
+      "套餐:"
+    ],
+    "hash": "#/admin/active-user",
+    "headings": [
+      "活跃用户"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / 活跃用户 用户界面 ⛶ ◎ Admin 活跃用户 近 7 日有调用的用户,客服优先维护这部分用户体验。 导出名单 发送问卷 近 7 日活跃 8 7 日总调用 209 付费占比 63% 高频用户 (>20 次) 4 注册时间: 至 套餐: 查 询 重 置 序号 用户 最近活跃 7 日调用 主要功能 当前套餐 操作 1 180****9154 2026/06/13 15:42 36 客户背调顾问 专业版 详情 加积分 2 178****7070 2026/06/13 12:58 22 场景谈判顾问 团队版 详情 加积分 3 176****3380 2026/06/13 09:18 84 询盘分析回复 团队版 详情 加积分 4 137****3499 2026/06/13 14:18 13 问一下 免费版 详情 加积分 5 189****4871 2026/06/12 21:04 7 市场调研 免费版 详情 加积分 6 162****1190 2026/06/13 11:20 28 新客开发信 专业版 详情 加积分 7 152****4480 2026/06/13 14:12 7 市场调研 免费版 详情 加积分 8 159****8077 2026/06/11 16:08 12 案例知识库搜索 团队版 详情 加积分 共 8 条 ‹ 1 ›",
+    "statusTexts": [
+      "专业版",
+      "团队版",
+      "团队版",
+      "免费版",
+      "免费版",
+      "专业版",
+      "免费版",
+      "团队版"
+    ],
+    "tables": [
+      {
+        "bodyRows": 8,
+        "firstRow": "1 180****9154 2026/06/13 15:42 36 客户背调顾问 专业版 详情 加积分",
+        "headers": [
+          "序号",
+          "用户",
+          "最近活跃",
+          "7 日调用",
+          "主要功能",
+          "当前套餐",
+          "操作"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/active-user"
+  },
+  {
+    "routeName": "08-paid-user",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/08-paid-user.png",
+    "activeNav": "♟ 付费用户",
+    "breadcrumb": "付费用户",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "导出名单",
+      "续费提醒模板",
+      "查 询",
+      "重 置",
+      "延期",
+      "退款",
+      "延期",
+      "退款",
+      "延期",
+      "退款",
+      "延期",
+      "退款",
+      "延期",
+      "退款",
+      "延期",
+      "退款",
+      "延期",
+      "退款",
+      "‹",
+      "1",
+      "›"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [
+      "注册时间:",
+      "注册时间:",
+      "套餐:",
+      "套餐:"
+    ],
+    "hash": "#/admin/paid-user",
+    "headings": [
+      "付费用户"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / 付费用户 用户界面 ⛶ ◎ Admin 付费用户 当前付费会员名单,续费临近的用户重点提醒。 导出名单 续费提醒模板 付费会员 7 团队版 3 30 日内到期 2 今日新增付费 9 注册时间: 至 套餐: 查 询 重 置 序号 用户 套餐 充值时间 到期日 续费倒计时 状态 操作 1 180****9154 专业版年付 2026/06/12 2027/06/12 362 天 正常 延期 退款 2 178****7070 团队版年付 2026/06/13 2027/06/13 363 天 正常 延期 退款 3 176****3380 团队版半年付 2026/06/01 2026/12/01 180 天 正常 延期 退款 4 139****2207 专业版月付 2026/06/06 2026/06/27 14 天 续费提醒 延期 退款 5 186****8810 专业版月付 2026/06/01 2026/06/22 9 天 续费提醒 延期 退款 6 162****1190 专业版月付 2026/05/21 2026/07/09 26 天 正常 延期 退款 7 159****8077 团队版年付 2026/05/01 2027/05/01 320 天 正常 延期 退款 共 7 条 ‹ 1 ›",
+    "statusTexts": [
+      "正常",
+      "正常",
+      "正常",
+      "续费提醒",
+      "续费提醒",
+      "正常",
+      "正常"
+    ],
+    "tables": [
+      {
+        "bodyRows": 7,
+        "firstRow": "1 180****9154 专业版年付 2026/06/12 2027/06/12 362 天 正常 延期 退款",
+        "headers": [
+          "序号",
+          "用户",
+          "套餐",
+          "充值时间",
+          "到期日",
+          "续费倒计时",
+          "状态",
+          "操作"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/paid-user"
+  },
+  {
+    "routeName": "09-invited-user",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/09-invited-user.png",
+    "activeNav": "♟ 受邀用户",
+    "breadcrumb": "受邀用户",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "查看邀请码批次",
+      "导出名单",
+      "查 询",
+      "重 置",
+      "‹",
+      "1",
+      "›"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [
+      "注册时间:",
+      "注册时间:"
+    ],
+    "hash": "#/admin/invited-user",
+    "headings": [
+      "受邀用户"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / 受邀用户 用户界面 ⛶ ◎ Admin 受邀用户 通过邀请码注册的用户,追踪每个邀请码的激活和付费表现。 查看邀请码批次 导出名单 受邀注册 6 激活率 83% 付费率 50% 未激活 1 注册时间: 至 查 询 重 置 序号 用户 邀请码 邀请人 注册时间 是否激活 是否付费 1 180****9154 YD-TRY-M4Q9 销售B 2026/06/08 01:27 是 是 2 136****9392 YD-TRY-8K2P 销售A 2026/06/13 09:51 是 否 3 178****7070 YD-TEAM-7N6C 销售主管 2026/06/13 09:49 是 是 4 158****8358 YD-EXPO-0613 销售A 2026/06/13 10:02 是 否 5 162****1190 YD-TRY-PRO5 销售B 2026/05/21 14:08 是 是 6 133****2204 YD-TRY-M4Q9 销售B 2026/06/10 08:55 否 否 共 6 条 ‹ 1 ›",
+    "statusTexts": [
+      "是",
+      "是",
+      "是",
+      "否",
+      "是",
+      "是",
+      "是",
+      "否",
+      "是",
+      "是",
+      "否",
+      "否"
+    ],
+    "tables": [
+      {
+        "bodyRows": 6,
+        "firstRow": "1 180****9154 YD-TRY-M4Q9 销售B 2026/06/08 01:27 是 是",
+        "headers": [
+          "序号",
+          "用户",
+          "邀请码",
+          "邀请人",
+          "注册时间",
+          "是否激活",
+          "是否付费"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/invited-user"
+  },
+  {
+    "routeName": "10-agent",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/10-agent.png",
+    "activeNav": "♟ 代理总览",
+    "breadcrumb": "代理总览",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "导出结算表",
+      "新增代理",
+      "明细",
+      "调整分成",
+      "明细",
+      "调整分成",
+      "明细",
+      "调整分成",
+      "明细",
+      "调整分成",
+      "明细",
+      "调整分成",
+      "‹",
+      "1",
+      "›"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [],
+    "hash": "#/admin/agent",
+    "headings": [
+      "代理总览"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / 代理总览 用户界面 ⛶ ◎ Admin 代理总览 渠道代理拉新、付费转化和分成结算的全量看板。 导出结算表 新增代理 代理总数 5 拉新累计 232 付费累计 49 累计分成 ¥14,440 序号 代理名 渠道码 拉新数 付费数 累计分成 状态 操作 1 广东外贸联盟 AGT-GD-001 86 21 ¥6,420 启用 明细 调整分成 2 义乌跨境联合社 AGT-YW-008 64 14 ¥4,180 启用 明细 调整分成 3 深圳出海会客厅 AGT-SZ-022 42 9 ¥2,640 启用 明细 调整分成 4 义务展会渠道 AGT-YW-EXP 28 4 ¥980 试运行 明细 调整分成 5 宁波港产联盟 AGT-NB-017 12 1 ¥220 停用 明细 调整分成 共 5 条 ‹ 1 ›",
+    "statusTexts": [
+      "启用",
+      "启用",
+      "启用",
+      "试运行",
+      "停用"
+    ],
+    "tables": [
+      {
+        "bodyRows": 5,
+        "firstRow": "1 广东外贸联盟 AGT-GD-001 86 21 ¥6,420 启用 明细 调整分成",
+        "headers": [
+          "序号",
+          "代理名",
+          "渠道码",
+          "拉新数",
+          "付费数",
+          "累计分成",
+          "状态",
+          "操作"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/agent"
+  },
+  {
+    "routeName": "11-knowledge-base",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/11-knowledge-base.png",
+    "activeNav": "☰ 知识库管理",
+    "breadcrumb": "知识库管理",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "＋ 新增",
+      "删除",
+      "删除",
+      "删除",
+      "删除",
+      "删除",
+      "删除",
+      "删除",
+      "删除",
+      "删除",
+      "删除",
+      "删除",
+      "删除",
+      "删除",
+      "‹",
+      "1",
+      "›"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [],
+    "hash": "#/admin/knowledge-base",
+    "headings": [
+      "知识库列表"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / 知识库管理 用户界面 ⛶ ◎ Admin 知识库列表 ＋ 新增 序号 知识库名称 文件URL MIME类型 操作 1 地推陌拜 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._field_visit.txt text/plain 删除 2 关系维护 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._relationship.txt text/plain 删除 3 海外电销 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._phone_sales.txt text/plain 删除 4 客户激活 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._reactivation.txt text/plain 删除 5 客诉处理 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._complaint.txt text/plain 删除 6 来访接待 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._visit_reception.txt text/plain 删除 7 视频会议 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._video_meeting.txt text/plain 删除 8 新客开发信 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._cold_email.txt text/plain 删除 9 展会成交_展后 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._expo_post.txt text/plain 删除 10 展会成交_展前 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._expo_pre.txt text/plain 删除 11 展会成交_展中 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._expo_during.txt text/plain 删除 12 场景谈判顾问 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._negotiation.txt text/plain 删除 13 询盘分析回复 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._inquiry_reply.txt text/plain 删除 共 13 条 ‹ 1 ›",
+    "statusTexts": [],
+    "tables": [
+      {
+        "bodyRows": 13,
+        "firstRow": "1 地推陌拜 https://ydan.oss-cn-shenzhen.aliyuncs.com/uploads/..._field_visit.txt text/plain 删除",
+        "headers": [
+          "序号",
+          "知识库名称",
+          "文件URL",
+          "MIME类型",
+          "操作"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/knowledge-base"
+  },
+  {
+    "routeName": "12-invite-code",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/12-invite-code.png",
+    "activeNav": "◇ 邀请码管理",
+    "breadcrumb": "邀请码管理",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "导出批次",
+      "生成邀请码",
+      "复制",
+      "作废",
+      "复制",
+      "作废",
+      "复制",
+      "作废",
+      "复制",
+      "作废",
+      "‹",
+      "1",
+      "›"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [
+      "批次名称",
+      "单码积分",
+      "生成数量",
+      "有效期",
+      "销售归属"
+    ],
+    "hash": "#/admin/invite-code",
+    "headings": [
+      "邀请码管理"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / 邀请码管理 用户界面 ⛶ ◎ Admin 邀请码管理 导出批次 生成试用福利码 给销售同事发放，用于用户侧兑换积分。 兑换 1 次后失效 批次名称 单码积分 200 积分 500 积分 1000 积分 生成数量 有效期 销售归属 销售A 销售B 销售主管 生成邀请码 序号 邀请码 积分 批次 销售归属 状态 兑换用户 兑换时间 有效期 创建时间 操作 1 YD-TRY-8K2P 500 6月展会试用 销售A 未兑换 - - 2026/07/31 2026/06/13 10:32:18 复制 作废 2 YD-TRY-M4Q9 300 老客户激活 销售B 已兑换 180****9154 2026/06/13 11:08:42 2026/07/15 2026/06/12 18:05:21 复制 作废 3 YD-TEAM-7N6C 1000 团队试用 销售主管 未兑换 - - 2026/08/01 2026/06/11 15:44:09 复制 作废 4 YD-TRY-X2V5 200 新用户首访 销售A 已过期 - - 2026/06/01 2026/05/20 09:16:34 复制 作废 共 4 条 ‹ 1 ›",
+    "statusTexts": [],
+    "tables": [
+      {
+        "bodyRows": 4,
+        "firstRow": "1 YD-TRY-8K2P 500 6月展会试用 销售A 未兑换 - - 2026/07/31 2026/06/13 10:32:18 复制 作废",
+        "headers": [
+          "序号",
+          "邀请码",
+          "积分",
+          "批次",
+          "销售归属",
+          "状态",
+          "兑换用户",
+          "兑换时间",
+          "有效期",
+          "创建时间",
+          "操作"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/invite-code"
+  },
+  {
+    "routeName": "13-ai-character",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/13-ai-character.png",
+    "activeNav": "♣ AI人设管理",
+    "breadcrumb": "AI人设管理",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "☰ 菜单管理",
+      "＋ 新增",
+      "编辑",
+      "拓展",
+      "启用",
+      "删除",
+      "编辑",
+      "拓展",
+      "禁用",
+      "删除",
+      "编辑",
+      "拓展",
+      "启用",
+      "删除",
+      "编辑",
+      "拓展",
+      "启用",
+      "删除",
+      "编辑",
+      "拓展",
+      "启用",
+      "删除",
+      "编辑",
+      "拓展",
+      "启用",
+      "删除",
+      "编辑",
+      "拓展"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [],
+    "hash": "#/admin/ai-character",
+    "headings": [
+      "人设列表"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / AI人设管理 用户界面 ⛶ ◎ Admin 人设列表 ☰ 菜单管理 ＋ 新增 序号 人设名称 人设等级 人设描述 输入提示词 人设提问说明 状态 排序 操作 1 B2B销售准备 一级人设 - 请输入查询内容[例如：3月新贸节老板 运营 业务要做什么工作？/ 新手外贸要准备什么] 请输入关于外贸相关的问题 禁用 1 编辑 拓展 启用 删除 30 问一下 一级人设 - 请输入查询内容[例如：3月新贸节老板 运营 业务要做什么工作？/ 新手外贸要准备什么] 请输入关于外贸相关的问题 启用 1 编辑 拓展 禁用 删除 2 外贸市场调研 一级人设 - 市场调研：墨西哥·建筑材料行业·PVC地板·目标客户是工程采购商和批发商 输入「核心产品」为主，可选加上「目标国家/地区」和「目标客户类型」，用于整体市场调研与选品推荐。 禁用 2 编辑 拓展 启用 删除 3 客户背调助手 一级人设 - 背调：中东·新能源行业·Yellow Door Energy 输入客户所在国家/地区 + 行业/标签 + 公司名称，用于做客户背景调研。 禁用 3 编辑 拓展 启用 删除 4 写开发信技巧 一级人设 - 写开发信：美国·美容仪器·目标客户是品牌商·英文·首次开发 输入目标国家/地区、行业/产品、客户类型、语言和开发目的。 禁用 4 编辑 拓展 启用 删除 5 询盘分析回复 一级人设 - 询盘分析：这是客户的英文询盘内容…… 帮我判断客户诚意并给一封回复建议 直接粘贴客户询盘/聊天记录全文，可补充产品、价格和底线。 禁用 5 编辑 拓展 启用 删除 10 客户激活顾问 二级人设 - 激活客户：美国户外用品品牌商，2年没下单，帮我写一封唤醒邮件 输入客户国家/地区、行业、沉默时长、历史合作和新卖点。 禁用 9 编辑 拓展 启用 删除 110 市场调研 二级人设 - 市场调研：墨西哥·建筑材料行业·PVC地板·目标客户是工程采购商和批发商 输入核心产品、目标国家/地区和目标客户类型。 启用 11 编辑 拓展 禁用 删除 17 电话跟进技巧 二级人设 - 美国 + EST + 催回复报价 + Price is too high / Let me think about it 根据客户关系和沟通目标，生成完整外贸电话脚本。 禁用 17 编辑 拓展 启用 删除 18 视频会议主持专家 二级人设 # 角色 你是一名B2B视频会议主持助手 - - 禁用 18 编辑 拓展 启用 删除 19 出货提醒顾问 二级人设 外贸B2B出货前确认与提醒文案顾问 - - 禁用 19 编辑 拓展 启用 删除 32 客户背调顾问 二级人设 - 背调：中东·新能源行业·Yellow Door Energy 输入客户信息，用于做客户背景调研。 启用 28 编辑 拓展 禁用 删除 37 新客开发信 二级人设 - 写开发信：美国·美容仪器·目标客户是品牌商·英文·首次开发 输入目标国家、行业、客户类型、语言和开发目的。 启用 33 编辑 拓展 禁用 删除 419 销售准备 一级人设 销售准备的功能入口。 - - 启用 35 编辑 拓展 禁用 删除",
+    "statusTexts": [
+      "一级人设",
+      "禁用",
+      "一级人设",
+      "启用",
+      "一级人设",
+      "禁用",
+      "一级人设",
+      "禁用",
+      "一级人设",
+      "禁用",
+      "一级人设",
+      "禁用",
+      "二级人设",
+      "禁用",
+      "二级人设",
+      "启用",
+      "二级人设",
+      "禁用",
+      "二级人设",
+      "禁用",
+      "二级人设",
+      "禁用",
+      "二级人设",
+      "启用",
+      "二级人设",
+      "启用",
+      "一级人设",
+      "启用"
+    ],
+    "tables": [
+      {
+        "bodyRows": 14,
+        "firstRow": "1 B2B销售准备 一级人设 - 请输入查询内容[例如：3月新贸节老板 运营 业务要做什么工作？/ 新手外贸要准备什么] 请输入关于外贸相关的问题 禁用 1 编辑 拓展 启用 删除",
+        "headers": [
+          "序号",
+          "人设名称",
+          "人设等级",
+          "人设描述",
+          "输入提示词",
+          "人设提问说明",
+          "状态",
+          "排序",
+          "操作"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/ai-character"
+  },
+  {
+    "routeName": "14-ai-model",
+    "screenshot": "/Users/garden/YD/Prototype/audits/admin-2026-06-16/14-ai-model.png",
+    "activeNav": "♟ AI模型管理",
+    "breadcrumb": "AI模型管理",
+    "buttons": [
+      "☰",
+      "用户界面",
+      "⛶",
+      "◎ Admin",
+      "编辑",
+      "编辑"
+    ],
+    "dimensions": {
+      "clientHeight": 871,
+      "horizontalOverflow": false,
+      "scrollHeight": 871,
+      "viewport": "963x871"
+    },
+    "formLabels": [],
+    "hash": "#/admin/ai-model",
+    "headings": [
+      "AI模型列表"
+    ],
+    "mainTextExcerpt": "☰ 系统管理 / AI模型管理 用户界面 ⛶ ◎ Admin AI模型列表 序号 模型ID 思考层级 操作 1 gemini-3.0-pro-preview 高 编辑 2 gemini-3.1-pro-preview 高 编辑",
+    "statusTexts": [
+      "高",
+      "高"
+    ],
+    "tables": [
+      {
+        "bodyRows": 2,
+        "firstRow": "1 gemini-3.0-pro-preview 高 编辑",
+        "headers": [
+          "序号",
+          "模型ID",
+          "思考层级",
+          "操作"
+        ]
+      }
+    ],
+    "url": "http://localhost:8765/#/admin/ai-model"
+  }
+]

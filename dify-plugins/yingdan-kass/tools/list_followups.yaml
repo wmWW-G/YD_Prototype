@@ -1,0 +1,46 @@
+identity:
+  name: list_followups
+  author: garden
+  label: {en_US: List Follow-up Records, zh_Hans: 查询跟进记录}
+description:
+  human:
+    en_US: Read paginated follow-up records for one customer.
+    zh_Hans: 分页读取一个客户的跟进记录。
+  llm: Read-only. Use a verified customer ID. Omit record_date unless the user asks for a specific date.
+parameters:
+  - name: customer_id
+    type: number
+    required: true
+    label: {en_US: Customer ID, zh_Hans: 客户 ID}
+    human_description: {en_US: Numeric Yingdan customer ID., zh_Hans: 赢单客户的数字 ID。}
+    llm_description: Positive customer ID returned by list_customers.
+    form: llm
+  - name: page_num
+    type: number
+    required: false
+    default: 1
+    min: 1
+    label: {en_US: Page Number, zh_Hans: 页码}
+    human_description: {en_US: Page number starting at 1., zh_Hans: 从 1 开始的页码。}
+    llm_description: Page number starting at 1. Default 1.
+    form: llm
+  - name: page_size
+    type: number
+    required: false
+    default: 20
+    min: 1
+    max: 100
+    label: {en_US: Page Size, zh_Hans: 每页条数}
+    human_description: {en_US: Number of records from 1 to 100., zh_Hans: 每页 1 到 100 条记录。}
+    llm_description: Number of records to return, from 1 to 100. Default 20.
+    form: llm
+  - name: record_date
+    type: string
+    required: false
+    label: {en_US: Record Date, zh_Hans: 跟进日期}
+    human_description: {en_US: Optional date filter in YYYY-MM-DD format., zh_Hans: 可选的 YYYY-MM-DD 日期筛选。}
+    llm_description: Optional exact date in YYYY-MM-DD format.
+    form: llm
+extra:
+  python:
+    source: tools/list_followups.py

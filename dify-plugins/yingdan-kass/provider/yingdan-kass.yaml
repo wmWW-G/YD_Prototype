@@ -1,0 +1,69 @@
+identity:
+  author: "garden"
+  name: "yingdan-kass"
+  label:
+    en_US: "Yingdan Customer KASS"
+    zh_Hans: "赢单客户 KASS"
+    pt_BR: "Yingdan Customer KASS"
+    ja_JP: "Yingdan Customer KASS"
+  description:
+    en_US: "Read and manage Yingdan customer categories, profiles, follow-up records, and files."
+    zh_Hans: "查询和管理赢单客户分层、客户档案、跟进记录与文件。"
+    pt_BR: "Read and manage Yingdan customer categories, profiles, follow-up records, and files."
+    ja_JP: "Read and manage Yingdan customer categories, profiles, follow-up records, and files."
+  icon: "logo.png"
+credentials_for_provider:
+  api_base_url:
+    type: text-input
+    required: true
+    default: "https://api.top-yd.com"
+    label:
+      en_US: Yingdan API Base URL
+      zh_Hans: 赢单 API 地址
+    placeholder:
+      en_US: https://api.top-yd.com
+      zh_Hans: https://api.top-yd.com
+    help:
+      en_US: Keep the production URL unless you are testing an authorized Yingdan environment.
+      zh_Hans: 除非测试已授权的赢单环境，否则请保留正式地址。
+  user_id:
+    type: text-input
+    required: true
+    label:
+      en_US: Yingdan User ID
+      zh_Hans: 赢单用户 ID
+    placeholder:
+      en_US: Numeric user ID returned after Yingdan login
+      zh_Hans: 赢单登录后返回的数字用户 ID
+    help:
+      en_US: This fixed-account MVP binds every tool call to one Yingdan user.
+      zh_Hans: 第一版为固定账号，所有 Tool 都绑定到这个赢单用户。
+  access_token:
+    type: secret-input
+    required: true
+    label:
+      en_US: Yingdan Access Token
+      zh_Hans: 赢单 Access Token
+    placeholder:
+      en_US: Paste data.accessToken from an authorized Yingdan login
+      zh_Hans: 填写赢单登录响应中的 data.accessToken
+    help:
+      en_US: Stored by Dify and sent only as a Bearer token to the configured Yingdan API.
+      zh_Hans: 由 Dify 加密保存，仅作为 Bearer Token 发送到配置的赢单 API。
+tools:
+  - tools/list_categories.yaml
+  - tools/create_category.yaml
+  - tools/update_category.yaml
+  - tools/list_customers.yaml
+  - tools/get_customer.yaml
+  - tools/create_customer.yaml
+  - tools/update_customer.yaml
+  - tools/list_followups.yaml
+  - tools/create_followup.yaml
+  - tools/update_followup.yaml
+  - tools/upload_file.yaml
+  - tools/prepare_delete.yaml
+  - tools/execute_delete.yaml
+extra:
+  python:
+    source: provider/yingdan-kass.py

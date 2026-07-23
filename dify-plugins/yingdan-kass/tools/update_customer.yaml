@@ -1,0 +1,63 @@
+identity:
+  name: update_customer
+  author: garden
+  label: {en_US: Update Customer Profile, zh_Hans: 修改客户档案}
+description:
+  human:
+    en_US: Safely merge selected fields into an existing customer profile.
+    zh_Hans: 把指定字段安全合并到已有客户档案中。
+  llm: Update only fields explicitly requested by the user. Never send guessed values. The plugin reads and merges the current profile before saving. Moving a customer to another category is not supported by the current production edit endpoint.
+parameters:
+  - name: customer_id
+    type: number
+    required: true
+    label: {en_US: Customer ID, zh_Hans: 客户 ID}
+    human_description: {en_US: Numeric Yingdan customer ID., zh_Hans: 赢单客户的数字 ID。}
+    llm_description: Positive customer ID returned by list_customers.
+    form: llm
+  - name: changes
+    type: object
+    required: true
+    label: {en_US: Changed Fields, zh_Hans: 要修改的字段}
+    human_description: {en_US: Only the profile fields that should change., zh_Hans: 仅填写需要修改的客户档案字段。}
+    llm_description: Object containing only explicitly requested field changes. Do not repeat unchanged values.
+    form: llm
+    input_schema:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        customer_source: {type: string, description: "Customer acquisition source."}
+        company_name: {type: string, description: "Exact company name."}
+        website: {type: string, description: "Company website URL."}
+        establishment_year: {type: string, description: "Company establishment year."}
+        industry_ranking: {type: string, description: "Industry ranking or position."}
+        org_structure: {type: string, description: "Organization or decision structure."}
+        key_person: {type: string, description: "Key person or decision maker."}
+        social_media: {type: string, description: "Company or contact social media."}
+        company_size: {type: string, description: "Company size."}
+        company_type: {type: string, description: "Company or business type."}
+        country_region: {type: string, description: "Country or region."}
+        sales_channel: {type: string, description: "Sales or distribution channel."}
+        entry_date: {type: string, description: "Entry date, preferably YYYY-MM-DD."}
+        logo_url: {type: string, description: "Uploaded logo URL."}
+        first_cooperation: {type: string, description: "Whether this is the first cooperation."}
+        transaction_amount: {type: string, description: "Transaction amount text."}
+        product_preference: {type: string, description: "Product interests or preferences."}
+        procurement_preference: {type: string, description: "Procurement preferences."}
+        expandable_products: {type: string, description: "Potential cross-sell products."}
+        cooperation_times: {type: number, minimum: 0, description: "Non-negative integer count of past cooperations."}
+        annual_revenue: {type: string, description: "Annual revenue text."}
+        procurement_cycle: {type: string, description: "Procurement cycle."}
+        procurement_potential: {type: string, description: "Valid procurement potential or grade used by Yingdan, such as A级. Keep the current value when uncertain."}
+        contact_name: {type: string, description: "Primary contact name."}
+        position: {type: string, description: "Primary contact position."}
+        email: {type: string, description: "Primary contact email."}
+        whatsapp: {type: string, description: "Primary contact WhatsApp."}
+        hobbies: {type: string, description: "Contact interests or preferences."}
+        competitor_name: {type: string, description: "Competitor name."}
+        competitive_advantage: {type: string, description: "Competitive advantage notes."}
+        cooperative_suppliers: {type: string, description: "Known existing suppliers."}
+extra:
+  python:
+    source: tools/update_customer.py

@@ -1,0 +1,3 @@
+{"at":"2026-07-01T04:03:04.650Z","runId":"skill-runtime-20260701-040304-u7zk","status":"complete","text":"保存到客户档案","type":"goal.received"}
+{"at":"2026-07-01T04:03:04.650Z","checkpoint":"runs/skill-runtime-20260701-040304-u7zk.checkpoint.json","resume_from":"needs-input:unmatched","runId":"skill-runtime-20260701-040304-u7zk","status":"waiting","type":"run.checkpointed"}
+{"at":"2026-07-01T04:03:04.650Z","missing":["还没有可保存到客户档案的业务产物","请先生成客户分析、跟进计划或邮件草稿"],"reason":"关键业务资料不足,暂停等待用户补充。","resume_from":"needs-input:unmatched","runId":"skill-runtime-20260701-040304-u7zk","status":"waiting","type":"run.needs_input"}

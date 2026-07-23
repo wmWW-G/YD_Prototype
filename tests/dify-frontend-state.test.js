@@ -21,6 +21,8 @@ test("marks only real conversation pages as Dify-configurable", () => {
   assert.equal(isDifyChatFeature("yd-artifact"), true);
   assert.equal(isDifyChatFeature("market-research"), true);
   assert.equal(isDifyChatFeature("trade-show"), true);
+  assert.equal(isDifyChatFeature("admin-cost-kb"), true);
+  assert.equal(isDifyChatFeature("admin-cost-no-kb"), true);
   assert.equal(isDifyChatFeature("sales-prep"), false);
   assert.equal(isDifyChatFeature("customer-development"), false);
   assert.equal(isDifyChatFeature("customer-kass-a"), false);
@@ -33,6 +35,8 @@ test("defaults the total-controller skill pages to Chatflow while keeping Ask fl
   assert.equal(createFeatureConfigState("yd-artifact").appType, "chatflow");
   assert.equal(createFeatureConfigState("market-research").appType, "chatflow");
   assert.equal(createFeatureConfigState("cold-email").appType, "chatflow");
+  assert.equal(createFeatureConfigState("admin-cost-kb").appType, "chatflow");
+  assert.equal(createFeatureConfigState("admin-cost-no-kb").appType, "chatflow");
   assert.equal(createFeatureConfigState("ask").appType, "dialogue");
   assert.equal(createFeatureConfigState("market-research").skillKey, "");
   assert.equal(createFeatureConfigState("market-research").skillKeyDraft, "");

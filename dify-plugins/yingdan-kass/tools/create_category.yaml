@@ -1,0 +1,27 @@
+identity:
+  name: create_category
+  author: garden
+  label: {en_US: Create Customer Category, zh_Hans: 新建客户分层}
+description:
+  human:
+    en_US: Create a customer category under the fixed Yingdan account.
+    zh_Hans: 在当前固定赢单账号下新建客户分层。
+  llm: Create a customer category only when the user clearly asks to add one. Do not infer a new category from ordinary discussion.
+parameters:
+  - name: category_name
+    type: string
+    required: true
+    label: {en_US: Category Name, zh_Hans: 分层名称}
+    human_description: {en_US: The new category name., zh_Hans: 要创建的客户分层名称。}
+    llm_description: Exact customer category name requested by the user.
+    form: llm
+  - name: remark
+    type: string
+    required: false
+    label: {en_US: Remark, zh_Hans: 备注}
+    human_description: {en_US: Optional category remark., zh_Hans: 可选的客户分层备注。}
+    llm_description: Optional remark. Use an empty string if the user gave no remark.
+    form: llm
+extra:
+  python:
+    source: tools/create_category.py

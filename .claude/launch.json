@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "autoPort": true,
+  "configurations": [
+    {
+      "name": "prototype",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "python3 -m http.server ${PORT:-8766}"],
+      "autoPort": true,
+      "port": 8766
+    }
+  ]
+}

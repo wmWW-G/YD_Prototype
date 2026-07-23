@@ -1,0 +1,13 @@
+identity:
+  name: list_categories
+  author: garden
+  label: {en_US: List Customer Categories, zh_Hans: 查询客户分层}
+description:
+  human:
+    en_US: List all customer categories for the fixed Yingdan account.
+    zh_Hans: 查询当前固定赢单账号的全部客户分层。
+  llm: Use this read-only tool before listing customers or choosing a customer category. It needs no arguments.
+parameters: []
+extra:
+  python:
+    source: tools/list_categories.py

@@ -1,0 +1,14 @@
+{
+  "createdAt": "2026-07-01T04:03:04.634Z",
+  "missing": [
+    "客户名称或客户类型",
+    "询盘、聊天记录或当前卡点"
+  ],
+  "originalText": "重新开始，帮我分析客户怎么推进",
+  "resume_from": "needs-input:customer-followup-plan",
+  "runId": "skill-runtime-20260701-040304-a8hd",
+  "sessionId": "agent-session-20260701T040304-1y76bu",
+  "skillId": "customer-followup-plan",
+  "skillName": "客户推进分析",
+  "status": "waiting"
+}

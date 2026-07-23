@@ -1,0 +1,13 @@
+{
+  "createdAt": "2026-07-01T04:03:04.614Z",
+  "missing": [
+    "询盘、聊天记录或当前卡点"
+  ],
+  "originalText": "客户是德国采购商，之后再说，帮我判断客户优先级",
+  "resume_from": "needs-input:customer-followup-plan",
+  "runId": "skill-runtime-20260701-040304-ots7",
+  "sessionId": "agent-session-20260701T040304-m9ic0g",
+  "skillId": "customer-followup-plan",
+  "skillName": "客户推进分析",
+  "status": "waiting"
+}

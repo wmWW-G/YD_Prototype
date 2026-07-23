@@ -1,0 +1,20 @@
+identity:
+  name: list_customers
+  author: garden
+  label: {en_US: List Customers by Category, zh_Hans: 按分层查询客户}
+description:
+  human:
+    en_US: List customers in one Yingdan customer category.
+    zh_Hans: 查询某个赢单客户分层下的客户列表。
+  llm: Read-only. Use the exact category name, such as A, B, or C. Call list_categories first when uncertain.
+parameters:
+  - name: category
+    type: string
+    required: true
+    label: {en_US: Category, zh_Hans: 客户分层}
+    human_description: {en_US: Exact Yingdan category name., zh_Hans: 赢单中的准确客户分层名称。}
+    llm_description: Exact category name returned by list_categories.
+    form: llm
+extra:
+  python:
+    source: tools/list_customers.py

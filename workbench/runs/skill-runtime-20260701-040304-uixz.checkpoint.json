@@ -1,0 +1,13 @@
+{
+  "createdAt": "2026-07-01T04:03:04.618Z",
+  "missing": [
+    "产品或核心卖点"
+  ],
+  "originalText": "客户已读不回，帮我做一个7天跟进计划",
+  "resume_from": "needs-input:customer-followup-plan",
+  "runId": "skill-runtime-20260701-040304-uixz",
+  "sessionId": "agent-session-20260701T040304-y2rki4",
+  "skillId": "customer-followup-plan",
+  "skillName": "客户推进分析",
+  "status": "waiting"
+}

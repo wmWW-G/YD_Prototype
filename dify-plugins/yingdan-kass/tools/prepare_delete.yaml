@@ -1,0 +1,34 @@
+identity:
+  name: prepare_delete
+  author: garden
+  label: {en_US: Prepare Safe Delete, zh_Hans: 准备安全删除}
+description:
+  human:
+    en_US: Read the target and create a five-minute, one-time delete confirmation token.
+    zh_Hans: 读取待删除对象并生成五分钟有效的一次性删除确认令牌。
+  llm: This tool never deletes data. Call it only after the user explicitly asks to delete a customer, category, or follow-up. Show the returned target and warning, then ask the user to confirm before execute_delete.
+parameters:
+  - name: resource_type
+    type: select
+    required: true
+    label: {en_US: Resource Type, zh_Hans: 资源类型}
+    human_description: {en_US: Type of Yingdan object to delete., zh_Hans: 要删除的赢单对象类型。}
+    llm_description: Choose the exact type of object requested by the user.
+    options:
+      - label: {en_US: Customer, zh_Hans: 客户档案}
+        value: customer
+      - label: {en_US: Customer Category, zh_Hans: 客户分层}
+        value: category
+      - label: {en_US: Follow-up Record, zh_Hans: 跟进记录}
+        value: followup
+    form: llm
+  - name: resource_id
+    type: number
+    required: true
+    label: {en_US: Resource ID, zh_Hans: 资源 ID}
+    human_description: {en_US: Numeric ID of the exact object., zh_Hans: 待删除对象的准确数字 ID。}
+    llm_description: Positive numeric ID obtained from a previous read tool.
+    form: llm
+extra:
+  python:
+    source: tools/prepare_delete.py

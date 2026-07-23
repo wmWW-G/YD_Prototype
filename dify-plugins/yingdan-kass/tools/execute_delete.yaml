@@ -1,0 +1,20 @@
+identity:
+  name: execute_delete
+  author: garden
+  label: {en_US: Execute Confirmed Delete, zh_Hans: 执行已确认删除}
+description:
+  human:
+    en_US: Permanently delete the object bound to a valid one-time confirmation token.
+    zh_Hans: 使用有效的一次性确认令牌永久删除其绑定对象。
+  llm: Destructive and irreversible. Call only after prepare_delete and only when the user explicitly confirms the exact target. Never invent or reuse a token.
+parameters:
+  - name: confirmation_token
+    type: string
+    required: true
+    label: {en_US: Confirmation Token, zh_Hans: 删除确认令牌}
+    human_description: {en_US: One-time token returned by prepare_delete., zh_Hans: prepare_delete 返回的一次性令牌。}
+    llm_description: Exact unexpired confirmation_token returned by prepare_delete after the user confirms deletion.
+    form: llm
+extra:
+  python:
+    source: tools/execute_delete.py

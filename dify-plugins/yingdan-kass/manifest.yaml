@@ -1,0 +1,38 @@
+version: 0.1.2
+type: plugin
+author: garden
+name: yingdan-kass
+label:
+  en_US: Yingdan Customer KASS
+  ja_JP: Yingdan Customer KASS
+  zh_Hans: 赢单客户 KASS
+  pt_BR: Yingdan Customer KASS
+description:
+  en_US: Read and manage Yingdan customer categories, profiles, follow-up records, and files.
+  ja_JP: Read and manage Yingdan customer categories, profiles, follow-up records, and files.
+  zh_Hans: 在 Dify Agent 中查询和管理赢单客户分层、客户档案、跟进记录与文件。
+  pt_BR: Read and manage Yingdan customer categories, profiles, follow-up records, and files.
+icon: logo.png
+icon_dark: logo.png
+resource:
+  memory: 268435456
+  permission:
+    storage:
+      enabled: true
+      size: 1048576
+plugins:
+  tools:
+    - provider/yingdan-kass.yaml
+meta:
+  version: 0.1.0
+  arch:
+    - amd64
+    - arm64
+  runner:
+    language: python
+    version: "3.12"
+    entrypoint: main
+  minimum_dify_version: 1.0.0
+created_at: 2026-07-22T14:48:13.272212+08:00
+privacy: PRIVACY.md
+verified: false

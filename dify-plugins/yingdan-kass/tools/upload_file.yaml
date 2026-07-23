@@ -1,0 +1,20 @@
+identity:
+  name: upload_file
+  author: garden
+  label: {en_US: Upload Yingdan File, zh_Hans: 上传赢单文件}
+description:
+  human:
+    en_US: Upload one file up to 5 MB to Yingdan and return its file information.
+    zh_Hans: 向赢单上传一个不超过 5 MB 的文件并返回文件信息。
+  llm: Upload only when the user explicitly asks and provides a file. This tool does not automatically attach the uploaded file to a customer profile.
+parameters:
+  - name: file
+    type: file
+    required: true
+    label: {en_US: File, zh_Hans: 文件}
+    human_description: {en_US: One Dify file up to 5 MB., zh_Hans: 一个不超过 5 MB 的 Dify 文件。}
+    llm_description: The exact file supplied by the user or an upstream node.
+    form: llm
+extra:
+  python:
+    source: tools/upload_file.py

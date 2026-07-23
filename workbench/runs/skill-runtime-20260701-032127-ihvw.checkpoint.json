@@ -1,0 +1,13 @@
+{
+  "createdAt": "2026-07-01T03:21:27.286Z",
+  "missing": [
+    "单价或报价区间"
+  ],
+  "originalText": "帮我做报价单\n\n引用资料：\n\n【报价信息.csv】\n产品,太阳能路灯\n数量,500套\n样品费,35 USD\n贸易条款,FOB Shanghai",
+  "resume_from": "needs-input:quotation-sheet",
+  "runId": "skill-runtime-20260701-032127-ihvw",
+  "sessionId": "agent-session-20260701T032127-0zcya9",
+  "skillId": "quotation-sheet",
+  "skillName": "报价单",
+  "status": "waiting"
+}

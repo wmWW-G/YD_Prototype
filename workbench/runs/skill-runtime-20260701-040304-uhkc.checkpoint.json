@@ -1,0 +1,18 @@
+{
+  "createdAt": "2026-07-01T04:03:04.639Z",
+  "missing": [
+    "客户名称",
+    "询盘原文",
+    "产品资料",
+    "目标市场",
+    "价格底线",
+    "希望产出的材料类型"
+  ],
+  "originalText": "帮我处理一下",
+  "resume_from": "needs-input:unmatched",
+  "runId": "skill-runtime-20260701-040304-uhkc",
+  "sessionId": "agent-session-20260701T040304-9vachl",
+  "skillId": "",
+  "skillName": "",
+  "status": "waiting"
+}

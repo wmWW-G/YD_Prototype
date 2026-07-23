@@ -1,0 +1,13 @@
+{
+  "createdAt": "2026-07-01T04:03:04.627Z",
+  "missing": [
+    "产品资料或报价边界"
+  ],
+  "originalText": "客户问MOQ和交期，帮我回一下",
+  "resume_from": "needs-input:inquiry-reply-draft",
+  "runId": "skill-runtime-20260701-040304-yzp4",
+  "sessionId": "agent-session-20260701T040304-7dk3vc",
+  "skillId": "inquiry-reply-draft",
+  "skillName": "询盘回复草稿",
+  "status": "waiting"
+}

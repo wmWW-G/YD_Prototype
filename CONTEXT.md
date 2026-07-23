@@ -8,6 +8,8 @@
 
 当前目录还新增了 `dify-chatflows/`，用于记录用户在 Dify 创建、并准备应用于赢单业务的对话型应用和 Chatflow。它和 `coze-workflows/` 一样属于工作流资料库，不是主静态原型代码。
 
+当前目录还包含 `dify-plugins/yingdan-kass/`：这是使用 Dify Plugin CLI 和 Python 3.12 开发的固定账号 Tool Plugin MVP。它把赢单客户 KASS 的客户分层、客户档案、跟进记录、文件上传和带二次确认的删除能力提供给 Chatflow Agent 节点，不属于主静态原型代码。
+
 当前版本重点复刻销售准备和客户Kass两块核心工作台，包括：
 
 - 左侧固定导航。
@@ -19,7 +21,7 @@
 - `销售准备 > 了解公司`：公司资料维护、左侧资料模块、右侧编辑器、AI 提炼结果、上传文档反馈。
 - `销售准备 > 产品&市场`：产品与市场全景表、分类筛选、产品表格、选中行、产品侧边摘要、上传/导出反馈。
 - `销售准备 > 案例知识库`：资料分类、快捷筛选、搜索框、案例卡片和空态。
-- `客户Kass`：复刻 `/customer-kass/A` 这种分组页结构，包括 A/B 分组、分组顶部「今日该推进」提醒、客户列表、客户档案、跟进流程图、客户跟进记录、右下角 Kass AI 助手按钮和展开浮窗。
+- `客户Kass`：`/customer-kass/A` 与 `/customer-kass/B` 只代表两套可直接对照的信息架构，客户等级 A/B/C/D 是方案内部的独立状态，切换等级不会改变方案 URL 或布局。A 版保留工作区内独立滚动的「重点推进」客户栏，以及「AI 助理 / 客户信息」页签；B 版把 A/B/C/D 等级与高频客户直接挂在全局侧栏，点击「查看全部」打开对应等级的可搜索客户浮层，主区固定为 CRM Agent 对话，右侧直接常驻客户信息。A、B 两版的 Agent 对话共用“用户消息靠右、CRM Agent 消息靠左”的消息方向，动态追加消息保持一致。B 版桌面两栏按 Agent 36% / 客户信息 64% 分配，让承载档案、速览、跟进与待办的右栏明显成为视觉重心，较窄视口自动改为上下堆叠。两版复用同一张连续客户工作纸：上方左侧是可点击的资料状态卡，只展示来源数量、来源明细与待完善数量；右侧展示四条稳定背景事实，避免重复当前跟进。下方跟进记录占整行，并把待办直接嵌入产生它的记录；同时共用宽幅「客户详细档案」抽屉，按基础信息、主要联系人、采购 / 市场汇总、资信与合作判断、竞对信息五组表格式展开。旧 `/customer-kass/C`、`/customer-kass/D` 深链会分别以 C/D 等级进入方案 A；`/customer-kass/A/online`、`/customer-kass/B/online` 继续作为线上版本的并行复刻页。
 - 抽屉、toast、菜单展开和阶段切换动效。
 - 本地 SVG 导航图标，来源为 `/Users/garden/Desktop/1/vinco-icons`，已复制到 `assets/icons/`。
 - 侧边栏历史搜索、历史项编辑/删除图标、顶部历史下拉。
@@ -28,12 +30,13 @@
 - 账号弹层里的邀请码兑换积分、团队/企业空间切换飞出层、用量明细跳转和升级入口。
 - 透明后台入口：`#/ask` 顶部右侧有一个 hover 才轻微显色的圆形按钮，点击进入后台管理。
 - 后台管理壳：左侧后台菜单、顶部面包屑、用户界面返回按钮、首页、知识库管理、用户总表（即原 User Preview 看板）、邀请码管理、AI 人设管理、AI 模型管理。
+- `后台管理 > AI成本监控`：独立三栏界面，按“本句话 / Chatflow 事件带 / 成本实时入账”展示一次调用。默认可回放四组已核对的真实测试记录；切到真实调用后，分别读取“全技能总控（含知识库）”和“无知识库总控”的安全配置并消费真实 SSE。管理员可填写模型输入/输出、Embedding、Tavily、文档解析、知识库与平台摊销单价，以及汇率、目标毛利率和 V豆换算。未知模型、缺失用量或未填单价必须暂停销售价与扣费，不能按 0 元放行。
 - `后台管理 > User Preview`：时间范围筛选、数据概览 KPI、功能调用总看板、可折叠字段配置、用户字段流水账报表和子账号管理；子账号管理只保留手机号、积分、启停和调积分口径，不设计角色权限。
 - `后台管理 > 经营分析`：角色化运营驾驶舱（管理员/运营/客服三种视角），含经营看板、功能洞察两个 Tab。User Preview 仍保留作为字段流水自由报表，不被替代。
 - `后台管理 > 用户` 分组：参考同事截图重构出的用户分类菜单，含经营分析、用户总表（沿用旧 `/admin/user`）、公海客户、付费公海、销售信息、活跃用户、付费用户和邀请码管理；受邀来源信息统一进入用户总表的使用详情。
 - `后台管理 > 代理` 分组：经销代理总览，含拉新数、付费数、累计分成和状态。
 - `后台管理 > 邀请码管理`：生成邀请码表单、预览提示和邀请码列表，用于表达销售同事发放试用福利的原型流程。
-- `客户开发`：一级业务入口，用于通过 AI 获客目标生成候选客户名单，不归入 `技能Skill` 子菜单；当前原型链路为「输入开发目标/产品/国家/客户类型 → AI 找客户中 → 生成客户列表 → 点公司只看右侧公司信息 → 点获取联系人信息跳到联系人新界面 → 在联系人表里点某个人获取邮箱」。先保持轻量，不做客户分级、状态分栏和复杂推进流。
+- `客户开发`：一级业务入口，用于通过 AI 获客目标生成候选客户名单，不归入 `技能Skill` 子菜单；首页以 `Lead Enrichment / 客户情报补全` 为核心定位。目标国家/地区通过「七大洲 → 国家/地区」弹窗从 249 项中单选，行业产品通过「36 个行业大类 → 432 个具体产品」弹窗单选；切换大洲或行业大类只更新弹窗内部选项，不重新渲染页面和弹窗动画。客户类型使用跨行业通用 B2B 类型，开发目标只填写客户数量；启动按钮进入即时搜索反馈后生成名单。当前原型链路为「选择国家/产品/客户类型/数量 → AI 找客户中 → 生成客户列表 → 点公司只看右侧公司信息 → 点获取联系人信息跳到联系人新界面 → 在联系人表里点某个人获取邮箱」。先保持轻量，不做客户分级、状态分栏和复杂推进流。
 - 所有通用 AI 对话功能页：顶部左侧固定显示 Dify 应用类型、App API Key 和可选 Skill ID 配置栏，支持选择「对话型应用」或「Chatflow」。每个功能页独立保存配置，重复保存会覆盖更新；前端只能读取掩码，原始 Key 由后端加密保存。填写 Skill ID 时进入两个总控 Chatflow 的路由模式，后端从已保存配置注入 `inputs.skill_key`，浏览器不能临时改成其它 Skill；Skill ID 留空时保持独立 Dify App 模式。聊天框模型下拉只显示 `DeepSeek V4 Flash` 与 `Gemini 3.5 Flash`，总控模式分别传入 `deepseek-v4-pro` 与 `gemini-3.5-flash` 的 `inputs.model_key`。发送后左侧按轮次保留问题，右侧通过真实 SSE 实时展示最新过程和 Markdown 答案，并按页面独立复用 `conversation_id`。过程区展示节点、工具名、显式搜索词，以及 Dify API 明确定义为公开步骤的 `agent_thought.thought`；新步骤覆盖当前可见步骤，正式答案开始后自动折叠，用户可展开历史。思考耗时从发送开始就每秒动态更新，正式答案、完成或失败事件到达后冻结；折叠标题继续显示“步骤数 · 思考了 X 分 X 秒”。计时只更新对应文字节点，不触发整页重绘。模型隐藏的 `<think>`、prompt、observation 和工具输出仍不会发给浏览器。流式期间只局部更新当前回答 DOM，不再重建整个 `#app`，避免每个字符到达时整屏闪烁。
 - `成交顾问 > 客户背调顾问`：默认类型为 Chatflow，继续沿用现有背调 Dify 配置和成本追踪能力。
 - `技能Skill > YD Artifact`：默认类型为 Chatflow，沿用通用 Dify 对话、SSE 和多轮上下文；回答中的受控代码块会在正文原位置转换为流程图、时间线、数据图、指标卡或隔离预览。已适配 `mermaid`、`echarts`、`svg`、受控 `ui` JSON 和显式 `html-artifact`。`html-artifact` 可在 opaque-origin iframe 内运行本地 HTML/CSS/JavaScript，但只授予 `allow-scripts`，并通过 CSP、源码预检和宿主桥接阻断联网、外部资源、存储、表单提交、弹窗和越界导航；普通 `html` 代码块仍不会执行。
@@ -124,8 +127,11 @@ reverse-yingdan/
     icons/
   coze-workflows/
   dify-chatflows/
+  dify-plugins/
+    yingdan-kass/
   src/
     app.js
+    cost-monitor.js
     data.js
     dify-artifact.js
     dify-config.js
@@ -148,6 +154,7 @@ reverse-yingdan/
 - `src/styles.css`：全部视觉样式、响应式规则和动效。
 - `src/data.js`：用户侧导航、销售准备标签、成交阶段、后台菜单、User Preview 报表、邀请码、AI 人设和模型等静态数据。
 - `src/app.js`：渲染函数、hash 路由、事件绑定、抽屉、toast、弹层、账号弹层、后台管理和状态切换。
+- `src/cost-monitor.js`：AI 成本监控的纯数据与计算层；维护可编辑单价、实际模型精确映射、事件去重、重试保留、逐行换汇、利润/V豆公式和四组实测回放。真实调用与回放共用同一套计算函数。
 - `src/dify-artifact.js`：YD Artifact 的前端富内容适配层；识别特殊 fenced code block，生成安全的本地 SVG/结构化卡片，或把静态 SVG、显式交互式 HTML Artifact 放入受 CSP 和 `sandbox` 约束的 iframe。交互式 iframe 通过受校验的 `postMessage` 只向宿主回报内容高度，不获得宿主数据或 API。
 - `src/dify-config.js`：Dify 对话页白名单、每页独立配置状态和会话状态、浏览器 SSE 增量解析器，以及过程覆盖/历史/折叠状态归并函数。
 - `assets/icons/`：本地 SVG 图标。后续新增图标时优先复制进这里，再在 `src/data.js` 引用相对路径。
@@ -163,7 +170,8 @@ reverse-yingdan/
 - `AI板块统计.md`：统计客户Kass、销售准备等区域的 AI 能力现状和后续整理建议。
 - `赢单api.md`：赢单后端接口文档快照，用于查阅 auth、账号、邀请码、计费、积分等接口路径、请求参数和字段口径。它是接口参考资料，不是主静态原型代码；涉及线上真实行为、安全暴露或返回字段时，必须重新做 live 验证，不能只按文档下结论。
 - `coze-workflows/`：扣子工作流资料库，记录工作流用途、schema、调用函数、字段映射和验证状态。
-- `dify-chatflows/`：Dify 对话应用与 Chatflow 资料库，记录应用类型、入口、参数快照、调用函数、API 测试记录和赢单字段映射。
+- `dify-chatflows/`：Dify 对话应用与 Chatflow 资料库，记录应用类型、入口、参数快照、调用函数、API 测试记录和赢单字段映射。`客户Kass-客户管理-KASS-Agent/workflow.yml` 是可导入的 KASS CRM Chatflow DSL，通过单个 Agent 节点调用 `yingdan-kass` 插件的 12 个非文件 Tool，并启用会话记忆与删除二次确认规则；`upload_file` 不挂入 Agent 节点，避免 Dify Agent 对 `file` 参数报错。
+- `dify-plugins/yingdan-kass/`：赢单客户 KASS 固定账号 Dify Tool Plugin。Provider 保存 `api_base_url`、`user_id` 和 `access_token`；`lib/client.py` 负责 Bearer 鉴权、字段白名单、账号归属校验和 HTTP 错误归一化；`tools/` 暴露 13 个 Agent Tool；删除必须先 `prepare_delete` 再用五分钟一次性令牌调用 `execute_delete`。2026-07-22 已用临时分层、客户和跟进记录完成线上 CRUD 与最终清理实测，确认分层更新使用 `PUT`、客户更新不发送 `customerCategory` 且合作次数使用非负整数。本地包输出在插件目录的 `dist/`，其中不包含真实凭证。
 - `backups/`：历史备份，只用于查旧实现或回看改动前状态，不主动修改。
 - `.claude/`、`audits/`、`workbench/`：工具运行、截图审计或临时运行记录目录，默认不作为主工程编辑目标。
 
@@ -212,8 +220,13 @@ reverse-yingdan/
 - `selectedProductId`：产品与市场表格当前选中的产品行。
 - `activeCaseCategory` / `activeCaseTag` / `caseSearchQuery`：案例知识库分类、标签和搜索词。
 - `activeCustomerId`：客户Kass当前选中的客户。
+- `activeKassView`：客户Kass当前页面版本，`workbench` 为 CRM Agent 工作台，`online` 为线上版复刻。
+- `kassExpandedGrades` / `kassWorkbenchGroupId`：B 版侧边栏当前展开等级，以及 A/B 两套方案共用的当前客户等级；等级切换不改写方案 URL。
+- `kassCustomerDirectoryOpen` / `kassDirectoryGroupId` / `kassCustomerQuery`：完整客户库浮层、浮层所属等级和搜索词。
+- `kassAgentDraft` / `kassAgentMessages` / `kassAgentThinking`：CRM Agent 本地原型对话状态。
+- `kassRecordFormOpen`：右侧客户卡片内新增跟进记录表单的开关。
 - `kassAssistantOpen`：右下角 Kass AI 助手浮窗开关。
-- `customerDraft` / `isCustomerGenerating` / `customerResult`：旧客户输入壳保留状态，当前 A/B 分组页主要使用右下角助手浮窗。
+- `customerDraft` / `isCustomerGenerating` / `customerResult`：旧客户输入壳保留状态，当前客户等级页主要使用右下角助手浮窗。
 - `drawer`：当前打开的右侧抽屉类型。
 - `popup`：当前打开的轻量弹层，例如附件、模型、顶部历史、设置、账号设置、邀请码兑换。
 - `historySearchOpen` / `historySearchQuery`：侧边栏历史搜索状态。
@@ -221,6 +234,7 @@ reverse-yingdan/
 - `chatDraft` / `isGenerating` / `generatedResult`：聊天输入、模拟生成和结果状态。
 - `difyFeatureConfigs`：按功能页 ID 保存顶栏的应用类型、掩码、Skill ID、应用摘要、加载和保存状态；不保存原始 API Key。Skill ID 为空代表独立 App，非空代表总控路由模式。
 - `difyFeatureSessions`：按功能页 ID 保存 `messages`、`conversationId`、`userId`、错误和生成状态，避免不同 Dify App 串上下文。助手消息还保存 `processSteps`、`currentProcess`、`processCollapsed`、`processExpanded` 和 `answerStarted`，用于“最新过程覆盖显示、最终答案折叠、按需展开历史”。
+- `costMonitor`：后台 AI 成本监控状态，包含回放/真实模式、当前 Chatflow、用户选择模型、每轮消息、事件时间轴、成本项、Token 校验、两套 `conversation_id`、管理员单价、美元汇率、目标毛利率与 V豆换算。API Key 仍只存在 `difyFeatureConfigs` 的安全后端配置里，不进入此状态。
 - `inviteCodeDraft` / `inviteRedeemResult`：账号弹层里的邀请码输入和模拟兑换结果。
 - `adminInvitePreview`：后台邀请码管理里点击生成后的预览文案。
 - `userPreviewFields` / `userPreviewFieldsOpen`：后台 User Preview 用户字段报表显示哪些列，以及字段配置是否展开。
@@ -238,7 +252,7 @@ reverse-yingdan/
 - `COMPANY_MODULES`：公司资料维护模块数据。
 - `PRODUCT_ROWS`：产品与市场全景表行数据。
 - `CASE_CATEGORIES` / `CASE_ITEMS`：案例知识库分类和案例数据。
-- `KASS_GROUPS` / `KASS_FLOW_STAGES`：客户Kass A/B 分组、客户卡片和跟进流程阶段。
+- `KASS_GROUPS` / `KASS_FLOW_STAGES`：客户Kass A/B/C/D 等级、客户卡片和跟进流程阶段。
 - `CUSTOMERS` / `CUSTOMER_TIMELINE`：早期客户作战室示例数据，当前主页面已改用 `KASS_GROUPS`。
 - `ADMIN_NAV_ITEMS`：后台管理左侧菜单。
 - `ADMIN_KNOWLEDGE_ROWS` / `ADMIN_USER_ROWS`：后台知识库和用户管理表格样例。
@@ -350,6 +364,7 @@ reverse-yingdan/
 | `#/admin/invite-code` | 后台管理 > 邀请码管理 |
 | `#/admin/ai-character` | 后台管理 > AI 人设管理 |
 | `#/admin/ai-model` | 后台管理 > AI 模型管理 |
+| `#/admin/ai-cost` | 后台管理 > AI成本监控（实测回放 / 真实 Chatflow 成本流） |
 | `#/sales-prep` | 销售准备默认入口，等同外贸流程 |
 | `#/sales-prep/flow` | 销售准备 > 外贸流程 Flow：问 AI 按钮 + 资料预览卡 + 教学视频 |
 | `#/sales-prep/company` | 销售准备 > 了解公司 |
@@ -376,8 +391,12 @@ reverse-yingdan/
 | `#/skills/visit-reception` | 技能 > 来访接待 |
 | `#/skills/title-combo` | 技能 > 标题组合 |
 | `#/skills/trade-show` | 技能 > 展会成交 |
-| `#/customer-kass/A` | 客户Kass > A 分组 |
-| `#/customer-kass/B` | 客户Kass > B 分组 |
+| `#/customer-kass/A` | 客户Kass > 方案 A（独立客户栏 + AI 助理 / 客户信息） |
+| `#/customer-kass/B` | 客户Kass > 方案 B（侧栏客户 + 对话 + 客户上下文） |
+| `#/customer-kass/C` | 旧等级深链：以 C 级客户进入方案 A |
+| `#/customer-kass/D` | 旧等级深链：以 D 级客户进入方案 A |
+| `#/customer-kass/A/online` | 客户Kass > A 分组线上版复刻 |
+| `#/customer-kass/B/online` | 客户Kass > B 分组线上版复刻 |
 | `#/account/usage` | 账号 > 用量明细 |
 | `#/upgrade/pay/pro`、`#/upgrade/pay/pro/checkout`、`#/upgrade/pay/pro/done` | 专业版支付三步原型 |
 | `#/upgrade/pay/team`、`#/upgrade/pay/team/checkout`、`#/upgrade/pay/team/done` | 团队版支付三步原型 |
@@ -405,7 +424,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 改通用 Dify 对话页：页面白名单和默认类型改 `src/dify-config.js`；顶栏配置看 `renderDifyConfigBar()`、`loadDifyFeatureConfig()`、`saveDifyFeatureConfig()`；多轮消息存在 `state.difyFeatureSessions[featureId]`；真实调用和浏览器流读取看 `sendDifyFeatureDraft()`；过程 UI 看 `renderDifyProcessPanel()`；Markdown 渲染看 `renderMarkdown()` / `renderInlineMarkdown()`。配置保存看 `api/dify-config.js`，Cloudflare 长流看 `cloudflare-worker/dify-chat-worker.mjs`，私有配置桥接看 `api/dify-runtime-config.js`，上游增量流和过程脱敏看 `lib/dify-api-client.js`；`api/dify-chat.js` 仅保留回滚。
 - 改 YD Artifact：入口、Dify 配置和会话仍走上述通用链路；特殊代码块识别、Mermaid/ECharts 本地渲染、受控 `ui` 组件和沙箱策略改 `src/dify-artifact.js`，页面视觉改 `src/styles.css` 的 `.yd-artifact-*`；Dify LLM System Prompt 改 `dify-chatflows/技能Skill-YD-Artifact/prompt.md`。不要执行普通 `html`、远程脚本或未经校验的 SVG；交互代码只能放在显式 `html-artifact` 中，并保持 `sandbox="allow-scripts"`、无 `allow-same-origin` 的边界。
 - 改客户背调顾问：数据改 `src/data.js` 的 `CUSTOMER_RESEARCH_FLOW`；它复用上述通用 Dify 对话壳，但默认应用类型是 Chatflow，内部成本面板仍由 `renderCustomerResearchBillingTracePanel()` 控制。
-- 改客户Kass：优先改 `src/data.js` 的 `KASS_GROUPS` 和 `KASS_FLOW_STAGES`。如果改分组顶部「今日该推进」，看 `src/app.js` 的 `buildKassTodayReminder()` / `renderKassGroupTodayCard()` 和 `src/styles.css` 的 `.kass-today-*` / `.kass-group-today-*`。
+- 改客户Kass：优先改 `src/data.js` 的 `KASS_GROUPS`。A 版看 `renderKassCustomerRoster()`、`renderCustomerKassView()` 和 `renderKassWorkspaceTab()`；B 版看 `renderKassNavGroup()`、`renderCustomerKassComparisonView()`、`renderKassComparisonConversation()` 与 `renderKassComparisonContext()`；两版共用的客户工作纸看 `renderKassCustomerHub()` 和 `renderKassFollowupRecord()`，完整客户浮层看 `renderKassCustomerDirectoryModal()`。视觉分别看 `.kass-crm-*` / `.kass-workspace-*` / `.kass-profile-file` / `.kass-profile-memory` / `.kass-background-*` / `.kass-followup-*` / `.kass-roster-*`，以及 B 版 `.kass-compare-*`、侧栏 `.kass-grade-*` 和浮层 `.kass-directory-*`；线上复刻版结构看 `renderCustomerKassOnlineView()`，视觉看 `.kass-online-*`。稳定背调、动态跟进和关联待办必须保持边界，线上真实客户身份和历史不得写入本地样例数据。
 - 改账号弹层、邀请码兑换、团队/企业切换：优先改 `src/app.js` 的 `renderAccountSettingsPopup()`、`renderInviteRedeemModal()` 和相关事件绑定。
 - 改后台菜单：优先改 `src/data.js` 的 `ADMIN_NAV_ITEMS`，再看 `src/app.js` 的后台路由映射。
 - 改后台 User Preview 指标和表格字段：优先改 `src/data.js` 的 `ADMIN_USER_PREVIEW_*` 数据；交互改 `src/app.js` 的 `renderAdminUserPreview()`、`renderUserPreviewReportBuilder()`、`bindUserPreviewReportControls()`。
@@ -413,6 +432,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 改后台 `用户` / `代理` 子菜单：先在 `src/data.js` 的 `ADMIN_NAV_ITEMS` 改菜单（`parent` 字段决定 group），数据改 `ADMIN_USER_POOL_ROWS` / `ADMIN_PAID_POOL_ROWS` / `ADMIN_SALES_ROWS` / `ADMIN_ACTIVE_USER_ROWS` / `ADMIN_PAID_USER_ROWS` / `ADMIN_AGENT_ROWS`；页面渲染改 `src/app.js` 的 `renderAdminUserPool()` / `renderAdminPaidPool()` / `renderAdminUserSales()` / `renderAdminActiveUsers()` / `renderAdminPaidUsers()` / `renderAdminAgents()`，共用 helper：`renderAdminPageStats()`、`renderAdminSegmentFilter()`。`renderAdminSidebar()` 已改为按 `ADMIN_NAV_ITEMS.parent` 自动聚合 group，新增 group 只改数据即可。
 - 改后台邀请码管理：优先改 `src/data.js` 的 `ADMIN_INVITE_ROWS`；生成邀请码表单和反馈改 `src/app.js` 的 `renderAdminInviteCodes()` 和相关事件绑定。
 - 改后台 AI 人设/模型管理：优先改 `src/data.js` 的 `ADMIN_CHARACTER_ROWS`、`ADMIN_MODEL_ROWS`；弹窗和表格行为改 `src/app.js`。
+- 改后台 AI 成本监控：计费字段、实测回放、模型到单价的精确映射和汇总公式改 `src/cost-monitor.js`；三栏页面与真实调用交互改 `src/app.js` 的 `renderAdminCostMonitor()`、`runCostMonitorLive()` 和 `bindCostMonitorEvents()`；视觉改 `src/styles.css` 的 `.cost-*`。上游安全成本事件改 `lib/dify-api-client.js` 的 `createPublicCostEvent()`，同时补 `tests/cost-monitor.test.js`，不要从节点标题猜模型，也不要把 Dify 全局混币种金额直接当总成本。
 - 新增或更新 Coze/扣子工作流资料：优先维护 `coze-workflows/`，不要把 schema、调用函数或真实返回样例塞进页面文案。
 - 新增或更新 Dify 对话应用或 Chatflow 资料：优先维护 `dify-chatflows/`，每个 App 单独建目录，记录应用类型、`chatflow.md`、`call-function.md`、`parameters.snapshot.json` 和 `api-test.md`。
 - 查赢单后端账号、邀请码、计费或积分接口：可先看 `赢单api.md` 的接口路径和参数说明；如果要判断线上是否真的可用、是否需要鉴权、返回哪些敏感字段，必须用当前环境重新验证。
@@ -464,6 +484,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 如果返回包含 `<think>...</think>` 等模型思考标签，正式展示前应过滤，只保留用户可读答案。
 - 顶栏配置仍通过 Vercel `/api/dify-config` 保存：先请求 Dify `/info` 校验类型，再用 AES-256-GCM 加密 Key 并写入 Upstash Redis；GET 只返回掩码和应用摘要。正式聊天通过 Cloudflare Worker 调用 Dify；Worker 使用内部随机 Bearer Token 从 Vercel `/api/dify-runtime-config` 短请求读取运行时配置，普通浏览器无令牌时只能得到 401。未配置 Redis 时，Vercel 仍可读取对应环境变量作为兼容兜底。
 - 2026-07-14 通用 `/api/dify-chat` 已改为端到端真流式 SSE：Vercel 边读 Dify 边写浏览器，不再等待完整 answer 后返回 JSON。公开事件为 `process`、`answer_delta`、`answer_replace`、`done` 和 `error`；`process` 包含节点、工具、搜索词和 Dify 明确公开的 Agent thought。前端收到新 `process` 时覆盖当前显示并保留最多 40 步历史，收到首个正式答案时自动折叠过程。
+- 2026-07-23 成本监控链路新增 `cost_update` 与 `cost_checksum`：模型成本只在 `node_finished` 后按 `outputs.usage`、`process_data.usage`、`execution_metadata.usage` 的优先级提取；Agent 采用节点汇总，不重复累加内部轮次；工具只在成功日志后入账；同一事件 ID 去重，不同重试事件 ID 分别保留。`message_end` 的全局 usage 只生成 Token 校验，不把可能混合 USD/RMB 的总价当结算金额。事件只保留模型、供应商、Token、原币金额和计费数量，不向浏览器发送 prompt、inputs、observation 或工具结果。
 - Agent 的 `agent_message` 可能既包含“换关键词继续搜索”这类中间话术，也包含最后结论。代理会按新的工具/思考步骤 ID 分段：中间段作为浅色 `process` 覆盖显示，只在 `message_end` 时把最后一段提升为正式 `answer_replace`；普通 Chatbot/Chatflow 的 `message` 仍按 `answer_delta` 逐块展示。
 - 2026-07-14 增加跨事件 `<think>` 过滤器，标签即使被拆在两个网络块中也不会短暂泄露；最终返回的 `billing_trace` 同样移除了 Agent thought、节点 inputs/outputs 和工具输出，只保留成本面板需要的事件计数、Tavily 查询和 credits。
 - 2026-07-14 修复 SSE 每次到达都重建 `#app.innerHTML` 引发的整屏闪烁：同一过程阶段只更新 label/detail 文本，同一答案阶段只更新当前 Markdown 容器，结构切换也仅替换本轮回答。恢复展示 Dify 对话 API 明确公开的 `agent_thought.thought`，继续过滤 `<think>` 等隐藏思考；没有公开 thought、工具名或搜索词的空 Agent 协议步骤不再生成通用占位。
@@ -490,7 +511,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 5. 点击 `了解公司`，切换公司资料模块，确认右侧编辑器随之切换。
 6. 点击 `产品&市场`，选择不同产品行，确认下方摘要随之切换。
 7. 点击 `案例知识库`，切换资料分类、标签和搜索词，确认案例列表变化。
-8. 展开 `客户Kass`，点击 `A` 或 `B`，确认分组页、顶部「今日该推进」、客户档案、跟进流程图和客户跟进记录出现。
+8. 打开 `客户Kass` 的 `A` 或 `B`，确认独立“重点推进”客户栏仍存在；切换「AI 助理 / 客户信息」，检查「客户档案」是否只展示稳定背景资料、来源合并状态和待完善数量；点击「查看完整资料」，确认宽幅「客户详细档案」可打开、关闭和纵向滚动，五组表格字段没有横向溢出，底部「补充背调」有原型反馈。在「跟进与待办」中展开记录、勾选关联待办，并检查新增跟进表单能否打开和取消。再点「线上原版复刻」，确认进入带全局侧栏、顶部栏、客户列表、12 阶段流程和底部输入框的独立页面，并能通过「返回重点推进」切回。
 9. 点击右下角 `Kass AI 助手` 圆形按钮，确认浮窗展开，包含当前客户、客户等级、阶段、跟进条数、加载会话记录和禁用输入区。
 10. 点击 `教学视频`、`导出文件`、`历史`，确认抽屉或 toast 正常出现。
 11. 点击账号卡，确认账号弹层、邀请兑换、团队/企业飞出层、用量明细跳转和退出登录原型反馈正常。
@@ -501,14 +522,15 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 16. 进入 `#/admin/user`（原用户总表），确认页面与之前一致、未被破坏。
 17. 进入 `#/admin/invite-code`，检查生成邀请码表单和邀请码列表。
 18. 进入 `#/admin/knowledge-base`、`#/admin/ai-character`、`#/admin/ai-model`，确认后台菜单切换和表格布局正常。
-19. 逐一打开 `src/dify-config.js` 白名单中的对话页，确认顶栏左侧都有应用类型、API Key、保存按钮和状态，销售准备、客户开发、客户Kass和后台页不出现该配置栏。
-20. 在 `#/skills/market-research` 选择「对话型应用」并保存有效 Key，确认显示应用摘要；刷新后只显示掩码，不回传原始 Key。发送两轮消息，确认第二轮复用 `conversation_id`。
-21. 在 `#/agents/customer-research` 选择「Chatflow」验证同样流程；故意选错类型时，保存应提示 Key 实际对应的应用类型，且不落库。
-22. 进入 `#/skills/yd-artifact`，确认默认类型为「Chatflow」；用脱敏测试回答检查普通 Markdown、Mermaid、ECharts、SVG 在正文中的顺序、流式骨架和窄屏布局。再用 `html-artifact` 检查按钮、Tab 或筛选交互真实生效、iframe 高度自适应，同时确认普通 `html` 只显示源码，外链/联网/跳转代码会降级为错误卡而不执行。
-23. 运行 `npm test`，确认浏览器插件和 Dify 的模式识别、加密存储、API handler、SSE 解析、YD Artifact 渲染与前端状态测试全部通过。
-24. 运行 `npm run check:cloudflare`，确认 Worker 能完整打包且没有把 Secret 写进 `wrangler.jsonc`。
-25. 无内部令牌 POST `https://yd-prototype-dify-proxy.vercel.app/api/dify-runtime-config`，应返回 401；从正式对话页发送消息，应由 Cloudflare 返回 `process` / 正式答案 / `done`。
-26. 调整到窄屏，确认顶栏配置项、正文和按钮不重叠、不溢出。
+19. 进入 `#/admin/ai-cost`：先在“实测回放”依次检查四个场景，确认事件按到达时间变化、模型核对条使用实际 Agent 模型、右侧逐项入账；知识库场景因 Embedding 单价默认为 0，必须显示“暂停结算”。展开“我的成本单价”填写后，确认成本、销售价和 V豆立即重算。再切到“真实调用”，仅使用虚拟问题验证两个 Chatflow 的安全连接、SSE 成本事件与各自独立的 `conversation_id`。
+20. 逐一打开 `src/dify-config.js` 白名单中的对话页，确认顶栏左侧都有应用类型、API Key、保存按钮和状态，销售准备、客户开发、客户Kass和普通后台页不出现该配置栏。
+21. 在 `#/skills/market-research` 选择「对话型应用」并保存有效 Key，确认显示应用摘要；刷新后只显示掩码，不回传原始 Key。发送两轮消息，确认第二轮复用 `conversation_id`。
+22. 在 `#/agents/customer-research` 选择「Chatflow」验证同样流程；故意选错类型时，保存应提示 Key 实际对应的应用类型，且不落库。
+23. 进入 `#/skills/yd-artifact`，确认默认类型为「Chatflow」；用脱敏测试回答检查普通 Markdown、Mermaid、ECharts、SVG 在正文中的顺序、流式骨架和窄屏布局。再用 `html-artifact` 检查按钮、Tab 或筛选交互真实生效、iframe 高度自适应，同时确认普通 `html` 只显示源码，外链/联网/跳转代码会降级为错误卡而不执行。
+24. 运行 `npm run test:dify`，确认成本计算、重试/去重、Dify 模式识别、加密存储、API handler、SSE 解析、YD Artifact 渲染与前端状态测试全部通过。
+25. 运行 `npm run check:cloudflare`，确认 Worker 能完整打包且没有把 Secret 写进 `wrangler.jsonc`。
+26. 无内部令牌 POST `https://yd-prototype-dify-proxy.vercel.app/api/dify-runtime-config`，应返回 401；从正式对话页发送消息，应由 Cloudflare 返回 `process` / 正式答案 / `done`。
+27. 调整到窄屏，确认顶栏配置项、正文和按钮不重叠、不溢出。
 
 浏览器插件验证方式：
 

@@ -1,0 +1,13 @@
+{
+  "createdAt": "2026-07-01T04:03:04.595Z",
+  "missing": [
+    "询盘、聊天记录或当前卡点"
+  ],
+  "originalText": "客户是德国采购商，产品是太阳能灯，帮我做客户分析",
+  "resume_from": "needs-input:customer-followup-plan",
+  "runId": "skill-runtime-20260701-040304-y84s",
+  "sessionId": "agent-session-20260701T040304-px0f52",
+  "skillId": "customer-followup-plan",
+  "skillName": "客户推进分析",
+  "status": "waiting"
+}

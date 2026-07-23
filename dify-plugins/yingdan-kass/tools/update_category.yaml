@@ -1,0 +1,34 @@
+identity:
+  name: update_category
+  author: garden
+  label: {en_US: Update Customer Category, zh_Hans: 修改客户分层}
+description:
+  human:
+    en_US: Update a customer category name and remark.
+    zh_Hans: 修改已有客户分层的名称和备注。
+  llm: Update a category only when the user clearly asks. Call list_categories first if the category ID is unknown.
+parameters:
+  - name: category_id
+    type: number
+    required: true
+    label: {en_US: Category ID, zh_Hans: 分层 ID}
+    human_description: {en_US: Numeric Yingdan category ID., zh_Hans: 赢单客户分层的数字 ID。}
+    llm_description: Positive numeric ID returned by list_categories.
+    form: llm
+  - name: category_name
+    type: string
+    required: true
+    label: {en_US: Category Name, zh_Hans: 分层名称}
+    human_description: {en_US: The full category name after update., zh_Hans: 修改后的完整分层名称。}
+    llm_description: Full category name to save after the update.
+    form: llm
+  - name: remark
+    type: string
+    required: false
+    label: {en_US: Remark, zh_Hans: 备注}
+    human_description: {en_US: The full remark after update., zh_Hans: 修改后的完整备注；留空会清空备注。}
+    llm_description: Full remark to save. An empty string clears the remark.
+    form: llm
+extra:
+  python:
+    source: tools/update_category.py

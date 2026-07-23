@@ -1,0 +1,20 @@
+identity:
+  name: get_customer
+  author: garden
+  label: {en_US: Get Customer Profile, zh_Hans: 查询客户档案}
+description:
+  human:
+    en_US: Read the complete profile of one Yingdan customer.
+    zh_Hans: 读取一个赢单客户的完整档案。
+  llm: Read-only. Use a customer ID returned by list_customers. Call this before updating a customer or creating a follow-up.
+parameters:
+  - name: customer_id
+    type: number
+    required: true
+    label: {en_US: Customer ID, zh_Hans: 客户 ID}
+    human_description: {en_US: Numeric Yingdan customer ID., zh_Hans: 赢单客户的数字 ID。}
+    llm_description: Positive numeric customer ID returned by list_customers.
+    form: llm
+extra:
+  python:
+    source: tools/get_customer.py

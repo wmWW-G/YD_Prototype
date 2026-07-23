@@ -1,0 +1,57 @@
+identity:
+  name: create_customer
+  author: garden
+  label: {en_US: Create Customer Profile, zh_Hans: 新建客户档案}
+description:
+  human:
+    en_US: Create a customer profile under the fixed Yingdan account.
+    zh_Hans: 在当前固定赢单账号下新建客户档案。
+  llm: Create a customer only after the user clearly requests it. Never invent contact details. company_name and customer_category are required; use list_categories when the category is uncertain.
+parameters:
+  - name: profile
+    type: object
+    required: true
+    label: {en_US: Customer Profile, zh_Hans: 客户档案}
+    human_description: {en_US: Allowed customer profile fields., zh_Hans: 要保存的客户档案字段。}
+    llm_description: A customer profile object. Include only facts supplied or confirmed by the user.
+    form: llm
+    input_schema:
+      type: object
+      additionalProperties: false
+      required: [company_name, customer_category]
+      properties:
+        customer_source: {type: string, description: "Customer acquisition source."}
+        company_name: {type: string, description: "Required exact company name."}
+        customer_category: {type: string, description: "Required exact Yingdan customer category name."}
+        website: {type: string, description: "Company website URL."}
+        establishment_year: {type: string, description: "Company establishment year."}
+        industry_ranking: {type: string, description: "Industry ranking or position."}
+        org_structure: {type: string, description: "Organization or decision structure."}
+        key_person: {type: string, description: "Key person or decision maker."}
+        social_media: {type: string, description: "Company or contact social media."}
+        company_size: {type: string, description: "Company size."}
+        company_type: {type: string, description: "Company or business type."}
+        country_region: {type: string, description: "Country or region."}
+        sales_channel: {type: string, description: "Sales or distribution channel."}
+        entry_date: {type: string, description: "Entry date, preferably YYYY-MM-DD."}
+        logo_url: {type: string, description: "Uploaded logo URL."}
+        first_cooperation: {type: string, description: "Whether this is the first cooperation."}
+        transaction_amount: {type: string, description: "Transaction amount text."}
+        product_preference: {type: string, description: "Product interests or preferences."}
+        procurement_preference: {type: string, description: "Procurement preferences."}
+        expandable_products: {type: string, description: "Potential cross-sell products."}
+        cooperation_times: {type: number, minimum: 0, description: "Non-negative integer count of past cooperations."}
+        annual_revenue: {type: string, description: "Annual revenue text."}
+        procurement_cycle: {type: string, description: "Procurement cycle."}
+        procurement_potential: {type: string, description: "Procurement potential or grade."}
+        contact_name: {type: string, description: "Primary contact name."}
+        position: {type: string, description: "Primary contact position."}
+        email: {type: string, description: "Primary contact email."}
+        whatsapp: {type: string, description: "Primary contact WhatsApp."}
+        hobbies: {type: string, description: "Contact interests or preferences."}
+        competitor_name: {type: string, description: "Competitor name."}
+        competitive_advantage: {type: string, description: "Competitive advantage notes."}
+        cooperative_suppliers: {type: string, description: "Known existing suppliers."}
+extra:
+  python:
+    source: tools/create_customer.py

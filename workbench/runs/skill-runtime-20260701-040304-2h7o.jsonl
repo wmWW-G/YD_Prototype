@@ -1,0 +1,5 @@
+{"at":"2026-07-01T04:03:04.623Z","runId":"skill-runtime-20260701-040304-2h7o","status":"complete","text":"客户要报价，帮我做报价单","type":"goal.received"}
+{"at":"2026-07-01T04:03:04.623Z","runId":"skill-runtime-20260701-040304-2h7o","skillId":"quotation-sheet","status":"complete","type":"skill.matched"}
+{"at":"2026-07-01T04:03:04.623Z","runId":"skill-runtime-20260701-040304-2h7o","requiredFiles":["skill.json"],"skillId":"quotation-sheet","status":"complete","type":"skill.loaded"}
+{"at":"2026-07-01T04:03:04.624Z","checkpoint":"runs/skill-runtime-20260701-040304-2h7o.checkpoint.json","resume_from":"needs-input:quotation-sheet","runId":"skill-runtime-20260701-040304-2h7o","status":"waiting","type":"run.checkpointed"}
+{"at":"2026-07-01T04:03:04.624Z","missing":["产品资料","数量","单价或报价区间","币种和贸易条款"],"reason":"关键业务资料不足,暂停等待用户补充。","resume_from":"needs-input:quotation-sheet","runId":"skill-runtime-20260701-040304-2h7o","status":"waiting","type":"run.needs_input"}

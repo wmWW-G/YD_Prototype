@@ -1,4 +1,4 @@
-/* global NAV_GROUPS, HISTORY_ITEMS, CUSTOMER_RESEARCH_FLOW, CUSTOMER_DEVELOPMENT, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_USER_PREVIEW_SUB_ACCOUNTS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS, YD_DIFY, YD_ARTIFACT */
+/* global NAV_GROUPS, HISTORY_ITEMS, CUSTOMER_RESEARCH_FLOW, CUSTOMER_DEVELOPMENT, SALES_TABS, TRADE_STAGES, COMPANY_MODULES, PRODUCT_ROWS, CASE_CATEGORIES, CASE_ITEMS, CUSTOMERS, CUSTOMER_TIMELINE, KASS_GROUPS, KASS_FLOW_STAGES, UPGRADE_PLANS, USAGE_RECORDS, ADMIN_NAV_ITEMS, ADMIN_KNOWLEDGE_ROWS, ADMIN_USER_ROWS, ADMIN_USER_PREVIEW_METRICS, ADMIN_USER_PREVIEW_FUNCTION_SUMMARY, ADMIN_USER_PREVIEW_FIELDS, ADMIN_USER_PREVIEW_USERS, ADMIN_USER_PREVIEW_SUB_ACCOUNTS, ADMIN_INVITE_ROWS, ADMIN_CHARACTER_ROWS, ADMIN_MENU_ROWS, ADMIN_MODEL_ROWS, YD_DIFY, YD_ARTIFACT, YD_COST_MONITOR */
 
 /**
  * 页面级状态对象。
@@ -19,9 +19,25 @@
  *   caseSearchQuery: string,
  *   activeCustomerId: string,
  *   activeCustomerPanel: string,
+ *   activeKassTab: "conversation" | "profile",
+ *   activeKassView: "workbench" | "online",
+ *   kassExpandedGrades: Set<string>,
+ *   kassWorkbenchGroupId: string,
+ *   kassCustomerDirectoryOpen: boolean,
+ *   kassDirectoryGroupId: string | null,
+ *   kassCustomerQuery: string,
+ *   kassAgentDraft: string,
+ *   kassAgentMessages: Array<{ id: string, role: "user" | "assistant", content: string }>,
+ *   kassAgentThinking: boolean,
+ *   kassRecordFormOpen: boolean,
+ *   kassResearchOpen: boolean,
+ *   kassCompletedTaskIds: Set<string>,
  *   kassAssistantOpen: boolean,
  *   customerDevPhase: "brief" | "searching" | "results" | "contacts",
- *   customerDevBrief: { market: string, product: string, role: string, goal: string },
+ *   customerDevBrief: { market: string, product: string, role: string, quantity: string },
+ *   customerDevPicker: null | "market" | "product",
+ *   customerDevContinent: string,
+ *   customerDevProductCategory: string,
  *   customerDevSelectedLeadId: string,
  *   customerDevRevealedEmails: Set<string>,
  *   customerDraft: string,
@@ -56,7 +72,8 @@
  *   activeUserPreviewDetailId: string,
  *   activeUserPreviewOperationId: string,
  *   adminMenuOpen: boolean,
- *   adminUserFilterOpen: boolean
+ *   adminUserFilterOpen: boolean,
+ *   costMonitor: ReturnType<typeof YD_COST_MONITOR.createState>
  * }}
  */
 const USER_PREVIEW_DEFAULT_FIELD_IDS = ["logIndex", "usedAt", "userContact", "lastActiveAt", "activeDays", "calledFeature", "calledModel", "callCount", "inputToken", "outputToken", "totalToken", "creditBalance", "runStatus", "estimatedCost", "operationLog", "trialDetails"];
@@ -92,6 +109,17 @@ const CUSTOMER_RESEARCH_DIRECT_DIFY_URL = "https://api.dify.ai/v1/chat-messages"
 const CUSTOMER_RESEARCH_REQUEST_TIMEOUT_MS = 240000;
 
 /**
+ * 客户开发搜索动画的可见时长。
+ *
+ * 为什么不能太短：
+ * - 900ms 在页面跳转和浏览器绘制后几乎不可见，用户会误以为动画被删掉。
+ * - 2.4 秒足够看清搜索状态，同时不会让静态原型显得拖沓。
+ *
+ * @type {number}
+ */
+const CUSTOMER_DEV_SEARCH_DURATION_MS = 2400;
+
+/**
  * 所有对话功能页面共用的 Dify 配置与对话服务。
  *
  * 为什么使用两个服务端接口：
@@ -118,6 +146,25 @@ const DIFY_CHAT_MODELS = Object.freeze([
   Object.freeze({ value: "deepseek-v4-pro", label: "DeepSeek V4 Flash", badge: "DS" }),
   Object.freeze({ value: "gemini-3.5-flash", label: "Gemini 3.5 Flash", badge: "G" })
 ]);
+
+/**
+ * AI 成本监控使用的两个服务端配置槽位。
+ *
+ * 为什么不共用一个 feature_id：两个总控 Chatflow 使用不同 App API Key，
+ * 分开保存可以避免切换“含知识库 / 无知识库”时串 Key 或串 conversation_id。
+ */
+const COST_MONITOR_CONFIG_FEATURES = Object.freeze({
+  kb: "admin-cost-kb",
+  "no-kb": "admin-cost-no-kb"
+});
+
+/**
+ * 成本监控的 Chatflow 来源文案。
+ */
+const COST_MONITOR_SOURCE_LABELS = Object.freeze({
+  kb: "全技能总控（含知识库）",
+  "no-kb": "无知识库总控"
+});
 
 /**
  * 根据 model_key 获取聊天框显示资料。
@@ -158,17 +205,33 @@ const state = {
   caseSearchQuery: "",
   activeCustomerId: "kass-a-1",
   activeCustomerPanel: "overview",
+  activeKassTab: "conversation",
+  activeKassView: "workbench",
+  kassExpandedGrades: new Set(["customer-kass-a"]),
+  kassWorkbenchGroupId: "customer-kass-a",
+  kassCustomerDirectoryOpen: false,
+  kassDirectoryGroupId: null,
+  kassCustomerQuery: "",
+  kassAgentDraft: "",
+  kassAgentMessages: [],
+  kassAgentThinking: false,
+  kassRecordFormOpen: false,
+  kassResearchOpen: false,
+  kassCompletedTaskIds: new Set(),
   kassAssistantOpen: false,
   customerDevPhase: "brief",
   customerDevBrief: {
-    market: "德国、阿联酋、沙特",
-    product: "光伏组件 + 工商业储能方案",
-    role: "EPC 承包商 / 系统集成商",
-    goal: "找 100 个候选客户，先查看公司信息和联系人"
+    market: "德国",
+    product: "光伏组件",
+    role: "EPC 承包商",
+    quantity: "100"
   },
+  customerDevPicker: null,
+  customerDevContinent: "europe",
+  customerDevProductCategory: "energy",
   customerDevSelectedLeadId: "solartech",
   customerDevRevealedEmails: new Set(),
-  customerDraft: "",
+  customerDraft: "Hi,\nWe are looking for 50,000 pcs of 500ml 不锈钢保温杯.\nPlease share price for FOB Shanghai, lead time, and MOQ.\nLogo printing needed.\nThanks.",
   isCustomerGenerating: false,
   customerResult: "",
   drawer: null,
@@ -204,7 +267,8 @@ const state = {
   accountSpaceSwitcherOpen: false,
   activeBusinessTab: "dashboard",
   businessRole: "admin",
-  businessTimePreset: "month"
+  businessTimePreset: "month",
+  costMonitor: window.YD_COST_MONITOR.createState()
 };
 
 /**
@@ -231,6 +295,15 @@ let difyStreamRenderFrame = null;
  * @type {number | null}
  */
 let difyThinkingDurationTimer = null;
+
+/**
+ * AI 成本监控“实测回放”的所有计时器。
+ *
+ * 切换页面、切换场景或开始下一轮前必须统一清理，避免上一轮迟到事件写进新账单。
+ *
+ * @type {number[]}
+ */
+let costMonitorReplayTimers = [];
 
 /**
  * 后台弹窗打开前的滚动位置快照。
@@ -845,6 +918,57 @@ function getActiveKassCustomer() {
 }
 
 /**
+ * 判断当前是否处于客户 Kass 的 A / B 方案工作台。
+ *
+ * URL 中的 A / B 只代表界面方案；客户等级由 `kassWorkbenchGroupId` 单独维护。
+ * 线上复刻页仍沿用原有的路由分组逻辑，不进入这里。
+ *
+ * @returns {boolean} 当前是 A / B 方案工作台时返回 true。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function isKassWorkbenchView() {
+  return state.activeMain.startsWith("customer-kass-") && state.activeKassView === "workbench";
+}
+
+/**
+ * 判断当前是否正在展示用于方案对比的 B 版客户 Kass。
+ *
+ * B 路由被产品用作第二套信息架构的固定演示入口，因此它内部切换 A/B/C/D
+ * 客户等级时不能改写 URL；否则点击 A 级客户会误跳回旧版 A 页面。
+ *
+ * @returns {boolean} 当前是 B 版工作台时返回 true。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function isKassComparisonView() {
+  return state.activeMain === "customer-kass-b" && state.activeKassView === "workbench";
+}
+
+/**
+ * 获取当前方案工作台里选中的客户等级。
+ *
+ * A / B 两套方案必须使用同一份等级状态，切换方案后才能继续对照同一客户。
+ *
+ * @returns {typeof KASS_GROUPS[number]} 当前客户等级；无效时回退到 A 级。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getKassWorkbenchGroup() {
+  return KASS_GROUPS.find((group) => group.id === state.kassWorkbenchGroupId) || KASS_GROUPS[0];
+}
+
+/**
+ * 按客户 ID 和等级找到当前方案工作台客户。
+ *
+ * @param {typeof KASS_GROUPS[number]} group - 当前选中的客户等级。
+ * @returns {typeof KASS_GROUPS[number]["customers"][number] | null} 当前客户；空分组返回 null。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getKassWorkbenchCustomer(group) {
+  return group.customers.find((customer) => customer.id === state.activeCustomerId)
+    || group.customers[0]
+    || null;
+}
+
+/**
  * 根据案例分类、标签和搜索词过滤案例。
  *
  * @returns {typeof CASE_ITEMS} 当前筛选条件下的案例列表。
@@ -1208,9 +1332,74 @@ function renderApp() {
     app.innerHTML = renderAdminApp();
     bindEvents();
     syncHashFromState();
+    if (state.activeMain === "admin-ai-cost") {
+      void ensureCostMonitorConfigsLoaded();
+    }
     console.log("[reverse-yingdan] 后台原型已渲染", {
       activeMain: state.activeMain,
       dialog: state.adminDialog,
+      hash: window.location.hash
+    });
+    return;
+  }
+
+  /*
+   * 线上版复刻使用原项目的全局侧栏和顶部栏，目的是让它与当前重点推进版并存。
+   * 两个页面共享样例客户状态，但使用独立 hash，方便评审时直接复制链接对照。
+   */
+  if (state.activeMain.startsWith("customer-kass") && state.activeKassView === "online") {
+    app.innerHTML = `
+      <div class="layout kass-online-layout">
+        ${renderSidebar()}
+        <main class="main kass-online-main-shell">
+          ${renderTopbar()}
+          <section class="workspace kass-online-workspace">
+            ${renderCustomerKassOnlineView()}
+          </section>
+        </main>
+      </div>
+      ${renderDrawer()}
+      ${renderPopupLayer()}
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    `;
+
+    bindEvents();
+    syncHashFromState();
+    console.log("[reverse-yingdan] 客户 Kass 线上版复刻页已渲染", {
+      activeMain: state.activeMain,
+      activeCustomerId: state.activeCustomerId,
+      hash: window.location.hash
+    });
+    return;
+  }
+
+  /*
+   * 客户 Kass 工作台复用赢单全局侧栏。
+   * A 版保留“工作区客户栏 + 信息页签”；B 版在相同外壳里改为“侧栏客户子菜单 +
+   * Agent 对话 + 客户上下文”，两套方案用独立路由直接对照。
+   */
+  if (state.activeMain.startsWith("customer-kass")) {
+    app.innerHTML = `
+      <div class="layout kass-workbench-layout">
+        ${renderSidebar()}
+        <main class="main kass-workbench-main">
+          <section class="workspace kass-workbench-workspace">
+            ${renderCustomerKassView()}
+          </section>
+        </main>
+      </div>
+      ${renderKassCustomerDirectoryModal()}
+      ${renderDrawer()}
+      ${renderPopupLayer()}
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    `;
+
+    bindEvents();
+    syncHashFromState();
+    console.log("[reverse-yingdan] 客户 Kass 作战台已渲染", {
+      activeMain: state.activeMain,
+      activeCustomerId: state.activeCustomerId,
+      customerDirectoryOpen: state.kassCustomerDirectoryOpen,
       hash: window.location.hash
     });
     return;
@@ -1709,6 +1898,7 @@ function renderAdminWorkspace() {
   if (state.activeMain === "admin-agent") return renderAdminAgents();
   if (state.activeMain === "admin-invite") return renderAdminInviteCodes();
   if (state.activeMain === "admin-model") return renderAdminModels();
+  if (state.activeMain === "admin-ai-cost") return renderAdminCostMonitor();
   return renderAdminCharacters();
 }
 
@@ -1722,6 +1912,641 @@ function renderAdminHome() {
   return `
     <section class="admin-empty-page">
       <h3>敬请期待</h3>
+    </section>
+  `;
+}
+
+/**
+ * 获取当前成本监控来源对应的服务端配置 ID。
+ *
+ * @param {unknown} source - kb 或 no-kb；默认读取当前页面状态。
+ * @returns {string} admin-cost-kb 或 admin-cost-no-kb。
+ * @throws {Error} 本函数不主动抛异常；无效值回退到无知识库配置。
+ */
+function getCostMonitorConfigFeatureId(source = state.costMonitor.source) {
+  return COST_MONITOR_CONFIG_FEATURES[String(source || "")] || COST_MONITOR_CONFIG_FEATURES["no-kb"];
+}
+
+/**
+ * 在后台成本页首次打开时读取两个 Chatflow 的掩码配置。
+ *
+ * 原始 API Key 永远不会返回浏览器；这里只读取 hasKey、应用名称和已保存 Skill ID。
+ *
+ * @returns {Promise<void>} 读取完成后重画成本页。
+ * @throws {Error} 单个读取错误已由 loadDifyFeatureConfig 写入状态，本函数不继续抛出。
+ */
+async function ensureCostMonitorConfigsLoaded() {
+  const featureIds = Object.values(COST_MONITOR_CONFIG_FEATURES);
+  const pendingFeatureIds = featureIds.filter((featureId) => {
+    const config = getDifyFeatureConfig(featureId);
+    return !config.loaded && !config.loading;
+  });
+
+  if (!pendingFeatureIds.length) {
+    return;
+  }
+
+  await Promise.all(pendingFeatureIds.map((featureId) => loadDifyFeatureConfig(featureId)));
+  if (state.activeMain === "admin-ai-cost") {
+    renderApp();
+  }
+}
+
+/**
+ * 格式化成本页人民币金额。
+ *
+ * @param {unknown} value - 人民币数字。
+ * @param {number} [digits=4] - 小数位数。
+ * @returns {string} 例如 ¥0.1788。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function formatCostMonitorMoney(value, digits = 4) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? `¥${amount.toFixed(digits)}` : "-";
+}
+
+/**
+ * 格式化 token 或工具数量。
+ *
+ * @param {unknown} value - 数字。
+ * @returns {string} 本地化数字；无效值返回 -。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function formatCostMonitorNumber(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue.toLocaleString("zh-CN", { maximumFractionDigits: 4 }) : "-";
+}
+
+/**
+ * 格式化时间轴相对耗时。
+ *
+ * @param {unknown} elapsedMs - 相对本轮开始的毫秒数。
+ * @returns {string} 例如 1.3s。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function formatCostMonitorElapsed(elapsedMs) {
+  const milliseconds = Math.max(0, Number(elapsedMs) || 0);
+  return `${(milliseconds / 1000).toFixed(1)}s`;
+}
+
+/**
+ * 获取成本页当前状态的产品文案。
+ *
+ * @returns {{ label: string, detail: string, tone: string }} 状态标签。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getCostMonitorStatusMeta() {
+  const monitor = state.costMonitor;
+
+  if (monitor.status === "running") {
+    return { label: "实时接收中", detail: "成本会随完成事件逐项入账", tone: "running" };
+  }
+  if (monitor.status === "done") {
+    return { label: "本句已结算", detail: "等待日终供应商账单对账", tone: "done" };
+  }
+  if (monitor.status === "error") {
+    return { label: "调用已中断", detail: monitor.error || "请检查配置后重试", tone: "error" };
+  }
+  return { label: "等待发送", detail: "发送后从 0 元开始逐项变化", tone: "idle" };
+}
+
+/**
+ * 渲染成本监控页顶部控制区。
+ *
+ * @returns {string} 模式、Chatflow、场景和模型选择 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCostMonitorCommandBar() {
+  const monitor = state.costMonitor;
+  const status = getCostMonitorStatusMeta();
+  const replayScenarios = Object.values(window.YD_COST_MONITOR.REPLAY_SCENARIOS);
+
+  return `
+    <header class="cost-monitor-command">
+      <div class="cost-monitor-command-intro">
+        <span class="cost-monitor-eyebrow">CHATFLOW COST TAPE</span>
+        <strong>一句话，从发送到扣费</strong>
+        <p>认完成事件、认实际模型、每条成本只入账一次。</p>
+      </div>
+
+      <div class="cost-monitor-mode-switch" role="group" aria-label="成本监控模式">
+        <button class="${monitor.mode === "replay" ? "active" : ""}" type="button" data-cost-monitor-mode="replay">
+          <span>实测回放</span>
+          <small>不发送请求</small>
+        </button>
+        <button class="${monitor.mode === "live" ? "active" : ""}" type="button" data-cost-monitor-mode="live">
+          <span>真实调用</span>
+          <small>读取真实 SSE</small>
+        </button>
+      </div>
+
+      <div class="cost-monitor-run-status ${escapeHtml(status.tone)}" data-cost-monitor-run-status>
+        <span class="cost-monitor-status-dot" aria-hidden="true"></span>
+        <div>
+          <strong>${escapeHtml(status.label)}</strong>
+          <small>${escapeHtml(status.detail)}</small>
+        </div>
+      </div>
+
+      <div class="cost-monitor-selectors">
+        ${monitor.mode === "replay" ? `
+          <label>
+            <span>实测场景</span>
+            <select data-cost-monitor-scenario ${monitor.status === "running" ? "disabled" : ""}>
+              ${replayScenarios.map((scenario) => `
+                <option value="${escapeHtml(scenario.id)}" ${monitor.replayScenario === scenario.id ? "selected" : ""}>${escapeHtml(scenario.label)}</option>
+              `).join("")}
+            </select>
+          </label>
+        ` : `
+          <label>
+            <span>Chatflow</span>
+            <select data-cost-monitor-source ${monitor.status === "running" ? "disabled" : ""}>
+              <option value="no-kb" ${monitor.source === "no-kb" ? "selected" : ""}>无知识库总控</option>
+              <option value="kb" ${monitor.source === "kb" ? "selected" : ""}>全技能总控（含知识库）</option>
+            </select>
+          </label>
+        `}
+        <label>
+          <span>用户选择模型</span>
+          <select data-cost-monitor-model ${monitor.mode === "replay" || monitor.status === "running" ? "disabled" : ""}>
+            <option value="deepseek-v4-pro" ${monitor.modelKey === "deepseek-v4-pro" ? "selected" : ""}>DeepSeek Pro 路由</option>
+            <option value="gemini-3.5-flash" ${monitor.modelKey === "gemini-3.5-flash" ? "selected" : ""}>Gemini 3.5 Flash</option>
+          </select>
+        </label>
+      </div>
+    </header>
+  `;
+}
+
+/**
+ * 渲染当前 Chatflow 的安全连接栏。
+ *
+ * @returns {string} 回放说明或真实连接配置 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCostMonitorConnectionPanel() {
+  const monitor = state.costMonitor;
+
+  if (monitor.mode === "replay") {
+    return `
+      <section class="cost-monitor-notice replay" aria-label="实测回放说明">
+        <strong>当前是实测记录回放</strong>
+        <span>下方用量来自已经完成的真实 API 测试；你输入的新文字不会发送到 Dify。</span>
+        <button type="button" data-cost-monitor-mode="live">切到真实调用</button>
+      </section>
+    `;
+  }
+
+  const featureId = getCostMonitorConfigFeatureId();
+  const config = getDifyFeatureConfig(featureId);
+  const statusText = config.loading
+    ? "正在读取安全配置…"
+    : config.saving
+      ? "正在校验并保存…"
+      : config.error
+        ? config.error
+        : config.hasKey
+          ? `已连接 ${config.appName || COST_MONITOR_SOURCE_LABELS[monitor.source]}`
+          : "尚未保存这个 Chatflow 的 API Key";
+
+  return `
+    <section class="cost-monitor-connection ${monitor.showConnection ? "expanded" : ""} ${config.error ? "error" : ""}" aria-label="真实 Chatflow 连接">
+      <div class="cost-monitor-connection-summary">
+        <span class="cost-monitor-connection-mark ${config.hasKey ? "ready" : ""}" aria-hidden="true">${config.hasKey ? "✓" : "!"}</span>
+        <div>
+          <strong>${escapeHtml(COST_MONITOR_SOURCE_LABELS[monitor.source])}</strong>
+          <small>${escapeHtml(statusText)}</small>
+        </div>
+        <button type="button" data-cost-monitor-toggle-connection>${monitor.showConnection ? "收起连接设置" : "配置真实连接"}</button>
+      </div>
+      <div class="cost-monitor-connection-detail">
+        <label>
+          <span>App API Key</span>
+          <input type="password" value="${escapeHtml(config.apiKeyDraft)}" placeholder="${config.hasKey ? `已保存 ${escapeHtml(config.maskedKey || "app-••••")}` : "粘贴 app- 开头的 Key"}" data-cost-monitor-config-key autocomplete="off" />
+        </label>
+        <label>
+          <span>Skill ID</span>
+          <input type="text" value="${escapeHtml(config.skillKeyDraft)}" placeholder="例如 market-research；独立 App 可留空" data-cost-monitor-config-skill />
+        </label>
+        <button class="cost-monitor-save-config" type="button" data-cost-monitor-config-save ${config.saving ? "disabled" : ""}>
+          ${config.saving ? "正在保存…" : "校验并保存连接"}
+        </button>
+        <p>Key 只经后端加密保存，浏览器只能读取掩码。</p>
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * 渲染成本页的多轮对话内容。
+ *
+ * @returns {string} 用户问题与流式答案 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCostMonitorTurns() {
+  const turns = state.costMonitor.turns;
+
+  if (!turns.length) {
+    return `
+      <div class="cost-monitor-chat-empty">
+        <span aria-hidden="true">01</span>
+        <strong>先发出一句话</strong>
+        <p>左边出现回答，中间出现节点事件，右边成本从 0 开始跳动。</p>
+      </div>
+    `;
+  }
+
+  return turns.map((turn, index) => `
+    <article class="cost-monitor-turn ${turn.status}" data-cost-monitor-turn="${escapeHtml(turn.id)}">
+      <div class="cost-monitor-message user">
+        <span>${index + 1}</span>
+        <div>
+          <small>你发送</small>
+          <p>${renderMultilineText(turn.question)}</p>
+        </div>
+      </div>
+      <div class="cost-monitor-message assistant">
+        <span aria-hidden="true">AI</span>
+        <div>
+          <small>Chatflow 返回</small>
+          ${turn.answer
+            ? `<div class="cost-monitor-answer">${renderMarkdown(turn.answer)}</div>`
+            : `<p class="cost-monitor-answer-wait">${turn.status === "error" ? "调用中断" : "正在等待正式答案…"}</p>`}
+        </div>
+      </div>
+    </article>
+  `).join("");
+}
+
+/**
+ * 渲染成本监控的聊天与输入栏。
+ *
+ * @returns {string} 左侧聊天列 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCostMonitorChatColumn() {
+  const monitor = state.costMonitor;
+  const isRunning = monitor.status === "running";
+  const buttonLabel = monitor.mode === "live" ? "发送到 Chatflow" : "开始实测回放";
+
+  return `
+    <section class="cost-monitor-chat-column" aria-label="对话输入与返回">
+      <header class="cost-column-heading">
+        <span>01</span>
+        <div>
+          <strong>每一句对话</strong>
+          <small>${monitor.mode === "live" ? "真实发送并持续读取 SSE" : "回放已核对的真实测试记录"}</small>
+        </div>
+      </header>
+      <div class="cost-monitor-chat-log" data-cost-monitor-chat-list>
+        ${renderCostMonitorTurns()}
+      </div>
+      <div class="cost-monitor-composer">
+        <label for="cost-monitor-draft">本轮消息</label>
+        <textarea id="cost-monitor-draft" data-cost-monitor-draft placeholder="输入一句你准备发送给 Chatflow 的话" ${isRunning ? "disabled" : ""}>${escapeHtml(monitor.draft)}</textarea>
+        <div class="cost-monitor-composer-foot">
+          <span>${monitor.mode === "live" ? "真实模式会发送这句话" : "回放模式不会发送这句话"}</span>
+          <button type="button" data-cost-monitor-send ${isRunning || !monitor.draft.trim() ? "disabled" : ""}>
+            ${isRunning ? "正在接收事件…" : buttonLabel}
+          </button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * 渲染当前一轮的事件时间轴。
+ *
+ * @returns {string} 中间 Chatflow 事件带 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCostMonitorTimeline() {
+  const timeline = state.costMonitor.timeline;
+
+  if (!timeline.length) {
+    return `
+      <div class="cost-event-empty">
+        <i></i><i></i><i></i>
+        <strong>等待 Chatflow 事件</strong>
+        <p>节点开始不计费；节点完成、工具成功后才写入右侧账单。</p>
+      </div>
+    `;
+  }
+
+  return `
+    <ol class="cost-event-list">
+      ${timeline.map((entry, index) => `
+        <li class="${escapeHtml(entry.kind)} ${escapeHtml(entry.status)}" style="--cost-event-index:${Math.min(index, 8)}">
+          <time>${escapeHtml(formatCostMonitorElapsed(entry.elapsedMs))}</time>
+          <span class="cost-event-node" aria-hidden="true"></span>
+          <div>
+            <strong>${escapeHtml(entry.label)}</strong>
+            ${entry.detail ? `<p>${escapeHtml(entry.detail)}</p>` : ""}
+          </div>
+        </li>
+      `).join("")}
+    </ol>
+  `;
+}
+
+/**
+ * 渲染中间的 Chatflow 事件带。
+ *
+ * @returns {string} 中间列 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCostMonitorEventColumn() {
+  return `
+    <section class="cost-monitor-event-column" aria-label="Chatflow 实时事件">
+      <header class="cost-column-heading">
+        <span>02</span>
+        <div>
+          <strong>Chatflow 事件带</strong>
+          <small>按事件到达顺序留证</small>
+        </div>
+      </header>
+      <div class="cost-event-tape" data-cost-monitor-timeline>
+        ${renderCostMonitorTimeline()}
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * 格式化成本明细的用量说明。
+ *
+ * @param {object} item - 成本项。
+ * @returns {string} 适合显示在账单里的短文本。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function formatCostMonitorUsage(item) {
+  if (item.category === "llm") {
+    return `输入 ${formatCostMonitorNumber(item.promptTokens)} · 输出 ${formatCostMonitorNumber(item.completionTokens)} tokens`;
+  }
+  if (item.category === "embedding") {
+    return `${formatCostMonitorNumber(item.quantity)} tokens`;
+  }
+  if (item.category === "tool") {
+    return item.quantity === null || item.quantity === undefined
+      ? "计费数量待供应商返回"
+      : `${formatCostMonitorNumber(item.quantity)} ${item.unit || "次"}`;
+  }
+  if (item.category === "document") {
+    return `${formatCostMonitorNumber(item.quantity)} 份文档`;
+  }
+  if (item.category === "required") {
+    return "等待完成态模型用量事件";
+  }
+  return `${formatCostMonitorNumber(item.quantity)} 次任务`;
+}
+
+/**
+ * 格式化供应商回传金额，仅作核对，不替代管理员单价计算。
+ *
+ * @param {object} item - 成本项。
+ * @returns {string} 原生币种金额或空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function formatCostMonitorReportedAmount(item) {
+  const amount = Number(item?.reportedAmount);
+  if (!Number.isFinite(amount)) {
+    return "";
+  }
+  const currency = String(item?.reportedCurrency || "").toUpperCase();
+  return `供应商回传 ${currency || "原币"} ${amount.toFixed(7)}`;
+}
+
+/**
+ * 渲染严格模型核对条。
+ *
+ * @returns {string} 用户选择与实际模型对照 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCostMonitorModelAudit() {
+  const audit = window.YD_COST_MONITOR.getModelAudit(state.costMonitor);
+  const requestedLabel = audit.requested || "未选择";
+
+  if (audit.unresolved) {
+    return `
+      <div class="cost-model-audit waiting">
+        <span>模型核对</span>
+        <strong>${escapeHtml(requestedLabel)}</strong>
+        <b aria-hidden="true">→</b>
+        <em>等待 Agent 完成事件</em>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="cost-model-audit ${audit.mismatch ? "mismatch" : "matched"}">
+      <span>${audit.mismatch ? "发现不一致，已纠正" : "实际模型已核对"}</span>
+      <strong>${escapeHtml(requestedLabel)}</strong>
+      <b aria-hidden="true">→</b>
+      <em>${escapeHtml(audit.actual)}</em>
+    </div>
+  `;
+}
+
+/**
+ * 渲染一条实时成本明细。
+ *
+ * @param {{ item: object, calculation: object }} line - 成本项及计算结果。
+ * @returns {string} 账单行 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCostMonitorLedgerLine(line) {
+  const item = line.item;
+  const calculation = line.calculation;
+  const identity = item.model || item.service || item.nodeLabel || item.provider || "待识别";
+  const evidenceLabels = {
+    exact: "实际返回",
+    allocated: "按规则分摊",
+    estimated: "估算",
+    configured: "固定摊销",
+    unpriced: "待定价"
+  };
+
+  return `
+    <li class="cost-ledger-line ${calculation.missing ? "missing" : "priced"}">
+      <span class="cost-ledger-index" aria-hidden="true"></span>
+      <div class="cost-ledger-main">
+        <div>
+          <strong>${escapeHtml(item.label || "成本项")}</strong>
+          <span class="cost-evidence ${escapeHtml(item.evidence || "configured")}">${escapeHtml(evidenceLabels[item.evidence] || "待核对")}</span>
+        </div>
+        <p>${escapeHtml(identity)}</p>
+        <small>${escapeHtml(formatCostMonitorUsage(item))}</small>
+        ${formatCostMonitorReportedAmount(item) ? `<small>${escapeHtml(formatCostMonitorReportedAmount(item))}</small>` : ""}
+        ${calculation.missing ? `<small class="cost-ledger-reason">${escapeHtml(calculation.reason)}</small>` : ""}
+      </div>
+      <strong class="cost-ledger-amount">${calculation.missing ? "待补" : escapeHtml(formatCostMonitorMoney(calculation.amountRmb))}</strong>
+    </li>
+  `;
+}
+
+/**
+ * 渲染后台单价编辑器。
+ *
+ * @returns {string} 可编辑单价、汇率、毛利率和 V豆参数 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCostMonitorPriceEditor() {
+  const monitor = state.costMonitor;
+
+  return `
+    <section class="cost-price-editor ${monitor.showPrices ? "expanded" : ""}" aria-label="成本单价设置">
+      <button class="cost-price-editor-toggle" type="button" data-cost-monitor-toggle-prices>
+        <span>
+          <strong>我的成本单价</strong>
+          <small>示例值，可直接修改</small>
+        </span>
+        <b aria-hidden="true">${monitor.showPrices ? "−" : "+"}</b>
+      </button>
+      <div class="cost-price-editor-body">
+        <div class="cost-price-global-grid">
+          <label><span>美元汇率</span><input type="number" min="0" step="0.01" value="${escapeHtml(monitor.exchangeUsdRmb)}" data-cost-monitor-global-price="exchangeUsdRmb" /></label>
+          <label><span>目标毛利率</span><input type="number" min="0" max="95" step="1" value="${escapeHtml(monitor.marginPercent)}" data-cost-monitor-global-price="marginPercent" /><em>%</em></label>
+          <label><span>每元 V豆</span><input type="number" min="0" step="0.01" value="${escapeHtml(monitor.vbeansPerRmb)}" data-cost-monitor-global-price="vbeansPerRmb" /></label>
+        </div>
+        <div class="cost-price-list">
+          ${window.YD_COST_MONITOR.PRICE_DEFINITIONS.map((definition) => {
+            const price = monitor.prices[definition.id] || definition;
+            return `
+              <label class="cost-price-row">
+                <span><strong>${escapeHtml(definition.label)}</strong><small>${escapeHtml(definition.unitLabel)}</small></span>
+                <input type="number" min="0" step="0.001" value="${escapeHtml(price.amount)}" data-cost-monitor-price="${escapeHtml(definition.id)}" />
+                <select data-cost-monitor-price-currency="${escapeHtml(definition.id)}">
+                  <option value="RMB" ${price.currency === "RMB" ? "selected" : ""}>人民币</option>
+                  <option value="USD" ${price.currency === "USD" ? "selected" : ""}>美元</option>
+                </select>
+              </label>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * 渲染实时成本账单。
+ *
+ * @returns {string} 右侧总成本、销售价、V豆、明细和单价编辑器 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCostMonitorLedger() {
+  const monitor = state.costMonitor;
+  const summary = window.YD_COST_MONITOR.calculateSummary(monitor);
+  const sessionSummary = window.YD_COST_MONITOR.calculateSessionSummary(monitor);
+  const checksum = monitor.checksum;
+  const hasStarted = monitor.status !== "idle";
+  // Agent 用量到达后仍可能继续发生工具调用或重试；必须等 done 才能把“已知成本”冻结成最终结算。
+  const canSettle = monitor.status === "done" && summary.isComplete;
+  const totalHint = !hasStarted
+    ? "发送后成本会随完成事件逐项变化"
+    : monitor.status === "running"
+      ? "调用未完成，后续事件仍可能增加成本"
+      : monitor.status === "error"
+        ? "调用已中断，需按供应商账单复核后再结算"
+      : summary.isComplete
+        ? "所有成本项已匹配单价"
+        : `${summary.missingLines.length} 项等待单价或真实用量`;
+
+  return `
+    <div class="cost-ledger-receipt">
+      <div class="cost-ledger-kicker">
+        <span>LIVE COST</span>
+        <small>${escapeHtml(COST_MONITOR_SOURCE_LABELS[monitor.source])}</small>
+      </div>
+      ${renderCostMonitorModelAudit()}
+      <div class="cost-ledger-total ${canSettle ? "complete" : "incomplete"}">
+        <span>本句话已知成本</span>
+        <strong>${escapeHtml(formatCostMonitorMoney(summary.knownCostRmb))}${hasStarted && !canSettle ? "+" : ""}</strong>
+        <small>${escapeHtml(totalHint)}</small>
+      </div>
+      <div class="cost-ledger-outcome">
+        <div>
+          <span>建议销售价</span>
+          <strong>${!hasStarted ? "等待发送" : !canSettle || summary.salePriceRmb === null ? "暂停结算" : escapeHtml(formatCostMonitorMoney(summary.salePriceRmb))}</strong>
+        </div>
+        <div>
+          <span>建议扣除</span>
+          <strong>${!hasStarted ? "等待发送" : !canSettle || summary.vbeans === null ? "暂停扣费" : `${formatCostMonitorNumber(summary.vbeans)} V豆`}</strong>
+        </div>
+      </div>
+      <div class="cost-ledger-session">
+        <span>本会话 ${sessionSummary.turnCount} 句话</span>
+        <strong>${escapeHtml(formatCostMonitorMoney(sessionSummary.knownCostRmb))}${sessionSummary.hasMissing ? "+" : ""}</strong>
+      </div>
+      <ol class="cost-ledger-lines">
+        ${summary.lines.length
+          ? summary.lines.map(renderCostMonitorLedgerLine).join("")
+          : `<li class="cost-ledger-empty"><strong>¥0.0000</strong><span>发送后逐项入账</span></li>`}
+      </ol>
+      ${checksum ? `
+        <div class="cost-ledger-checksum">
+          <span>Token 校验</span>
+          <strong>${formatCostMonitorNumber(checksum.totalTokens)} tokens</strong>
+          <small>${escapeHtml(checksum.note)}</small>
+        </div>
+      ` : ""}
+      <p class="cost-ledger-formula">售价 = 实际成本 ÷（1 − ${formatCostMonitorNumber(summary.marginPercent)}% 毛利率）</p>
+    </div>
+    ${renderCostMonitorPriceEditor()}
+  `;
+}
+
+/**
+ * 渲染右侧成本账单列。
+ *
+ * @returns {string} 右侧列 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCostMonitorLedgerColumn() {
+  return `
+    <aside class="cost-monitor-ledger-column" aria-label="实时成本账单">
+      <header class="cost-column-heading inverse">
+        <span>03</span>
+        <div>
+          <strong>成本实时入账</strong>
+          <small>按实际模型与币种逐行计算</small>
+        </div>
+      </header>
+      <div class="cost-monitor-ledger-body" data-cost-monitor-ledger>
+        ${renderCostMonitorLedger()}
+      </div>
+    </aside>
+  `;
+}
+
+/**
+ * 后台 AI 成本监控独立页面。
+ *
+ * 页面采用“对话 / 事件带 / 成本账单”三段式结构，让非技术人员可以顺着一次真实调用阅读。
+ *
+ * @returns {string} 完整成本监控页 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderAdminCostMonitor() {
+  return `
+    <section class="cost-monitor-page" aria-label="AI 成本实时监控">
+      ${renderCostMonitorCommandBar()}
+      ${renderCostMonitorConnectionPanel()}
+      <div class="cost-monitor-stage">
+        ${renderCostMonitorChatColumn()}
+        ${renderCostMonitorEventColumn()}
+        ${renderCostMonitorLedgerColumn()}
+      </div>
+      <footer class="cost-monitor-rulebook">
+        <span>完成事件才入账</span>
+        <span>实际模型精确匹配</span>
+        <span>重试保留、重复去除</span>
+        <span>混合币种逐行换汇</span>
+        <span>未知成本暂停扣费</span>
+        <span>日终供应商账单对账</span>
+      </footer>
     </section>
   `;
 }
@@ -4594,7 +5419,8 @@ function hashForAdminMain(main) {
     "admin-agent": "#/admin/agent",
     "admin-invite": "#/admin/invite-code",
     "admin-character": "#/admin/ai-character",
-    "admin-model": "#/admin/ai-model"
+    "admin-model": "#/admin/ai-model",
+    "admin-ai-cost": "#/admin/ai-cost"
   };
 
   return map[main] || "#/admin/ai-character";
@@ -4608,6 +5434,7 @@ function hashForAdminMain(main) {
  */
 function renderSidebar() {
   const historyItems = getFilteredHistoryItems();
+  const isKassPage = state.activeMain.startsWith("customer-kass");
 
   return `
     <aside class="sidebar" aria-label="左侧导航">
@@ -4628,19 +5455,19 @@ function renderSidebar() {
           ${NAV_GROUPS.map(renderNavGroup).join("")}
         </nav>
 
-        <section class="history-block" aria-label="历史记录">
+        <section class="history-block ${isKassPage ? "kass-history-collapsed" : ""}" aria-label="历史记录">
           <div class="history-head">
             <span class="history-head-caret" aria-hidden="true">⌃</span>
             <span class="history-head-label">历史记录</span>
-            <button class="history-head-search ${state.historySearchOpen ? "active" : ""}" type="button" onclick="window.reverseYingdanToggleHistorySearch()" aria-label="搜索会话">⌕</button>
+            ${isKassPage ? "" : `<button class="history-head-search ${state.historySearchOpen ? "active" : ""}" type="button" onclick="window.reverseYingdanToggleHistorySearch()" aria-label="搜索会话">⌕</button>`}
           </div>
-          ${state.historySearchOpen ? `
+          ${!isKassPage && state.historySearchOpen ? `
             <input class="history-search-input" type="search" placeholder="搜索会话标题" value="${escapeHtml(state.historySearchQuery)}" data-history-search="true" />
           ` : ""}
-          <div class="history-list">
+          ${isKassPage ? "" : `<div class="history-list">
             ${historyItems.length ? historyItems.map(renderHistoryItem).join("") : `<div class="history-empty">没有匹配的会话</div>`}
           </div>
-          <button class="load-more" type="button" data-toast="这里仅展示加载更多的交互反馈，不读取真实历史。">加载更多</button>
+          <button class="load-more" type="button" data-toast="这里仅展示加载更多的交互反馈，不读取真实历史。">加载更多</button>`}
         </section>
       </div>
 
@@ -4687,6 +5514,86 @@ function renderHistoryItem(item) {
 }
 
 /**
+ * 渲染客户 Kass 在全局侧栏里的等级与客户快捷入口。
+ *
+ * A 版继续只显示等级，客户名单留在工作区内；B 版则把每个等级的高频客户直接
+ * 展开为子菜单，并用“查看全部”承接长名单。两套结构并存，方便评审时直接比较。
+ *
+ * @param {typeof NAV_GROUPS[number]} group - 客户 Kass 导航配置。
+ * @returns {string} 客户 Kass 侧栏 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassNavGroup(group) {
+  const isExpanded = state.expandedGroups.has(group.id);
+  const isActive = state.activeMain.startsWith("customer-kass");
+  const isWorkbench = isKassWorkbenchView();
+  const isComparison = isKassComparisonView();
+  const workbenchGroup = isWorkbench ? getKassWorkbenchGroup() : getActiveKassGroup();
+
+  return `
+    <div class="nav-section kass-nav-section">
+      <div class="kass-nav-heading">
+        <button class="nav-group-trigger ${isExpanded ? "expanded" : ""} ${isActive ? "active" : ""}" type="button" data-toggle-group="${escapeHtml(group.id)}">
+          <span class="nav-icon">${renderIcon(group.icon, group.label)}</span>
+          <span class="nav-label">${escapeHtml(group.label)}</span>
+        </button>
+        <button class="kass-nav-utility" type="button" data-toast="新增客户是原型入口，不创建真实客户。" aria-label="新增客户">新增</button>
+      </div>
+      <div class="nav-children ${isExpanded ? "expanded" : ""}">
+        <div class="nav-children-inner kass-grade-list">
+          ${isWorkbench ? `
+            <div class="kass-version-switch" aria-label="界面方案">
+              <button class="${state.activeMain === "customer-kass-a" ? "active" : ""}" type="button" data-kass-version="customer-kass-a">方案 A</button>
+              <button class="${state.activeMain === "customer-kass-b" ? "active" : ""}" type="button" data-kass-version="customer-kass-b">方案 B</button>
+            </div>
+          ` : ""}
+          ${KASS_GROUPS.map((kassGroup) => {
+            const totalCount = Number(kassGroup.totalCount || kassGroup.customers.length);
+            const isSelected = workbenchGroup?.id === kassGroup.id;
+            const isGradeExpanded = isComparison && state.kassExpandedGrades.has(kassGroup.id);
+            const visibleCustomers = kassGroup.customers.slice(0, 5);
+
+            return `
+              <section class="kass-grade-section">
+                <button
+                  class="kass-grade-trigger ${isSelected ? "active" : ""}"
+                  type="button"
+                  ${isWorkbench
+                    ? `data-kass-workbench-grade="${escapeHtml(kassGroup.id)}"${isComparison ? ` aria-expanded="${isGradeExpanded ? "true" : "false"}"` : ""}`
+                    : `data-main="${escapeHtml(kassGroup.id)}"`}
+                >
+                  <span class="kass-grade-caret" aria-hidden="true">${isComparison ? (isGradeExpanded ? "⌄" : "›") : (isSelected ? "−" : "+")}</span>
+                  <strong>${escapeHtml(kassGroup.label)}</strong>
+                  <small>(${totalCount})</small>
+                </button>
+                ${isComparison ? `
+                  <div class="kass-grade-customers ${isGradeExpanded ? "expanded" : ""}">
+                    ${visibleCustomers.map((customer) => `
+                      <button
+                        class="kass-sidebar-customer ${state.activeCustomerId === customer.id ? "active" : ""}"
+                        type="button"
+                        data-customer="${escapeHtml(customer.id)}"
+                        data-customer-group="${escapeHtml(kassGroup.id)}"
+                        data-kass-workbench-customer="true"
+                        title="${escapeHtml(customer.name)}"
+                      ><span>${escapeHtml(customer.name)}</span></button>
+                    `).join("")}
+                    ${visibleCustomers.length ? "" : `<span class="kass-sidebar-empty">${escapeHtml(kassGroup.label)} 级暂无客户</span>`}
+                    <button class="kass-view-all" type="button" data-kass-directory-open="${escapeHtml(kassGroup.id)}">
+                      查看全部 ${totalCount} 个 →
+                    </button>
+                  </div>
+                ` : ""}
+              </section>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
  * 渲染一个导航入口或导航分组。
  *
  * @param {typeof NAV_GROUPS[number]} group - 导航配置。
@@ -4694,6 +5601,10 @@ function renderHistoryItem(item) {
  * @throws {Error} 本函数不主动抛异常；group.children 缺失时按空数组处理。
  */
 function renderNavGroup(group) {
+  if (group.id === "customer-kass") {
+    return renderKassNavGroup(group);
+  }
+
   if (group.type === "single") {
     const isActive = state.activeMain === group.id;
 
@@ -4824,6 +5735,9 @@ function renderTopActions() {
   return `
     <div class="top-actions">
       <a class="admin-ghost-entry" href="#/admin/home" aria-label="进入后台管理"></a>
+      ${state.activeMain.startsWith("customer-kass") && state.activeKassView === "online"
+        ? `<button class="kass-online-back-button" type="button" data-kass-view="workbench">返回重点推进</button>`
+        : ""}
       <button class="service-pill" type="button" data-toast="客服入口是原型反馈，当前不打开真实客服。">
         <span class="service-pill-icon" aria-hidden="true">◎</span>
         <span>客服</span>
@@ -4899,11 +5813,12 @@ function renderCustomerDevelopmentView() {
   const isContacts = state.customerDevPhase === "contacts";
 
   return `
-    <section class="customer-dev-view" aria-label="客户开发">
+    <section class="customer-dev-view customer-dev-view-${escapeHtml(state.customerDevPhase)}" aria-label="客户开发">
       ${isBrief ? renderCustomerDevBriefPanel() : ""}
       ${isSearching ? renderCustomerDevSearchingPanel() : ""}
       ${isResults ? renderCustomerDevResultsWorkspace(leads, selectedLead) : ""}
       ${isContacts ? renderCustomerDevContactsWorkspace(selectedLead) : ""}
+      ${isBrief ? renderCustomerDevPicker() : ""}
     </section>
   `;
 }
@@ -4920,38 +5835,265 @@ function renderCustomerDevelopmentView() {
  */
 function renderCustomerDevBriefPanel() {
   const brief = state.customerDevBrief;
+  const customerTypes = CUSTOMER_DEVELOPMENT.customerTypes || [];
+  const quantities = CUSTOMER_DEVELOPMENT.quantities || [];
+  const selectedProductGroup = (CUSTOMER_DEVELOPMENT.productGroups || []).find((group) => group.products.includes(brief.product));
 
   return `
     <section class="customer-dev-brief-panel" aria-label="输入客户开发目标">
-      <article class="customer-dev-brief-card">
-        <header>
-          <div>
-            <span>从开发目标开始</span>
-            <h2>告诉 AI 你要找什么客户</h2>
-          </div>
-          <a href="#/customer-development/searching" data-customer-dev-start>开始 AI 找客户</a>
+      <article class="customer-dev-enrichment-home">
+        <header class="customer-dev-enrichment-hero">
+          <span class="customer-dev-enrichment-kicker">Lead Enrichment&nbsp;&nbsp;·&nbsp;&nbsp;客户情报补全</span>
+          <h1>从一条线索，补全成可行动的客户情报</h1>
+          <p>全网多源数据自动搜集与验证，生成完整公司与联系人画像，助你更快触达、更高转化。</p>
         </header>
+
         <div class="customer-dev-brief-fields">
-          ${[
-            ["market", "目标国家 / 地区", brief.market],
-            ["product", "主推产品 / 方案", brief.product],
-            ["role", "客户类型 / 关键角色", brief.role],
-            ["goal", "本次开发目标", brief.goal]
-          ].map(([field, label, value]) => `
-            <label>
-              <span>${escapeHtml(label)}</span>
-              <input data-customer-dev-field="${escapeHtml(field)}" value="${escapeHtml(value)}" />
-            </label>
-          `).join("")}
+          <div class="customer-dev-brief-field">
+            <span class="customer-dev-field-label"><small>01</small>目标国家 / 地区</span>
+            <button class="customer-dev-select-trigger" type="button" data-customer-dev-picker="market" aria-haspopup="dialog">
+              <span><strong>${escapeHtml(brief.market)}</strong><em>按大洲选择 · 单选</em></span>
+              <b aria-hidden="true">⌄</b>
+            </button>
+          </div>
+
+          <div class="customer-dev-brief-field">
+            <span class="customer-dev-field-label"><small>02</small>行业产品</span>
+            <button class="customer-dev-select-trigger" type="button" data-customer-dev-picker="product" aria-haspopup="dialog">
+              <span><strong>${escapeHtml(brief.product)}</strong><em>${escapeHtml(selectedProductGroup?.label || "按行业大类选择")}</em></span>
+              <b aria-hidden="true">⌄</b>
+            </button>
+          </div>
+
+          <label class="customer-dev-brief-field">
+            <span class="customer-dev-field-label"><small>03</small>客户类型</span>
+            <select class="customer-dev-field-select" data-customer-dev-field="role" aria-label="客户类型">
+              ${[...new Set([brief.role, ...customerTypes])].map((option) => `
+                <option value="${escapeHtml(option)}" ${option === brief.role ? "selected" : ""}>${escapeHtml(option)}</option>
+              `).join("")}
+            </select>
+          </label>
+
+          <label class="customer-dev-brief-field">
+            <span class="customer-dev-field-label"><small>04</small>目标客户数量</span>
+            <select class="customer-dev-field-select" data-customer-dev-field="quantity" aria-label="目标客户数量">
+              ${[...new Set([Number(brief.quantity), ...quantities])].map((quantity) => `
+                <option value="${escapeHtml(quantity)}" ${String(quantity) === brief.quantity ? "selected" : ""}>${escapeHtml(quantity)} 家</option>
+              `).join("")}
+            </select>
+          </label>
         </div>
-        <div class="customer-dev-brief-presets">
-          ${["中东 EPC 承包商", "德国光伏项目商", "印度分销商", "南非系统集成商"].map((preset) => `
-            <button type="button" data-customer-dev-preset="${escapeHtml(preset)}">${escapeHtml(preset)}</button>
-          `).join("")}
+
+        <div class="customer-dev-enrichment-action">
+          <div class="customer-dev-engine-ready">
+            <i aria-hidden="true"></i>
+            <span>
+              <small>全球获客引擎已就绪</small>
+              <strong>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.quantity)} 家</strong>
+            </span>
+          </div>
+          <a class="customer-dev-launch" href="#/customer-development/searching" data-customer-dev-start>
+            <span>
+              <small>AI 全网搜索 · 即刻生成名单</small>
+              <strong>启动搜索，锁定成交机会</strong>
+            </span>
+            <b aria-hidden="true">↗</b>
+          </a>
         </div>
+
+        <footer class="customer-dev-recent-searches" aria-label="最近搜索模板">
+          <span>最近搜索模板：</span>
+          <button type="button" data-customer-dev-preset="德国光伏储能">德国 · 光伏组件 · EPC 承包商 · 100 家</button>
+          <button type="button" data-customer-dev-preset="阿联酋逆变器分销">阿联酋 · 光伏逆变器 · 分销商 · 80 家</button>
+          <button type="button" data-customer-dev-preset="沙特工商业储能">沙特阿拉伯 · 工商业储能 · 系统集成商 · 120 家</button>
+          <button type="button" class="customer-dev-clear-recent" data-customer-dev-clear-history>清空历史</button>
+        </footer>
       </article>
     </section>
   `;
+}
+
+/**
+ * 渲染客户开发的国家或行业产品选择弹窗。
+ *
+ * 作用：
+ * - 国家按大洲分组，产品按行业大类分组，避免把大量选项塞进原生下拉框。
+ * - 两类选择都保持单选；点击具体选项后立即写入条件并关闭弹窗。
+ *
+ * @returns {string} 选择器弹窗 HTML；未打开选择器时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常；数据为空时使用空数组兜底。
+ */
+function renderCustomerDevPicker() {
+  const picker = state.customerDevPicker;
+
+  if (!picker) {
+    return "";
+  }
+
+  const isMarket = picker === "market";
+  const groups = isMarket
+    ? (CUSTOMER_DEVELOPMENT.countryGroups || [])
+    : (CUSTOMER_DEVELOPMENT.productGroups || []);
+  const activeGroupId = isMarket ? state.customerDevContinent : state.customerDevProductCategory;
+  const activeGroup = groups.find((group) => group.id === activeGroupId) || groups[0];
+  const options = isMarket ? (activeGroup?.countries || []) : (activeGroup?.products || []);
+  const selectedValue = isMarket ? state.customerDevBrief.market : state.customerDevBrief.product;
+  const totalOptions = groups.reduce((total, group) => {
+    const groupOptions = isMarket ? (group.countries || []) : (group.products || []);
+    return total + groupOptions.length;
+  }, 0);
+
+  return `
+    <div class="customer-dev-picker-layer">
+      <button class="customer-dev-picker-backdrop" type="button" data-customer-dev-picker-close aria-label="关闭选择弹窗"></button>
+      <section class="customer-dev-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-dev-picker-title" tabindex="-1">
+        <header>
+          <div>
+            <span>${isMarket ? "GLOBAL MARKET" : "INDUSTRY PRODUCT"}</span>
+            <h2 id="customer-dev-picker-title">${isMarket ? "选择一个目标国家 / 地区" : "选择一个行业产品"}</h2>
+            <p>${isMarket
+              ? `按七大洲浏览，共收录 ${totalOptions} 个国家 / 地区；当前为单选。`
+              : `按 ${groups.length} 个行业大类浏览，共收录 ${totalOptions} 个产品；选择后用于匹配目标客户。`
+            }</p>
+          </div>
+          <button class="customer-dev-picker-close" type="button" data-customer-dev-picker-close aria-label="关闭">×</button>
+        </header>
+
+        <div class="customer-dev-picker-content">
+          <nav aria-label="${isMarket ? "大洲" : "行业大类"}">
+            ${groups.map((group) => {
+              const groupOptions = isMarket ? (group.countries || []) : (group.products || []);
+              return `
+                <button class="${group.id === activeGroup?.id ? "active" : ""}" type="button" ${isMarket ? "data-customer-dev-continent" : "data-customer-dev-product-category"}="${escapeHtml(group.id)}" aria-pressed="${group.id === activeGroup?.id}">
+                  <span>${escapeHtml(group.label)}</span>
+                  <small>${groupOptions.length}</small>
+                </button>
+              `;
+            }).join("")}
+          </nav>
+
+          <div class="customer-dev-picker-options">
+            <div class="customer-dev-picker-options-head">
+              <div>
+                <small>${isMarket ? "按大洲浏览" : "按行业大类浏览"}</small>
+                <h3>${escapeHtml(activeGroup?.label || "请选择")}</h3>
+              </div>
+              <span><i aria-hidden="true"></i> 单选 · 选择后自动返回</span>
+            </div>
+            <div class="customer-dev-picker-option-grid ${isMarket ? "is-country" : "is-product"}">
+              ${renderCustomerDevPickerOptions(options, isMarket, selectedValue)}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+/**
+ * 生成客户开发弹窗里的具体国家或产品按钮。
+ *
+ * 为什么独立成函数：
+ * - 首次打开弹窗和切换大洲 / 行业大类时需要生成完全一致的按钮结构。
+ * - 共用一份模板可避免局部刷新后丢失选中态、无障碍属性或事件数据属性。
+ *
+ * @param {string[]} options - 当前大洲的国家列表，或当前行业大类的产品列表。
+ * @param {boolean} isMarket - `true` 表示国家模式，`false` 表示行业产品模式。
+ * @param {string} selectedValue - 当前已经写入获客条件的单选值。
+ * @returns {string} 可写入选项网格的按钮 HTML。
+ * @throws {Error} 本函数不主动抛异常；所有动态文本都会先进行 HTML 转义。
+ */
+function renderCustomerDevPickerOptions(options, isMarket, selectedValue) {
+  return options.map((option) => {
+    const selected = option === selectedValue;
+
+    return `
+      <button class="${selected ? "selected" : ""}" type="button" ${isMarket ? "data-customer-dev-country" : "data-customer-dev-product"}="${escapeHtml(option)}" aria-pressed="${selected}">
+        <span>${escapeHtml(option)}</span>
+        <b aria-hidden="true">${selected ? "✓" : "→"}</b>
+      </button>
+    `;
+  }).join("");
+}
+
+/**
+ * 在已打开的客户开发弹窗内切换大洲或行业大类。
+ *
+ * 为什么只更新弹窗内部：
+ * - 旧实现会调用 renderApp 重建整页，弹窗入场动画也会被重新播放，因此视觉上会闪一下。
+ * - 这里保留同一个弹窗 DOM，只替换导航选中态、分组标题和具体选项，切换会立即完成且不抖动。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常；弹窗或分组数据不存在时直接返回。
+ */
+function refreshCustomerDevPickerGroup() {
+  const picker = state.customerDevPicker;
+  const dialog = document.querySelector(".customer-dev-picker-dialog");
+
+  if (!picker || !dialog) {
+    return;
+  }
+
+  const isMarket = picker === "market";
+  const groups = isMarket
+    ? (CUSTOMER_DEVELOPMENT.countryGroups || [])
+    : (CUSTOMER_DEVELOPMENT.productGroups || []);
+  const activeGroupId = isMarket ? state.customerDevContinent : state.customerDevProductCategory;
+  const activeGroup = groups.find((group) => group.id === activeGroupId) || groups[0];
+
+  if (!activeGroup) {
+    return;
+  }
+
+  const options = isMarket ? (activeGroup.countries || []) : (activeGroup.products || []);
+  const selectedValue = isMarket ? state.customerDevBrief.market : state.customerDevBrief.product;
+  const groupAttribute = isMarket ? "data-customer-dev-continent" : "data-customer-dev-product-category";
+
+  dialog.querySelectorAll(`[${groupAttribute}]`).forEach((button) => {
+    const active = button.getAttribute(groupAttribute) === activeGroup.id;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+
+  const groupTitle = dialog.querySelector(".customer-dev-picker-options-head h3");
+  const optionGrid = dialog.querySelector(".customer-dev-picker-option-grid");
+  const optionPanel = dialog.querySelector(".customer-dev-picker-options");
+
+  if (groupTitle) {
+    groupTitle.textContent = activeGroup.label;
+  }
+
+  if (optionGrid) {
+    optionGrid.classList.toggle("is-country", isMarket);
+    optionGrid.classList.toggle("is-product", !isMarket);
+    optionGrid.innerHTML = renderCustomerDevPickerOptions(options, isMarket, selectedValue);
+  }
+
+  // 用户切到新分组时，从第一项开始浏览，避免继承上一个长列表的滚动位置。
+  if (optionPanel) {
+    optionPanel.scrollTop = 0;
+  }
+}
+
+/**
+ * 同步客户开发首页“获客引擎已就绪”的条件摘要。
+ *
+ * 为什么局部更新：
+ * - 客户类型和数量使用原生下拉框，不需要因为一次选择重绘整页。
+ * - 局部更新既能立即反馈数量变化，也不会让用户正在操作的下拉框失去焦点。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常；摘要节点不存在时直接返回。
+ */
+function syncCustomerDevEngineSummary() {
+  const summary = document.querySelector(".customer-dev-engine-ready strong");
+
+  if (!summary) {
+    return;
+  }
+
+  const { market, product, quantity } = state.customerDevBrief;
+  summary.textContent = `${market} · ${product} · ${quantity} 家`;
 }
 
 /**
@@ -4966,15 +6108,16 @@ function renderCustomerDevSearchingPanel() {
   return `
     <section class="customer-dev-searching" aria-label="AI 正在找客户">
       <article>
+        <span class="customer-dev-search-live"><i aria-hidden="true"></i> 全球客户信号接入中</span>
         <div class="customer-dev-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
-        <h2>正在根据开发目标生成客户名单</h2>
-        <p>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}</p>
+        <h2>获客引擎已启动，正在锁定成交机会</h2>
+        <p>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)} · ${escapeHtml(brief.quantity)} 家</p>
         <div class="customer-dev-search-log">
           ${[
-            "拆解目标客户画像和关键词",
-            "扫描 Google / 官网 / LinkedIn / 展会名录",
-            "整理候选公司列表",
-            "准备公司详情与联系人线索"
+            "目标市场与采购画像已确认",
+            "正在扫描官网、商业目录与公开贸易信号",
+        "符合当前筛选条件的企业正在进入候选名单",
+            "即将打开公司画像与联系人入口"
           ].map((text, index) => `
             <span class="${index < 3 ? "done" : "active"}">${escapeHtml(text)}</span>
           `).join("")}
@@ -4986,6 +6129,10 @@ function renderCustomerDevSearchingPanel() {
 
 /**
  * 渲染客户开发结果工作台。
+ *
+ * 设计说明：
+ * - 结果页只保留一个自然语言搜索框，避免目标国家、产品、渠道等筛选按钮争夺注意力。
+ * - 当前获客目标、线索总量和本页数量放在同一个标题区，让用户先确认战役目标，再进入客户名单。
  *
  * @param {typeof CUSTOMER_DEVELOPMENT.leads} leads - 客户线索列表。
  * @param {typeof CUSTOMER_DEVELOPMENT.leads[number]} selectedLead - 当前选中客户。
@@ -5000,20 +6147,9 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
       <div>
         <span>本轮获客目标</span>
         <strong>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}</strong>
+        <p>126 条线索 · 本页 ${leads.length} 家</p>
       </div>
       <a href="#/customer-development" data-customer-dev-reset>重新配置目标</a>
-    </section>
-
-    <section class="customer-dev-filterbar">
-      <label class="customer-dev-search">
-        <span aria-hidden="true">⌕</span>
-        <input value="" placeholder="用自然语言搜索客户，例如：德国做光伏组件的EPC承包商" aria-label="搜索客户" />
-      </label>
-      ${["目标国家", "产品", "渠道", "客户角色"].map((label) => `
-        <button type="button" data-toast="已模拟打开${label}筛选。">${escapeHtml(label)}⌄</button>
-      `).join("")}
-      <button class="customer-dev-filter-more" type="button" data-toast="已模拟打开更多筛选。">更多筛选 <b>2</b></button>
-      <button type="button" data-toast="已模拟保存当前筛选。">保存筛选</button>
     </section>
 
     <div class="customer-dev-list-toolbar">
@@ -5100,13 +6236,27 @@ function renderCustomerDevDetail(lead) {
   }
 
   return `
-    <aside class="customer-dev-detail">
-      <header>
-        <div>
+    <aside class="customer-dev-detail" aria-label="${escapeHtml(lead.company)} 客户详情">
+      <header class="customer-dev-detail-hero">
+        <div class="customer-dev-detail-heading">
+          <span class="customer-dev-detail-kicker">客户情报</span>
           <h2>${escapeHtml(lead.company)}</h2>
-          <p><span>${escapeHtml(lead.type)}</span><span>${escapeHtml(lead.countryName)}</span></p>
+          <p class="customer-dev-detail-tags">
+            <span>${escapeHtml(lead.type)}</span>
+            <span>${escapeHtml(lead.countryName)}</span>
+          </p>
         </div>
-        <button type="button" data-toast="已模拟关闭客户详情。">×</button>
+        <button class="customer-dev-detail-close" type="button" aria-label="关闭客户详情" data-toast="已模拟关闭客户详情。">关闭</button>
+        <dl class="customer-dev-detail-meta">
+          <div>
+            <dt>线索来源</dt>
+            <dd>${escapeHtml(lead.source)}</dd>
+          </div>
+          <div>
+            <dt>最近更新</dt>
+            <dd>${escapeHtml(lead.updated)}</dd>
+          </div>
+        </dl>
       </header>
 
       ${renderCustomerDevCompanyPanel(lead)}
@@ -5163,24 +6313,83 @@ function buildCustomerDevContacts(lead) {
 function renderCustomerDevCompanyPanel(lead) {
   return `
     <div class="customer-dev-panel-slide">
-      <section class="customer-dev-info-list">
-        <h3>公司信息</h3>
-        ${[
-          ["官网", lead.website],
-          ["总部", lead.location],
-          ["公司规模", lead.size],
-          ["成立时间", lead.founded],
-          ["线索来源", lead.source]
-        ].map(([label, value]) => `
-          <p><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></p>
-        `).join("")}
-      </section>
-      <section class="customer-dev-evidence">
-        <h3>线索依据</h3>
-        ${lead.evidence.slice(0, 2).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
-      </section>
+      <nav class="customer-dev-detail-tabs" aria-label="客户情报分类" role="tablist">
+        <button class="active" type="button" role="tab" aria-selected="true" data-customer-dev-detail-tab="overview">公司资料</button>
+        <button type="button" role="tab" aria-selected="false" data-customer-dev-detail-tab="signals">公开动态 <span>${lead.evidence.length}</span></button>
+        <button type="button" role="tab" aria-selected="false" data-customer-dev-detail-tab="contact">已知联系人</button>
+      </nav>
+      <div class="customer-dev-detail-panels">
+        <section class="customer-dev-info-list customer-dev-detail-pane" role="tabpanel" data-customer-dev-detail-panel="overview">
+          <div class="customer-dev-section-head">
+            <div>
+              <span class="customer-dev-section-kicker">基本档案</span>
+              <h3>公司信息</h3>
+            </div>
+          </div>
+          <dl class="customer-dev-facts-grid">
+            <div class="customer-dev-fact customer-dev-fact-wide">
+              <dt>官网</dt>
+              <dd>${escapeHtml(lead.website)}</dd>
+            </div>
+            <div class="customer-dev-fact customer-dev-fact-wide">
+              <dt>总部</dt>
+              <dd>${escapeHtml(lead.location)}</dd>
+            </div>
+            <div class="customer-dev-fact">
+              <dt>公司规模</dt>
+              <dd>${escapeHtml(lead.size)}</dd>
+            </div>
+            <div class="customer-dev-fact">
+              <dt>成立时间</dt>
+              <dd>${escapeHtml(lead.founded)}</dd>
+            </div>
+          </dl>
+        </section>
+        <section class="customer-dev-evidence customer-dev-detail-pane" role="tabpanel" data-customer-dev-detail-panel="signals" hidden>
+          <div class="customer-dev-section-head">
+            <div>
+              <span class="customer-dev-section-kicker">公开来源</span>
+              <h3>公开动态</h3>
+            </div>
+            <span>更新于 ${escapeHtml(lead.updated)}</span>
+          </div>
+          <div class="customer-dev-evidence-list">
+            ${lead.evidence.map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
+          </div>
+        </section>
+        <section class="customer-dev-info-list customer-dev-detail-pane" role="tabpanel" data-customer-dev-detail-panel="contact" hidden>
+          <div class="customer-dev-section-head">
+            <div>
+              <span class="customer-dev-section-kicker">公开记录</span>
+              <h3>已知联系人</h3>
+            </div>
+          </div>
+          <dl class="customer-dev-facts-grid">
+            <div class="customer-dev-fact customer-dev-fact-wide">
+              <dt>姓名</dt>
+              <dd>${escapeHtml(lead.contact)}</dd>
+            </div>
+            <div class="customer-dev-fact customer-dev-fact-wide">
+              <dt>职位</dt>
+              <dd>${escapeHtml(lead.role)}</dd>
+            </div>
+            <div class="customer-dev-fact">
+              <dt>发现来源</dt>
+              <dd>${escapeHtml(lead.source)}</dd>
+            </div>
+            <div class="customer-dev-fact">
+              <dt>更新时间</dt>
+              <dd>${escapeHtml(lead.updated)}</dd>
+            </div>
+          </dl>
+        </section>
+      </div>
       <section class="customer-dev-detail-action">
-        <a href="#/customer-development/contacts" data-customer-dev-open-contacts>获取联系人信息</a>
+        <div class="customer-dev-detail-action-copy">
+          <strong>联系人资料</strong>
+          <span>查看姓名、职位与公开联系方式</span>
+        </div>
+        <a href="#/customer-development/contacts" data-customer-dev-open-contacts>查看联系人资料</a>
       </section>
     </div>
   `;
@@ -6465,85 +7674,1136 @@ function renderCaseLibraryView() {
 }
 
 /**
+ * 渲染 B 版右侧的客户资料与跟进上下文。
+ *
+ * B 版只改变“客户列表在侧栏、Agent 与资料左右并列”的信息架构；
+ * 具体客户资料和跟进内容复用 A 版的同一个工作纸，避免两套方案出现不同字段、
+ * 不同交互或不同的“跟进记录 → 关联待办”关系。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {string} 右侧上下文栏 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassComparisonContext(customer) {
+  return `
+    <aside class="kass-compare-context" aria-label="${escapeHtml(customer.name)} 客户上下文">
+      <header class="kass-compare-customer-head">
+        <div>
+          <small>${escapeHtml(customer.level)} 级客户</small>
+          <h1>${escapeHtml(customer.name)}</h1>
+          <p>${escapeHtml(customer.country)} · Alibaba.com 询盘 · ${escapeHtml(customer.stage)}</p>
+        </div>
+      </header>
+      ${renderKassCustomerHub(customer)}
+    </aside>
+  `;
+}
+
+/**
+ * 渲染 B 版 CRM Agent 对话主区。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {string} CRM Agent 对话 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassComparisonConversation(customer) {
+  const profile = getKassBackgroundProfile(customer);
+
+  return `
+    <main class="kass-compare-agent" aria-label="CRM Agent 对话">
+      <header class="kass-compare-agent-head">
+        <span class="kass-agent-mark" aria-hidden="true">A</span>
+        <div>
+          <h1>CRM Agent</h1>
+          <p>结合客户背调、跟进记录与关联待办持续分析</p>
+        </div>
+      </header>
+
+      <div class="kass-crm-scroll" data-kass-agent-scroll="true">
+        <article class="kass-chat-turn kass-chat-turn-user">
+          <div class="kass-chat-avatar">我</div>
+          <div class="kass-chat-content">
+            <header><strong>我</strong><time>14:31</time></header>
+            <p>分析这个客户，帮我判断下一步怎么跟进</p>
+          </div>
+        </article>
+
+        <article class="kass-chat-turn kass-chat-turn-agent">
+          <div class="kass-agent-mark" aria-hidden="true">A</div>
+          <div class="kass-chat-content">
+            <header><strong>CRM Agent</strong><time>14:31</time></header>
+            <section class="kass-agent-analysis">
+              <h2>客户分析</h2>
+              <ul>
+                <li>${escapeHtml(customer.name)} 当前处于“${escapeHtml(customer.stage)}”，关注 ${escapeHtml(customer.product || "待确认产品")}，采购量 ${escapeHtml(customer.quantity || "待确认")}。</li>
+                <li>背调显示其采购角色为${escapeHtml(profile.purchasingRole)}，主要渠道包括${escapeHtml(profile.marketChannels)}。</li>
+                <li>${escapeHtml(customer.summary || "现阶段应先补齐需求与决策链，再判断投入优先级。")}</li>
+              </ul>
+            </section>
+            <section class="kass-agent-next">
+              <h2>下一步建议</h2>
+              <ol>
+                <li><span>1</span><p>${escapeHtml(customer.nextAction || "确认关键需求与采购计划。")}</p></li>
+                <li><span>2</span><p>围绕客户渠道准备匹配的产品组合、认证资料和差异化案例。</p></li>
+                <li><span>3</span><p>锁定下一次沟通时间，并把承诺事项直接记录为这次跟进的待办。</p></li>
+              </ol>
+            </section>
+            <button class="kass-save-record" type="button" data-kass-save-analysis="true">保存为跟进记录</button>
+          </div>
+        </article>
+
+        ${state.kassAgentMessages.map((message) => `
+          <article class="kass-chat-turn ${message.role === "user" ? "kass-chat-turn-user" : "kass-chat-turn-agent"}">
+            <div class="${message.role === "user" ? "kass-chat-avatar" : "kass-agent-mark"}" aria-hidden="true">${message.role === "user" ? "我" : "A"}</div>
+            <div class="kass-chat-content">
+              <header><strong>${message.role === "user" ? "我" : "CRM Agent"}</strong><time>刚刚</time></header>
+              <p class="kass-agent-message-text">${escapeHtml(message.content)}</p>
+            </div>
+          </article>
+        `).join("")}
+
+        ${state.kassAgentThinking ? `
+          <article class="kass-chat-turn kass-chat-turn-agent">
+            <div class="kass-agent-mark" aria-hidden="true">A</div>
+            <div class="kass-chat-content"><p class="kass-agent-thinking">正在结合客户档案整理建议<span>…</span></p></div>
+          </article>
+        ` : ""}
+      </div>
+
+      <footer class="kass-agent-composer">
+        <button type="button" class="kass-agent-attach" data-toast="附件入口为原型反馈，不读取本地文件。" aria-label="添加附件">附件</button>
+        <textarea rows="1" data-kass-agent-input="true" placeholder="告诉 Agent 你想处理什么…">${escapeHtml(state.kassAgentDraft)}</textarea>
+        <button class="kass-agent-send" type="button" data-kass-agent-send="true" ${state.kassAgentDraft.trim() && !state.kassAgentThinking ? "" : "disabled"}>发送</button>
+      </footer>
+    </main>
+  `;
+}
+
+/**
+ * 渲染 B 路由专用的“侧栏客户 + 对话 + 客户上下文”比较方案。
+ *
+ * @returns {string} B 版客户 Kass HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderCustomerKassComparisonView() {
+  const group = getKassWorkbenchGroup();
+  const customer = getKassWorkbenchCustomer(group);
+
+  if (!customer) {
+    return `
+      <section class="kass-compare-page workbench-enter">
+        <div class="kass-crm-empty">
+          <span class="kass-agent-mark" aria-hidden="true">A</span>
+          <h1>${escapeHtml(group.label)} 级客户暂为空</h1>
+          <p>从左侧展开其他等级并选择客户。</p>
+        </div>
+      </section>
+    `;
+  }
+
+  const profile = getKassBackgroundProfile(customer);
+
+  return `
+    <section class="kass-compare-page workbench-enter" aria-label="客户 Kass B 版对照方案">
+      ${renderKassComparisonConversation(customer)}
+      ${renderKassComparisonContext(customer)}
+    </section>
+    ${renderKassResearchPanel(customer, profile)}
+  `;
+}
+
+/**
  * 渲染客户Kass作战室。
  *
  * @returns {string} 客户Kass HTML。
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderCustomerKassView() {
-  const group = getActiveKassGroup();
-  const customer = group.customers.length ? getActiveKassCustomer() : null;
-  const activeStageIndex = customer
-    ? Math.max(0, KASS_FLOW_STAGES.findIndex((stage) => stage.includes(customer.stage)))
-    : 0;
+  if (isKassComparisonView()) {
+    return renderCustomerKassComparisonView();
+  }
+
+  const group = getKassWorkbenchGroup();
+  const customer = getKassWorkbenchCustomer(group);
 
   return `
-    <section class="kass-directory workbench-enter">
-      ${renderKassGroupTodayCard(group)}
+    <section class="kass-crm-page workbench-enter" aria-label="客户 Kass CRM Agent">
+      ${renderKassCustomerRoster(group)}
+      ${customer ? `
+        <main class="kass-crm-thread" aria-label="CRM Agent 对话">
+          <header class="kass-customer-workspace-head">
+            <div>
+              <h1>${escapeHtml(customer.name)}</h1>
+              <p>${escapeHtml(customer.country)} · Alibaba.com 询盘 · ${escapeHtml(customer.stage)}</p>
+            </div>
+          </header>
 
-      <aside class="kass-directory-list" aria-label="客户Kass客户列表">
-        <header class="kass-directory-head">
-          <div>
-            <h2><span class="orange-bar"></span>${escapeHtml(group.label)}</h2>
-            <p>${escapeHtml(group.desc)}</p>
+          <nav class="kass-workspace-tabs" aria-label="客户工作区">
+            <button class="${state.activeKassTab === "conversation" ? "active" : ""}" type="button" data-kass-tab="conversation">AI 助理</button>
+            <button class="${state.activeKassTab !== "conversation" ? "active" : ""}" type="button" data-kass-tab="profile">客户信息</button>
+          </nav>
+
+          ${state.activeKassTab === "conversation" ? `
+          <div class="kass-crm-scroll" data-kass-agent-scroll="true">
+            <article class="kass-chat-turn kass-chat-turn-user">
+              <div class="kass-chat-avatar">我</div>
+              <div class="kass-chat-content">
+                <header><strong>我</strong><time>14:31</time></header>
+                <p>分析这个客户，帮我判断下一步怎么跟进</p>
+              </div>
+            </article>
+
+            <article class="kass-chat-turn kass-chat-turn-agent">
+              <div class="kass-agent-mark" aria-hidden="true">A</div>
+              <div class="kass-chat-content">
+                <header><strong>CRM Agent</strong><time>14:31</time></header>
+                <section class="kass-agent-analysis">
+                  <h2>客户分析</h2>
+                  <ul>
+                    <li>来自 Alibaba.com 的${escapeHtml(customer.stage)}，需求为 ${escapeHtml(customer.product || "待确认产品")}，数量 ${escapeHtml(customer.quantity || "待确认")}。</li>
+                    <li>采购数量较大，符合供应能力与最小起订要求，具备较高转化潜力。</li>
+                    <li>当前关注点可能在价格、交期与定制工艺，需要快速建立信任并推进报价。</li>
+                  </ul>
+                </section>
+                <section class="kass-agent-next">
+                  <h2>下一步建议</h2>
+                  <ol>
+                    <li><span>1</span><p>快速确认需求细节：材质、杯盖款式、包装、Logo 工艺与颜色数量等。</p></li>
+                    <li><span>2</span><p>提供具备竞争力的报价与交期方案，争取 24 小时内给到初版报价。</p></li>
+                    <li><span>3</span><p>准备样品方案与案例资料，安排寄样并锁定下次沟通时间。</p></li>
+                  </ol>
+                </section>
+                <button class="kass-save-record" type="button" data-kass-save-analysis="true">保存为跟进记录</button>
+              </div>
+            </article>
+
+            ${state.kassAgentMessages.map((message) => `
+              <article class="kass-chat-turn ${message.role === "user" ? "kass-chat-turn-user" : "kass-chat-turn-agent"}">
+                <div class="${message.role === "user" ? "kass-chat-avatar" : "kass-agent-mark"}" aria-hidden="true">${message.role === "user" ? "我" : "A"}</div>
+                <div class="kass-chat-content">
+                  <header><strong>${message.role === "user" ? "我" : "CRM Agent"}</strong><time>刚刚</time></header>
+                  <p class="kass-agent-message-text">${escapeHtml(message.content)}</p>
+                </div>
+              </article>
+            `).join("")}
+
+            ${state.kassAgentThinking ? `
+              <article class="kass-chat-turn kass-chat-turn-agent">
+                <div class="kass-agent-mark" aria-hidden="true">A</div>
+                <div class="kass-chat-content"><p class="kass-agent-thinking">正在结合客户档案整理建议<span>…</span></p></div>
+              </article>
+            ` : ""}
           </div>
-          <div class="kass-head-actions">
-            <button class="kass-icon-btn" type="button" aria-label="搜索客户" data-toast="搜索客户是原型反馈。">⌕</button>
-            <button class="kass-add-btn" type="button" data-toast="新增客户是原型入口，不创建真实客户。">
-              <span class="kass-add-glyph" aria-hidden="true">⊕</span>
-              <span>新增</span>
+
+          <footer class="kass-agent-composer">
+            <button type="button" class="kass-agent-attach" data-toast="附件入口为原型反馈，不读取本地文件。" aria-label="添加附件">附件</button>
+            <textarea rows="1" data-kass-agent-input="true" placeholder="告诉 Agent 你想处理什么…">${escapeHtml(state.kassAgentDraft)}</textarea>
+            <button class="kass-agent-send" type="button" data-kass-agent-send="true" ${state.kassAgentDraft.trim() && !state.kassAgentThinking ? "" : "disabled"}>发送</button>
+          </footer>
+          ` : `
+            <section class="kass-workspace-tab-body">
+              ${renderKassWorkspaceTab(customer)}
+            </section>
+          `}
+        </main>
+      ` : `
+        <div class="kass-crm-empty">
+          <span class="kass-agent-mark" aria-hidden="true">A</span>
+          <h1>${escapeHtml(group.label)} 级客户暂为空</h1>
+          <p>从左侧选择其他等级，或新增客户后开始使用 CRM Agent。</p>
+          <button type="button" data-toast="新增客户是原型入口，不创建真实客户。">新增客户</button>
+        </div>
+      `}
+    </section>
+  `;
+}
+
+/**
+ * 渲染工作区内的客户列表栏。
+ *
+ * 为什么恢复独立客户栏：
+ * - 用户需要在同一等级的客户之间快速切换，独立业务栏比塞进全局导航更易扫读。
+ * - 右侧常驻详情卡已经移除，因此现在可以把空间重新分配给客户列表和 Agent 主区。
+ * - 列表自身滚动，客户再多也不会把页面整体撑长；搜索按钮继续打开完整客户库浮层。
+ *
+ * @param {typeof KASS_GROUPS[number]} group - 当前 A/B/C 客户等级。
+ * @returns {string} 客户列表栏 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassCustomerRoster(group) {
+  const totalCount = Number(group.totalCount || group.customers.length);
+
+  return `
+    <aside class="kass-roster kass-crm-roster" aria-label="${escapeHtml(group.label)} 级客户列表">
+      <header class="kass-roster-head">
+        <div>
+          <h2>${escapeHtml(group.label)} 重点推进</h2>
+          <p>${escapeHtml(group.desc || "按等级查看当前客户")}</p>
+        </div>
+        <button class="kass-search-action" type="button" data-kass-directory-open="${escapeHtml(group.id)}" aria-label="搜索${escapeHtml(group.label)}级客户">搜索</button>
+      </header>
+      <div class="kass-roster-list">
+        ${group.customers.length ? group.customers.map((customer) => `
+          <button class="kass-roster-item ${state.activeCustomerId === customer.id ? "active" : ""}" type="button" data-customer="${escapeHtml(customer.id)}" data-customer-group="${escapeHtml(group.id)}" data-kass-workbench-customer="true">
+            <strong>${escapeHtml(customer.name)}</strong>
+            <small>${escapeHtml(customer.country)}</small>
+          </button>
+        `).join("") : `<div class="kass-roster-empty">${escapeHtml(group.label)} 级暂无客户</div>`}
+      </div>
+      <button class="kass-roster-refresh" type="button" data-toast="已刷新 ${escapeHtml(group.label)} 级客户，本地样例没有变化。">刷新客户 · ${totalCount}</button>
+    </aside>
+  `;
+}
+
+/**
+ * 渲染一条由跟进记录产生的待办。
+ *
+ * 待办没有再放进独立卡片：它必须和产生它的那次沟通保持在同一个视觉容器中，
+ * 这样业务员才能快速理解“为什么要做这件事”，而不只看到一个脱离上下文的任务名。
+ *
+ * @param {{ id?: string, title?: string, dueDate?: string, status?: string }} task - 当前待办数据。
+ * @returns {string} 待办行 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassFollowupTask(task) {
+  const taskId = String(task.id || `kass-task-${task.title || "untitled"}`);
+  const isCompleted = state.kassCompletedTaskIds.has(taskId);
+
+  return `
+    <label class="kass-linked-task ${isCompleted ? "completed" : ""}">
+      <input
+        type="checkbox"
+        data-kass-task-toggle="${escapeHtml(taskId)}"
+        data-kass-task-status="${escapeHtml(task.status || "待处理")}"
+        data-kass-task-due="${escapeHtml(task.dueDate || "待定")}"
+        ${isCompleted ? "checked" : ""}
+      />
+      <span class="kass-linked-task-copy">
+        <strong>${escapeHtml(task.title || "待补充事项")}</strong>
+        <small>${isCompleted ? "已完成" : `${escapeHtml(task.status || "待处理")} · 截止 ${escapeHtml(task.dueDate || "待定")}`}</small>
+      </span>
+    </label>
+  `;
+}
+
+/**
+ * 渲染一条可展开的跟进记录，并把其产生的待办嵌套在正文下方。
+ *
+ * @param {{ id?: string, date?: string, dayLabel?: string, time?: string, owner?: string, channel?: string, title?: string, summary?: string, text?: string, tasks?: Array<object> }} record - 当前跟进记录。
+ * @param {number} index - 记录在时间线中的顺序；第一条默认展开。
+ * @returns {string} 跟进记录 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassFollowupRecord(record, index) {
+  const tasks = Array.isArray(record.tasks) ? record.tasks : [];
+  const dateLabel = [record.dayLabel, record.date].filter(Boolean).join(" · ") || "最近";
+  const recordMeta = [record.time, record.owner, record.channel].filter(Boolean).join(" · ");
+
+  return `
+    <article class="kass-followup-entry">
+      <div class="kass-followup-date">
+        <strong>${escapeHtml(dateLabel)}</strong>
+        <small>${escapeHtml(record.time || "")}</small>
+      </div>
+      <details class="kass-followup-details" ${index === 0 ? "open" : ""}>
+        <summary>
+          <span>
+            <strong>${escapeHtml(record.title || record.summary || "客户跟进记录")}</strong>
+            <small>${escapeHtml(recordMeta || "已记录本次沟通")}</small>
+          </span>
+          ${tasks.length ? `<em>${tasks.length} 项待办</em>` : `<em>查看记录</em>`}
+        </summary>
+        <div class="kass-followup-content">
+          <p>${escapeHtml(record.summary || record.text || "已记录本次客户沟通。")}</p>
+          ${tasks.length ? `
+            <section class="kass-linked-tasks" aria-label="本次跟进产生的待办">
+              <header><strong>本次跟进产生的待办</strong><span>${tasks.length} 项</span></header>
+              <div>${tasks.map(renderKassFollowupTask).join("")}</div>
+            </section>
+          ` : ""}
+        </div>
+      </details>
+    </article>
+  `;
+}
+
+/**
+ * 整理客户的稳定背调资料，确保客户信息页不会误用询盘、跟进或待办数据。
+ *
+ * 旧样例和其它客户可能还没有结构化背调，因此这里提供“待补充”兜底。兜底只使用国家等
+ * 稳定基础信息，不读取 `summary`、`nextAction` 或本次询盘条件，避免与下方跟进时间线重复。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {{
+ *   overview: string,
+ *   companyBackground: string,
+ *   mainBusiness: string,
+ *   enteredAt: string,
+ *   foundedYear: string,
+ *   companySize: string,
+ *   companyType: string,
+ *   organization: string,
+ *   purchasingRole: string,
+ *   marketChannels: string,
+ *   contactName: string,
+ *   contactRole: string,
+ *   socialMedia: string,
+ *   contactEmail: string,
+ *   whatsapp: string,
+ *   annualRevenue: string,
+ *   cooperationStage: string,
+ *   purchaseCycle: string,
+ *   purchasePotential: string,
+ *   productPreference: string,
+ *   purchasePreference: string,
+ *   expandableProducts: string,
+ *   paymentTerms: string,
+ *   finalConsignee: string,
+ *   creditStatus: string,
+ *   cooperationValue: string,
+ *   competitors: string,
+ *   competitiveAdvantage: string,
+ *   currentSuppliers: string,
+ *   sources: string[],
+ *   updatedAt: string,
+ *   incompleteItems: string[]
+ * }} 可直接渲染的稳定客户档案。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getKassBackgroundProfile(customer) {
+  const profile = customer.backgroundProfile || {};
+  const sources = Array.isArray(profile.sources)
+    ? profile.sources.filter(Boolean)
+    : [];
+  const incompleteItems = Array.isArray(profile.incompleteItems)
+    ? profile.incompleteItems.filter(Boolean)
+    : ["公司规模", "采购角色"];
+  const countryLabel = customer.country ? `${customer.country}企业` : "该企业";
+
+  return {
+    overview: profile.overview || `${countryLabel}的公司背景与主营业务仍待补充。`,
+    companyBackground: profile.companyBackground || `${countryLabel}，详细背景待补充`,
+    mainBusiness: profile.mainBusiness || "待补充",
+    enteredAt: profile.enteredAt || profile.updatedAt || "待补充",
+    foundedYear: profile.foundedYear || "待补充",
+    companySize: profile.companySize || "待补充",
+    companyType: profile.companyType || "待补充",
+    organization: profile.organization || "待补充",
+    purchasingRole: profile.purchasingRole || "待补充",
+    marketChannels: profile.marketChannels || "待补充",
+    contactName: profile.contactName || customer.contact || "待补充",
+    contactRole: profile.contactRole || "待补充",
+    socialMedia: profile.socialMedia || "待补充",
+    contactEmail: profile.contactEmail || "待补充",
+    whatsapp: profile.whatsapp || "待补充",
+    annualRevenue: profile.annualRevenue || "待补充",
+    cooperationStage: profile.cooperationStage || "待补充",
+    purchaseCycle: profile.purchaseCycle || "待补充",
+    purchasePotential: profile.purchasePotential || "待补充",
+    productPreference: profile.productPreference || profile.mainBusiness || "待补充",
+    purchasePreference: profile.purchasePreference || "待补充",
+    expandableProducts: profile.expandableProducts || "待补充",
+    paymentTerms: profile.paymentTerms || "待补充",
+    finalConsignee: profile.finalConsignee || "待补充",
+    creditStatus: profile.creditStatus || "待核验",
+    cooperationValue: profile.cooperationValue || "待补充背调后判断",
+    competitors: profile.competitors || "待补充",
+    competitiveAdvantage: profile.competitiveAdvantage || "待补充",
+    currentSuppliers: profile.currentSuppliers || "待补充",
+    sources: sources.length ? sources : ["业务员录入"],
+    updatedAt: profile.updatedAt || "最近",
+    incompleteItems
+  };
+}
+
+/**
+ * 渲染客户详细档案中的一个标签和值。
+ *
+ * 参考界面使用“灰色标签格 + 白色内容格”的表格式结构。这里统一生成字段，
+ * 让桌面双列和窄屏单列使用同一套语义，并对确实缺失的值提供轻量提示。
+ *
+ * @param {string} label - 字段名称。
+ * @param {string | number | undefined | null} value - 字段内容；空值显示“待补充”。
+ * @param {{ wide?: boolean, missing?: boolean }} [options] - `wide` 表示横跨整行，`missing` 表示需要补充。
+ * @returns {string} 单个字段的 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassDetailField(label, value, options = {}) {
+  const displayValue = value === undefined || value === null || value === ""
+    ? "待补充"
+    : String(value);
+  const isMissing = Boolean(options.missing || displayValue === "待补充");
+
+  return `
+    <div class="kass-detail-field ${options.wide ? "is-wide" : ""} ${isMissing ? "is-missing" : ""}">
+      <dt>${escapeHtml(label)}</dt>
+      <dd>${escapeHtml(displayValue)}</dd>
+    </div>
+  `;
+}
+
+/**
+ * 渲染“查看完整资料”抽屉。
+ *
+ * 主页面只展示一眼可回忆的客户档案；详细档案参考用户提供的分组表格，
+ * 展开基础信息、联系人、采购市场、资信合作和竞对信息。当前跟进、待办与下一步
+ * 不进入这里，继续和下方时间线保持清晰边界。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @param {ReturnType<typeof getKassBackgroundProfile>} profile - 已归一化的稳定客户档案。
+ * @returns {string} 打开时返回抽屉 HTML，关闭时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassResearchPanel(customer, profile) {
+  if (!state.kassResearchOpen) {
+    return "";
+  }
+
+  const sourceLabel = profile.sources.join(" + ");
+  const incompleteItems = profile.incompleteItems;
+
+  return `
+    <div class="kass-research-backdrop" data-kass-research-close="backdrop">
+      <aside class="kass-research-drawer" role="dialog" aria-modal="true" aria-label="${escapeHtml(customer.name)} 客户详细档案">
+        <header>
+          <div>
+            <h2>客户详细档案</h2>
+            <p>查看客户背景、关键联系人、采购市场与合作判断。</p>
+          </div>
+          <button type="button" data-kass-research-close="button" aria-label="关闭客户详细档案">关闭</button>
+        </header>
+        <div class="kass-research-body">
+          <div class="kass-detail-intro">
+            <p>资料来自客户背调顾问与国际站询盘，已合并为一份稳定客户档案。</p>
+            ${incompleteItems.length ? `<strong>${incompleteItems.length} 项待完善</strong>` : `<strong class="is-complete">资料完整</strong>`}
+          </div>
+
+          <section class="kass-detail-section">
+            <h3>基础信息</h3>
+            <dl class="kass-detail-grid">
+              ${renderKassDetailField("客户来源", sourceLabel)}
+              ${renderKassDetailField("入档日期", profile.enteredAt)}
+              ${renderKassDetailField("客户名称", customer.name)}
+              ${renderKassDetailField("国家 / 地区", customer.country)}
+              ${renderKassDetailField("官网", customer.website)}
+              ${renderKassDetailField("成立年份", profile.foundedYear)}
+              ${renderKassDetailField("公司规模", profile.companySize)}
+              ${renderKassDetailField("客户类型", profile.companyType)}
+              ${renderKassDetailField("公司背景", profile.companyBackground, { wide: true })}
+              ${renderKassDetailField("主营业务", profile.mainBusiness, { wide: true })}
+              ${renderKassDetailField("组织架构", profile.organization, { wide: true })}
+            </dl>
+          </section>
+
+          <section class="kass-detail-section">
+            <h3>主要联系人信息</h3>
+            <dl class="kass-detail-grid">
+              ${renderKassDetailField("姓名", profile.contactName)}
+              ${renderKassDetailField("岗位", profile.contactRole)}
+              ${renderKassDetailField("联系渠道", profile.contactEmail)}
+              ${renderKassDetailField("WhatsApp", profile.whatsapp)}
+              ${renderKassDetailField("社媒", profile.socialMedia, { wide: true })}
+              ${renderKassDetailField("采购角色", profile.purchasingRole, { wide: true })}
+            </dl>
+          </section>
+
+          <section class="kass-detail-section">
+            <h3>采购 / 市场汇总</h3>
+            <dl class="kass-detail-grid">
+              ${renderKassDetailField("合作阶段", profile.cooperationStage)}
+              ${renderKassDetailField("采购周期", profile.purchaseCycle)}
+              ${renderKassDetailField("年营业额", profile.annualRevenue)}
+              ${renderKassDetailField("采购潜力", profile.purchasePotential)}
+              ${renderKassDetailField("市场渠道", profile.marketChannels, { wide: true })}
+              ${renderKassDetailField("产品偏好", profile.productPreference, { wide: true })}
+              ${renderKassDetailField("采购偏好", profile.purchasePreference, { wide: true })}
+              ${renderKassDetailField("可拓展产品", profile.expandableProducts, { wide: true })}
+            </dl>
+          </section>
+
+          <section class="kass-detail-section">
+            <h3>资信与合作判断</h3>
+            <dl class="kass-detail-grid">
+              ${renderKassDetailField("付款条件", profile.paymentTerms, { missing: incompleteItems.includes("付款条件") })}
+              ${renderKassDetailField("最终收货主体", profile.finalConsignee, { missing: incompleteItems.includes("最终收货主体") })}
+              ${renderKassDetailField("资信情况", profile.creditStatus, { wide: true })}
+              ${renderKassDetailField("合作价值", profile.cooperationValue, { wide: true })}
+            </dl>
+          </section>
+
+          <section class="kass-detail-section">
+            <h3>竞对信息</h3>
+            <dl class="kass-detail-grid">
+              ${renderKassDetailField("主要竞对", profile.competitors, { wide: true })}
+              ${renderKassDetailField("竞争优势", profile.competitiveAdvantage, { wide: true })}
+              ${renderKassDetailField("现有供应商", profile.currentSuppliers, { wide: true })}
+            </dl>
+          </section>
+        </div>
+        <footer>
+          <div>
+            <span>资料已合并：${escapeHtml(sourceLabel)}</span>
+            <span>更新于 ${escapeHtml(profile.updatedAt)}</span>
+          </div>
+          ${incompleteItems.length ? `<button type="button" data-toast="已记录补充背调需求（原型反馈）。">补充背调</button>` : ""}
+        </footer>
+      </aside>
+    </div>
+  `;
+}
+
+/**
+ * 渲染 A、B 两套方案共用的客户资料工作纸。
+ *
+ * 页面信息结构遵循两层阅读节奏：
+ * - 顶部左侧只说明资料来源与完善状态，右侧帮助销售回忆稳定背景；
+ *   两边不重复近期互动、当前进展或下一步。
+ * - 下方时间线把每次沟通与它产生的待办放在一起，保留完整因果关系。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {string} 可同时嵌入 A 版页签和 B 版右栏的工作纸 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassCustomerHub(customer) {
+  const profile = getKassBackgroundProfile(customer);
+  const sourceLabel = profile.sources.join(" + ");
+  const incompleteCount = profile.incompleteItems.length;
+  const records = Array.isArray(customer.followupRecords) ? customer.followupRecords : [];
+  const sourceRows = profile.sources
+    .map((source) => `
+      <span class="kass-profile-source-row">
+        <span>${escapeHtml(source)}</span>
+        <small>已纳入</small>
+      </span>
+    `)
+    .join("");
+
+  return `
+    <div class="kass-customer-hub">
+      <section class="kass-background-card" aria-labelledby="kass-background-title">
+        <button class="kass-profile-file" type="button" data-kass-research-open="true">
+          <span class="kass-profile-file-head">
+            <small>资料状态</small>
+            <span class="kass-profile-file-count">${incompleteCount ? `${incompleteCount} 项待完善` : "资料完整"}</span>
+          </span>
+          <strong id="kass-background-title">已汇总 ${profile.sources.length} 个来源</strong>
+          <span class="kass-profile-file-caption">当前客户资料来自</span>
+          <span class="kass-profile-source-list">${sourceRows}</span>
+          <span class="kass-profile-file-action">查看完整资料</span>
+        </button>
+
+        <div class="kass-profile-memory">
+          <header>
+            <span>帮助快速回忆客户</span>
+            <time datetime="${escapeHtml(profile.updatedAt)}">更新于 ${escapeHtml(profile.updatedAt)}</time>
+          </header>
+          <p class="kass-background-summary">${escapeHtml(profile.overview)}</p>
+          <dl class="kass-background-facts">
+            <div><dt>公司规模</dt><dd>${escapeHtml(profile.companySize)}</dd></div>
+            <div><dt>采购角色</dt><dd>${escapeHtml(profile.purchasingRole)}</dd></div>
+            <div><dt>市场渠道</dt><dd>${escapeHtml(profile.marketChannels)}</dd></div>
+            <div><dt>资信情况</dt><dd>${escapeHtml(profile.creditStatus)}</dd></div>
+          </dl>
+          ${incompleteCount ? `
+            <footer>
+              <button class="kass-background-supplement" type="button" data-kass-research-open="true">
+                补充背调
+              </button>
+            </footer>
+          ` : ""}
+        </div>
+      </section>
+
+      <section class="kass-followup-workspace">
+        <header class="kass-followup-heading">
+          <div><small>沟通记录与行动闭环</small><h2>跟进与待办</h2></div>
+          <button type="button" data-kass-record-open="true">新增跟进记录</button>
+        </header>
+
+        ${state.kassRecordFormOpen ? `
+          <section class="kass-record-form kass-record-form-wide kass-hub-record-form">
+            <div class="kass-record-form-title"><strong>新增跟进记录</strong><button type="button" data-kass-record-cancel="true">取消</button></div>
+            <div class="kass-record-form-grid">
+              <label><span>跟进方式</span><select><option>邮件</option><option>电话</option><option>视频会议</option></select></label>
+              <label><span>日期</span><input type="date" value="2026-07-23" /></label>
+              <label><span>客户阶段</span><select><option>${escapeHtml(customer.stage || "待补充")}</option><option>谈判中</option><option>待报价</option></select></label>
+            </div>
+            <label><span>本次沟通内容</span><textarea placeholder="粘贴客户消息、电话纪要、报价反馈或会议结论…"></textarea></label>
+            <footer><button type="button" data-toast="AI 整理为原型反馈。">AI 整理成记录</button><button class="primary" type="button" data-kass-record-save="true">保存记录</button></footer>
+          </section>
+        ` : ""}
+
+        ${records.length ? `
+          <div class="kass-followup-timeline">
+            ${records.map(renderKassFollowupRecord).join("")}
+          </div>
+        ` : `
+          <div class="kass-followup-empty">
+            <strong>暂无跟进记录</strong>
+            <p>新增一次客户沟通后，可在记录下方继续关联待办。</p>
+            <button type="button" data-kass-record-open="true">新增第一条跟进</button>
+          </div>
+        `}
+      </section>
+    </div>
+  `;
+}
+
+/**
+ * 渲染 A 版“客户信息”页签，并在工作纸之外挂载完整档案抽屉。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {string} A 版客户信息页签 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassWorkspaceTab(customer) {
+  const profile = getKassBackgroundProfile(customer);
+
+  return `
+    ${renderKassCustomerHub(customer)}
+    ${renderKassResearchPanel(customer, profile)}
+  `;
+}
+
+/**
+ * 返回客户库浮层中符合搜索词的客户。
+ *
+ * @param {typeof KASS_GROUPS[number]} group - 当前浮层展示的客户等级。
+ * @returns {typeof group.customers} 筛选后的本地样例客户。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getFilteredKassDirectoryCustomers(group) {
+  const query = state.kassCustomerQuery.trim().toLowerCase();
+
+  return group.customers.filter((customer) => {
+    const searchable = `${customer.name} ${customer.country} ${customer.stage} ${customer.intent || ""}`.toLowerCase();
+    return !query || searchable.includes(query);
+  });
+}
+
+/**
+ * 渲染侧边栏“查看全部客户”浮层。
+ *
+ * 为什么是浮层而不是继续把名单塞进侧边栏：
+ * - 侧边栏只承担高频快捷入口，最多保留五个客户。
+ * - 搜索和长列表需要更稳定的宽度与独立滚动区域。
+ *
+ * @returns {string} 浮层 HTML；关闭时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassCustomerDirectoryModal() {
+  if (!state.kassCustomerDirectoryOpen) {
+    return "";
+  }
+
+  const fallbackGroup = isKassWorkbenchView() ? getKassWorkbenchGroup() : getActiveKassGroup();
+  const group = KASS_GROUPS.find((item) => item.id === state.kassDirectoryGroupId) || fallbackGroup;
+  const workbenchAttribute = isKassWorkbenchView() ? `data-kass-workbench-customer="true"` : "";
+  const customers = getFilteredKassDirectoryCustomers(group);
+
+  return `
+    <div class="kass-directory-backdrop" data-kass-directory-close="backdrop">
+      <aside class="kass-directory-modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(group.label)}级客户列表">
+        <header class="kass-directory-head">
+          <div><strong>${escapeHtml(group.label)} 级客户</strong><small>快速查找并切换当前客户</small></div>
+          <button type="button" data-kass-directory-close="button" aria-label="关闭客户列表">关闭</button>
+        </header>
+        <label class="kass-directory-search">
+          <span>搜索</span>
+          <input type="search" value="${escapeHtml(state.kassCustomerQuery)}" placeholder="搜索客户名称" data-kass-directory-search="true" />
+        </label>
+        <p class="kass-directory-count">共 ${Number(group.totalCount || group.customers.length)} 个客户</p>
+        <div class="kass-directory-list">
+          ${customers.length ? customers.map((customer) => `
+            <button class="kass-directory-customer ${state.activeCustomerId === customer.id ? "active" : ""}" type="button" data-customer="${escapeHtml(customer.id)}" data-customer-group="${escapeHtml(group.id)}" ${workbenchAttribute}>
+              <span class="kass-directory-avatar">${escapeHtml(customer.shortName || customer.name.slice(0, 1))}</span>
+              <span class="kass-directory-copy"><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.country)}　·　${escapeHtml(customer.stage)}</small></span>
+              <em>${escapeHtml(customer.intent || `${customer.level}意向`)}</em>
             </button>
+          `).join("") : `<div class="kass-directory-empty">没有找到符合条件的客户</div>`}
+        </div>
+      </aside>
+    </div>
+  `;
+}
+
+/**
+ * 渲染线上 `/customer-kass/A` 的独立复刻页。
+ *
+ * 为什么单独保留一个渲染函数：
+ * - 当前“重点推进”页已经形成新的产品方案，不能为了复刻线上页而覆盖它。
+ * - 线上复刻页继续使用全局侧栏和顶部栏，用于和线上产品逐项对照。
+ * - 客户名称、询盘和历史只读取本地样例数据，不把线上真实客户隐私写入原型。
+ *
+ * @returns {string} 线上版客户 Kass 页面 HTML。
+ * @throws {Error} 本函数不主动抛异常；没有客户时会渲染空白会话区。
+ */
+function renderCustomerKassOnlineView() {
+  const group = getActiveKassGroup();
+  const customer = group.customers.length ? getActiveKassCustomer() : null;
+  const activeStageIndex = getKassOnlineStageIndex(customer);
+
+  return `
+    <section class="kass-online-page workbench-enter" aria-label="客户 Kass 线上版复刻">
+      <aside class="kass-online-directory" aria-label="${escapeHtml(group.label)} 分组客户列表">
+        <header class="kass-online-directory-head">
+          <div>
+            <h1><span aria-hidden="true"></span>${escapeHtml(group.label)}</h1>
+            <p>这里展示客户 Kass 下 ${escapeHtml(group.label)} 的所有客户</p>
+          </div>
+          <div class="kass-online-directory-actions">
+            <button class="kass-online-icon-button" type="button" aria-label="搜索客户" data-toast="搜索客户是原型入口。">
+              <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+                <circle cx="9" cy="9" r="5.5"></circle><path d="m13.3 13.3 3.4 3.4"></path>
+              </svg>
+            </button>
+            <button class="kass-online-new-button" type="button" data-toast="新增客户是原型入口，不创建真实客户。"><span aria-hidden="true">⊕</span>新增</button>
           </div>
         </header>
 
-        ${group.customers.length ? `
-          <div class="kass-customer-stack">
-            ${group.customers.map((item) => `
-              <article class="kass-list-card ${state.activeCustomerId === item.id ? "active" : ""}">
-                <button class="kass-card-main" type="button" data-customer="${escapeHtml(item.id)}">
-                  <div class="kass-card-line1">
-                    <span class="kass-card-title">${escapeHtml(item.name)}</span>
-                    <span class="kass-card-delete" aria-hidden="true">✕</span>
-                    <span class="kass-stage-chip">· ${escapeHtml(item.stage)}</span>
-                  </div>
-                  <div class="kass-card-line2">
-                    <span class="kass-card-meta">${escapeHtml(item.country)} · ${escapeHtml(item.industry)}</span>
-                    <span class="kass-card-badges">
-                      <b>评级: ${escapeHtml(item.level)}</b>
-                      <b>风险: ${escapeHtml(item.risk)}</b>
-                    </span>
-                  </div>
-                </button>
-                <button class="kass-mini-add" type="button" aria-label="新增" data-toast="已模拟新增一条跟进动作。">⊕</button>
-              </article>
-            `).join("")}
-          </div>
-        ` : `
-          <div class="kass-empty-list">
-            <div class="kass-empty-illus" aria-hidden="true">
-              <svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="#c9bfb6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="10" y="22" width="44" height="30" rx="3"/>
-                <path d="M10 32h44"/>
-                <path d="M22 22v-6h20v6"/>
-                <circle cx="48" cy="18" r="6" fill="#ffffff"/>
-                <path d="M46 18l1.5 1.5L50 17" stroke="#f0a36b"/>
-              </svg>
-            </div>
-            <p>暂无客户</p>
-          </div>
-        `}
+        <div class="kass-online-customer-list">
+          <button class="kass-online-customer-item placeholder" type="button" data-toast="这是用于还原线上列表密度的待补充样例。">
+            <span class="kass-online-pin" aria-hidden="true">⌖</span>
+            <strong>待补充客户</strong>
+            <small>· 待补充</small>
+            <span class="kass-online-item-actions" aria-hidden="true">▣　♲</span>
+          </button>
+          ${(group.customers || []).map((item) => `
+            <button class="kass-online-customer-item ${state.activeCustomerId === item.id ? "active" : ""}" type="button" data-customer="${escapeHtml(item.id)}">
+              <span class="kass-online-pin" aria-hidden="true">⌖</span>
+              <strong>${escapeHtml(item.name)}</strong>
+              <small>· ${escapeHtml(item.country)}</small>
+              <span class="kass-online-item-actions" aria-hidden="true">▣　♲</span>
+            </button>
+          `).join("")}
+        </div>
       </aside>
 
-      <section class="kass-directory-main">
-        ${customer ? renderKassDetail(customer, activeStageIndex) : renderKassDetailEmpty()}
-      </section>
+      <main class="kass-online-conversation">
+        ${customer ? `
+          <header class="kass-online-customer-head">
+            <div>
+              <h2><span aria-hidden="true"></span>${escapeHtml(customer.name)}</h2>
+              <p>展示从线索到签约的跟进阶段，高亮为当前节点</p>
+            </div>
+            <div class="kass-online-customer-actions">
+              <span>当前：${escapeHtml(KASS_FLOW_STAGES[activeStageIndex])}</span>
+              <button type="button" data-toast="跟进记录是原型入口。"><b aria-hidden="true">↻</b>跟进记录</button>
+            </div>
+          </header>
 
-      <button class="kass-assistant-button" type="button" title="客户 AI 助手" aria-label="客户 AI 助手" data-kass-assistant="toggle">
-        <span class="kass-assistant-mark">V</span>
-      </button>
-      ${renderKassAssistant(customer)}
+          <div class="kass-online-stage-track" aria-label="客户跟进阶段">
+            ${KASS_FLOW_STAGES.map((stage, index) => `
+              <button class="kass-online-stage ${index === activeStageIndex ? "active" : ""}" type="button" data-toast="已定位到「${escapeHtml(stage)}」阶段。">${escapeHtml(stage)}</button>
+              ${index < KASS_FLOW_STAGES.length - 1 ? `<span class="kass-online-stage-arrow" aria-hidden="true">▶</span>` : ""}
+            `).join("")}
+          </div>
+
+          <div class="kass-online-chat-canvas" aria-label="客户对话记录"></div>
+
+          <section class="kass-online-composer" aria-label="客户对话输入区">
+            <textarea aria-label="输入对话内容" placeholder="请输入内容进行对话..."></textarea>
+            <footer>
+              <div class="kass-online-composer-left">
+                <button class="kass-online-tool-button" type="button" aria-label="选择工具" data-toast="工具选择是原型入口。">⌁</button>
+                <button class="kass-online-model-button" type="button" data-toast="模型选择是原型入口。"><span>${escapeHtml(group.label)}</span><b aria-hidden="true">⌄</b></button>
+              </div>
+              <div class="kass-online-composer-right">
+                <button class="kass-online-mic-button" type="button" aria-label="语音输入" data-toast="语音输入是原型入口。">♩</button>
+                <i aria-hidden="true"></i>
+                <button class="kass-online-send-button" type="button" aria-label="发送" data-toast="发送是原型反馈，不会调用真实接口。">➤</button>
+              </div>
+            </footer>
+          </section>
+        ` : `
+          <div class="kass-online-empty">新增或选择客户后开始跟进</div>
+        `}
+      </main>
     </section>
   `;
+}
+
+/**
+ * 把本地样例客户的阶段转换成线上 12 阶段流程的下标。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number] | null} customer - 当前客户；允许为空。
+ * @returns {number} `KASS_FLOW_STAGES` 中的下标；无法识别时回退到线索到达。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getKassOnlineStageIndex(customer) {
+  if (!customer) {
+    return 0;
+  }
+
+  const stageText = String(customer.stage || "");
+  const matchedIndex = KASS_FLOW_STAGES.findIndex((stage) => stage.includes(stageText) || stageText.includes(stage.replace(/^\d+-/, "")));
+
+  if (matchedIndex >= 0) {
+    return matchedIndex;
+  }
+
+  if (stageText.includes("询盘")) return 0;
+  if (stageText.includes("寄样") || stageText.includes("样品")) return 9;
+  if (stageText.includes("报价")) return 8;
+  if (stageText.includes("成交") || stageText.includes("复购")) return 11;
+  return 0;
+}
+
+/**
+ * 渲染选中客户的顶部信息、标签页和当前标签内容。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前选中的客户。
+ * @returns {string} 客户工作区 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassClientWorkspace(customer) {
+  const tabs = [
+    { id: "conversation", label: "对话线程" },
+    { id: "profile", label: "详情档案" },
+    { id: "tasks", label: "事项" },
+    { id: "records", label: "任务记录" }
+  ];
+
+  return `
+    <header class="kass-client-header">
+      <div>
+        <h2>${escapeHtml(customer.name)}</h2>
+        <p>${escapeHtml(customer.country)} · ${escapeHtml(customer.industry)} · ${escapeHtml(customer.stage)}</p>
+      </div>
+      <div class="kass-client-status">
+        <span>${escapeHtml(customer.intent || `${customer.level}级客户`)}</span>
+        <button type="button" data-toast="已同步当前客户的样例消息。">同步最近消息</button>
+      </div>
+    </header>
+    <nav class="kass-client-tabs" aria-label="客户详情标签">
+      ${tabs.map((tab) => `
+        <button class="${state.activeKassTab === tab.id ? "active" : ""}" type="button" data-kass-tab="${escapeHtml(tab.id)}">${escapeHtml(tab.label)}</button>
+      `).join("")}
+    </nav>
+    <section class="kass-client-content">
+      ${renderKassActiveTab(customer)}
+    </section>
+  `;
+}
+
+/**
+ * 根据客户 Kass 当前标签渲染内容。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前选中的客户。
+ * @returns {string} 当前标签 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassActiveTab(customer) {
+  if (state.activeKassTab === "profile") {
+    return `
+      <div class="kass-simple-grid">
+        ${renderKassInfoCell("客户名称", customer.name)}
+        ${renderKassInfoCell("国家 / 地区", customer.country)}
+        ${renderKassInfoCell("行业", customer.industry)}
+        ${renderKassInfoCell("联系人", customer.contact)}
+        ${renderKassInfoCell("官网", customer.website)}
+        ${renderKassInfoCell("客户评级", `${customer.level} · 风险${customer.risk}`)}
+      </div>
+    `;
+  }
+
+  if (state.activeKassTab === "tasks") {
+    return `
+      <div class="kass-task-board">
+        <article><span>今天</span><strong>${escapeHtml(customer.nextAction || "补齐客户上下文")}</strong><small>优先级：高</small></article>
+        <article><span>本周</span><strong>补齐包装、Logo 文件和目标交期</strong><small>等待客户反馈</small></article>
+        <button type="button" data-toast="新增事项是原型入口。">新增事项</button>
+      </div>
+    `;
+  }
+
+  if (state.activeKassTab === "records") {
+    return `
+      <div class="kass-record-timeline">
+        <article><time>14:31</time><div><strong>收到 Alibaba.com 新询盘</strong><p>${escapeHtml(customer.summary || "已录入客户原始询盘。")}</p></div></article>
+        <article><time>14:36</time><div><strong>系统生成客户摘要</strong><p>已提取采购产品、数量、贸易条款和定制需求。</p></div></article>
+        <article><time>待处理</time><div><strong>${escapeHtml(customer.nextAction || "创建下一步动作")}</strong><p>完成后可沉淀为客户跟进记录。</p></div></article>
+      </div>
+    `;
+  }
+
+  return renderKassConversationTab(customer);
+}
+
+/**
+ * 渲染截图对应的对话线程主工作区。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前选中的客户。
+ * @returns {string} 对话线程 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassConversationTab(customer) {
+  return `
+    <div class="kass-conversation-layout">
+      <div class="kass-conversation-main">
+        <article class="kass-section-card kass-summary-card">
+          <header><h3>客户自动摘要</h3><span>样例摘要</span></header>
+          <div class="kass-summary-metrics">
+            ${renderKassInfoCell("阶段", customer.stage)}
+            ${renderKassInfoCell("优先级", customer.intent || `${customer.level}级客户`)}
+          </div>
+          <p>${escapeHtml(customer.summary || "暂未生成客户摘要。")}</p>
+          <strong>${escapeHtml(customer.nextAction || "先补齐客户上下文")}</strong>
+        </article>
+
+        <article class="kass-section-card">
+          <header><h3>客户上下文</h3><span>样例上下文</span></header>
+          <div class="kass-context-metrics">
+            ${renderKassInfoCell(customer.name, customer.stage)}
+            ${renderKassInfoCell(String(customer.recentActivities || 0), "近期活动")}
+            ${renderKassInfoCell(String(customer.openTasks || 0), "未完成事项")}
+          </div>
+          <p>暂无明显风险信号。</p>
+          <strong>${escapeHtml(customer.nextAction || "生成下一步动作")}</strong>
+        </article>
+
+        <article class="kass-section-card kass-inquiry-card">
+          <header><h3>客户询盘原文</h3><span>来自 ${escapeHtml(customer.industry)}</span><time>14:31</time></header>
+          <textarea data-customer-input="true" aria-label="客户询盘原文">${escapeHtml(state.customerDraft || customer.inquiry || "")}</textarea>
+          <footer>
+            <span>使用 DeepSeek flash 真实分析</span>
+            <button class="kass-analyze-button enabled" type="button" data-send-customer="true" ${state.isCustomerGenerating ? "disabled" : ""}>
+              ${state.isCustomerGenerating ? "正在分析" : "开始分析"}
+            </button>
+          </footer>
+        </article>
+
+        ${renderKassAnalysisState(customer)}
+
+        <article class="kass-section-card kass-agent-card">
+          <header><h3>客户跟进 Agent</h3><span>绑定当前客户上下文</span></header>
+          <p>${state.customerResult ? escapeHtml(state.customerResult) : "输入客户问题后，这里会显示基于客户档案的回复。"}</p>
+          <textarea data-customer-input="true" placeholder="继续追问，或输入要调整的回复语气…">${state.customerResult ? "" : ""}</textarea>
+          <footer>
+            <div class="kass-agent-tools">
+              <button type="button" data-toast="引用资料是原型入口。">引用资料</button>
+              <button type="button" data-toast="切换 Skill 是原型入口。">切换Skill</button>
+              <button type="button" data-toast="已模拟导出草稿。">导出草稿</button>
+            </div>
+            <button class="kass-send-button" type="button" data-send-customer="true">发送</button>
+          </footer>
+        </article>
+      </div>
+
+      ${renderKassCustomerCard(customer)}
+    </div>
+  `;
+}
+
+/**
+ * 渲染询盘分析的等待态或结果预览。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前选中的客户。
+ * @returns {string} 分析状态 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassAnalysisState(customer) {
+  if (state.isCustomerGenerating) {
+    return `
+      <article class="kass-section-card kass-progress-card active">
+        <header><h3>处理进度</h3><span>分析中</span></header>
+        <div class="kass-progress-line"><i></i></div>
+        <p>正在提取采购数量、贸易条款、定制需求和信息缺口…</p>
+      </article>
+    `;
+  }
+
+  if (state.customerResult) {
+    return `
+      <article class="kass-section-card kass-result-card">
+        <header><h3>分析结果预览</h3><span>已完成</span></header>
+        <div class="kass-result-grid">
+          <div><small>意向判断</small><strong>${escapeHtml(customer.intent || "中意向")}</strong></div>
+          <div><small>信息缺口</small><strong>包装、Logo 文件、目标交期</strong></div>
+          <div><small>风险提醒</small><strong>报价前需确认规格与交付条件</strong></div>
+          <div><small>下一步</small><strong>${escapeHtml(customer.nextAction || "生成澄清回复")}</strong></div>
+        </div>
+      </article>
+    `;
+  }
+
+  return `
+    <article class="kass-section-card kass-progress-card">
+      <header><h3>处理进度</h3><span>未开始</span></header>
+      <p>点击开始分析后显示处理步骤。</p>
+    </article>
+    <article class="kass-section-card kass-result-card empty">
+      <header><h3>分析结果预览</h3><span>等待真实模型返回</span></header>
+      <p>这里会显示意向判断、信息缺口、风险提醒、英文回复草稿和下一步跟进。</p>
+    </article>
+  `;
+}
+
+/**
+ * 渲染右侧客户卡片。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前选中的客户。
+ * @returns {string} 右侧客户卡片 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassCustomerCard(customer) {
+  // 只有拿到可展示的记录正文才进入列表态；单独的数量字段不应伪造一条跟进内容。
+  const hasRecords = Array.isArray(customer.followupRecords) && customer.followupRecords.length > 0;
+
+  return `
+    <aside class="kass-customer-card kass-crm-customer-card" aria-label="当前客户信息">
+      <header class="kass-crm-customer-head">
+        <div><small>当前客户</small><h2>${escapeHtml(customer.name)}</h2></div>
+        <button type="button" data-toast="客户卡片折叠是原型反馈。" aria-label="收起客户卡片">收起</button>
+      </header>
+      <div class="kass-customer-meta">
+        <span>${escapeHtml(customer.country)}</span>
+        <div><em>${escapeHtml(customer.intent || `${customer.level}意向`)}</em><em class="stage">${escapeHtml(customer.stage)}</em></div>
+      </div>
+      <div class="kass-customer-facts">
+        ${renderKassInfoCell("采购产品", customer.product || "待补充")}
+        ${renderKassInfoCell("采购数量", customer.quantity || "待补充")}
+        ${renderKassInfoCell("询价条款", customer.tradeTerm || "待补充")}
+        ${renderKassInfoCell("定制需求", customer.customization || "待补充")}
+      </div>
+      <article class="kass-customer-summary"><header><strong>AI 摘要</strong><time>2026-07-21 14:31</time></header><p>${escapeHtml(customer.summary || "等待生成摘要。")}</p></article>
+      <section class="kass-followup-section">
+        <header><h3>跟进记录</h3><button type="button" data-kass-record-open="true">新增记录</button></header>
+        ${state.kassRecordFormOpen ? `
+          <div class="kass-record-form">
+            <div class="kass-record-form-title"><strong>新增跟进记录</strong><button type="button" data-kass-record-cancel="true">取消</button></div>
+            <div class="kass-record-form-grid">
+              <label><span>跟进方式</span><select><option>邮件</option><option>电话</option><option>视频会议</option></select></label>
+              <label><span>客户阶段</span><select><option>${escapeHtml(customer.stage)}</option><option>谈判中</option><option>待报价</option></select></label>
+            </div>
+            <label><span>本次沟通内容</span><textarea placeholder="粘贴客户消息、报价反馈或会议结论…"></textarea></label>
+            <footer><button type="button" data-toast="AI 整理为原型反馈。">AI 整理</button><button class="primary" type="button" data-kass-record-save="true">保存记录</button></footer>
+          </div>
+        ` : hasRecords ? `
+          <div class="kass-followup-list"><article><time>最近</time><p>${escapeHtml(customer.nextAction || "继续推进客户需求")}</p></article></div>
+        ` : `
+          <div class="kass-followup-empty">
+            <span aria-hidden="true">记录</span>
+            <strong>暂无记录</strong>
+            <p>Agent 的分析和沟通结果可以沉淀到这里</p>
+            <button type="button" data-kass-record-open="true">新增记录</button>
+          </div>
+        `}
+      </section>
+    </aside>
+  `;
+}
+
+/**
+ * 渲染通用信息格，统一客户摘要和档案字段的视觉结构。
+ *
+ * @param {string | number} label - 字段标题。
+ * @param {string | number} value - 字段值。
+ * @returns {string} 信息格 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassInfoCell(label, value) {
+  return `<div class="kass-info-cell"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div>`;
 }
 
 /**
@@ -8136,18 +10396,87 @@ function handleCustomerDevClick(event) {
     return;
   }
 
+  const pickerTrigger = target.closest("[data-customer-dev-picker]");
+  if (pickerTrigger) {
+    const picker = pickerTrigger.getAttribute("data-customer-dev-picker");
+
+    if (picker === "market" || picker === "product") {
+      state.customerDevPicker = picker;
+
+      if (picker === "market") {
+        const selectedGroup = (CUSTOMER_DEVELOPMENT.countryGroups || []).find((group) => group.countries.includes(state.customerDevBrief.market));
+        state.customerDevContinent = selectedGroup?.id || state.customerDevContinent;
+      } else {
+        const selectedGroup = (CUSTOMER_DEVELOPMENT.productGroups || []).find((group) => group.products.includes(state.customerDevBrief.product));
+        state.customerDevProductCategory = selectedGroup?.id || state.customerDevProductCategory;
+      }
+
+      renderApp();
+      window.requestAnimationFrame(() => document.querySelector(".customer-dev-picker-dialog")?.focus());
+    }
+    return;
+  }
+
+  const closePickerButton = target.closest("[data-customer-dev-picker-close]");
+  if (closePickerButton) {
+    state.customerDevPicker = null;
+    renderApp();
+    return;
+  }
+
+  const continentButton = target.closest("[data-customer-dev-continent]");
+  if (continentButton) {
+    state.customerDevContinent = continentButton.getAttribute("data-customer-dev-continent") || state.customerDevContinent;
+    refreshCustomerDevPickerGroup();
+    return;
+  }
+
+  const productCategoryButton = target.closest("[data-customer-dev-product-category]");
+  if (productCategoryButton) {
+    state.customerDevProductCategory = productCategoryButton.getAttribute("data-customer-dev-product-category") || state.customerDevProductCategory;
+    refreshCustomerDevPickerGroup();
+    return;
+  }
+
+  const countryButton = target.closest("[data-customer-dev-country]");
+  if (countryButton) {
+    state.customerDevBrief.market = countryButton.getAttribute("data-customer-dev-country") || state.customerDevBrief.market;
+    state.customerDevPicker = null;
+    renderApp();
+    return;
+  }
+
+  const productButton = target.closest("[data-customer-dev-product]");
+  if (productButton) {
+    state.customerDevBrief.product = productButton.getAttribute("data-customer-dev-product") || state.customerDevBrief.product;
+    state.customerDevPicker = null;
+    renderApp();
+    return;
+  }
+
   const presetButton = target.closest("[data-customer-dev-preset]");
   if (presetButton) {
     const preset = presetButton.getAttribute("data-customer-dev-preset") || "";
     const presetMap = {
-      "中东 EPC 承包商": ["阿联酋、沙特、卡塔尔", "光伏组件 + 工商业储能方案", "EPC 承包商 / 项目采购", "找 100 个项目型客户，优先筛出近期有招标动作的 A 类客户"],
-      "德国光伏项目商": ["德国、奥地利、瑞士", "高效光伏组件 + 逆变器配套", "光伏项目商 / 系统集成商", "找 80 个有工商业光伏项目经验的客户，先看公司信息和联系人"],
-      "印度分销商": ["印度", "户用储能套件 + 光伏配件", "分销商 / 渠道负责人", "找 60 个区域分销客户，优先补齐联系人和 WhatsApp"],
-      "南非系统集成商": ["南非", "离网储能 + 工商业备电方案", "系统集成商 / 业务开发负责人", "找 50 个储能集成客户并标记可快速触达对象"]
+      "德国光伏储能": ["德国", "光伏组件", "EPC 承包商", "100"],
+      "阿联酋逆变器分销": ["阿联酋", "光伏逆变器", "分销商", "80"],
+      "沙特工商业储能": ["沙特阿拉伯", "工商业储能", "系统集成商", "120"]
     };
-    const [market, product, role, goal] = presetMap[preset] || presetMap["中东 EPC 承包商"];
-    state.customerDevBrief = { market, product, role, goal };
+    const [market, product, role, quantity] = presetMap[preset] || presetMap["德国光伏储能"];
+    const selectedCountryGroup = (CUSTOMER_DEVELOPMENT.countryGroups || []).find((group) => group.countries.includes(market));
+    const selectedProductGroup = (CUSTOMER_DEVELOPMENT.productGroups || []).find((group) => group.products.includes(product));
+    state.customerDevBrief = { market, product, role, quantity };
+    state.customerDevContinent = selectedCountryGroup?.id || state.customerDevContinent;
+    state.customerDevProductCategory = selectedProductGroup?.id || state.customerDevProductCategory;
     renderApp();
+    return;
+  }
+
+  const clearHistoryButton = target.closest("[data-customer-dev-clear-history]");
+  if (clearHistoryButton) {
+    const history = clearHistoryButton.closest(".customer-dev-recent-searches");
+    history?.classList.add("is-cleared");
+    showToast("最近搜索记录已清空");
     return;
   }
 
@@ -8167,11 +10496,546 @@ function handleCustomerDevClick(event) {
   }
 }
 
+/**
+ * 处理客户开发选择弹窗的键盘关闭操作。
+ *
+ * @param {KeyboardEvent} event - 页面键盘事件。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function handleCustomerDevKeydown(event) {
+  if (event.key !== "Escape" || !state.customerDevPicker) {
+    return;
+  }
+
+  state.customerDevPicker = null;
+  renderApp();
+}
+
+/**
+ * 发送 CRM Agent 输入框中的本地原型消息。
+ *
+ * 说明：
+ * - 当前只模拟 Agent 回复，不调用真实客户接口，也不会发送任何客户资料。
+ * - 先把用户消息加入线程，再用短延迟展示 Agent 回复，保留真实对话的节奏感。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function sendKassAgentDraft() {
+  const content = state.kassAgentDraft.trim();
+
+  if (!content || state.kassAgentThinking) {
+    return;
+  }
+
+  state.kassAgentMessages.push({ id: `kass-user-${Date.now()}`, role: "user", content });
+  state.kassAgentDraft = "";
+  state.kassAgentThinking = true;
+  console.log("[reverse-yingdan] CRM Agent 收到本地原型消息", { customerId: state.activeCustomerId });
+  renderApp();
+
+  window.setTimeout(() => {
+    // 两套方案内部切换 A/B/C/D 等级时 URL 仍只表示方案，因此不能再只按
+    // activeMain 取客户；否则 Agent 会引用方案字母对应等级里的错误客户。
+    const customer = isKassWorkbenchView()
+      ? getKassWorkbenchCustomer(getKassWorkbenchGroup())
+      : getActiveKassCustomer();
+    state.kassAgentMessages.push({
+      id: `kass-agent-${Date.now()}`,
+      role: "assistant",
+      content: `已结合 ${customer?.name || "当前客户"} 的档案整理：建议先确认规格、包装与目标交期，再给出分档报价，并把本次沟通保存为跟进记录。`
+    });
+    state.kassAgentThinking = false;
+    renderApp();
+  }, 650);
+}
+
+/**
+ * 清理成本监控实测回放的全部计时器。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function cancelCostMonitorReplay() {
+  costMonitorReplayTimers.forEach((timerId) => window.clearTimeout(timerId));
+  costMonitorReplayTimers = [];
+}
+
+/**
+ * 把当前成本运行状态恢复成“等待发送”。
+ *
+ * 切换模式、Chatflow 或回放场景时使用，历史对话仍保留，但当前事件和账单清空，
+ * 防止上一轮明细被误认为新选择下的账单。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function resetCostMonitorCurrentRun() {
+  const monitor = state.costMonitor;
+  cancelCostMonitorReplay();
+  monitor.status = "idle";
+  monitor.startedAt = null;
+  monitor.endedAt = null;
+  monitor.activeRunId = "";
+  monitor.workflowRunId = "";
+  monitor.timeline = [];
+  monitor.costItems = [];
+  monitor.checksum = null;
+  monitor.error = "";
+}
+
+/**
+ * 只重画成本账单区域，并重新绑定单价编辑器。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常；页面已经切走时直接返回。
+ */
+function refreshCostMonitorLedgerDom() {
+  if (state.activeMain !== "admin-ai-cost") {
+    return;
+  }
+
+  const ledger = document.querySelector("[data-cost-monitor-ledger]");
+  if (!ledger) {
+    return;
+  }
+
+  ledger.innerHTML = renderCostMonitorLedger();
+  bindCostMonitorPriceControls();
+}
+
+/**
+ * 用当前内存状态刷新聊天、事件带、成本账单和运行状态。
+ *
+ * 为什么不调用 renderApp：流事件可能非常密集，整页重建会让输入区、侧栏和动画持续闪烁。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function refreshCostMonitorRunDom() {
+  if (state.activeMain !== "admin-ai-cost") {
+    return;
+  }
+
+  const monitor = state.costMonitor;
+  const chatList = document.querySelector("[data-cost-monitor-chat-list]");
+  const timeline = document.querySelector("[data-cost-monitor-timeline]");
+  const statusNode = document.querySelector("[data-cost-monitor-run-status]");
+  const sendButton = document.querySelector("[data-cost-monitor-send]");
+  const draftInput = document.querySelector("[data-cost-monitor-draft]");
+  const scenarioSelect = document.querySelector("[data-cost-monitor-scenario]");
+  const sourceSelect = document.querySelector("[data-cost-monitor-source]");
+  const modelSelect = document.querySelector("[data-cost-monitor-model]");
+  const status = getCostMonitorStatusMeta();
+
+  if (chatList) {
+    chatList.innerHTML = renderCostMonitorTurns();
+    chatList.scrollTop = chatList.scrollHeight;
+  }
+  if (timeline) {
+    timeline.innerHTML = renderCostMonitorTimeline();
+    timeline.scrollTop = timeline.scrollHeight;
+  }
+  if (statusNode) {
+    statusNode.className = `cost-monitor-run-status ${status.tone}`;
+    statusNode.innerHTML = `
+      <span class="cost-monitor-status-dot" aria-hidden="true"></span>
+      <div><strong>${escapeHtml(status.label)}</strong><small>${escapeHtml(status.detail)}</small></div>
+    `;
+  }
+  if (sendButton) {
+    sendButton.disabled = monitor.status === "running" || !monitor.draft.trim();
+    sendButton.textContent = monitor.status === "running"
+      ? "正在接收事件…"
+      : monitor.mode === "live" ? "发送到 Chatflow" : "开始实测回放";
+  }
+  if (draftInput) {
+    draftInput.disabled = monitor.status === "running";
+  }
+  // 流式过程中锁住路由条件，完成后立即恢复场景/Chatflow 选择。
+  // 回放使用的是已核对记录，模型属于记录证据，所以回放模式下始终不可手改。
+  if (scenarioSelect) {
+    scenarioSelect.disabled = monitor.status === "running";
+  }
+  if (sourceSelect) {
+    sourceSelect.disabled = monitor.status === "running";
+  }
+  if (modelSelect) {
+    modelSelect.disabled = monitor.mode === "replay" || monitor.status === "running";
+  }
+
+  refreshCostMonitorLedgerDom();
+}
+
+/**
+ * 把代理或回放事件应用到成本页，并兼容旧代理只在 done 返回最终 trace 的情况。
+ *
+ * @param {object} event - 浏览器收到的归一化 SSE 事件。
+ * @param {number} [receivedAt=Date.now()] - 事件到达时间。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function applyCostMonitorStreamEvent(event, receivedAt = Date.now()) {
+  const monitor = state.costMonitor;
+
+  if (event?.type === "done") {
+    const result = event.result && typeof event.result === "object" ? event.result : {};
+    const finalItems = Array.isArray(result?.billing_trace?.cost_items) ? result.billing_trace.cost_items : [];
+    finalItems.forEach((item) => {
+      window.YD_COST_MONITOR.applyEvent(monitor, { type: "cost_update", item }, receivedAt);
+    });
+
+    const usage = result?.metadata?.usage;
+    if (usage && !monitor.checksum) {
+      window.YD_COST_MONITOR.applyEvent(monitor, {
+        type: "cost_checksum",
+        usage,
+        note: "最终 usage 只核对 tokens，不把可能混币种的总价直接入账"
+      }, receivedAt);
+    }
+
+    const activeTurn = window.YD_COST_MONITOR.getActiveTurn(monitor);
+    if (result.answer && activeTurn && !activeTurn.answer) {
+      window.YD_COST_MONITOR.applyEvent(monitor, { type: "answer_replace", answer: result.answer }, receivedAt);
+    }
+  }
+
+  window.YD_COST_MONITOR.applyEvent(monitor, event, receivedAt);
+  refreshCostMonitorRunDom();
+}
+
+/**
+ * 启动一轮已验证真实记录的可视化回放。
+ *
+ * @param {string} question - 页面本轮显示的用户输入；不会发送到 Dify。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function runCostMonitorReplay(question) {
+  const monitor = state.costMonitor;
+  const scenario = window.YD_COST_MONITOR.getReplayScenario(monitor.replayScenario);
+  const startedAt = Date.now();
+
+  cancelCostMonitorReplay();
+  monitor.source = scenario.source;
+  monitor.modelKey = scenario.modelKey;
+  window.YD_COST_MONITOR.beginRun(monitor, question, startedAt);
+  console.info("[reverse-yingdan] AI 成本实测回放开始", { scenario: scenario.id });
+  renderApp();
+
+  window.YD_COST_MONITOR.getReplayEvents(scenario.id).forEach((entry) => {
+    const timerId = window.setTimeout(() => {
+      applyCostMonitorStreamEvent(entry.event, startedAt + entry.delay);
+      if (entry.event.type === "done") {
+        costMonitorReplayTimers = [];
+        console.info("[reverse-yingdan] AI 成本实测回放完成", { scenario: scenario.id });
+      }
+    }, entry.delay);
+    costMonitorReplayTimers.push(timerId);
+  });
+}
+
+/**
+ * 使用已保存的服务端 Key 发起真实 Chatflow，并逐条消费成本事件。
+ *
+ * @param {string} question - 用户本轮输入。
+ * @returns {Promise<void>} 请求结束后完成本轮结算状态。
+ * @throws {Error} 网络和上游异常会转成页面 error 事件，不继续抛出。
+ */
+async function runCostMonitorLive(question) {
+  const monitor = state.costMonitor;
+  const featureId = getCostMonitorConfigFeatureId();
+  const config = getDifyFeatureConfig(featureId);
+
+  if (!config.hasKey) {
+    monitor.showConnection = true;
+    config.error = "请先保存当前 Chatflow 的 App API Key。";
+    renderApp();
+    document.querySelector("[data-cost-monitor-config-key]")?.focus();
+    return;
+  }
+
+  const startedAt = Date.now();
+  let doneReceived = false;
+  window.YD_COST_MONITOR.beginRun(monitor, question, startedAt);
+  console.info("[reverse-yingdan] AI 成本真实调用开始", {
+    featureId,
+    source: monitor.source,
+    selectedModel: monitor.modelKey,
+    hasSkillKey: Boolean(config.skillKey)
+  });
+  renderApp();
+
+  try {
+    const response = await fetch(getDifyProxyEndpoint("chat"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        feature_id: featureId,
+        query: question,
+        conversation_id: monitor.conversationIds[monitor.source] || "",
+        user: `yd-cost-monitor-${monitor.source}`,
+        // skill_key 仍由后端读取已保存配置并注入，浏览器只传允许用户选择的模型路由。
+        inputs: config.skillKey ? { model_key: monitor.modelKey } : {},
+        files: []
+      })
+    });
+    const contentType = response.headers.get("content-type") || "";
+
+    if (!response.ok) {
+      const rawError = await response.text();
+      let payload = null;
+      try {
+        payload = rawError ? JSON.parse(rawError) : null;
+      } catch (_error) {
+        payload = null;
+      }
+      throw new Error(payload?.message || rawError || `Chatflow 代理返回 HTTP ${response.status}`);
+    }
+
+    if (contentType.includes("text/event-stream")) {
+      if (!response.body) {
+        throw new Error("Chatflow 代理没有返回可读取的事件流。");
+      }
+
+      const parser = window.YD_DIFY.createDifySseEventParser((event) => {
+        if (event?.type === "done") {
+          doneReceived = true;
+        }
+        applyCostMonitorStreamEvent(event);
+      });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        parser.push(decoder.decode(value, { stream: true }));
+      }
+
+      const remaining = decoder.decode();
+      if (remaining) parser.push(remaining);
+      parser.finish();
+
+      if (!doneReceived) {
+        throw new Error("Chatflow 事件流提前结束，未收到完成事件。");
+      }
+    } else {
+      const rawText = await response.text();
+      let payload = null;
+      try {
+        payload = rawText ? JSON.parse(rawText) : null;
+      } catch (_error) {
+        payload = null;
+      }
+      if (!payload) {
+        throw new Error("Chatflow 代理返回了无法识别的响应。");
+      }
+      applyCostMonitorStreamEvent({ type: "done", result: payload });
+      doneReceived = true;
+    }
+
+    console.info("[reverse-yingdan] AI 成本真实调用完成", {
+      featureId,
+      workflowRunId: monitor.workflowRunId,
+      costItemCount: monitor.costItems.length
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Chatflow 调用失败，请稍后重试。";
+    console.error("[reverse-yingdan] AI 成本真实调用失败", { featureId, message });
+    applyCostMonitorStreamEvent({ type: "error", message });
+  }
+}
+
+/**
+ * 根据当前模式发送或回放一轮消息。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function sendCostMonitorDraft() {
+  const monitor = state.costMonitor;
+  const question = String(monitor.draft || "").trim();
+
+  if (monitor.status === "running") {
+    return;
+  }
+  if (!question) {
+    showToast("请先输入这一轮要发送的话。");
+    document.querySelector("[data-cost-monitor-draft]")?.focus();
+    return;
+  }
+
+  if (monitor.mode === "live") {
+    void runCostMonitorLive(question);
+    return;
+  }
+
+  runCostMonitorReplay(question);
+}
+
+/**
+ * 绑定成本单价编辑器；账单局部重绘后可重复调用。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function bindCostMonitorPriceControls() {
+  const monitor = state.costMonitor;
+  const toggle = document.querySelector("[data-cost-monitor-toggle-prices]");
+  if (toggle && toggle.dataset.costMonitorBound !== "true") {
+    toggle.dataset.costMonitorBound = "true";
+    toggle.addEventListener("click", () => {
+      monitor.showPrices = !monitor.showPrices;
+      refreshCostMonitorLedgerDom();
+    });
+  }
+
+  document.querySelectorAll("[data-cost-monitor-price]").forEach((input) => {
+    if (input.dataset.costMonitorBound === "true") return;
+    input.dataset.costMonitorBound = "true";
+    input.addEventListener("change", () => {
+      const priceId = input.getAttribute("data-cost-monitor-price");
+      if (!priceId || !monitor.prices[priceId]) return;
+      monitor.prices[priceId].amount = Math.max(0, Number(input.value) || 0);
+      refreshCostMonitorLedgerDom();
+    });
+  });
+
+  document.querySelectorAll("[data-cost-monitor-price-currency]").forEach((select) => {
+    if (select.dataset.costMonitorBound === "true") return;
+    select.dataset.costMonitorBound = "true";
+    select.addEventListener("change", () => {
+      const priceId = select.getAttribute("data-cost-monitor-price-currency");
+      if (!priceId || !monitor.prices[priceId]) return;
+      monitor.prices[priceId].currency = select.value === "USD" ? "USD" : "RMB";
+      refreshCostMonitorLedgerDom();
+    });
+  });
+
+  document.querySelectorAll("[data-cost-monitor-global-price]").forEach((input) => {
+    if (input.dataset.costMonitorBound === "true") return;
+    input.dataset.costMonitorBound = "true";
+    input.addEventListener("change", () => {
+      const field = input.getAttribute("data-cost-monitor-global-price");
+      if (!field || !["exchangeUsdRmb", "marginPercent", "vbeansPerRmb"].includes(field)) return;
+      const max = field === "marginPercent" ? 95 : Number.POSITIVE_INFINITY;
+      monitor[field] = Math.min(max, Math.max(0, Number(input.value) || 0));
+      refreshCostMonitorLedgerDom();
+    });
+  });
+}
+
+/**
+ * 绑定 AI 成本监控页的模式、配置、输入和发送交互。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function bindCostMonitorEvents() {
+  if (state.activeMain !== "admin-ai-cost") {
+    return;
+  }
+
+  const monitor = state.costMonitor;
+
+  document.querySelectorAll("[data-cost-monitor-mode]").forEach((button) => {
+    if (button.dataset.costMonitorBound === "true") return;
+    button.dataset.costMonitorBound = "true";
+    button.addEventListener("click", () => {
+      const mode = button.getAttribute("data-cost-monitor-mode");
+      if (mode !== "replay" && mode !== "live") return;
+      resetCostMonitorCurrentRun();
+      monitor.mode = mode;
+      if (mode === "replay") {
+        const scenario = window.YD_COST_MONITOR.getReplayScenario(monitor.replayScenario);
+        monitor.source = scenario.source;
+        monitor.modelKey = scenario.modelKey;
+        monitor.draft = scenario.prompt;
+      }
+      renderApp();
+    });
+  });
+
+  const sourceSelect = document.querySelector("[data-cost-monitor-source]");
+  sourceSelect?.addEventListener("change", () => {
+    resetCostMonitorCurrentRun();
+    monitor.source = sourceSelect.value === "kb" ? "kb" : "no-kb";
+    renderApp();
+  });
+
+  const scenarioSelect = document.querySelector("[data-cost-monitor-scenario]");
+  scenarioSelect?.addEventListener("change", () => {
+    const scenario = window.YD_COST_MONITOR.getReplayScenario(scenarioSelect.value);
+    resetCostMonitorCurrentRun();
+    monitor.replayScenario = scenario.id;
+    monitor.source = scenario.source;
+    monitor.modelKey = scenario.modelKey;
+    monitor.draft = scenario.prompt;
+    renderApp();
+  });
+
+  const modelSelect = document.querySelector("[data-cost-monitor-model]");
+  modelSelect?.addEventListener("change", () => {
+    monitor.modelKey = modelSelect.value === "gemini-3.5-flash" ? "gemini-3.5-flash" : "deepseek-v4-pro";
+    refreshCostMonitorLedgerDom();
+  });
+
+  const connectionToggle = document.querySelector("[data-cost-monitor-toggle-connection]");
+  connectionToggle?.addEventListener("click", () => {
+    monitor.showConnection = !monitor.showConnection;
+    renderApp();
+  });
+
+  const featureId = getCostMonitorConfigFeatureId();
+  const config = getDifyFeatureConfig(featureId);
+  const keyInput = document.querySelector("[data-cost-monitor-config-key]");
+  const skillInput = document.querySelector("[data-cost-monitor-config-skill]");
+  keyInput?.addEventListener("input", () => {
+    config.apiKeyDraft = keyInput.value;
+    config.error = "";
+  });
+  skillInput?.addEventListener("input", () => {
+    config.skillKeyDraft = skillInput.value;
+    config.error = "";
+  });
+  document.querySelector("[data-cost-monitor-config-save]")?.addEventListener("click", () => {
+    config.appType = "chatflow";
+    void saveDifyFeatureConfig(featureId);
+  });
+
+  const draftInput = document.querySelector("[data-cost-monitor-draft]");
+  const sendButton = document.querySelector("[data-cost-monitor-send]");
+  draftInput?.addEventListener("input", () => {
+    monitor.draft = draftInput.value;
+    if (sendButton) {
+      sendButton.disabled = monitor.status === "running" || !monitor.draft.trim();
+    }
+  });
+  draftInput?.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      sendCostMonitorDraft();
+    }
+  });
+  sendButton?.addEventListener("click", sendCostMonitorDraft);
+
+  bindCostMonitorPriceControls();
+}
+
+/**
+ * 绑定当前页面所有静态原型交互。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
 function bindEvents() {
   const app = document.querySelector("#app");
   if (app && !app.dataset.customerDevDelegated) {
     app.dataset.customerDevDelegated = "true";
     app.addEventListener("click", handleCustomerDevClick);
+    app.addEventListener("keydown", handleCustomerDevKeydown);
   }
 
   document.querySelectorAll("[data-admin-route]").forEach((node) => {
@@ -8183,6 +11047,9 @@ function bindEvents() {
       }
 
       event.preventDefault();
+      if (main !== "admin-ai-cost") {
+        cancelCostMonitorReplay();
+      }
       state.activeMain = main;
       state.adminDialog = null;
       state.adminMenuOpen = false;
@@ -8217,6 +11084,7 @@ function bindEvents() {
   });
 
   bindAdminActionControls();
+  bindCostMonitorEvents();
 
   document.querySelectorAll("[data-admin-invite-generate]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -8324,11 +11192,51 @@ function bindEvents() {
     });
   });
 
+  document.querySelectorAll("[data-kass-version]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextVersion = button.getAttribute("data-kass-version");
+
+      if (!["customer-kass-a", "customer-kass-b"].includes(nextVersion)) {
+        return;
+      }
+
+      state.activeMain = nextVersion;
+      state.activeKassView = "workbench";
+      const group = getKassWorkbenchGroup();
+      state.activeCustomerId = group.customers.some((customer) => customer.id === state.activeCustomerId)
+        ? state.activeCustomerId
+        : group.customers[0]?.id || null;
+      state.kassExpandedGrades = new Set([group.id]);
+      state.expandedGroups = new Set(["customer-kass"]);
+      state.kassCustomerDirectoryOpen = false;
+      state.kassDirectoryGroupId = null;
+      state.kassAgentDraft = "";
+      state.kassAgentMessages = [];
+      state.kassAgentThinking = false;
+      state.kassRecordFormOpen = false;
+      state.kassResearchOpen = false;
+      state.kassCompletedTaskIds.clear();
+      console.log("[reverse-yingdan] 已切换客户 Kass 界面方案", {
+        version: nextVersion,
+        customerGroup: group.id,
+        customerId: state.activeCustomerId
+      });
+      renderApp();
+    });
+  });
+
   document.querySelectorAll("[data-main]").forEach((button) => {
     button.addEventListener("click", () => {
+      const previousMain = state.activeMain;
       state.activeMain = button.getAttribute("data-main") || "sales-prep";
       state.popup = null;
       state.generatedResult = "";
+
+      // 从其它业务入口进入客户 Kass 时默认打开现有“重点推进”版；
+      // 只有在线上复刻页内切换 A/B 时才继续保持线上版，避免用户下次误入错误版本。
+      if (!state.activeMain.startsWith("customer-kass") || !previousMain.startsWith("customer-kass")) {
+        state.activeKassView = "workbench";
+      }
 
       if (state.activeMain === "sales-prep") {
         state.activeSalesTab = "flow";
@@ -8336,10 +11244,38 @@ function bindEvents() {
 
       if (state.activeMain.startsWith("customer-kass")) {
         const group = getActiveKassGroup();
-        state.activeCustomerId = group.customers[0].id;
+        if (state.activeKassView === "workbench") {
+          state.kassWorkbenchGroupId = "customer-kass-a";
+          state.kassExpandedGrades = new Set(["customer-kass-a"]);
+          state.expandedGroups = new Set(["customer-kass"]);
+        }
+        const customerGroup = state.activeKassView === "workbench" ? getKassWorkbenchGroup() : group;
+        state.activeCustomerId = customerGroup.customers[0]?.id || null;
+        state.activeKassTab = "conversation";
+        state.kassAgentDraft = "";
+        state.kassAgentMessages = [];
+        state.kassAgentThinking = false;
+        state.kassRecordFormOpen = false;
+        state.kassResearchOpen = false;
+        state.kassCompletedTaskIds.clear();
         state.kassAssistantOpen = false;
+        state.kassDirectoryGroupId = null;
       }
 
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-kass-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextView = button.getAttribute("data-kass-view");
+
+      if (nextView !== "workbench" && nextView !== "online") {
+        return;
+      }
+
+      state.activeKassView = nextView;
+      state.popup = null;
       renderApp();
     });
   });
@@ -8359,6 +11295,94 @@ function bindEvents() {
       }
 
       renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-kass-workbench-grade]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const groupId = button.getAttribute("data-kass-workbench-grade");
+      const group = KASS_GROUPS.find((item) => item.id === groupId);
+
+      if (!group) {
+        return;
+      }
+
+      if (isKassComparisonView()) {
+        // B 版使用手风琴式子菜单：同一时间只展开一个等级，保证 A/B/C/D
+        // 在常见笔记本高度下都能看到，不让长客户名单把其它等级推到屏幕外。
+        state.kassExpandedGrades = state.kassExpandedGrades.has(groupId)
+          ? new Set()
+          : new Set([groupId]);
+      }
+
+      state.kassWorkbenchGroupId = groupId;
+      state.activeCustomerId = group.customers[0]?.id || null;
+      state.kassCustomerDirectoryOpen = false;
+      state.kassDirectoryGroupId = null;
+      state.kassAgentDraft = "";
+      state.kassAgentMessages = [];
+      state.kassAgentThinking = false;
+      state.kassRecordFormOpen = false;
+      state.kassResearchOpen = false;
+      state.kassCompletedTaskIds.clear();
+      console.log("[reverse-yingdan] 当前方案已切换客户等级", {
+        version: state.activeMain,
+        groupId
+      });
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-kass-directory-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const requestedGroup = button.getAttribute("data-kass-directory-open");
+
+      if (requestedGroup && requestedGroup !== "true" && KASS_GROUPS.some((group) => group.id === requestedGroup)) {
+        state.kassDirectoryGroupId = requestedGroup;
+
+        if (isKassWorkbenchView()) {
+          const workbenchGroup = KASS_GROUPS.find((group) => group.id === requestedGroup);
+          state.kassWorkbenchGroupId = requestedGroup;
+          state.activeCustomerId = workbenchGroup?.customers[0]?.id || null;
+          if (isKassComparisonView()) {
+            state.kassExpandedGrades = new Set([requestedGroup]);
+          }
+        } else {
+          state.activeMain = requestedGroup;
+          const group = getActiveKassGroup();
+          state.activeCustomerId = group.customers[0]?.id || null;
+          state.kassExpandedGrades.add(requestedGroup);
+        }
+      }
+
+      state.kassCustomerDirectoryOpen = true;
+      state.kassCustomerQuery = "";
+      console.log("[reverse-yingdan] 已打开客户库浮层", { group: state.activeMain });
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-kass-directory-close]").forEach((node) => {
+    node.addEventListener("click", (event) => {
+      const closeType = node.getAttribute("data-kass-directory-close");
+      if (closeType === "backdrop" && event.target !== node) {
+        return;
+      }
+      state.kassCustomerDirectoryOpen = false;
+      state.kassDirectoryGroupId = null;
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-kass-directory-search]").forEach((input) => {
+    input.addEventListener("input", () => {
+      state.kassCustomerQuery = input.value;
+      renderApp();
+      const nextInput = document.querySelector("[data-kass-directory-search]");
+      nextInput?.focus();
+      if (typeof nextInput?.setSelectionRange === "function") {
+        nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+      }
     });
   });
 
@@ -8444,9 +11468,166 @@ function bindEvents() {
 
   document.querySelectorAll("[data-customer]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.activeCustomerId = button.getAttribute("data-customer") || getActiveKassGroup().customers[0].id;
+      const customerGroup = button.getAttribute("data-customer-group");
+      const targetGroup = KASS_GROUPS.find((group) => group.id === customerGroup);
+      const isWorkbenchCustomer = button.hasAttribute("data-kass-workbench-customer") && isKassWorkbenchView();
+
+      if (customerGroup && targetGroup && isWorkbenchCustomer) {
+        /*
+         * 方案路由与客户等级必须完全独立：
+         * - activeMain 只保留当前 A / B 界面方案。
+         * - kassWorkbenchGroupId 只记录 A / B / C / D 客户等级。
+         *
+         * 这样在方案 A 中点击 B 级客户，只会换客户数据，不会把页面跳成方案 B。
+         */
+        state.kassWorkbenchGroupId = customerGroup;
+        if (isKassComparisonView()) {
+          state.kassExpandedGrades = new Set([customerGroup]);
+        }
+      } else if (customerGroup && targetGroup) {
+        // 线上复刻页仍以路由代表客户等级，保留原有独立查看方式。
+        state.activeMain = customerGroup;
+        state.kassExpandedGrades.add(customerGroup);
+      }
+
+      state.activeCustomerId = button.getAttribute("data-customer")
+        || (isWorkbenchCustomer ? targetGroup?.customers[0]?.id : getActiveKassGroup().customers[0]?.id)
+        || null;
+      const nextCustomer = isWorkbenchCustomer
+        ? targetGroup?.customers.find((customer) => customer.id === state.activeCustomerId) || targetGroup?.customers[0]
+        : getActiveKassCustomer();
       state.activeCustomerPanel = "overview";
+      state.activeKassTab = "conversation";
+      state.customerDraft = nextCustomer?.inquiry || "";
+      state.isCustomerGenerating = false;
       state.customerResult = "";
+      state.kassCustomerDirectoryOpen = false;
+      state.kassDirectoryGroupId = null;
+      state.kassAgentDraft = "";
+      state.kassAgentMessages = [];
+      state.kassAgentThinking = false;
+      state.kassRecordFormOpen = false;
+      state.kassResearchOpen = false;
+      state.kassCompletedTaskIds.clear();
+      state.popup = null;
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-kass-agent-input]").forEach((input) => {
+    input.addEventListener("input", () => {
+      state.kassAgentDraft = input.value;
+      const sendButton = document.querySelector("[data-kass-agent-send]");
+      if (sendButton) {
+        sendButton.disabled = !state.kassAgentDraft.trim() || state.kassAgentThinking;
+      }
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendKassAgentDraft();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-kass-agent-send]").forEach((button) => {
+    button.addEventListener("click", sendKassAgentDraft);
+  });
+
+  document.querySelectorAll("[data-kass-record-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.kassRecordFormOpen = true;
+      console.log("[reverse-yingdan] 已打开新增客户跟进记录表单", { customerId: state.activeCustomerId });
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-kass-research-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.kassResearchOpen = true;
+      console.log("[reverse-yingdan] 已打开客户详细档案", { customerId: state.activeCustomerId });
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-kass-research-close]").forEach((node) => {
+    node.addEventListener("click", (event) => {
+      const closeType = node.getAttribute("data-kass-research-close");
+
+      // 点击抽屉正文时不能误关；只有真正点击遮罩空白处才关闭。
+      if (closeType === "backdrop" && event.target !== node) {
+        return;
+      }
+
+      state.kassResearchOpen = false;
+      console.log("[reverse-yingdan] 已关闭客户详细档案", { customerId: state.activeCustomerId });
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-kass-task-toggle]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      const taskId = checkbox.getAttribute("data-kass-task-toggle");
+
+      if (!taskId) {
+        return;
+      }
+
+      if (checkbox.checked) {
+        state.kassCompletedTaskIds.add(taskId);
+      } else {
+        state.kassCompletedTaskIds.delete(taskId);
+      }
+
+      console.log("[reverse-yingdan] 已更新跟进关联待办状态", {
+        customerId: state.activeCustomerId,
+        taskId,
+        completed: checkbox.checked
+      });
+
+      // 这里只局部更新当前待办，避免整页重绘把用户正在展开的历史记录重新折叠。
+      const taskRow = checkbox.closest(".kass-linked-task");
+      const statusNode = taskRow?.querySelector(".kass-linked-task-copy small");
+      taskRow?.classList.toggle("completed", checkbox.checked);
+      if (statusNode) {
+        const status = checkbox.getAttribute("data-kass-task-status") || "待处理";
+        const dueDate = checkbox.getAttribute("data-kass-task-due") || "待定";
+        statusNode.textContent = checkbox.checked ? "已完成" : `${status} · 截止 ${dueDate}`;
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-kass-save-analysis]").forEach((button) => {
+    button.addEventListener("click", () => {
+      showToast("Agent 分析已保存为本地跟进记录。未写入真实客户数据。");
+      console.log("[reverse-yingdan] 已模拟保存 Agent 分析", { customerId: state.activeCustomerId });
+    });
+  });
+
+  document.querySelectorAll("[data-kass-record-cancel]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.kassRecordFormOpen = false;
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll("[data-kass-record-save]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.kassRecordFormOpen = false;
+      renderApp();
+      showToast("跟进记录已保存为本地原型反馈。未写入真实客户数据。");
+      console.log("[reverse-yingdan] 已模拟保存客户跟进记录", { customerId: state.activeCustomerId });
+    });
+  });
+
+  document.querySelectorAll("[data-kass-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextTab = button.getAttribute("data-kass-tab");
+      if (!["conversation", "profile"].includes(nextTab)) {
+        return;
+      }
+      state.activeKassTab = nextTab;
+      state.kassResearchOpen = false;
       state.popup = null;
       renderApp();
     });
@@ -8695,13 +11876,39 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll("[data-customer-dev-field]").forEach((input) => {
-    input.addEventListener("input", () => {
-      const field = input.getAttribute("data-customer-dev-field");
+  document.querySelectorAll("[data-customer-dev-field]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const field = select.getAttribute("data-customer-dev-field");
       if (!field || !Object.prototype.hasOwnProperty.call(state.customerDevBrief, field)) {
         return;
       }
-      state.customerDevBrief[field] = input.value;
+      state.customerDevBrief[field] = select.value;
+      syncCustomerDevEngineSummary();
+    });
+  });
+
+  /*
+   * 右侧客户情报使用页签切换，避免为了展示更多内容把面板无限拉长。
+   * 这里仅切换当前客户面板内的 DOM，不修改全局状态；用户切换客户后会自然回到“概览”。
+   */
+  document.querySelectorAll("[data-customer-dev-detail-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const targetPanel = button.getAttribute("data-customer-dev-detail-tab");
+      const detail = button.closest(".customer-dev-panel-slide");
+
+      if (!targetPanel || !detail) {
+        return;
+      }
+
+      detail.querySelectorAll("[data-customer-dev-detail-tab]").forEach((tab) => {
+        const isActive = tab === button;
+        tab.classList.toggle("active", isActive);
+        tab.setAttribute("aria-selected", String(isActive));
+      });
+
+      detail.querySelectorAll("[data-customer-dev-detail-panel]").forEach((panel) => {
+        panel.hidden = panel.getAttribute("data-customer-dev-detail-panel") !== targetPanel;
+      });
     });
   });
 
@@ -9597,7 +12804,9 @@ function sendCustomerDraft() {
     return;
   }
 
-  const customer = getActiveCustomer();
+  const customer = state.activeMain.startsWith("customer-kass")
+    ? (isKassWorkbenchView() ? getKassWorkbenchCustomer(getKassWorkbenchGroup()) : getActiveKassCustomer())
+    : getActiveCustomer();
   state.isCustomerGenerating = true;
   state.customerResult = "";
   state.popup = null;
@@ -9605,7 +12814,7 @@ function sendCustomerDraft() {
 
   window.setTimeout(() => {
     state.isCustomerGenerating = false;
-    state.customerResult = `已结合 ${customer.name} 的国家、阶段、最新询盘和历史沟通，建议先补齐认证/数量/交付地信息，再用一封短邮件把报价边界和视频会议邀约一起发出。`;
+    state.customerResult = `已结合 ${customer.name} 的国家、阶段、最新询盘和历史沟通，建议${customer.nextAction || "先补齐认证、数量和交付地信息，再生成短回复"}。`;
     renderApp();
   }, 900);
 }
@@ -9650,7 +12859,7 @@ function showToast(message) {
  * 2. 在这里加一条 `{ hash, main }` 映射。
  * 3. 不用动渲染逻辑，因为 renderWorkspace 已经按 activeMain 分发。
  *
- * @type {Array<{ hash: string, main: string, tab?: string }>}
+ * @type {Array<{ hash: string, main: string, tab?: string, kassView?: "workbench" | "online", customerDevPhase?: string, revealEmailIndex?: number }>}
  */
 const ROUTES = [
   { hash: "/ask", main: "ask" },
@@ -9669,6 +12878,7 @@ const ROUTES = [
   { hash: "/admin/invite-code", main: "admin-invite" },
   { hash: "/admin/ai-character", main: "admin-character" },
   { hash: "/admin/ai-model", main: "admin-model" },
+  { hash: "/admin/ai-cost", main: "admin-ai-cost" },
   { hash: "/sales-prep", main: "sales-prep", tab: "flow" },
   { hash: "/sales-prep/flow", main: "sales-prep", tab: "flow" },
   { hash: "/sales-prep/company", main: "sales-prep", tab: "company" },
@@ -9700,6 +12910,10 @@ const ROUTES = [
   { hash: "/skills/trade-show", main: "trade-show" },
   { hash: "/customer-kass/A", main: "customer-kass-a" },
   { hash: "/customer-kass/B", main: "customer-kass-b" },
+  { hash: "/customer-kass/C", main: "customer-kass-c" },
+  { hash: "/customer-kass/D", main: "customer-kass-d" },
+  { hash: "/customer-kass/A/online", main: "customer-kass-a", kassView: "online" },
+  { hash: "/customer-kass/B/online", main: "customer-kass-b", kassView: "online" },
   { hash: "/upgrade/pay/pro", main: "pay-pro" },
   { hash: "/upgrade/pay/pro/checkout", main: "pay-pro-checkout" },
   { hash: "/upgrade/pay/pro/done", main: "pay-pro-done" },
@@ -9739,7 +12953,10 @@ function hashForState() {
   }
 
   if (main.startsWith("customer-kass-")) {
-    return `#/customer-kass/${main.slice("customer-kass-".length).toUpperCase()}`;
+    const groupLabel = main.slice("customer-kass-".length).toUpperCase();
+    return state.activeKassView === "online"
+      ? `#/customer-kass/${groupLabel}/online`
+      : `#/customer-kass/${groupLabel}`;
   }
 
   if (main === "customer-development") {
@@ -9826,12 +13043,24 @@ function applyRoute() {
   isApplyingRoute = true;
   state.activeMain = route.main;
 
+  if (route.main !== "admin-ai-cost") {
+    cancelCostMonitorReplay();
+  }
+
+  // 离开客户开发页时收起选择弹窗；同一个首页的迟到路由事件不能误关刚打开的弹窗。
+  if (route.main !== "customer-development") {
+    state.customerDevPicker = null;
+  }
+
   if (route.tab) {
     state.activeSalesTab = route.tab;
   }
 
   if (route.main === "customer-development") {
     state.customerDevPhase = route.customerDevPhase || "brief";
+    if (state.customerDevPhase !== "brief") {
+      state.customerDevPicker = null;
+    }
     if (state.customerDevPhase === "brief") {
       state.customerDevRevealedEmails = new Set();
     }
@@ -9863,9 +13092,55 @@ function applyRoute() {
   }
 
   if (state.activeMain.startsWith("customer-kass-")) {
-    const group = getActiveKassGroup();
+    state.activeKassView = route.kassView || "workbench";
+    const routeGroup = getActiveKassGroup();
+    let group = routeGroup;
+
+    if (state.activeKassView === "workbench") {
+      /*
+       * `/customer-kass/A` 与 `/customer-kass/B` 只代表两套 UI 方案。
+       * 两个入口都从同一个 A 级客户开始，评审时才能对照相同数据。
+       *
+       * C / D 是旧的等级深链：继续打开对应等级，但统一落到方案 A，
+       * 避免出现既不是方案 A 也不是方案 B 的第三种工作台状态。
+       */
+      const legacyGradeId = ["customer-kass-c", "customer-kass-d"].includes(route.main)
+        ? route.main
+        : "customer-kass-a";
+
+      if (legacyGradeId !== "customer-kass-a") {
+        state.activeMain = "customer-kass-a";
+        try {
+          window.history.replaceState(null, "", "#/customer-kass/A");
+        } catch (err) {
+          window.location.hash = "#/customer-kass/A";
+        }
+      }
+
+      state.kassWorkbenchGroupId = legacyGradeId;
+      group = getKassWorkbenchGroup();
+      state.kassExpandedGrades = new Set([group.id]);
+      state.expandedGroups = new Set(["customer-kass"]);
+    } else {
+      // 线上复刻仍按 URL 中的等级读取客户，避免影响已有对照入口。
+      state.kassExpandedGrades.add(group.id);
+    }
+
     state.activeCustomerId = group.customers[0] ? group.customers[0].id : null;
+    state.activeKassTab = "conversation";
+    state.customerDraft = group.customers[0]?.inquiry || "";
+    state.isCustomerGenerating = false;
+    state.customerResult = "";
     state.kassAssistantOpen = false;
+    state.kassCustomerDirectoryOpen = false;
+    state.kassDirectoryGroupId = null;
+    state.kassCustomerQuery = "";
+    state.kassAgentDraft = "";
+    state.kassAgentMessages = [];
+    state.kassAgentThinking = false;
+    state.kassRecordFormOpen = false;
+    state.kassResearchOpen = false;
+    state.kassCompletedTaskIds.clear();
   }
 
   state.popup = null;
@@ -9875,9 +13150,14 @@ function applyRoute() {
 
   if (route.main === "customer-development" && route.customerDevPhase === "searching") {
     window.setTimeout(() => {
-      state.customerDevPhase = "results";
-      renderApp();
-    }, 900);
+      // 用户在动画结束前离开搜索页时，迟到的计时器不能强行把页面拉回结果页。
+      if (window.location.hash !== "#/customer-development/searching") {
+        return;
+      }
+
+      // 结果页必须由 URL 路由进入，刷新、前进和后退时才能保持一致状态。
+      window.location.hash = "#/customer-development/results";
+    }, CUSTOMER_DEV_SEARCH_DURATION_MS);
   }
 }
 

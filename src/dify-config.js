@@ -26,7 +26,10 @@
     "field-visit",
     "visit-reception",
     "title-combo",
-    "trade-show"
+    "trade-show",
+    // 后台成本监控分别保存两个总控 Chatflow，避免知识库版与无知识库版串 Key。
+    "admin-cost-kb",
+    "admin-cost-no-kb"
   ]);
 
   const CHAT_FEATURE_SET = new Set(CHAT_FEATURE_IDS);
@@ -54,7 +57,9 @@
     "field-visit",
     "visit-reception",
     "title-combo",
-    "trade-show"
+    "trade-show",
+    "admin-cost-kb",
+    "admin-cost-no-kb"
   ]);
 
   /**

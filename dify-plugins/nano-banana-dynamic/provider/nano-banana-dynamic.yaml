@@ -1,0 +1,42 @@
+identity:
+  author: "garden"
+  name: "nano-banana-dynamic"
+  label:
+    en_US: "Dynamic Image Generator"
+    zh_Hans: "动态生图"
+  description:
+    en_US: "Generate and edit images with Nano Banana 2, Nano Banana Pro, or GPT Image 2."
+    zh_Hans: "使用 Nano Banana 2、Nano Banana Pro 或 GPT Image 2 生成和编辑图片。"
+  icon: "logo.png"
+credentials_for_provider:
+  gemini_api_key:
+    type: secret-input
+    required: false
+    label:
+      en_US: Gemini API Key (optional)
+      zh_Hans: Gemini API 密钥（可选）
+    placeholder:
+      en_US: Required only for Nano Banana 2 or Nano Banana Pro
+      zh_Hans: 仅使用 Nano Banana 2 或 Nano Banana Pro 时需要
+    help:
+      en_US: Stored by Dify and sent only to Google's official Gemini API.
+      zh_Hans: 由 Dify 保存，仅发送到 Google 官方 Gemini API。
+    url: https://aistudio.google.com/app/apikey
+  openrouter_api_key:
+    type: secret-input
+    required: false
+    label:
+      en_US: OpenRouter API Key (optional)
+      zh_Hans: OpenRouter API 密钥（可选）
+    placeholder:
+      en_US: Required only for openai/gpt-image-2
+      zh_Hans: 仅使用 openai/gpt-image-2 时需要
+    help:
+      en_US: Stored by Dify and sent only to OpenRouter.
+      zh_Hans: 由 Dify 保存，仅发送到 OpenRouter。
+    url: https://openrouter.ai/settings/keys
+tools:
+  - tools/nano-banana-dynamic.yaml
+extra:
+  python:
+    source: provider/nano-banana-dynamic.py

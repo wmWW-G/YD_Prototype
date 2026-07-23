@@ -1,0 +1,5 @@
+{"at":"2026-07-01T04:03:04.615Z","runId":"skill-runtime-20260701-040304-ots7","status":"complete","text":"客户是德国采购商，之后再说，帮我判断客户优先级","type":"goal.received"}
+{"at":"2026-07-01T04:03:04.615Z","runId":"skill-runtime-20260701-040304-ots7","skillId":"customer-followup-plan","status":"complete","type":"skill.matched"}
+{"at":"2026-07-01T04:03:04.615Z","runId":"skill-runtime-20260701-040304-ots7","requiredFiles":["skill.json"],"skillId":"customer-followup-plan","status":"complete","type":"skill.loaded"}
+{"at":"2026-07-01T04:03:04.615Z","checkpoint":"runs/skill-runtime-20260701-040304-ots7.checkpoint.json","resume_from":"needs-input:customer-followup-plan","runId":"skill-runtime-20260701-040304-ots7","status":"waiting","type":"run.checkpointed"}
+{"at":"2026-07-01T04:03:04.616Z","missing":["询盘、聊天记录或当前卡点"],"reason":"关键业务资料不足,暂停等待用户补充。","resume_from":"needs-input:customer-followup-plan","runId":"skill-runtime-20260701-040304-ots7","status":"waiting","type":"run.needs_input"}

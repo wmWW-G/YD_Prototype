@@ -1,0 +1,15 @@
+{
+  "createdAt": "2026-07-01T04:03:04.585Z",
+  "missing": [
+    "客户名称或客户类型",
+    "产品或核心卖点",
+    "目标市场或客户所在国家"
+  ],
+  "originalText": "写一封开发信",
+  "resume_from": "needs-input:cold-email-draft",
+  "runId": "skill-runtime-20260701-040304-839a",
+  "sessionId": "agent-session-20260701T040304-k4zgno",
+  "skillId": "cold-email-draft",
+  "skillName": "开发信草稿",
+  "status": "waiting"
+}

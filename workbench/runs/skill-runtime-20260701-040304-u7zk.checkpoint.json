@@ -1,0 +1,14 @@
+{
+  "createdAt": "2026-07-01T04:03:04.650Z",
+  "missing": [
+    "还没有可保存到客户档案的业务产物",
+    "请先生成客户分析、跟进计划或邮件草稿"
+  ],
+  "originalText": "保存到客户档案",
+  "resume_from": "needs-input:unmatched",
+  "runId": "skill-runtime-20260701-040304-u7zk",
+  "sessionId": "agent-session-20260701T040304-swcn8f",
+  "skillId": "",
+  "skillName": "",
+  "status": "waiting"
+}

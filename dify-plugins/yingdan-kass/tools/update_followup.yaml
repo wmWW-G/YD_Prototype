@@ -1,0 +1,47 @@
+identity:
+  name: update_followup
+  author: garden
+  label: {en_US: Update Follow-up Record, zh_Hans: 修改跟进记录}
+description:
+  human:
+    en_US: Safely merge changes into an existing follow-up record.
+    zh_Hans: 把指定修改安全合并到已有跟进记录中。
+  llm: Update only when the user clearly asks. Use list_followups first to obtain both the customer ID and follow-up ID. Include only fields that need modification.
+parameters:
+  - name: followup_id
+    type: number
+    required: true
+    label: {en_US: Follow-up ID, zh_Hans: 跟进记录 ID}
+    human_description: {en_US: Numeric follow-up record ID., zh_Hans: 跟进记录的数字 ID。}
+    llm_description: Positive follow-up record ID returned by list_followups.
+    form: llm
+  - name: customer_id
+    type: number
+    required: true
+    label: {en_US: Customer ID, zh_Hans: 客户 ID}
+    human_description: {en_US: Customer that owns the record., zh_Hans: 该跟进记录所属的客户 ID。}
+    llm_description: Positive customer ID associated with the follow-up record.
+    form: llm
+  - name: changes
+    type: object
+    required: true
+    label: {en_US: Changed Fields, zh_Hans: 要修改的字段}
+    human_description: {en_US: Only the follow-up fields that should change., zh_Hans: 仅填写需要修改的跟进字段。}
+    llm_description: Object containing only explicitly requested field changes.
+    form: llm
+    input_schema:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        customer_intent: {type: string, description: "Customer intent observed in this interaction."}
+        record_date: {type: string, description: "Follow-up date in YYYY-MM-DD format."}
+        title: {type: string, description: "Short factual record title."}
+        summary: {type: string, description: "Concise factual summary."}
+        follow_up_method: {type: string, description: "Contact method such as email, phone, or WhatsApp."}
+        detail: {type: string, description: "Detailed interaction record."}
+        key_points: {type: string, description: "Important points, preferably comma-separated."}
+        next_action: {type: string, description: "Agreed next action."}
+extra:
+  python:
+    source: tools/update_followup.py

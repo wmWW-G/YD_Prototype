@@ -1,0 +1,14 @@
+{
+  "createdAt": "2026-07-01T04:03:04.622Z",
+  "missing": [
+    "单价或报价区间",
+    "币种和贸易条款"
+  ],
+  "originalText": "客户问报价，产品太阳能路灯，数量500套，帮我做一份报价单",
+  "resume_from": "needs-input:quotation-sheet",
+  "runId": "skill-runtime-20260701-040304-y2rt",
+  "sessionId": "agent-session-20260701T040304-zpg5u3",
+  "skillId": "quotation-sheet",
+  "skillName": "报价单",
+  "status": "waiting"
+}

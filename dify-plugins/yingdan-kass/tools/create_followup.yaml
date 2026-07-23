@@ -1,0 +1,40 @@
+identity:
+  name: create_followup
+  author: garden
+  label: {en_US: Create Follow-up Record, zh_Hans: 新建跟进记录}
+description:
+  human:
+    en_US: Add a follow-up record to a verified Yingdan customer.
+    zh_Hans: 为已确认的赢单客户新建跟进记录。
+  llm: Create a follow-up only when the user asks to save it. record_date and detail are required. Do not turn speculative advice into a factual CRM record.
+parameters:
+  - name: customer_id
+    type: number
+    required: true
+    label: {en_US: Customer ID, zh_Hans: 客户 ID}
+    human_description: {en_US: Numeric Yingdan customer ID., zh_Hans: 赢单客户的数字 ID。}
+    llm_description: Positive customer ID returned by list_customers.
+    form: llm
+  - name: record
+    type: object
+    required: true
+    label: {en_US: Follow-up Record, zh_Hans: 跟进记录}
+    human_description: {en_US: Follow-up facts to save., zh_Hans: 要保存的跟进事实。}
+    llm_description: Follow-up object based only on information supplied or confirmed by the user.
+    form: llm
+    input_schema:
+      type: object
+      additionalProperties: false
+      required: [record_date, detail]
+      properties:
+        customer_intent: {type: string, description: "Customer intent observed in this interaction."}
+        record_date: {type: string, description: "Required follow-up date in YYYY-MM-DD format."}
+        title: {type: string, description: "Short factual record title."}
+        summary: {type: string, description: "Concise factual summary."}
+        follow_up_method: {type: string, description: "Contact method such as email, phone, or WhatsApp."}
+        detail: {type: string, description: "Required detailed interaction record."}
+        key_points: {type: string, description: "Important points, preferably comma-separated."}
+        next_action: {type: string, description: "Agreed next action."}
+extra:
+  python:
+    source: tools/create_followup.py

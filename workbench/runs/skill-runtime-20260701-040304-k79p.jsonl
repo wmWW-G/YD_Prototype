@@ -1,0 +1,5 @@
+{"at":"2026-07-01T04:03:04.619Z","runId":"skill-runtime-20260701-040304-k79p","status":"complete","text":"客户已读不回，帮我做一个7天跟进计划","type":"goal.received"}
+{"at":"2026-07-01T04:03:04.620Z","runId":"skill-runtime-20260701-040304-k79p","skillId":"customer-followup-plan","status":"complete","type":"skill.matched"}
+{"at":"2026-07-01T04:03:04.620Z","runId":"skill-runtime-20260701-040304-k79p","requiredFiles":["skill.json"],"skillId":"customer-followup-plan","status":"complete","type":"skill.loaded"}
+{"at":"2026-07-01T04:03:04.620Z","checkpoint":"runs/skill-runtime-20260701-040304-k79p.checkpoint.json","resume_from":"needs-input:customer-followup-plan","runId":"skill-runtime-20260701-040304-k79p","status":"waiting","type":"run.checkpointed"}
+{"at":"2026-07-01T04:03:04.621Z","missing":["产品或核心卖点"],"reason":"关键业务资料不足,暂停等待用户补充。","resume_from":"needs-input:customer-followup-plan","runId":"skill-runtime-20260701-040304-k79p","status":"waiting","type":"run.needs_input"}

@@ -1,0 +1,35 @@
+version: 0.2.2
+type: plugin
+author: garden
+name: nano-banana-dynamic
+label:
+  en_US: Dynamic Image Generator
+  ja_JP: Dynamic Image Generator
+  zh_Hans: 动态生图
+  pt_BR: Dynamic Image Generator
+description:
+  en_US: Generate and edit images with Nano Banana 2, Nano Banana Pro, or GPT Image 2.
+  ja_JP: Generate and edit images with Nano Banana 2, Nano Banana Pro, or GPT Image 2.
+  zh_Hans: 使用 Nano Banana 2、Nano Banana Pro 或 GPT Image 2 生成和编辑图片。
+  pt_BR: Generate and edit images with Nano Banana 2, Nano Banana Pro, or GPT Image 2.
+icon: logo.png
+icon_dark: logo.png
+resource:
+  memory: 268435456
+  permission: {}
+plugins:
+  tools:
+    - provider/nano-banana-dynamic.yaml
+meta:
+  version: 0.0.1
+  arch:
+    - amd64
+    - arm64
+  runner:
+    language: python
+    version: "3.12"
+    entrypoint: main
+  minimum_dify_version: "1.0.0"
+created_at: 2026-07-17T10:57:51.776154+08:00
+privacy: PRIVACY.md
+verified: false

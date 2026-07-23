@@ -27,6 +27,8 @@ test("keeps Chatflow defaults aligned for dedicated workflow pages", () => {
   assert.equal(getDefaultAppTypeForFeature("yd-artifact"), APP_TYPES.CHATFLOW);
   assert.equal(getDefaultAppTypeForFeature("market-research"), APP_TYPES.CHATFLOW);
   assert.equal(getDefaultAppTypeForFeature("cold-email"), APP_TYPES.CHATFLOW);
+  assert.equal(getDefaultAppTypeForFeature("admin-cost-kb"), APP_TYPES.CHATFLOW);
+  assert.equal(getDefaultAppTypeForFeature("admin-cost-no-kb"), APP_TYPES.CHATFLOW);
   assert.equal(getDefaultAppTypeForFeature("ask"), APP_TYPES.DIALOGUE);
 });
 
@@ -41,6 +43,8 @@ test("rejects a saved application type that disagrees with Dify app info", () =>
 
 test("normalizes only known-safe feature identifiers", () => {
   assert.equal(normalizeFeatureId(" market-research "), "market-research");
+  assert.equal(normalizeFeatureId("admin-cost-kb"), "admin-cost-kb");
+  assert.equal(normalizeFeatureId("admin-cost-no-kb"), "admin-cost-no-kb");
   assert.throws(() => normalizeFeatureId("../market-research"), /功能标识/);
   assert.throws(() => normalizeFeatureId(""), /功能标识/);
 });

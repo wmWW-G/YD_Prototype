@@ -1,0 +1,125 @@
+identity:
+  name: "generate_image"
+  author: "garden"
+  label:
+    en_US: "Generate or Edit Image"
+    zh_Hans: "生成或编辑图片"
+description:
+  human:
+    en_US: "Generate or edit images with Nano Banana 2, Nano Banana Pro, or GPT Image 2."
+    zh_Hans: "使用 Nano Banana 2、Nano Banana Pro 或 GPT Image 2 生成和编辑图片。"
+  llm: "Generate or edit images with one of the three explicitly supported image models."
+parameters:
+  - name: prompt
+    type: string
+    required: true
+    label:
+      en_US: Prompt
+      zh_Hans: 提示词
+    human_description:
+      en_US: "Detailed instructions. This field can reference an upstream text variable."
+      zh_Hans: "图片生成或编辑的详细指令，可引用上游文本变量。"
+    llm_description: "Detailed image generation or editing prompt."
+    form: llm
+  - name: images
+    type: files
+    required: false
+    label:
+      en_US: Visual Reference Image(s)
+      zh_Hans: 视觉参考图
+    human_description:
+      en_US: "Optional upstream image file variable. Up to 14 images for Nano Banana 2/Pro and 16 for GPT Image 2."
+      zh_Hans: "可选的上游图片文件变量。Nano Banana 2/Pro 最多 14 张，GPT Image 2 最多 16 张。"
+    llm_description: "Optional input image files for editing or visual reference."
+    form: llm
+  - name: model
+    type: select
+    required: true
+    default: "gemini-3.1-flash-image"
+    label:
+      en_US: Image Model
+      zh_Hans: 生图模型
+    human_description:
+      en_US: "Select exactly one of the three supported image models."
+      zh_Hans: "从三个明确支持的生图模型中选择一个。"
+    options:
+      - label:
+          en_US: "Nano Banana 2"
+          zh_Hans: "Nano Banana 2"
+        value: "gemini-3.1-flash-image"
+      - label:
+          en_US: "Nano Banana Pro"
+          zh_Hans: "Nano Banana Pro"
+        value: "gemini-3-pro-image"
+      - label:
+          en_US: "GPT Image 2 (OpenRouter)"
+          zh_Hans: "GPT Image 2（OpenRouter）"
+        value: "openai/gpt-image-2"
+    form: form
+  - name: aspect_ratio
+    type: select
+    required: false
+    default: "auto"
+    label:
+      en_US: Aspect Ratio
+      zh_Hans: 画面比例
+    human_description:
+      en_US: "Applied to Nano Banana 2/Pro. Auto follows a reference image when possible, otherwise 1:1. GPT Image 2 currently chooses automatically."
+      zh_Hans: "用于 Nano Banana 2/Pro。自动模式会尽量跟随参考图，无参考图时默认 1:1；GPT Image 2 当前由供应商自动选择。"
+    options:
+      - label: {en_US: "Auto", zh_Hans: "自动"}
+        value: "auto"
+      - label: {en_US: "1:1", zh_Hans: "1:1"}
+        value: "1:1"
+      - label: {en_US: "2:3", zh_Hans: "2:3"}
+        value: "2:3"
+      - label: {en_US: "3:2", zh_Hans: "3:2"}
+        value: "3:2"
+      - label: {en_US: "3:4", zh_Hans: "3:4"}
+        value: "3:4"
+      - label: {en_US: "4:3", zh_Hans: "4:3"}
+        value: "4:3"
+      - label: {en_US: "4:5", zh_Hans: "4:5"}
+        value: "4:5"
+      - label: {en_US: "5:4", zh_Hans: "5:4"}
+        value: "5:4"
+      - label: {en_US: "9:16", zh_Hans: "9:16"}
+        value: "9:16"
+      - label: {en_US: "16:9", zh_Hans: "16:9"}
+        value: "16:9"
+      - label: {en_US: "21:9", zh_Hans: "21:9"}
+        value: "21:9"
+      - label: {en_US: "1:4 (Nano Banana 2)", zh_Hans: "1:4（仅 Nano Banana 2）"}
+        value: "1:4"
+      - label: {en_US: "4:1 (Nano Banana 2)", zh_Hans: "4:1（仅 Nano Banana 2）"}
+        value: "4:1"
+      - label: {en_US: "1:8 (Nano Banana 2)", zh_Hans: "1:8（仅 Nano Banana 2）"}
+        value: "1:8"
+      - label: {en_US: "8:1 (Nano Banana 2)", zh_Hans: "8:1（仅 Nano Banana 2）"}
+        value: "8:1"
+    form: form
+  - name: resolution
+    type: select
+    required: false
+    default: "auto"
+    label:
+      en_US: Resolution
+      zh_Hans: 分辨率
+    human_description:
+      en_US: "Applied to Nano Banana 2/Pro. Auto uses the provider default 1K. 512 is only supported by Nano Banana 2. GPT Image 2 currently chooses automatically."
+      zh_Hans: "用于 Nano Banana 2/Pro。自动模式使用供应商默认的 1K；512 仅 Nano Banana 2 支持；GPT Image 2 当前由供应商自动选择。"
+    options:
+      - label: {en_US: "Auto (1K)", zh_Hans: "自动（默认 1K）"}
+        value: "auto"
+      - label: {en_US: "0.5K / 512 (Nano Banana 2)", zh_Hans: "0.5K / 512（仅 Nano Banana 2）"}
+        value: "512"
+      - label: {en_US: "1K", zh_Hans: "1K"}
+        value: "1K"
+      - label: {en_US: "2K", zh_Hans: "2K"}
+        value: "2K"
+      - label: {en_US: "4K", zh_Hans: "4K"}
+        value: "4K"
+    form: form
+extra:
+  python:
+    source: tools/nano-banana-dynamic.py
