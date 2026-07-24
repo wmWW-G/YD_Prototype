@@ -23,6 +23,7 @@ test("maps Dify app modes to the two selectable application types", () => {
 });
 
 test("keeps Chatflow defaults aligned for dedicated workflow pages", () => {
+  assert.equal(getDefaultAppTypeForFeature("customer-kass"), APP_TYPES.CHATFLOW);
   assert.equal(getDefaultAppTypeForFeature("customer-research"), APP_TYPES.CHATFLOW);
   assert.equal(getDefaultAppTypeForFeature("yd-artifact"), APP_TYPES.CHATFLOW);
   assert.equal(getDefaultAppTypeForFeature("market-research"), APP_TYPES.CHATFLOW);

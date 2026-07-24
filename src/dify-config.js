@@ -11,6 +11,7 @@
    * @type {string[]}
    */
   const CHAT_FEATURE_IDS = Object.freeze([
+    "customer-kass",
     "ask",
     "customer-research",
     "negotiation-scene",
@@ -43,6 +44,7 @@
    * @type {ReadonlySet<string>}
    */
   const DEFAULT_CHATFLOW_FEATURE_IDS = new Set([
+    "customer-kass",
     "customer-research",
     "negotiation-scene",
     "inquiry-reply",

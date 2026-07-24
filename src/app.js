@@ -127,12 +127,34 @@ const CUSTOMER_DEV_SEARCH_DURATION_MS = 2400;
  * - Cloudflare 聊天接口负责长 SSE，避免 Vercel 300 秒函数时限中断长任务。
  * - 浏览器永远拿不到已保存的原始 Key，只能看到“已配置”和应用名称。
  *
- * @type {{ config: string, chat: string }}
+ * @type {{ config: string, chat: string, kassCrm: string }}
  */
 const DIFY_PROXY_ENDPOINTS = Object.freeze({
   config: "https://yd-prototype-dify-proxy.vercel.app/api/dify-config",
-  chat: "https://yd-prototype-dify-chat.gardengaoo.workers.dev/api/dify-chat"
+  chat: "https://yd-prototype-dify-chat.gardengaoo.workers.dev/api/dify-chat",
+  kassCrm: "https://yd-prototype-dify-proxy.vercel.app/api/kass-crm"
 });
+
+/**
+ * 浏览器保存 KASS 原型工作区 ID 使用的键名。
+ *
+ * 工作区 ID 只隔离不同浏览器的虚拟 CRM 数据，不代表真实账号，也不具备访问
+ * 真实赢单接口的能力。
+ *
+ * @type {string}
+ */
+const KASS_PROTOTYPE_WORKSPACE_STORAGE_KEY = "yd-kass-prototype-workspace-id";
+
+/**
+ * A、B 两套 KASS 界面共用的 Dify 配置槽位。
+ *
+ * URL 的 customer-kass-a / customer-kass-b 只是 UI 方案，不能各自保存一套 Key，
+ * 否则同一个 KASS Agent 会产生两份会话和配置。服务端环境变量名称因此固定为
+ * DIFY_CUSTOMER_KASS_API_KEY，真实 Key 不进入浏览器源码。
+ *
+ * @type {string}
+ */
+const KASS_DIFY_FEATURE_ID = "customer-kass";
 
 /**
  * 聊天框允许用户实际选择的两个总控模型。
@@ -215,6 +237,8 @@ const state = {
   kassAgentDraft: "",
   kassAgentMessages: [],
   kassAgentThinking: false,
+  kassPrototypeWorkspaceId: "",
+  kassPrototypeSyncing: false,
   kassRecordFormOpen: false,
   kassResearchOpen: false,
   kassCompletedTaskIds: new Set(),
@@ -286,6 +310,16 @@ let toastTimer = null;
  * @type {number | null}
  */
 let difyStreamRenderFrame = null;
+
+/**
+ * KASS Agent 流式回答的下一次局部更新帧。
+ *
+ * KASS 页面同时包含客户侧栏、对话和资料工作纸，不能复用普通 Dify 页的
+ * activeMain 判断；单独维护帧 ID 可以把高频 token 合并，又不会影响其它对话页。
+ *
+ * @type {number | null}
+ */
+let kassStreamRenderFrame = null;
 
 /**
  * 当前 Dify 思考耗时的每秒刷新计时器。
@@ -738,6 +772,34 @@ function renderDifyAnswerContent(message) {
 }
 
 /**
+ * 渲染客户 KASS 对话中的单条新增消息。
+ *
+ * 作用：
+ * - 用户消息始终只作为纯文本显示，避免把用户输入误当成 Markdown 或可执行内容。
+ * - CRM Agent 的回答复用现有安全 Markdown，并把显式 `ui`、Mermaid、ECharts、SVG
+ *   或 `html-artifact` 代码块交给同一个受控 Artifact 渲染器。
+ *
+ * 为什么不直接使用 innerHTML：
+ * - KASS 回答未来会来自 Dify，模型输出不能直接信任。
+ * - 统一复用已测试的渲染器，可以继续保留 HTML 转义、沙箱、CSP 和失败降级边界。
+ *
+ * @param {{ role?: unknown, content?: unknown }} message - 当前用户或 CRM Agent 消息。
+ * @returns {string} 可安全插入 KASS 对话区的 HTML。
+ * @throws {Error} Artifact 模块缺失时自动回退安全 Markdown，不影响普通回答。
+ */
+function renderKassAgentMessageContent(message) {
+  const content = String(message?.content || "");
+
+  if (message?.role === "user") {
+    return `<p class="kass-agent-message-plain">${escapeHtml(content)}</p>`;
+  }
+
+  const artifactRenderer = window.YD_ARTIFACT?.renderArtifactCodeBlock;
+  const answer = renderMarkdown(content, artifactRenderer ? { renderCodeBlock: artifactRenderer } : {});
+  return `<div class="kass-agent-message-text">${answer}</div>`;
+}
+
+/**
  * 移除模型思考标签。
  *
  * 为什么要过滤：
@@ -1133,7 +1195,7 @@ function scheduleDifyStreamRender(featureId, messageId) {
  * - 正式 GitHub Pages 的配置请求走 Vercel，聊天长流走 Cloudflare。
  * - 本地开发时可设置 window.YD_DIFY_PROXY_ENDPOINTS，分别覆盖两个接口地址。
  *
- * @param {"config" | "chat"} kind - 需要的代理类型。
+ * @param {"config" | "chat" | "kassCrm"} kind - 需要的代理类型。
  * @returns {string} 完整接口地址。
  * @throws {Error} kind 不存在时抛出。
  */
@@ -1396,6 +1458,13 @@ function renderApp() {
 
     bindEvents();
     syncHashFromState();
+    // KASS 没有把配置表单暴露在产品界面，但仍需在后台读取“是否已配置”状态。
+    // API Key 由环境变量或加密配置存储提供，浏览器只能得到掩码元数据。
+    void loadDifyFeatureConfig(KASS_DIFY_FEATURE_ID);
+    const currentKassCustomer = getKassWorkbenchCustomer(getKassWorkbenchGroup());
+    if (!state.kassPrototypeSyncing) {
+      void hydrateKassPrototypeCustomer(currentKassCustomer);
+    }
     console.log("[reverse-yingdan] 客户 Kass 作战台已渲染", {
       activeMain: state.activeMain,
       activeCustomerId: state.activeCustomerId,
@@ -7753,11 +7822,11 @@ function renderKassComparisonConversation(customer) {
         </article>
 
         ${state.kassAgentMessages.map((message) => `
-          <article class="kass-chat-turn ${message.role === "user" ? "kass-chat-turn-user" : "kass-chat-turn-agent"}">
+          <article class="kass-chat-turn ${message.role === "user" ? "kass-chat-turn-user" : "kass-chat-turn-agent"}" data-kass-message-id="${escapeHtml(message.id || "")}">
             <div class="${message.role === "user" ? "kass-chat-avatar" : "kass-agent-mark"}" aria-hidden="true">${message.role === "user" ? "我" : "A"}</div>
             <div class="kass-chat-content">
               <header><strong>${message.role === "user" ? "我" : "CRM Agent"}</strong><time>刚刚</time></header>
-              <p class="kass-agent-message-text">${escapeHtml(message.content)}</p>
+              <div data-kass-message-body="true">${renderKassAgentMessageContent(message)}</div>
             </div>
           </article>
         `).join("")}
@@ -7878,11 +7947,11 @@ function renderCustomerKassView() {
             </article>
 
             ${state.kassAgentMessages.map((message) => `
-              <article class="kass-chat-turn ${message.role === "user" ? "kass-chat-turn-user" : "kass-chat-turn-agent"}">
+              <article class="kass-chat-turn ${message.role === "user" ? "kass-chat-turn-user" : "kass-chat-turn-agent"}" data-kass-message-id="${escapeHtml(message.id || "")}">
                 <div class="${message.role === "user" ? "kass-chat-avatar" : "kass-agent-mark"}" aria-hidden="true">${message.role === "user" ? "我" : "A"}</div>
                 <div class="kass-chat-content">
                   <header><strong>${message.role === "user" ? "我" : "CRM Agent"}</strong><time>刚刚</time></header>
-                  <p class="kass-agent-message-text">${escapeHtml(message.content)}</p>
+                  <div data-kass-message-body="true">${renderKassAgentMessageContent(message)}</div>
                 </div>
               </article>
             `).join("")}
@@ -7967,7 +8036,22 @@ function renderKassCustomerRoster(group) {
  */
 function renderKassFollowupTask(task) {
   const taskId = String(task.id || `kass-task-${task.title || "untitled"}`);
-  const isCompleted = state.kassCompletedTaskIds.has(taskId);
+  /*
+   * Agent 通过 Plugin 更新的状态保存在 task.status 中，不能只依赖当前页面内存里的 Set。
+   * 否则接口明明已经把任务改成“已完成”，重新回读后右栏仍会显示成“待处理”。
+   *
+   * Set 继续保留给原型里的手动勾选反馈；持久化状态则兼容中文和常见英文枚举。
+   */
+  const persistedStatus = String(task.status || "").trim().toLowerCase();
+  const isCompleted = state.kassCompletedTaskIds.has(taskId) || [
+    "已完成",
+    "完成",
+    "已办结",
+    "done",
+    "completed",
+    "closed"
+  ].includes(persistedStatus);
+  const isAgentSuggested = taskId.startsWith("agent-next-");
 
   return `
     <label class="kass-linked-task ${isCompleted ? "completed" : ""}">
@@ -7979,7 +8063,10 @@ function renderKassFollowupTask(task) {
         ${isCompleted ? "checked" : ""}
       />
       <span class="kass-linked-task-copy">
-        <strong>${escapeHtml(task.title || "待补充事项")}</strong>
+        <strong>
+          <span class="kass-task-title">${escapeHtml(task.title || "待补充事项")}</span>
+          ${isAgentSuggested ? '<span class="kass-task-origin">AI 建议</span>' : ""}
+        </strong>
         <small>${isCompleted ? "已完成" : `${escapeHtml(task.status || "待处理")} · 截止 ${escapeHtml(task.dueDate || "待定")}`}</small>
       </span>
     </label>
@@ -10513,42 +10600,720 @@ function handleCustomerDevKeydown(event) {
 }
 
 /**
- * 发送 CRM Agent 输入框中的本地原型消息。
+ * 获取当前浏览器专属的 KASS 原型工作区 ID。
  *
- * 说明：
- * - 当前只模拟 Agent 回复，不调用真实客户接口，也不会发送任何客户资料。
- * - 先把用户消息加入线程，再用短延迟展示 Agent 回复，保留真实对话的节奏感。
+ * 为什么保存到 localStorage：
+ * - 页面刷新后仍能看到上一轮 Agent 修改的虚拟客户资料。
+ * - 不同浏览器使用不同随机 ID，互不覆盖原型数据。
+ * - 该 ID 只能访问对应的虚拟快照，不能访问任何真实赢单账号。
  *
+ * @returns {string} 以 workspace- 开头的随机工作区 ID。
+ * @throws {Error} localStorage 不可用时自动回退到当前内存状态，不向外抛出。
+ */
+function getKassPrototypeWorkspaceId() {
+  if (state.kassPrototypeWorkspaceId) {
+    return state.kassPrototypeWorkspaceId;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(KASS_PROTOTYPE_WORKSPACE_STORAGE_KEY) || "";
+    if (/^[A-Za-z0-9._-]{16,80}$/.test(stored)) {
+      state.kassPrototypeWorkspaceId = stored;
+      return stored;
+    }
+  } catch (_error) {
+    // 某些隐私模式禁用 localStorage；后面继续使用当前页面内存 ID 即可。
+  }
+
+  const randomPart = typeof window.crypto?.randomUUID === "function"
+    ? window.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
+  state.kassPrototypeWorkspaceId = `workspace-${randomPart}`;
+
+  try {
+    window.localStorage.setItem(
+      KASS_PROTOTYPE_WORKSPACE_STORAGE_KEY,
+      state.kassPrototypeWorkspaceId
+    );
+  } catch (_error) {
+    // 存储失败不影响当前页面继续使用内存中的工作区。
+  }
+
+  return state.kassPrototypeWorkspaceId;
+}
+
+/**
+ * 把当前页面客户复制成原型 API 的初始化快照。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {object} 只包含可序列化原型字段的客户快照。
+ * @throws {Error} JSON 序列化失败时由调用方捕获。
+ */
+function serializeKassPrototypeCustomer(customer) {
+  return JSON.parse(JSON.stringify({
+    ...customer,
+    customerRef: customer.id,
+    backgroundProfile: getKassBackgroundProfile(customer),
+    followupRecords: Array.isArray(customer.followupRecords) ? customer.followupRecords : []
+  }));
+}
+
+/**
+ * 调用 KASS 原型 CRM API。
+ *
+ * @param {"GET" | "POST"} method - 请求方法。
+ * @param {Record<string, unknown>} payload - action、workspace_id 和业务参数。
+ * @returns {Promise<object>} API 的 data。
+ * @throws {Error} 网络、HTTP 或业务失败时抛出安全错误。
+ */
+async function callKassPrototypeApi(method, payload) {
+  const endpoint = new URL(getDifyProxyEndpoint("kassCrm"));
+  const requestOptions = {
+    method,
+    headers: { "Content-Type": "application/json" }
+  };
+
+  if (method === "GET") {
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value) !== "") {
+        endpoint.searchParams.set(key, String(value));
+      }
+    });
+  } else {
+    requestOptions.body = JSON.stringify(payload);
+  }
+
+  const response = await fetch(endpoint, requestOptions);
+  const rawText = await response.text();
+  let result = null;
+  try {
+    result = rawText ? JSON.parse(rawText) : null;
+  } catch (_error) {
+    result = null;
+  }
+
+  if (!response.ok || result?.ok !== true) {
+    throw new Error(
+      result?.message || `KASS 原型数据接口返回 HTTP ${response.status}`
+    );
+  }
+
+  return result.data;
+}
+
+/**
+ * 把原型 API 返回的客户合并回 KASS_GROUPS。
+ *
+ * KASS_GROUPS 是 A/B 两套界面共同读取的数据源，因此只要在原对象上合并，
+ * 当前对话页、右侧资料、详细档案和跟进时间线会同时刷新。
+ *
+ * @param {string} customerRef - 页面客户引用。
+ * @param {object} storedCustomer - API 返回的客户快照。
+ * @returns {boolean} 找到并完成合并时返回 true。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function mergeKassPrototypeCustomer(customerRef, storedCustomer) {
+  for (const group of KASS_GROUPS) {
+    const customer = group.customers.find((item) => item.id === customerRef);
+    if (!customer) continue;
+
+    Object.assign(customer, storedCustomer, {
+      id: customerRef,
+      customerRef,
+      backgroundProfile: {
+        ...(customer.backgroundProfile || {}),
+        ...(storedCustomer.backgroundProfile || {})
+      },
+      followupRecords: Array.isArray(storedCustomer.followupRecords)
+        ? storedCustomer.followupRecords
+        : customer.followupRecords
+    });
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 首次使用客户时把静态样例写入当前浏览器的原型工作区。
+ *
+ * 已存在的客户不会被静态样例覆盖，保证 Agent 修改在刷新和下一轮对话中持续生效。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {Promise<object>} 当前存储中的客户快照。
+ * @throws {Error} 原型 API 不可用时抛出。
+ */
+async function ensureKassPrototypeCustomer(customer) {
+  const data = await callKassPrototypeApi("POST", {
+    action: "bootstrap_customer",
+    workspace_id: getKassPrototypeWorkspaceId(),
+    customer: serializeKassPrototypeCustomer(customer)
+  });
+  if (data?.customer) {
+    mergeKassPrototypeCustomer(customer.id, data.customer);
+  }
+  return data?.customer || customer;
+}
+
+/**
+ * 在进入 KASS 页面或切换客户后恢复该浏览器上次保存的原型状态。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number] | null | undefined} customer - 当前客户。
+ * @returns {Promise<void>} 同步完成后重画页面。
+ * @throws {Error} 错误会在函数内记录，不阻断静态原型浏览。
+ */
+async function hydrateKassPrototypeCustomer(customer) {
+  if (!customer || state.kassPrototypeSyncing) {
+    return;
+  }
+
+  state.kassPrototypeSyncing = true;
+  try {
+    await ensureKassPrototypeCustomer(customer);
+    renderApp();
+  } catch (error) {
+    console.warn("[reverse-yingdan] KASS 原型客户恢复失败", {
+      customerRef: customer.id,
+      message: error instanceof Error ? error.message : "unknown"
+    });
+  } finally {
+    state.kassPrototypeSyncing = false;
+  }
+}
+
+/**
+ * 从原型 API 重新读取客户与跟进记录并刷新右侧界面。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @param {{ render?: boolean }} [options] - 是否在同步后立即重画页面。
+ * @returns {Promise<object>} 最新客户快照。
+ * @throws {Error} 原型 API 不可用或客户未初始化时抛出。
+ */
+async function syncKassPrototypeCustomer(customer, { render = true } = {}) {
+  state.kassPrototypeSyncing = true;
+  try {
+    const data = await callKassPrototypeApi("GET", {
+      action: "context",
+      workspace_id: getKassPrototypeWorkspaceId(),
+      customer_ref: customer.id
+    });
+    if (data?.customer) {
+      mergeKassPrototypeCustomer(customer.id, {
+        ...data.customer,
+        followupRecords: Array.isArray(data.followups)
+          ? data.followups
+          : data.customer.followupRecords
+      });
+    }
+    if (render) {
+      renderKassAgentStream();
+    }
+    return data?.customer || customer;
+  } finally {
+    state.kassPrototypeSyncing = false;
+  }
+}
+
+/**
+ * 从 Agent 最终回答中提取一个受控原型 CRUD 指令。
+ *
+ * 当 Dify App 尚未挂载 HTTP Tool 时，System Prompt 会输出一个
+ * `kass-crm-action` fenced block；前端只允许四种当前客户操作，并强制覆盖
+ * workspace_id/customer_ref，模型不能越权修改其它工作区或客户。
+ *
+ * @param {unknown} content - Agent 最终回答。
+ * @returns {{ action: object, visibleContent: string } | null} 指令和移除代码块后的可见回答。
+ * @throws {Error} JSON 无法解析时抛出。
+ */
+function extractKassPrototypeAction(content) {
+  const text = String(content || "");
+  const match = text.match(/```kass-crm-action\s*([\s\S]*?)```/i);
+  if (!match) return null;
+
+  const action = JSON.parse(match[1].trim());
+  const allowedActions = new Set([
+    "update_customer",
+    "create_followup",
+    "update_followup",
+    "delete_followup"
+  ]);
+  if (!action || typeof action !== "object" || !allowedActions.has(action.action)) {
+    throw new Error("Agent 返回了不支持的 KASS 原型操作。");
+  }
+
+  return {
+    action,
+    visibleContent: text.replace(match[0], "").trim()
+  };
+}
+
+/**
+ * 执行 Agent 回答中的原型 CRUD 指令，并把结果同步到右侧客户资料。
+ *
+ * @param {string} messageId - 当前助手消息 ID。
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {Promise<boolean>} 执行了动作时返回 true；普通分析回答返回 false。
+ * @throws {Error} 指令解析或 API 执行失败时抛出。
+ */
+async function applyKassPrototypeActionFromMessage(messageId, customer) {
+  const message = state.kassAgentMessages.find((item) => item.id === messageId);
+  const extracted = extractKassPrototypeAction(message?.content);
+  if (!extracted) return false;
+
+  const payload = {
+    ...extracted.action,
+    workspace_id: getKassPrototypeWorkspaceId(),
+    customer_ref: customer.id
+  };
+  const data = await callKassPrototypeApi("POST", payload);
+
+  if (data?.customer) {
+    mergeKassPrototypeCustomer(customer.id, data.customer);
+  } else if (Array.isArray(data?.followups)) {
+    mergeKassPrototypeCustomer(customer.id, {
+      ...customer,
+      followupRecords: data.followups
+    });
+  }
+
+  state.kassAgentMessages = state.kassAgentMessages.map((item) => (
+    item.id === messageId
+      ? {
+        ...item,
+        content: `${extracted.visibleContent}\n\n已同步到右侧原型客户资料。`.trim()
+      }
+      : item
+  ));
+  console.info("[reverse-yingdan] KASS 原型 CRUD 已完成", {
+    action: extracted.action.action,
+    customerRef: customer.id
+  });
+  return true;
+}
+
+/**
+ * 把当前页面客户整理为 KASS Agent Chatflow 的受控输入上下文。
+ *
+ * 作用：
+ * - 让 Agent 理解用户所说的“这个客户”，并能在没有真实数字 customer_id 的原型阶段
+ *   先分析页面样例；需要执行真实 CRM 查询或写入时，System Prompt 仍要求通过工具核验。
+ * - 只发送当前客户，不发送其它等级的整库数据，减少无关隐私和 token 消耗。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前选中的客户。
+ * @returns {string} 不超过 18,000 字符的 JSON 上下文。
+ * @throws {Error} JSON.stringify 失败时返回最小客户线索，不中断对话。
+ */
+function buildKassAgentCustomerContext(customer) {
+  const profile = getKassBackgroundProfile(customer);
+  const payload = {
+    context_type: "prototype_customer_snapshot",
+    workspace_id: getKassPrototypeWorkspaceId(),
+    local_customer_ref: customer.id,
+    category: customer.level,
+    company_name: customer.name,
+    country_region: customer.country,
+    current_stage: customer.stage,
+    intent: customer.intent,
+    product: customer.product,
+    quantity: customer.quantity,
+    trade_term: customer.tradeTerm,
+    customization: customer.customization,
+    inquiry: customer.inquiry,
+    profile,
+    followups: Array.isArray(customer.followupRecords)
+      ? customer.followupRecords.slice(0, 10)
+      : []
+  };
+
+  try {
+    return JSON.stringify(payload).slice(0, 18000);
+  } catch (_error) {
+    return JSON.stringify({
+      context_type: "prototype_customer_snapshot",
+      local_customer_ref: customer.id,
+      company_name: customer.name,
+      category: customer.level
+    });
+  }
+}
+
+/**
+ * 完整重画 KASS 页面，并把对话滚动位置保持在最新消息。
+ *
+ * 本函数只用于发送前插入新消息，以及流结束后同步右侧 CRM 资料。流式事件到达时
+ * 必须使用 scheduleKassAgentStreamRender，不能再次整页重建。
+ *
+ * @returns {void}
+ * @throws {Error} renderApp 原有错误会继续抛出，便于开发环境发现模板问题。
+ */
+function renderKassAgentStream() {
+  renderApp();
+  window.requestAnimationFrame(() => {
+    const scrollArea = document.querySelector("[data-kass-agent-scroll]");
+    if (scrollArea) {
+      scrollArea.scrollTop = scrollArea.scrollHeight;
+    }
+  });
+}
+
+/**
+ * 只更新一条 KASS Agent 消息的正文。
+ *
+ * 为什么只改正文：
+ * - 流式事件可能每几个字到达一次，整页 renderApp 会反复销毁侧栏、输入框和右侧资料。
+ * - 保留 article 与输入框 DOM 后，焦点、滚动条和 CSS 动画不会持续重启。
+ * - Artifact 仍通过 renderKassAgentMessageContent 的安全适配器生成，不放宽任何沙箱边界。
+ *
+ * @param {string} messageId - 当前流式助手消息的稳定 ID。
+ * @returns {boolean} 找到并更新目标消息时返回 true。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function patchKassAgentStreamMessageDom(messageId) {
+  if (!state.activeMain.startsWith("customer-kass") || !messageId) {
+    return false;
+  }
+
+  const message = state.kassAgentMessages.find((item) => item.id === messageId);
+  const turn = Array.from(document.querySelectorAll("[data-kass-message-id]")).find((node) => (
+    node.getAttribute("data-kass-message-id") === messageId
+  ));
+  const body = turn?.querySelector("[data-kass-message-body]");
+
+  if (!message || !body) {
+    return false;
+  }
+
+  body.innerHTML = renderKassAgentMessageContent(message);
+  return true;
+}
+
+/**
+ * 把同一动画帧中的 KASS SSE 事件合并为一次局部 DOM 更新。
+ *
+ * @param {string} messageId - 当前流式助手消息的稳定 ID。
  * @returns {void}
  * @throws {Error} 本函数不主动抛异常。
  */
-function sendKassAgentDraft() {
+function scheduleKassAgentStreamRender(messageId) {
+  if (!state.activeMain.startsWith("customer-kass") || kassStreamRenderFrame !== null) {
+    return;
+  }
+
+  kassStreamRenderFrame = window.requestAnimationFrame(() => {
+    kassStreamRenderFrame = null;
+    if (!state.activeMain.startsWith("customer-kass")) {
+      return;
+    }
+
+    patchKassAgentStreamMessageDom(messageId);
+    const scrollArea = document.querySelector("[data-kass-agent-scroll]");
+    if (scrollArea) {
+      scrollArea.scrollTop = scrollArea.scrollHeight;
+    }
+  });
+}
+
+/**
+ * 从公开的 Dify 过程事件中识别已经成功结束的 KASS 写 Tool。
+ *
+ * 为什么只看写 Tool：
+ * - get_context 是只读查询，不需要刷新右栏。
+ * - update/create/delete 完成后，原型 CRM 已经发生变化，应立即回读，不能等用户刷新页面。
+ * - 只使用公开 step.kind/status/label，不读取 Tool 参数、返回体或隐藏思考。
+ *
+ * @param {object} event - Cloudflare 代理公开的 process 事件。
+ * @returns {string} 命中的 Tool 名；不是已完成写操作时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getCompletedKassMutationToolName(event) {
+  if (
+    event?.type !== "process"
+    || event?.step?.kind !== "tool"
+    || event?.step?.status !== "done"
+  ) {
+    return "";
+  }
+
+  const label = String(event.step.label || "");
+  return [
+    "update_customer",
+    "create_followup",
+    "update_followup",
+    "delete_followup"
+  ].find((toolName) => label.includes(toolName)) || "";
+}
+
+/**
+ * 通过通用安全代理调用 KASS Agent Chatflow。
+ *
+ * 数据流：
+ * 1. 浏览器只发送稳定 feature_id、当前客户线索和用户问题。
+ * 2. Cloudflare / Vercel 从服务端配置读取 Dify App API Key。
+ * 3. 当前客户先写入独立原型工作区；Dify 只处理这份虚拟快照。
+ * 4. Agent 通过固定地址、无真实凭证的 KASS 原型 CRM Plugin 执行增删改查。
+ * 5. 完成后重新读取原型 API，右侧资料和跟进记录立即刷新。
+ * 6. 回答中的受控 Artifact 继续由当前页面沙箱渲染器处理。
+ *
+ * @returns {Promise<void>} 流结束后恢复输入状态并保留 conversation_id。
+ * @throws {Error} 网络和协议错误会转换为对话内失败消息，不向点击事件继续抛出。
+ */
+async function sendKassAgentDraft() {
   const content = state.kassAgentDraft.trim();
 
   if (!content || state.kassAgentThinking) {
     return;
   }
 
-  state.kassAgentMessages.push({ id: `kass-user-${Date.now()}`, role: "user", content });
+  const customer = isKassWorkbenchView()
+    ? getKassWorkbenchCustomer(getKassWorkbenchGroup())
+    : getActiveKassCustomer();
+
+  if (!customer) {
+    showToast("请先选择一个客户。");
+    return;
+  }
+
+  const config = getDifyFeatureConfig(KASS_DIFY_FEATURE_ID);
+  if (!config.loaded && !config.loading) {
+    await loadDifyFeatureConfig(KASS_DIFY_FEATURE_ID);
+  }
+  if (config.loading) {
+    showToast("正在读取 KASS Agent 配置，请稍后再试。");
+    return;
+  }
+  if (!config.hasKey) {
+    showToast("KASS Agent Chatflow API Key 尚未配置。");
+    return;
+  }
+
+  try {
+    await ensureKassPrototypeCustomer(customer);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "KASS 原型数据初始化失败。";
+    showToast(message);
+    console.error("[reverse-yingdan] KASS 原型客户初始化失败", {
+      customerRef: customer.id,
+      message
+    });
+    return;
+  }
+
+  // 新客户或页面刚清空消息时必须开启新会话，避免 conversation_id 把另一位客户的
+  // 上下文带进当前客户；同一客户连续追问则继续复用会话。
+  let session = getDifyFeatureSession(KASS_DIFY_FEATURE_ID);
+  if (session.customerId !== customer.id || state.kassAgentMessages.length === 0) {
+    state.difyFeatureSessions[KASS_DIFY_FEATURE_ID] = window.YD_DIFY.createFeatureSessionState(KASS_DIFY_FEATURE_ID);
+    session = state.difyFeatureSessions[KASS_DIFY_FEATURE_ID];
+    session.customerId = customer.id;
+  }
+
+  const now = Date.now();
+  const pendingAnswerId = `kass-agent-${now}`;
+  state.kassAgentMessages.push(
+    { id: `kass-user-${now}`, role: "user", content, status: "done" },
+    {
+      id: pendingAnswerId,
+      role: "assistant",
+      content: `正在结合 ${customer.name} 的档案与 CRM 数据分析…`,
+      status: "loading",
+      processSteps: [],
+      currentProcess: null,
+      answerStarted: false,
+      thinkingStartedAt: now,
+      thinkingEndedAt: null
+    }
+  );
   state.kassAgentDraft = "";
   state.kassAgentThinking = true;
-  console.log("[reverse-yingdan] CRM Agent 收到本地原型消息", { customerId: state.activeCustomerId });
-  renderApp();
+  console.info("[reverse-yingdan] KASS Agent Chatflow 调用开始", {
+    customerRef: customer.id,
+    workspaceReady: Boolean(getKassPrototypeWorkspaceId()),
+    hasConversation: Boolean(session.conversationId)
+  });
+  renderKassAgentStream();
 
-  window.setTimeout(() => {
-    // 两套方案内部切换 A/B/C/D 等级时 URL 仍只表示方案，因此不能再只按
-    // activeMain 取客户；否则 Agent 会引用方案字母对应等级里的错误客户。
-    const customer = isKassWorkbenchView()
-      ? getKassWorkbenchCustomer(getKassWorkbenchGroup())
-      : getActiveKassCustomer();
-    state.kassAgentMessages.push({
-      id: `kass-agent-${Date.now()}`,
-      role: "assistant",
-      content: `已结合 ${customer?.name || "当前客户"} 的档案整理：建议先确认规格、包装与目标交期，再给出分档报价，并把本次沟通保存为跟进记录。`
+  try {
+    let doneReceived = false;
+    /*
+     * 同一写 Tool 会产生“开始 / 完成”等多条过程事件；这里只为每个完成 step 同步一次。
+     * Promise 串行化可以避免 Agent 连续调用 update_followup 与 update_customer 时，
+     * 两次 GET 回读交叉返回，导致较旧的快照覆盖较新的客户状态。
+     */
+    const syncedMutationStepIds = new Set();
+    let mutationSyncPromise = Promise.resolve();
+
+    /**
+     * 把一条公开 SSE 事件合并到当前 KASS 助手消息。
+     *
+     * @param {object} event - 通用代理公开的 process、answer 或 done/error 事件。
+     * @returns {void}
+     * @throws {Error} 协议内 error 事件会转成异常交给外层统一处理。
+     */
+    const applyStreamEvent = (event) => {
+      if (event?.type === "error") {
+        throw new Error(event.message || "KASS Agent 流式响应中断。");
+      }
+
+      state.kassAgentMessages = state.kassAgentMessages.map((message) => (
+        message.id === pendingAnswerId
+          ? window.YD_DIFY.applyDifyStreamEventToMessage(message, event)
+          : message
+      ));
+
+      if (event?.type === "done") {
+        doneReceived = true;
+        session.conversationId = event.result?.conversation_id || session.conversationId;
+      }
+
+      const mutationToolName = getCompletedKassMutationToolName(event);
+      const mutationStepId = String(event?.step?.id || mutationToolName);
+      if (mutationToolName && !syncedMutationStepIds.has(mutationStepId)) {
+        syncedMutationStepIds.add(mutationStepId);
+        mutationSyncPromise = mutationSyncPromise.then(async () => {
+          try {
+            await syncKassPrototypeCustomer(customer, {
+              render: state.activeMain.startsWith("customer-kass")
+            });
+            console.info("[reverse-yingdan] KASS 写操作已实时同步右侧资料", {
+              customerRef: customer.id,
+              toolName: mutationToolName
+            });
+          } catch (syncError) {
+            console.warn("[reverse-yingdan] KASS 写操作实时回读失败，将在回答结束后重试", {
+              customerRef: customer.id,
+              toolName: mutationToolName,
+              message: syncError instanceof Error ? syncError.message : "unknown"
+            });
+          }
+        });
+      }
+
+      scheduleKassAgentStreamRender(pendingAnswerId);
+    };
+
+    const response = await fetch(getDifyProxyEndpoint("chat"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        feature_id: KASS_DIFY_FEATURE_ID,
+        query: content,
+        conversation_id: session.conversationId,
+        user: session.userId,
+        inputs: {
+          current_customer_id: customer.id,
+          current_customer_name: customer.name,
+          current_customer_context: buildKassAgentCustomerContext(customer)
+        },
+        files: []
+      })
     });
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok) {
+      const errorText = await response.text();
+      let payload = null;
+      try {
+        payload = errorText ? JSON.parse(errorText) : null;
+      } catch (_error) {
+        payload = null;
+      }
+      throw new Error(payload?.message || errorText || `KASS Agent 代理返回 HTTP ${response.status}`);
+    }
+
+    if (contentType.includes("text/event-stream")) {
+      if (!response.body) {
+        throw new Error("KASS Agent 代理没有返回可读取的流式响应。");
+      }
+      const parser = window.YD_DIFY.createDifySseEventParser(applyStreamEvent);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        parser.push(decoder.decode(value, { stream: true }));
+      }
+      const remainingText = decoder.decode();
+      if (remainingText) parser.push(remainingText);
+      parser.finish();
+
+      if (!doneReceived) {
+        throw new Error("KASS Agent 流式响应提前结束，请重新发送。");
+      }
+    } else {
+      const rawText = await response.text();
+      let payload = null;
+      try {
+        payload = rawText ? JSON.parse(rawText) : null;
+      } catch (_error) {
+        payload = null;
+      }
+      if (!payload) {
+        throw new Error("KASS Agent 代理返回了无法识别的响应。");
+      }
+      applyStreamEvent({
+        type: "done",
+        result: { ...payload, answer: stripThinkingTags(payload.answer || "") }
+      });
+    }
+
+    // 等待过程事件触发的实时回读结束，再做最终一致性校验，避免两个快照交叉覆盖。
+    await mutationSyncPromise;
+
+    /*
+     * 新版 Chatflow 必须由 KASS 原型 CRM Plugin 直接写入。这里保留一次旧版
+     * kass-crm-action 解析，仅用于用户尚未把新版 DSL 发布到 Dify Cloud 时的
+     * 向后兼容；新版 System Prompt 已明确禁止再输出该代码块。
+     *
+     * 无论响应来自新旧版本，最后都重新读取服务端快照，确保右侧资料显示的是
+     * 实际持久化结果，绝不把 Agent 的自然语言回答当作写入成功证据。
+     */
+    try {
+      await applyKassPrototypeActionFromMessage(pendingAnswerId, customer);
+      await syncKassPrototypeCustomer(customer, { render: false });
+    } catch (actionError) {
+      const actionMessage = actionError instanceof Error
+        ? actionError.message
+        : "KASS 原型数据同步失败。";
+      state.kassAgentMessages = state.kassAgentMessages.map((messageItem) => (
+        messageItem.id === pendingAnswerId
+          ? {
+            ...messageItem,
+            content: `${messageItem.content}\n\n原型客户资料未完成同步：${actionMessage}`
+          }
+          : messageItem
+      ));
+      console.error("[reverse-yingdan] KASS 原型 CRUD 同步失败", {
+        customerRef: customer.id,
+        message: actionMessage
+      });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "KASS Agent 调用失败，请稍后重试。";
+    const safeMessage = message === "Failed to fetch"
+      ? "KASS Agent 代理请求失败，请检查部署或网络后重试。"
+      : message;
+
+    state.kassAgentMessages = state.kassAgentMessages.map((messageItem) => (
+      messageItem.id === pendingAnswerId
+        ? window.YD_DIFY.applyDifyStreamEventToMessage(
+          messageItem,
+          { type: "error", message: safeMessage }
+        )
+        : messageItem
+    ));
+    console.error("[reverse-yingdan] KASS Agent Chatflow 调用失败", {
+      customerRef: customer.id,
+      message: safeMessage
+    });
+  } finally {
     state.kassAgentThinking = false;
-    renderApp();
-  }, 650);
+    if (kassStreamRenderFrame !== null) {
+      window.cancelAnimationFrame(kassStreamRenderFrame);
+      kassStreamRenderFrame = null;
+    }
+    // 最终只完整重画一次：移除思考占位、恢复输入框，并展示 Plugin 写入后的右侧资料。
+    renderKassAgentStream();
+  }
 }
 
 /**

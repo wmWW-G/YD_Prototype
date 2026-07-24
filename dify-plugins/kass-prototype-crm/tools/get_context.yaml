@@ -1,0 +1,29 @@
+identity:
+  name: get_context
+  author: garden
+  label:
+    en_US: Get Prototype Customer Context
+    zh_Hans: 查询原型客户上下文
+description:
+  human:
+    en_US: Read the customer profile, background summary, follow-ups, and tasks from one isolated prototype workspace.
+    zh_Hans: 从指定原型工作区读取客户资料、背调摘要、跟进记录和关联任务。
+  llm: Read-only. Use the workspace_id and local_customer_ref from current_customer_context. Call this before a write when the latest record or task state must be verified.
+parameters:
+  - name: workspace_id
+    type: string
+    required: true
+    label: {en_US: Workspace ID, zh_Hans: 原型工作区 ID}
+    human_description: {en_US: Isolated browser workspace ID., zh_Hans: 当前浏览器隔离工作区 ID。}
+    llm_description: Exact workspace_id from current_customer_context. Never invent or reuse another workspace.
+    form: llm
+  - name: customer_ref
+    type: string
+    required: true
+    label: {en_US: Customer Reference, zh_Hans: 原型客户引用}
+    human_description: {en_US: Customer reference inside the workspace., zh_Hans: 当前工作区中的客户引用。}
+    llm_description: Exact local_customer_ref from current_customer_context.
+    form: llm
+extra:
+  python:
+    source: tools/get_context.py

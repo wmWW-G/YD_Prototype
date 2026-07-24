@@ -1,0 +1,59 @@
+identity:
+  name: create_followup
+  author: garden
+  label:
+    en_US: Create Prototype Follow-up
+    zh_Hans: 新增原型跟进
+description:
+  human:
+    en_US: Create one confirmed follow-up record with optional linked tasks.
+    zh_Hans: 新增一条已确认的跟进记录，并可附带关联任务。
+  llm: Write operation. Save only events the user says already happened. Do not turn suggestions or drafts into historical facts.
+parameters:
+  - name: workspace_id
+    type: string
+    required: true
+    label: {en_US: Workspace ID, zh_Hans: 原型工作区 ID}
+    human_description: {en_US: Isolated browser workspace ID., zh_Hans: 当前浏览器隔离工作区 ID。}
+    llm_description: Exact workspace_id from current_customer_context.
+    form: llm
+  - name: customer_ref
+    type: string
+    required: true
+    label: {en_US: Customer Reference, zh_Hans: 原型客户引用}
+    human_description: {en_US: Customer reference inside the workspace., zh_Hans: 当前工作区中的客户引用。}
+    llm_description: Exact local_customer_ref from current_customer_context.
+    form: llm
+  - name: record
+    type: object
+    required: true
+    label: {en_US: Follow-up Record, zh_Hans: 跟进记录}
+    human_description: {en_US: Confirmed follow-up facts and linked tasks., zh_Hans: 已确认的跟进事实和关联任务。}
+    llm_description: Include at least title or summary. Use snake_case day_label and due_date. Do not invent IDs.
+    form: llm
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        date: {type: string, description: "Follow-up date in YYYY-MM-DD format."}
+        day_label: {type: string, description: "Optional display label such as 今天."}
+        time: {type: string, description: "Follow-up time in HH:mm format."}
+        owner: {type: string, description: "Record owner; defaults to CRM Agent."}
+        channel: {type: string, description: "Communication channel."}
+        title: {type: string, description: "Short factual title."}
+        summary: {type: string, description: "Factual follow-up summary."}
+        tasks:
+          type: array
+          description: "Tasks caused by this follow-up."
+          items:
+            type: object
+            additionalProperties: false
+            required: [title]
+            properties:
+              id: {type: string, description: "Existing task ID only when known."}
+              title: {type: string, description: "Task title."}
+              due_date: {type: string, description: "Due date in YYYY-MM-DD format."}
+              status: {type: string, description: "Task status, default 待处理."}
+extra:
+  python:
+    source: tools/create_followup.py

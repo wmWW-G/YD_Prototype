@@ -1,0 +1,36 @@
+identity:
+  name: delete_followup
+  author: garden
+  label:
+    en_US: Delete Prototype Follow-up
+    zh_Hans: 删除原型跟进
+description:
+  human:
+    en_US: Delete one explicitly confirmed follow-up from the isolated prototype workspace.
+    zh_Hans: 从隔离原型工作区删除一条已明确确认的跟进记录。
+  llm: Destructive write operation. Call get_context first and invoke only when the user explicitly confirms the exact record in the current conversation.
+parameters:
+  - name: workspace_id
+    type: string
+    required: true
+    label: {en_US: Workspace ID, zh_Hans: 原型工作区 ID}
+    human_description: {en_US: Isolated browser workspace ID., zh_Hans: 当前浏览器隔离工作区 ID。}
+    llm_description: Exact workspace_id from current_customer_context.
+    form: llm
+  - name: customer_ref
+    type: string
+    required: true
+    label: {en_US: Customer Reference, zh_Hans: 原型客户引用}
+    human_description: {en_US: Customer reference inside the workspace., zh_Hans: 当前工作区中的客户引用。}
+    llm_description: Exact local_customer_ref from current_customer_context.
+    form: llm
+  - name: followup_id
+    type: string
+    required: true
+    label: {en_US: Follow-up ID, zh_Hans: 跟进记录 ID}
+    human_description: {en_US: Exact follow-up record ID., zh_Hans: 要删除的准确跟进记录 ID。}
+    llm_description: Exact ID returned by get_context after user confirmation.
+    form: llm
+extra:
+  python:
+    source: tools/delete_followup.py

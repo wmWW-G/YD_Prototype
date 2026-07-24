@@ -3,6 +3,9 @@
     "api/dify-customer-research.js": {
       "maxDuration": 300
     },
+    "api/kass-crm.js": {
+      "maxDuration": 60
+    },
     "api/dify-chat.js": {
       "maxDuration": 300
     },

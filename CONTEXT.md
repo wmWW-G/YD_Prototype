@@ -10,6 +10,8 @@
 
 当前目录还包含 `dify-plugins/yingdan-kass/`：这是使用 Dify Plugin CLI 和 Python 3.12 开发的固定账号 Tool Plugin MVP。它把赢单客户 KASS 的客户分层、客户档案、跟进记录、文件上传和带二次确认的删除能力提供给 Chatflow Agent 节点，不属于主静态原型代码。
 
+当前目录还包含 `dify-plugins/kass-prototype-crm/`：这是专供当前 KASS 原型 Chatflow 使用的隔离 Tool Plugin。它只连接固定的 `api/kass-crm` 原型沙箱，不读取 Access Token、不接收任意 API 地址，也不会访问真实赢单账号。
+
 当前版本重点复刻销售准备和客户Kass两块核心工作台，包括：
 
 - 左侧固定导航。
@@ -108,6 +110,7 @@ reverse-yingdan/
     dify-config.js
     dify-customer-research.js
     dify-runtime-config.js
+    kass-crm.js
   cloudflare-worker/
     dify-chat-worker.mjs
   lib/
@@ -128,6 +131,7 @@ reverse-yingdan/
   coze-workflows/
   dify-chatflows/
   dify-plugins/
+    kass-prototype-crm/
     yingdan-kass/
   src/
     app.js
@@ -143,11 +147,12 @@ reverse-yingdan/
 
 - `index.html`：页面骨架，只放必要容器和脚本引用。
 - `sw.js`：自动刷新 Service Worker，让 GitHub Pages 上的 HTML、JS、CSS 优先走网络，减少同事看到旧缓存的概率；由 `src/app.js` 注册。
-- `vercel.json`：Vercel Serverless 配置，用于设置 Dify 配置、兼容聊天代理和内部配置桥接的最大执行时间。
+- `vercel.json`：Vercel Serverless 配置，用于设置 Dify 配置、通用回滚聊天代理、KASS CRM Agent 网关和内部配置桥接的最大执行时间。
 - `wrangler.jsonc`：Cloudflare Worker 部署配置；声明长流式 Worker 入口和 Vercel 内部配置接口地址，不包含 Secret。
 - `api/dify-config.js`：Dify 配置接口；GET 只返回掩码和应用摘要，POST 校验 Key 对应的真实 App 类型并覆盖保存。
 - `api/dify-runtime-config.js`：仅供 Cloudflare Worker 调用的私有配置桥接；使用固定时间比较校验内部 Bearer Token，在 Vercel 内读取现有 Redis/环境变量配置，不开放 CORS、不允许缓存。
 - `api/dify-chat.js`：原 Vercel 通用聊天代理，保留为回滚入口；正式前端聊天已切到 Cloudflare Worker。
+- `api/kass-crm.js`：KASS 页面专用的原型 CRM 沙箱，只开放固定 GET / POST action。它按浏览器生成的 `workspace_id` 把虚拟客户资料和虚拟跟进记录隔离保存在现有 Redis 中，不连接真实赢单接口，也不接收 Access Token。网关不提供任意 URL 转发，客户与跟进写入字段由 `lib/kass-crm-gateway.js` 白名单控制。
 - `cloudflare-worker/dify-chat-worker.mjs`：正式 Dify 长流式代理；先通过私有桥接读取当前页面配置，再直接连接 Dify，发送 15 秒 SSE 心跳并复用现有事件归一化逻辑。
 - `api/dify-customer-research.js`：旧客户背调专用代理，保留兼容和排障用途。
 - `lib/dify-*.js`：Dify 模式识别、增量 SSE 解析、跨分块 `<think>` 过滤、公开过程摘要、加解密、Upstash Redis 存储和 HTTP 共用逻辑。
@@ -170,7 +175,8 @@ reverse-yingdan/
 - `AI板块统计.md`：统计客户Kass、销售准备等区域的 AI 能力现状和后续整理建议。
 - `赢单api.md`：赢单后端接口文档快照，用于查阅 auth、账号、邀请码、计费、积分等接口路径、请求参数和字段口径。它是接口参考资料，不是主静态原型代码；涉及线上真实行为、安全暴露或返回字段时，必须重新做 live 验证，不能只按文档下结论。
 - `coze-workflows/`：扣子工作流资料库，记录工作流用途、schema、调用函数、字段映射和验证状态。
-- `dify-chatflows/`：Dify 对话应用与 Chatflow 资料库，记录应用类型、入口、参数快照、调用函数、API 测试记录和赢单字段映射。`客户Kass-客户管理-KASS-Agent/workflow.yml` 是可导入的 KASS CRM Chatflow DSL，通过单个 Agent 节点调用 `yingdan-kass` 插件的 12 个非文件 Tool，并启用会话记忆与删除二次确认规则；`upload_file` 不挂入 Agent 节点，避免 Dify Agent 对 `file` 参数报错。
+- `dify-chatflows/`：Dify 对话应用与 Chatflow 资料库，记录应用类型、入口、参数快照、调用函数、API 测试记录和赢单字段映射。`客户Kass-客户管理-KASS-Agent/workflow.yml` 是可导入的 KASS 原型 CRM Chatflow DSL；Agent 节点只挂载 `garden/kass-prototype-crm/kass-prototype-crm` 的五个原型 Tool，写操作由 Plugin 真正执行，不再依赖通用 HTTP Tool 或前端 `kass-crm-action` 兜底。用户确认现有待办完成后，Agent 通过 `update_followup` 传回完整最终任务数组，默认追加 1–2 项 `agent-next-` 下一步待办并用 `update_customer` 同步 `next_action`；用户说某项“不算待办”时，从完整任务数组中移除准确任务，不删除整条跟进。分析型回答仍可输出受控 `ui` / ECharts / `html-artifact`，一轮最多一个 Artifact；结构化组件的围栏语言必须精确为 `ui`，JSON 第一项必须包含 `component`，不能降级成普通 `json` 代码块。
+- `dify-plugins/kass-prototype-crm/`：KASS 原型 CRM Dify Tool Plugin。固定连接 `https://yd-prototype-dify-proxy.vercel.app/api/kass-crm`，无 Provider 凭证和 Authorization；只开放读取上下文、更新客户、新增跟进、更新跟进和删除跟进五个 Tool。字段、客户 ID、工作区 ID 和跟进 ID 均在 Plugin 内校验；发布包位于 `dist/kass-prototype-crm-0.1.1.difypkg`。
 - `dify-plugins/yingdan-kass/`：赢单客户 KASS 固定账号 Dify Tool Plugin。Provider 保存 `api_base_url`、`user_id` 和 `access_token`；`lib/client.py` 负责 Bearer 鉴权、字段白名单、账号归属校验和 HTTP 错误归一化；`tools/` 暴露 13 个 Agent Tool；删除必须先 `prepare_delete` 再用五分钟一次性令牌调用 `execute_delete`。2026-07-22 已用临时分层、客户和跟进记录完成线上 CRUD 与最终清理实测，确认分层更新使用 `PUT`、客户更新不发送 `customerCategory` 且合作次数使用非负整数。本地包输出在插件目录的 `dist/`，其中不包含真实凭证。
 - `backups/`：历史备份，只用于查旧实现或回看改动前状态，不主动修改。
 - `.claude/`、`audits/`、`workbench/`：工具运行、截图审计或临时运行记录目录，默认不作为主工程编辑目标。
@@ -252,7 +258,7 @@ reverse-yingdan/
 - `COMPANY_MODULES`：公司资料维护模块数据。
 - `PRODUCT_ROWS`：产品与市场全景表行数据。
 - `CASE_CATEGORIES` / `CASE_ITEMS`：案例知识库分类和案例数据。
-- `KASS_GROUPS` / `KASS_FLOW_STAGES`：客户Kass A/B/C/D 等级、客户卡片和跟进流程阶段。
+- `KASS_GROUPS` / `KASS_FLOW_STAGES`：客户Kass A/B/C/D 等级、客户卡片和跟进流程阶段。所有本地样例客户都归一化为完整背景档案、跟进记录和关联待办；未手工背调的字段明确标注为原型样例或未接入真实征信，不能当线上客户事实。
 - `CUSTOMERS` / `CUSTOMER_TIMELINE`：早期客户作战室示例数据，当前主页面已改用 `KASS_GROUPS`。
 - `ADMIN_NAV_ITEMS`：后台管理左侧菜单。
 - `ADMIN_KNOWLEDGE_ROWS` / `ADMIN_USER_ROWS`：后台知识库和用户管理表格样例。

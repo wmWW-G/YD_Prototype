@@ -37,6 +37,97 @@ test("keeps the replacement Chatflow prompt aligned with the interactive rendere
   assert.doesNotMatch(prompt, /不能生成 HTML/);
 });
 
+test("keeps the KASS Agent workflow aligned with prototype CRUD and Artifact contracts", () => {
+  const workflow = fs.readFileSync(
+    path.join(__dirname, "../dify-chatflows/客户Kass-客户管理-KASS-Agent/workflow.yml"),
+    "utf8"
+  );
+
+  assert.match(workflow, /KASS 原型 CRM Plugin/);
+  assert.match(workflow, /【回答与 Artifact】/);
+  assert.match(workflow, /provider_name: garden\/kass-prototype-crm\/kass-prototype-crm/);
+  assert.match(workflow, /tool_name: get_context/);
+  assert.match(workflow, /tool_name: update_customer/);
+  assert.match(workflow, /tool_name: create_followup/);
+  assert.match(workflow, /tool_name: update_followup/);
+  assert.match(workflow, /tool_name: delete_followup/);
+  assert.match(workflow, /不输出 kass-crm-action/);
+  assert.match(workflow, /通用 HTTP Tool/);
+  assert.match(workflow, /真实赢单 API/);
+  assert.match(workflow, /current_customer_id/);
+  assert.match(workflow, /结构化静态 Artifact/);
+  assert.match(workflow, /代码围栏语言必须精确写成 ui，绝对不能写成 json/);
+  assert.match(workflow, /"component":"metrics"/);
+  assert.match(workflow, /结构化组件只能使用 ui，不能使用 json/);
+  assert.match(workflow, /【待办闭环】/);
+  assert.match(workflow, /默认闭环规则/);
+  assert.match(workflow, /agent-next-/);
+  assert.match(workflow, /这些不算待办/);
+  assert.match(workflow, /完整最终 tasks 数组/);
+  assert.match(workflow, /一轮最多输出一个受控 Artifact/);
+  assert.match(workflow, /不得编造数值/);
+  assert.doesNotMatch(workflow, /provider_name: garden\/yingdan-kass/);
+});
+
+test("renders streamed KASS assistant fences through the safe Artifact adapter", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const rendererStart = source.indexOf("function renderKassAgentMessageContent");
+  const rendererEnd = source.indexOf("\n/**", rendererStart + 1);
+  const rendererSource = source.slice(rendererStart, rendererEnd);
+  const senderStart = source.indexOf("function sendKassAgentDraft");
+  const senderEnd = source.indexOf("\n/**", senderStart + 1);
+  const senderSource = source.slice(senderStart, senderEnd);
+
+  assert.ok(rendererStart >= 0 && rendererEnd > rendererStart, "应找到 KASS 消息渲染函数");
+  assert.match(rendererSource, /message\?\.role === "user"/);
+  assert.match(rendererSource, /window\.YD_ARTIFACT\?\.renderArtifactCodeBlock/);
+  assert.match(rendererSource, /renderMarkdown\(content, artifactRenderer/);
+  assert.match(senderSource, /feature_id: KASS_DIFY_FEATURE_ID/);
+  assert.match(senderSource, /current_customer_context: buildKassAgentCustomerContext\(customer\)/);
+  assert.match(senderSource, /createDifySseEventParser\(applyStreamEvent\)/);
+  assert.match(senderSource, /scheduleKassAgentStreamRender\(pendingAnswerId\)/);
+  assert.match(senderSource, /applyKassPrototypeActionFromMessage/);
+  assert.match(senderSource, /syncKassPrototypeCustomer/);
+  assert.match(senderSource, /getCompletedKassMutationToolName\(event\)/);
+  assert.match(senderSource, /mutationSyncPromise/);
+  assert.match(senderSource, /KASS 写操作已实时同步右侧资料/);
+  assert.doesNotMatch(senderSource, /component: "step-flow"/);
+  assert.equal(
+    (senderSource.match(/renderKassAgentStream\(\)/g) || []).length,
+    2,
+    "一次流式调用只应在开始和结束时完整渲染 KASS 页面"
+  );
+  assert.match(source, /function patchKassAgentStreamMessageDom\(messageId\)/);
+  assert.match(source, /function scheduleKassAgentStreamRender\(messageId\)/);
+  assert.match(source, /data-kass-message-id=/);
+  assert.match(source, /body\.innerHTML = renderKassAgentMessageContent\(message\)/);
+  assert.match(source, /window\.requestAnimationFrame/);
+  assert.match(source, /const persistedStatus = String\(task\.status/);
+  assert.match(source, /"已完成"/);
+  assert.match(source, /taskId\.startsWith\("agent-next-"\)/);
+  assert.match(source, /AI 建议/);
+});
+
+test("keeps the KASS prototype plugin isolated from real CRM credentials", () => {
+  const pluginRoot = path.join(__dirname, "../dify-plugins/kass-prototype-crm");
+  const manifest = fs.readFileSync(path.join(pluginRoot, "manifest.yaml"), "utf8");
+  const provider = fs.readFileSync(
+    path.join(pluginRoot, "provider/kass-prototype-crm.yaml"),
+    "utf8"
+  );
+  const client = fs.readFileSync(path.join(pluginRoot, "lib/client.py"), "utf8");
+
+  assert.match(manifest, /name: kass-prototype-crm/);
+  assert.match(provider, /tools\/get_context\.yaml/);
+  assert.match(provider, /tools\/update_customer\.yaml/);
+  assert.match(provider, /tools\/create_followup\.yaml/);
+  assert.match(provider, /tools\/update_followup\.yaml/);
+  assert.match(provider, /tools\/delete_followup\.yaml/);
+  assert.match(client, /yd-prototype-dify-proxy\.vercel\.app\/api\/kass-crm/);
+  assert.doesNotMatch(provider, /credentials_for_provider/);
+  assert.doesNotMatch(client, /access_token|api\.top-yd\.com|Authorization/);
+});
+
 test("parses and renders the published Chatflow Mermaid flowchart contract", () => {
   const source = [
     "flowchart LR",

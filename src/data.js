@@ -1969,6 +1969,147 @@ window.KASS_GROUPS = [
   }
 ];
 
+/**
+ * 为尚未手工编写完整背调的客户生成结构一致的原型档案。
+ *
+ * 作用：
+ * - A、B 两套页面共用同一批客户；这里保证用户切换任意等级、任意客户时，
+ *   右侧“资料状态、稳定背景、完整档案”都拥有同样完整的字段结构。
+ * - 已经手工整理过的客户档案不会被覆盖；函数只补齐其他本地样例。
+ *
+ * 为什么集中生成：
+ * - 这些客户名称和官网均为原型样例，不能伪装成真实线上背调结果。
+ * - 用客户现有国家、行业、产品、阶段等样例字段组合展示数据，既能完整验收 UI，
+ *   又能明确标注“未接入真实征信/未公开”，避免虚构真实客户事实。
+ *
+ * @param {typeof window.KASS_GROUPS[number]["customers"][number]} customer - 当前原型客户。
+ * @param {typeof window.KASS_GROUPS[number]} group - 客户所属 A/B/C/D 等级。
+ * @param {number} customerIndex - 客户在当前等级中的顺序，用于稳定选择样例规模和周期。
+ * @returns {object} 与客户详细档案抽屉完全一致的结构化背调字段。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function createKassPrototypeBackgroundProfile(customer, group, customerIndex) {
+  const companySizes = ["11–50 人", "51–200 人", "201–500 人"];
+  const purchaseCycles = ["季度选品型", "项目采购型", "年度补货型"];
+  const enteredDay = String(Math.max(10, 23 - (customerIndex % 10))).padStart(2, "0");
+  const marketChannels = `${customer.country}本地渠道 · 独立站 · B2B 采购`;
+  const procurementPotential = `${group.label} 级 · ${customer.intent || "待评估"}`;
+  const contactName = customer.contact || "采购团队";
+
+  return {
+    overview: `${customer.country}${customer.industry || "采购"}客户，当前关注${customer.product || "待确认产品"}；本页为 CRM Agent 联调使用的完整原型档案，不代表真实线上背调结论。`,
+    companyBackground: `${customer.country}${customer.industry || "采购"}企业（原型样例）`,
+    mainBusiness: customer.industry || `${customer.product || "相关产品"}采购与销售`,
+    enteredAt: `2026-07-${enteredDay}`,
+    foundedYear: `${2011 + (customerIndex % 10)} 年`,
+    companySize: companySizes[customerIndex % companySizes.length],
+    companyType: customer.industry || "进口商 / 经销商",
+    organization: group.label === "A"
+      ? "采购负责人初筛 → 产品与合规评估 → 管理层确认"
+      : "品类采购初筛 → 商品团队评估 → 负责人确认",
+    purchasingRole: group.label === "A" ? "重点采购方 / 进口商" : `${customer.industry || "品类"}采购方`,
+    marketChannels,
+    contactName,
+    contactRole: group.label === "A" ? "采购负责人" : "品类采购 / 项目联系人",
+    socialMedia: "LinkedIn · 公司官网",
+    contactEmail: "通过国际站站内信或官网联系",
+    whatsapp: "尚未建立 WhatsApp 联系",
+    annualRevenue: "样例资料未披露；正式版由背调或业务员补充",
+    cooperationStage: customer.stage || "初次接洽",
+    purchaseCycle: purchaseCycles[customerIndex % purchaseCycles.length],
+    purchasePotential: procurementPotential,
+    productPreference: customer.product || "待确认产品",
+    purchasePreference: `${customer.customization || "常规包装"} · ${customer.tradeTerm || "贸易条款待确认"} · 重视交期与资料完整度`,
+    expandableProducts: `${customer.product || "当前品类"}配套款、包装升级与组合 SKU`,
+    paymentTerms: "首次合作付款条件尚未约定，需在正式报价前确认",
+    finalConsignee: customer.tradeTerm && customer.tradeTerm !== "待确认"
+      ? `按 ${customer.tradeTerm} 条款确认最终收货主体`
+      : "最终收货主体尚未确认",
+    creditStatus: "原型样例未接入真实企业征信；正式写入前必须重新核验",
+    cooperationValue: `${customer.intent || `${group.label}级意向`}，可围绕${customer.product || "当前需求"}继续验证采购计划与复购空间`,
+    competitors: `${customer.country}本地同类供应商、国际 B2B 平台供应商`,
+    competitiveAdvantage: "资料响应快、定制沟通清楚、可按采购量提供分档方案",
+    currentSuppliers: "样例资料未披露，建议在下一次沟通中确认",
+    sources: ["原型客户档案", "询盘样例"],
+    updatedAt: "2026-07-24",
+    incompleteItems: ["真实征信", "付款条件", "最终收货主体"]
+  };
+}
+
+/**
+ * 为没有历史记录的原型客户生成两条完整跟进记录。
+ *
+ * 参数与返回值保持和真实 KASS 跟进接口一致的阅读口径：记录说明已经发生的沟通，
+ * 待办则只描述尚未完成的下一步，不能把 Agent 建议伪装成历史事实。
+ *
+ * @param {typeof window.KASS_GROUPS[number]["customers"][number]} customer - 当前原型客户。
+ * @param {number} customerIndex - 客户在等级中的稳定顺序。
+ * @returns {Array<object>} 两条跟进记录，每条可包含由该记录产生的待办。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function createKassPrototypeFollowups(customer, customerIndex) {
+  const currentDay = String(Math.max(10, 23 - (customerIndex % 8))).padStart(2, "0");
+  const previousDay = String(Math.max(8, Number(currentDay) - 2)).padStart(2, "0");
+  const currentDate = `2026-07-${currentDay}`;
+  const previousDate = `2026-07-${previousDay}`;
+  const quantity = customer.quantity || "采购量待确认";
+  const nextAction = customer.nextAction || "补齐采购条件并约定下一次沟通";
+
+  return [
+    {
+      id: `${customer.id}-followup-${currentDate.replaceAll("-", "")}`,
+      date: currentDate,
+      dayLabel: customerIndex < 2 ? "最近" : "",
+      time: `${String(9 + (customerIndex % 7)).padStart(2, "0")}:${customerIndex % 2 ? "35" : "20"}`,
+      owner: "张伟",
+      channel: customerIndex % 2 ? "国际站" : "邮件",
+      title: `${customer.stage || "客户沟通"}：确认${customer.product || "产品方向"}与采购条件`,
+      summary: `客户围绕${customer.product || "目标产品"}继续沟通，当前数量为${quantity}，贸易条款为${customer.tradeTerm || "待确认"}，定制要求为${customer.customization || "待确认"}。`,
+      tasks: [
+        {
+          id: `${customer.id}-task-next`,
+          title: nextAction,
+          dueDate: "2026-07-25",
+          status: "待处理"
+        },
+        {
+          id: `${customer.id}-task-proof`,
+          title: `准备${customer.product || "对应产品"}的资料、案例与交付说明`,
+          dueDate: "2026-07-26",
+          status: "待处理"
+        }
+      ]
+    },
+    {
+      id: `${customer.id}-followup-${previousDate.replaceAll("-", "")}`,
+      date: previousDate,
+      dayLabel: "",
+      time: `${String(14 + (customerIndex % 3)).padStart(2, "0")}:10`,
+      owner: "张伟",
+      channel: "询盘导入",
+      title: `录入客户询盘并标记为 ${customer.level || "待定"} 级`,
+      summary: customer.summary || `已录入客户需求并完成初步分级，后续需核验采购计划与关键联系人。`,
+      tasks: []
+    }
+  ];
+}
+
+/*
+ * 只补齐缺失数据，不覆盖已经手工整理的 Global Sourcing 和 Brightway 档案。
+ * 这样既保留高质量样例，也保证 A/B 两套界面切换任意客户时右栏不会出现空卡片。
+ */
+window.KASS_GROUPS = window.KASS_GROUPS.map((group) => ({
+  ...group,
+  customers: group.customers.map((customer, customerIndex) => ({
+    ...customer,
+    backgroundProfile: customer.backgroundProfile
+      || createKassPrototypeBackgroundProfile(customer, group, customerIndex),
+    followupRecords: Array.isArray(customer.followupRecords) && customer.followupRecords.length
+      ? customer.followupRecords
+      : createKassPrototypeFollowups(customer, customerIndex)
+  }))
+}));
+
 window.KASS_FLOW_STAGES = [
   "1-线索到达",
   "2-背景调查",

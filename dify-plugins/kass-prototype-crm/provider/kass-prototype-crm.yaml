@@ -1,0 +1,23 @@
+identity:
+  author: garden
+  name: kass-prototype-crm
+  label:
+    en_US: KASS Prototype CRM
+    zh_Hans: KASS 原型 CRM
+    pt_BR: KASS Prototype CRM
+    ja_JP: KASS Prototype CRM
+  description:
+    en_US: Read and manage only the isolated KASS prototype CRM workspace.
+    zh_Hans: 只查询和管理隔离的 KASS 原型客户工作区。
+    pt_BR: Read and manage only the isolated KASS prototype CRM workspace.
+    ja_JP: Read and manage only the isolated KASS prototype CRM workspace.
+  icon: icon.svg
+tools:
+  - tools/get_context.yaml
+  - tools/update_customer.yaml
+  - tools/create_followup.yaml
+  - tools/update_followup.yaml
+  - tools/delete_followup.yaml
+extra:
+  python:
+    source: provider/kass-prototype-crm.py

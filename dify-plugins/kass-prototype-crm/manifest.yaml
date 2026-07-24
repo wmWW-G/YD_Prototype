@@ -1,0 +1,35 @@
+version: 0.1.1
+type: plugin
+author: garden
+name: kass-prototype-crm
+label:
+  en_US: KASS Prototype CRM
+  ja_JP: KASS Prototype CRM
+  zh_Hans: KASS 原型 CRM
+  pt_BR: KASS Prototype CRM
+description:
+  en_US: Safely read and manage the isolated KASS prototype CRM workspace.
+  ja_JP: Safely read and manage the isolated KASS prototype CRM workspace.
+  zh_Hans: 安全查询和管理隔离的 KASS 原型客户与跟进数据。
+  pt_BR: Safely read and manage the isolated KASS prototype CRM workspace.
+icon: icon.svg
+icon_dark: icon-dark.svg
+resource:
+  memory: 268435456
+  permission: {}
+plugins:
+  tools:
+    - provider/kass-prototype-crm.yaml
+meta:
+  version: 0.1.1
+  arch:
+    - amd64
+    - arm64
+  runner:
+    language: python
+    version: "3.12"
+    entrypoint: main
+  minimum_dify_version: 1.0.0
+created_at: 2026-07-24T23:06:51.192881+08:00
+privacy: PRIVACY.md
+verified: false

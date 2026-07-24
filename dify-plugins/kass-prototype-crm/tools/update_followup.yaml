@@ -1,0 +1,67 @@
+identity:
+  name: update_followup
+  author: garden
+  label:
+    en_US: Update Prototype Follow-up
+    zh_Hans: 修改原型跟进
+description:
+  human:
+    en_US: Update one confirmed follow-up record and its complete linked task list.
+    zh_Hans: 修改一条已确认的跟进记录及其完整关联任务列表。
+  llm: Write operation. Call get_context first. Send the complete final tasks array to mark tasks complete, append next actions, edit a task, or remove items the user says are not tasks. Preserve every unchanged task and its exact ID.
+parameters:
+  - name: workspace_id
+    type: string
+    required: true
+    label: {en_US: Workspace ID, zh_Hans: 原型工作区 ID}
+    human_description: {en_US: Isolated browser workspace ID., zh_Hans: 当前浏览器隔离工作区 ID。}
+    llm_description: Exact workspace_id from current_customer_context.
+    form: llm
+  - name: customer_ref
+    type: string
+    required: true
+    label: {en_US: Customer Reference, zh_Hans: 原型客户引用}
+    human_description: {en_US: Customer reference inside the workspace., zh_Hans: 当前工作区中的客户引用。}
+    llm_description: Exact local_customer_ref from current_customer_context.
+    form: llm
+  - name: followup_id
+    type: string
+    required: true
+    label: {en_US: Follow-up ID, zh_Hans: 跟进记录 ID}
+    human_description: {en_US: Exact follow-up record ID., zh_Hans: 要修改的准确跟进记录 ID。}
+    llm_description: Exact ID returned by get_context. Never infer an ID from the title.
+    form: llm
+  - name: changes
+    type: object
+    required: true
+    label: {en_US: Follow-up Changes, zh_Hans: 跟进字段修改}
+    human_description: {en_US: Only fields the user explicitly requested to change., zh_Hans: 只填写用户明确要求修改的跟进字段。}
+    llm_description: At least one field. If tasks change, include the complete final task list. Preserve every unchanged task and exact ID; append new Agent-suggested tasks with an agent-next- ID; omit only tasks the user explicitly says are not tasks.
+    form: llm
+    input_schema:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        date: {type: string, description: "Follow-up date in YYYY-MM-DD format."}
+        day_label: {type: string, description: "Optional display label such as 今天."}
+        time: {type: string, description: "Follow-up time in HH:mm format."}
+        owner: {type: string, description: "Record owner."}
+        channel: {type: string, description: "Communication channel."}
+        title: {type: string, description: "Short factual title."}
+        summary: {type: string, description: "Factual follow-up summary."}
+        tasks:
+          type: array
+          description: "Complete final task list after status changes, additions, edits, or explicit removals."
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, title]
+            properties:
+              id: {type: string, description: "Existing ID from get_context, or a stable agent-next- ID for a new suggested task."}
+              title: {type: string, description: "Task title."}
+              due_date: {type: string, description: "Due date in YYYY-MM-DD format."}
+              status: {type: string, description: "Final task status such as 待处理 or 已完成."}
+extra:
+  python:
+    source: tools/update_followup.py

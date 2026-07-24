@@ -1,0 +1,103 @@
+identity:
+  name: update_customer
+  author: garden
+  label:
+    en_US: Update Prototype Customer
+    zh_Hans: 修改原型客户
+description:
+  human:
+    en_US: Update approved customer and background-profile fields in the isolated prototype workspace.
+    zh_Hans: 在隔离原型工作区中修改已确认的客户字段和背调字段。
+  llm: Write operation. Use only after an explicit user request. Include at least one field in changes or profile_changes, and never invent facts.
+parameters:
+  - name: workspace_id
+    type: string
+    required: true
+    label: {en_US: Workspace ID, zh_Hans: 原型工作区 ID}
+    human_description: {en_US: Isolated browser workspace ID., zh_Hans: 当前浏览器隔离工作区 ID。}
+    llm_description: Exact workspace_id from current_customer_context.
+    form: llm
+  - name: customer_ref
+    type: string
+    required: true
+    label: {en_US: Customer Reference, zh_Hans: 原型客户引用}
+    human_description: {en_US: Customer reference inside the workspace., zh_Hans: 当前工作区中的客户引用。}
+    llm_description: Exact local_customer_ref from current_customer_context.
+    form: llm
+  - name: changes
+    type: object
+    required: false
+    label: {en_US: Customer Changes, zh_Hans: 客户字段修改}
+    human_description: {en_US: Only explicitly requested top-level fields., zh_Hans: 只填写用户明确要求修改的客户顶层字段。}
+    llm_description: Object with only explicitly requested fields. Use an empty object when only profile_changes is needed.
+    form: llm
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        name: {type: string, description: "Customer or company name."}
+        country: {type: string, description: "Country or region."}
+        level: {type: string, description: "Prototype customer level such as A, B, C, or D."}
+        stage: {type: string, description: "Current customer stage."}
+        intent: {type: string, description: "Current intent assessment."}
+        product: {type: string, description: "Requested product."}
+        quantity: {type: string, description: "Requested quantity."}
+        trade_term: {type: string, description: "Trade term."}
+        customization: {type: string, description: "Customization requirement."}
+        inquiry: {type: string, description: "Inquiry text."}
+        summary: {type: string, description: "Customer summary."}
+        next_action: {type: string, description: "Confirmed next action."}
+        website: {type: string, description: "Company website."}
+        contact: {type: string, description: "Contact name or contact channel."}
+  - name: profile_changes
+    type: object
+    required: false
+    label: {en_US: Background Profile Changes, zh_Hans: 背调字段修改}
+    human_description: {en_US: Only explicitly requested background-profile fields., zh_Hans: 只填写用户明确要求修改的客户背调字段。}
+    llm_description: Object with only confirmed background-profile facts. Use an empty object when only changes is needed.
+    form: llm
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        overview: {type: string, description: "Short customer overview."}
+        company_background: {type: string, description: "Company background."}
+        main_business: {type: string, description: "Main business."}
+        entered_at: {type: string, description: "Date added to the prototype."}
+        founded_year: {type: string, description: "Founded year."}
+        company_size: {type: string, description: "Company size."}
+        company_type: {type: string, description: "Company type."}
+        organization: {type: string, description: "Organization structure."}
+        purchasing_role: {type: string, description: "Purchasing role."}
+        market_channels: {type: string, description: "Market channels."}
+        contact_name: {type: string, description: "Contact name."}
+        contact_role: {type: string, description: "Contact role."}
+        social_media: {type: string, description: "Social media."}
+        contact_email: {type: string, description: "Contact email or safe placeholder."}
+        whatsapp: {type: string, description: "WhatsApp status or safe placeholder."}
+        annual_revenue: {type: string, description: "Annual revenue or stated estimate."}
+        cooperation_stage: {type: string, description: "Cooperation stage."}
+        purchase_cycle: {type: string, description: "Purchase cycle."}
+        purchase_potential: {type: string, description: "Purchase potential."}
+        product_preference: {type: string, description: "Product preference."}
+        purchase_preference: {type: string, description: "Purchase preference."}
+        expandable_products: {type: string, description: "Expandable product opportunities."}
+        payment_terms: {type: string, description: "Payment terms."}
+        final_consignee: {type: string, description: "Final consignee."}
+        credit_status: {type: string, description: "Credit status."}
+        cooperation_value: {type: string, description: "Cooperation value."}
+        competitors: {type: string, description: "Competitors."}
+        competitive_advantage: {type: string, description: "Competitive advantage."}
+        current_suppliers: {type: string, description: "Current suppliers."}
+        sources:
+          type: array
+          description: "Prototype information sources."
+          items: {type: string}
+        updated_at: {type: string, description: "Profile update date."}
+        incomplete_items:
+          type: array
+          description: "Fields that still need verification."
+          items: {type: string}
+extra:
+  python:
+    source: tools/update_customer.py
