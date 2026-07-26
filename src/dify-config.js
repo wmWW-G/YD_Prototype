@@ -317,6 +317,328 @@
   }
 
   /**
+   * 决定 KASS 流式消息下一帧应该怎样更新。
+   *
+   * 过程事件可能连续到达，但在正式答案出现前，用户看到的占位文字通常完全相同。
+   * 如果仍然重建这段 DOM，就会反复触发布局与动画，表现为整块内容闪烁。
+   *
+   * @param {object} message - 当前助手消息。
+   * @param {string} currentPhase - DOM 当前记录的渲染阶段。
+   * @param {string} renderedContent - DOM 当前已经展示的原始文本。
+   * @returns {{ mode: "none" | "morph" | "structure", phase: string, content: string }} 本帧更新计划。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function getKassStreamRenderPlan(message, currentPhase, renderedContent) {
+    const content = String(message?.content || "");
+    const status = String(message?.status || "");
+    const phase = status === "done" || status === "error"
+      ? "complete"
+      : (message?.answerStarted ? "streaming" : "loading");
+
+    if (content === String(renderedContent || "")) {
+      return { mode: "none", phase, content };
+    }
+
+    if (phase === "streaming" || phase === "complete") {
+      return { mode: "morph", phase, content };
+    }
+
+    return { mode: "structure", phase, content };
+  }
+
+  /**
+   * 把公开的 KASS 过程状态整理成稳定、可直接显示的浅灰提示。
+   *
+   * @param {object} message - 当前助手消息。
+   * @returns {{ visible: boolean, complete: boolean, label: string, detail: string, count: number }} 过程区视图模型。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function getKassProcessPresentation(message) {
+    const steps = Array.isArray(message?.processSteps) ? message.processSteps : [];
+    const current = message?.currentProcess && typeof message.currentProcess === "object"
+      ? message.currentProcess
+      : null;
+    const complete = ["done", "error"].includes(String(message?.status || ""));
+    const completedLabel = String(message?.status || "") === "error"
+      ? "执行已中断"
+      : `已完成 ${steps.length} 个步骤`;
+
+    return {
+      visible: Boolean(current)
+        || (complete && steps.length > 0)
+        || (!complete && String(message?.status || "") === "loading"),
+      complete,
+      label: complete
+        ? completedLabel
+        : String(current?.label || "正在结合客户资料分析"),
+      detail: complete ? "" : String(current?.detail || ""),
+      count: steps.length
+    };
+  }
+
+  /**
+   * 判断 KASS 待办状态是否表示已经完成。
+   *
+   * 这个判断放在纯状态层，是为了让动画差异规划器可以在浏览器和 Node 测试中
+   * 使用完全相同的完成口径，不依赖页面 DOM 或 app.js 中的渲染函数。
+   *
+   * @param {unknown} status - Plugin 返回的待办状态。
+   * @returns {boolean} 中文或英文状态表示完成时返回 true。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function isKassMotionCompletedStatus(status) {
+    return [
+      "已完成",
+      "完成",
+      "已办结",
+      "done",
+      "completed",
+      "closed"
+    ].includes(String(status || "").trim().toLowerCase());
+  }
+
+  /**
+   * 比较两个动画快照片段是否相同。
+   *
+   * 快照由前端按固定字段顺序创建，因此 JSON 序列化既能覆盖数组内容，也不会把
+   * 对象引用变化误判成业务变化。空值会统一为普通空对象，兼容旧浏览器状态。
+   *
+   * @param {unknown} beforeValue - 写入前的字段组。
+   * @param {unknown} afterValue - 写入后的字段组。
+   * @returns {boolean} 两组可见数据相同则返回 true。
+   * @throws {TypeError} 仅在传入无法 JSON 序列化的循环对象时可能抛出。
+   */
+  function areKassMotionValuesEqual(beforeValue, afterValue) {
+    return JSON.stringify(beforeValue ?? {}) === JSON.stringify(afterValue ?? {});
+  }
+
+  /**
+   * 为 Agent 到右侧 CRM 面板的完整 CRUD 反馈生成纯数据动画计划。
+   *
+   * 规划器只比较 Plugin 回读前后的真实快照，不读取 Agent 自然语言：
+   * - 客户摘要与背调资料按两个稳定区域分别反馈。
+   * - 已存在的跟进和待办支持新增、修改、删除。
+   * - 待办完成与重开使用独立语义，避免被笼统归为“修改”。
+   * - 整条跟进新增或删除时，不再重复播放其内部待办动画。
+   *
+   * @param {{
+   *   customer?: { summary?: object, profile?: object },
+   *   followups?: Array<{ id?: string, title?: string, tasks?: Array<object> }>
+   * }} before - Plugin 写入前的可见 CRM 快照。
+   * @param {{
+   *   customer?: { summary?: object, profile?: object },
+   *   followups?: Array<{ id?: string, title?: string, tasks?: Array<object> }>
+   * }} after - Plugin 写入后的可见 CRM 快照。
+   * @returns {{
+   *   customerUpdates: Array<{ id: string, title: string, target: string }>,
+   *   completedTasks: Array<{ id: string, title: string, followupId: string }>,
+   *   reopenedTasks: Array<{ id: string, title: string, followupId: string }>,
+   *   addedTasks: Array<{ id: string, title: string, followupId: string }>,
+   *   updatedTasks: Array<{ id: string, title: string, followupId: string }>,
+   *   removedTasks: Array<{ id: string, title: string, followupId: string }>,
+   *   addedFollowups: Array<{ id: string, title: string }>,
+   *   updatedFollowups: Array<{ id: string, title: string }>,
+   *   removedFollowups: Array<{ id: string, title: string }>
+   * }} 可分成删除前与刷新后两段播放的动画计划。
+   * @throws {TypeError} 快照包含循环引用时可能由 JSON 序列化抛出。
+   */
+  function buildKassCrudMotionPlan(before, after) {
+    const beforeCustomer = before?.customer && typeof before.customer === "object"
+      ? before.customer
+      : {};
+    const afterCustomer = after?.customer && typeof after.customer === "object"
+      ? after.customer
+      : {};
+    const beforeFollowups = Array.isArray(before?.followups) ? before.followups : [];
+    const afterFollowups = Array.isArray(after?.followups) ? after.followups : [];
+    const beforeFollowupMap = new Map(
+      beforeFollowups.map((record) => [String(record?.id || ""), record || {}])
+    );
+    const afterFollowupMap = new Map(
+      afterFollowups.map((record) => [String(record?.id || ""), record || {}])
+    );
+    const plan = {
+      customerUpdates: [],
+      completedTasks: [],
+      reopenedTasks: [],
+      addedTasks: [],
+      updatedTasks: [],
+      removedTasks: [],
+      addedFollowups: [],
+      updatedFollowups: [],
+      removedFollowups: []
+    };
+
+    if (!areKassMotionValuesEqual(beforeCustomer.summary, afterCustomer.summary)) {
+      plan.customerUpdates.push({
+        id: "customer-summary",
+        title: "客户资料",
+        target: "summary"
+      });
+    }
+    if (!areKassMotionValuesEqual(beforeCustomer.profile, afterCustomer.profile)) {
+      plan.customerUpdates.push({
+        id: "customer-profile",
+        title: "背调资料",
+        target: "profile"
+      });
+    }
+
+    afterFollowups.forEach((record) => {
+      const followupId = String(record?.id || "");
+      const title = String(record?.title || "客户跟进记录");
+      const previousRecord = beforeFollowupMap.get(followupId);
+
+      if (!previousRecord) {
+        plan.addedFollowups.push({ id: followupId, title });
+        return;
+      }
+
+      const { tasks: _beforeTasks, ...beforeRecordFields } = previousRecord;
+      const { tasks: _afterTasks, ...afterRecordFields } = record || {};
+      if (!areKassMotionValuesEqual(beforeRecordFields, afterRecordFields)) {
+        plan.updatedFollowups.push({ id: followupId, title });
+      }
+
+      const previousTasks = Array.isArray(previousRecord.tasks) ? previousRecord.tasks : [];
+      const nextTasks = Array.isArray(record?.tasks) ? record.tasks : [];
+      const previousTaskMap = new Map(
+        previousTasks.map((task) => [String(task?.id || ""), task || {}])
+      );
+      const nextTaskMap = new Map(
+        nextTasks.map((task) => [String(task?.id || ""), task || {}])
+      );
+
+      nextTasks.forEach((task) => {
+        const taskId = String(task?.id || "");
+        const taskTitle = String(task?.title || "待补充事项");
+        const previousTask = previousTaskMap.get(taskId);
+        const motionTask = { id: taskId, title: taskTitle, followupId };
+
+        if (!previousTask) {
+          plan.addedTasks.push(motionTask);
+          return;
+        }
+
+        const wasCompleted = isKassMotionCompletedStatus(previousTask.status);
+        const isCompleted = isKassMotionCompletedStatus(task?.status);
+        if (!wasCompleted && isCompleted) {
+          plan.completedTasks.push(motionTask);
+          return;
+        }
+        if (wasCompleted && !isCompleted) {
+          plan.reopenedTasks.push(motionTask);
+          return;
+        }
+        if (!areKassMotionValuesEqual(previousTask, task)) {
+          plan.updatedTasks.push(motionTask);
+        }
+      });
+
+      previousTasks.forEach((task) => {
+        const taskId = String(task?.id || "");
+        if (!nextTaskMap.has(taskId)) {
+          plan.removedTasks.push({
+            id: taskId,
+            title: String(task?.title || "待补充事项"),
+            followupId
+          });
+        }
+      });
+    });
+
+    beforeFollowups.forEach((record) => {
+      const followupId = String(record?.id || "");
+      if (!afterFollowupMap.has(followupId)) {
+        plan.removedFollowups.push({
+          id: followupId,
+          title: String(record?.title || "客户跟进记录")
+        });
+      }
+    });
+
+    return plan;
+  }
+
+  /**
+   * 把 CRUD 差异拆成“右栏刷新前”和“右栏刷新后”两个动画阶段。
+   *
+   * 删除目标只存在于旧 DOM，所以必须先让令牌抵达并完成退场，再刷新右栏。
+   * 新增、修改、完成和重开则必须等新 DOM 出现后播放，才能准确落到更新后的节点。
+   *
+   * @param {ReturnType<typeof buildKassCrudMotionPlan>} plan - 完整 CRUD 差异计划。
+   * @returns {{
+   *   beforeRefresh: Array<{ id: string, title: string, entity: string, operation: string, label: string }>,
+   *   afterRefresh: Array<{ id: string, title: string, entity: string, operation: string, label: string, target?: string }>
+   * }} 可由页面按顺序执行的两个阶段。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function getKassCrudMotionPhases(plan) {
+    const safePlan = plan && typeof plan === "object" ? plan : {};
+    const list = (key) => (Array.isArray(safePlan[key]) ? safePlan[key] : []);
+    const beforeRefresh = [
+      ...list("removedTasks").map((task) => ({
+        ...task,
+        entity: "task",
+        operation: "remove",
+        label: `移除待办 · ${task.title}`
+      })),
+      ...list("removedFollowups").map((record) => ({
+        ...record,
+        entity: "followup",
+        operation: "remove",
+        label: `删除跟进 · ${record.title}`
+      }))
+    ];
+    const afterRefresh = [
+      ...list("customerUpdates").map((item) => ({
+        ...item,
+        entity: item.target === "profile" ? "profile" : "customer",
+        operation: "update",
+        label: item.target === "profile" ? "背调资料 · 已更新" : "客户资料 · 已更新"
+      })),
+      ...list("completedTasks").map((task) => ({
+        ...task,
+        entity: "task",
+        operation: "complete",
+        label: "✓"
+      })),
+      ...list("reopenedTasks").map((task) => ({
+        ...task,
+        entity: "task",
+        operation: "reopen",
+        label: `重新打开 · ${task.title}`
+      })),
+      ...list("addedTasks").map((task) => ({
+        ...task,
+        entity: "task",
+        operation: "add",
+        label: `新增待办 · ${task.title}`
+      })),
+      ...list("updatedTasks").map((task) => ({
+        ...task,
+        entity: "task",
+        operation: "update",
+        label: `更新待办 · ${task.title}`
+      })),
+      ...list("addedFollowups").map((record) => ({
+        ...record,
+        entity: "followup",
+        operation: "add",
+        label: `新跟进 · ${record.title}`
+      })),
+      ...list("updatedFollowups").map((record) => ({
+        ...record,
+        entity: "followup",
+        operation: "update",
+        label: `更新跟进 · ${record.title}`
+      }))
+    ];
+
+    return { beforeRefresh, afterRefresh };
+  }
+
+  /**
    * 创建浏览器端增量 SSE 解析器。
    *
    * fetch 的 ReadableStream 分块位置和 SSE 事件边界无关，因此 JSON 可能被切在任意字符中间。
@@ -384,10 +706,14 @@
   const publicApi = {
     CHAT_FEATURE_IDS,
     applyDifyStreamEventToMessage,
+    buildKassCrudMotionPlan,
     createDifySseEventParser,
     createFeatureConfigState,
     createFeatureSessionState,
     formatDifyThinkingDuration,
+    getKassCrudMotionPhases,
+    getKassProcessPresentation,
+    getKassStreamRenderPlan,
     getFriendlyConfigError,
     isDifyChatFeature
   };

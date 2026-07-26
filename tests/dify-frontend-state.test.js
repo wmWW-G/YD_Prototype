@@ -7,13 +7,217 @@ const vm = require("node:vm");
 const {
   CHAT_FEATURE_IDS,
   applyDifyStreamEventToMessage,
+  buildKassCrudMotionPlan,
   createDifySseEventParser,
   createFeatureConfigState,
   createFeatureSessionState,
   formatDifyThinkingDuration,
+  getKassCrudMotionPhases,
+  getKassStreamRenderPlan,
+  getKassProcessPresentation,
   getFriendlyConfigError,
   isDifyChatFeature
 } = require("../src/dify-config");
+
+test("classifies every visible KASS CRM CRUD change for cross-column motion", () => {
+  assert.equal(
+    typeof buildKassCrudMotionPlan,
+    "function",
+    "KASS 前端状态层应提供完整 CRUD 动画差异规划器"
+  );
+
+  const before = {
+    customer: {
+      summary: {
+        name: "Nordic Trail GmbH",
+        level: "B",
+        country: "德国",
+        stage: "报价跟进"
+      },
+      profile: {
+        overview: "德国户外零售商",
+        companySize: "51–100 人"
+      }
+    },
+    followups: [
+      {
+        id: "followup-edit",
+        title: "报价沟通",
+        summary: "客户正在比较报价",
+        tasks: [
+          { id: "task-complete", title: "发送报价", dueDate: "7/26", status: "待处理" },
+          { id: "task-reopen", title: "确认 Logo", dueDate: "7/27", status: "已完成" },
+          { id: "task-update", title: "准备样品", dueDate: "7/28", status: "待处理" },
+          { id: "task-remove", title: "旧待办", dueDate: "7/25", status: "待处理" }
+        ]
+      },
+      {
+        id: "followup-remove",
+        title: "过期沟通",
+        summary: "这条记录应删除",
+        tasks: [
+          { id: "nested-remove", title: "随记录删除", dueDate: "7/25", status: "待处理" }
+        ]
+      }
+    ]
+  };
+  const after = {
+    customer: {
+      summary: {
+        name: "Nordic Trail GmbH",
+        level: "A",
+        country: "德国",
+        stage: "待客户确认"
+      },
+      profile: {
+        overview: "德国户外生活方式零售商",
+        companySize: "101–200 人"
+      }
+    },
+    followups: [
+      {
+        id: "followup-edit",
+        title: "更新后的报价沟通",
+        summary: "客户已确认 MOQ，等待最终报价",
+        tasks: [
+          { id: "task-complete", title: "发送报价", dueDate: "7/26", status: "已完成" },
+          { id: "task-reopen", title: "确认 Logo", dueDate: "7/27", status: "待处理" },
+          { id: "task-update", title: "准备打样方案", dueDate: "7/29", status: "待处理" },
+          { id: "task-add", title: "预约复盘", dueDate: "7/30", status: "待处理" }
+        ]
+      },
+      {
+        id: "followup-add",
+        title: "电话复盘",
+        summary: "客户确认下一步安排",
+        tasks: [
+          { id: "nested-add", title: "随记录新增", dueDate: "7/31", status: "待处理" }
+        ]
+      }
+    ]
+  };
+
+  assert.deepEqual(buildKassCrudMotionPlan(before, after), {
+    customerUpdates: [
+      { id: "customer-summary", title: "客户资料", target: "summary" },
+      { id: "customer-profile", title: "背调资料", target: "profile" }
+    ],
+    completedTasks: [
+      { id: "task-complete", title: "发送报价", followupId: "followup-edit" }
+    ],
+    reopenedTasks: [
+      { id: "task-reopen", title: "确认 Logo", followupId: "followup-edit" }
+    ],
+    addedTasks: [
+      { id: "task-add", title: "预约复盘", followupId: "followup-edit" }
+    ],
+    updatedTasks: [
+      { id: "task-update", title: "准备打样方案", followupId: "followup-edit" }
+    ],
+    removedTasks: [
+      { id: "task-remove", title: "旧待办", followupId: "followup-edit" }
+    ],
+    addedFollowups: [
+      { id: "followup-add", title: "电话复盘" }
+    ],
+    updatedFollowups: [
+      { id: "followup-edit", title: "更新后的报价沟通" }
+    ],
+    removedFollowups: [
+      { id: "followup-remove", title: "过期沟通" }
+    ]
+  });
+});
+
+test("does not double-animate tasks inside an added or removed followup", () => {
+  assert.equal(
+    typeof buildKassCrudMotionPlan,
+    "function",
+    "KASS 前端状态层应提供完整 CRUD 动画差异规划器"
+  );
+
+  const before = {
+    customer: { summary: {}, profile: {} },
+    followups: [
+      {
+        id: "followup-remove",
+        title: "删除整条",
+        tasks: [{ id: "task-remove-with-parent", title: "随父记录删除", status: "待处理" }]
+      }
+    ]
+  };
+  const after = {
+    customer: { summary: {}, profile: {} },
+    followups: [
+      {
+        id: "followup-add",
+        title: "新增整条",
+        tasks: [{ id: "task-add-with-parent", title: "随父记录新增", status: "待处理" }]
+      }
+    ]
+  };
+
+  const plan = buildKassCrudMotionPlan(before, after);
+
+  assert.deepEqual(plan.addedFollowups, [{ id: "followup-add", title: "新增整条" }]);
+  assert.deepEqual(plan.removedFollowups, [{ id: "followup-remove", title: "删除整条" }]);
+  assert.deepEqual(plan.addedTasks, []);
+  assert.deepEqual(plan.removedTasks, []);
+});
+
+test("plays removals before the right pane refresh and all surviving CRUD feedback after it", () => {
+  assert.equal(
+    typeof getKassCrudMotionPhases,
+    "function",
+    "KASS 动画应提供删除前和刷新后的两段编排"
+  );
+
+  const phases = getKassCrudMotionPhases({
+    customerUpdates: [
+      { id: "customer-summary", title: "客户资料", target: "summary" },
+      { id: "customer-profile", title: "背调资料", target: "profile" }
+    ],
+    completedTasks: [{ id: "task-done", title: "完成报价", followupId: "followup-1" }],
+    reopenedTasks: [{ id: "task-reopen", title: "重新确认", followupId: "followup-1" }],
+    addedTasks: [{ id: "task-add", title: "新增复盘", followupId: "followup-1" }],
+    updatedTasks: [{ id: "task-update", title: "更新样品", followupId: "followup-1" }],
+    removedTasks: [{ id: "task-remove", title: "旧待办", followupId: "followup-1" }],
+    addedFollowups: [{ id: "followup-add", title: "新增电话记录" }],
+    updatedFollowups: [{ id: "followup-update", title: "更新邮件记录" }],
+    removedFollowups: [{ id: "followup-remove", title: "删除过期记录" }]
+  });
+
+  assert.deepEqual(phases.beforeRefresh, [
+    {
+      id: "task-remove",
+      title: "旧待办",
+      followupId: "followup-1",
+      entity: "task",
+      operation: "remove",
+      label: "移除待办 · 旧待办"
+    },
+    {
+      id: "followup-remove",
+      title: "删除过期记录",
+      entity: "followup",
+      operation: "remove",
+      label: "删除跟进 · 删除过期记录"
+    }
+  ]);
+  assert.deepEqual(
+    phases.afterRefresh.map(({ entity, operation, label }) => ({ entity, operation, label })),
+    [
+      { entity: "customer", operation: "update", label: "客户资料 · 已更新" },
+      { entity: "profile", operation: "update", label: "背调资料 · 已更新" },
+      { entity: "task", operation: "complete", label: "✓" },
+      { entity: "task", operation: "reopen", label: "重新打开 · 重新确认" },
+      { entity: "task", operation: "add", label: "新增待办 · 新增复盘" },
+      { entity: "task", operation: "update", label: "更新待办 · 更新样品" },
+      { entity: "followup", operation: "add", label: "新跟进 · 新增电话记录" },
+      { entity: "followup", operation: "update", label: "更新跟进 · 更新邮件记录" }
+    ]
+  );
+});
 
 test("marks only real conversation pages as Dify-configurable", () => {
   assert.equal(isDifyChatFeature("ask"), true);
@@ -226,6 +430,129 @@ test("keeps the live process open when Dify only streams leading whitespace", ()
   assert.equal(message.answerStarted, false);
   assert.equal(message.processCollapsed, false);
   assert.equal(message.currentProcess.label, "正在搜索");
+});
+
+test("KASS presents the current reasoning or tool step as muted process copy", () => {
+  const presentation = getKassProcessPresentation?.({
+    status: "loading",
+    answerStarted: false,
+    processSteps: [
+      {
+        id: "tool-1",
+        kind: "tool",
+        label: "正在调用 update_followup",
+        detail: "同步客户待办",
+        status: "running"
+      }
+    ],
+    currentProcess: {
+      id: "tool-1",
+      kind: "tool",
+      label: "正在调用 update_followup",
+      detail: "同步客户待办",
+      status: "running"
+    }
+  });
+
+  assert.deepEqual(presentation, {
+    visible: true,
+    complete: false,
+    label: "正在调用 update_followup",
+    detail: "同步客户待办",
+    count: 1
+  });
+});
+
+test("KASS keeps a quiet completed-step summary after the final answer", () => {
+  const presentation = getKassProcessPresentation?.({
+    status: "done",
+    answerStarted: true,
+    processSteps: [
+      { id: "reason-1", label: "正在分析客户资料", status: "done" },
+      { id: "tool-1", label: "update_followup 已完成", status: "done" }
+    ],
+    currentProcess: {
+      id: "tool-1",
+      label: "update_followup 已完成",
+      status: "done"
+    }
+  });
+
+  assert.deepEqual(presentation, {
+    visible: true,
+    complete: true,
+    label: "已完成 2 个步骤",
+    detail: "",
+    count: 2
+  });
+});
+
+test("KASS keeps the completed-step summary when the current step is cleared", () => {
+  const presentation = getKassProcessPresentation?.({
+    status: "done",
+    answerStarted: true,
+    processSteps: [
+      { id: "reason-1", label: "分析完成", status: "done" }
+    ],
+    currentProcess: null
+  });
+
+  assert.equal(presentation.visible, true);
+  assert.equal(presentation.label, "已完成 1 个步骤");
+});
+
+test("KASS process-only events do not rebuild unchanged visible content", () => {
+  const plan = getKassStreamRenderPlan?.(
+    {
+      status: "loading",
+      answerStarted: false,
+      content: "正在结合客户档案分析…"
+    },
+    "loading",
+    "正在结合客户档案分析…"
+  );
+
+  assert.deepEqual(plan, {
+    mode: "none",
+    phase: "loading",
+    content: "正在结合客户档案分析…"
+  });
+});
+
+test("KASS answer deltas morph the existing rich-content tree", () => {
+  const plan = getKassStreamRenderPlan?.(
+    {
+      status: "loading",
+      answerStarted: true,
+      content: "已完成第一项，并创建下一步待办。"
+    },
+    "streaming",
+    "已完成第一项，"
+  );
+
+  assert.deepEqual(plan, {
+    mode: "morph",
+    phase: "streaming",
+    content: "已完成第一项，并创建下一步待办。"
+  });
+});
+
+test("KASS completion keeps the answer tree when the final content is unchanged", () => {
+  const plan = getKassStreamRenderPlan?.(
+    {
+      status: "done",
+      answerStarted: true,
+      content: "**两项待办已完成**"
+    },
+    "streaming",
+    "**两项待办已完成**"
+  );
+
+  assert.deepEqual(plan, {
+    mode: "none",
+    phase: "complete",
+    content: "**两项待办已完成**"
+  });
 });
 
 test("removes the promoted Agent final segment from process history", () => {

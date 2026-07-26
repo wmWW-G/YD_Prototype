@@ -772,6 +772,33 @@ function renderDifyAnswerContent(message) {
 }
 
 /**
+ * 读取 KASS 消息当前应该处于的渲染阶段。
+ *
+ * @param {object} message - 当前助手消息。
+ * @returns {"loading" | "streaming" | "complete"} 加载、纯文本流式或最终富文本阶段。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getKassAgentMessageRenderPhase(message) {
+  return window.YD_DIFY.getKassStreamRenderPlan(message, "", "").phase;
+}
+
+/**
+ * 把 KASS 助手正文渲染为受控富文本。
+ *
+ * @param {object} message - 当前助手消息。
+ * @returns {string} 已经过安全 Markdown / Artifact 适配器处理的 HTML。
+ * @throws {Error} Artifact 模块缺失时由 Markdown 渲染器安全降级。
+ */
+function renderKassAgentAnswerHtml(message) {
+  const content = String(message?.content || "");
+  const artifactRenderer = window.YD_ARTIFACT?.renderArtifactCodeBlock;
+  return renderMarkdown(
+    content,
+    artifactRenderer ? { renderCodeBlock: artifactRenderer } : {}
+  );
+}
+
+/**
  * 渲染客户 KASS 对话中的单条新增消息。
  *
  * 作用：
@@ -794,9 +821,26 @@ function renderKassAgentMessageContent(message) {
     return `<p class="kass-agent-message-plain">${escapeHtml(content)}</p>`;
   }
 
-  const artifactRenderer = window.YD_ARTIFACT?.renderArtifactCodeBlock;
-  const answer = renderMarkdown(content, artifactRenderer ? { renderCodeBlock: artifactRenderer } : {});
-  return `<div class="kass-agent-message-text">${answer}</div>`;
+  const process = window.YD_DIFY.getKassProcessPresentation(message);
+  const phase = getKassAgentMessageRenderPhase(message);
+  const answer = phase === "loading" ? "" : renderKassAgentAnswerHtml(message);
+
+  return `
+    <section
+      class="kass-agent-process ${process.complete ? "is-complete" : ""}"
+      data-kass-process-panel="true"
+      ${process.visible ? "" : "hidden"}
+    >
+      <span class="kass-agent-process-mark" aria-hidden="true"></span>
+      <div>
+        <small data-kass-process-kicker="true">${process.complete ? "处理完成" : "Agent 处理过程"}</small>
+        <p data-kass-process-label="true">${escapeHtml(process.label)}</p>
+        <span data-kass-process-detail="true" ${process.detail ? "" : "hidden"}>${escapeHtml(process.detail)}</span>
+      </div>
+      <em data-kass-process-count="true">${process.count ? `${process.count} 步` : ""}</em>
+    </section>
+    <div class="kass-agent-message-text" data-kass-answer-shell="true">${answer}</div>
+  `;
 }
 
 /**
@@ -7756,7 +7800,7 @@ function renderCaseLibraryView() {
 function renderKassComparisonContext(customer) {
   return `
     <aside class="kass-compare-context" aria-label="${escapeHtml(customer.name)} 客户上下文">
-      <header class="kass-compare-customer-head">
+      <header class="kass-compare-customer-head" data-kass-customer-summary-target="true">
         <div>
           <small>${escapeHtml(customer.level)} 级客户</small>
           <h1>${escapeHtml(customer.name)}</h1>
@@ -7826,17 +7870,14 @@ function renderKassComparisonConversation(customer) {
             <div class="${message.role === "user" ? "kass-chat-avatar" : "kass-agent-mark"}" aria-hidden="true">${message.role === "user" ? "我" : "A"}</div>
             <div class="kass-chat-content">
               <header><strong>${message.role === "user" ? "我" : "CRM Agent"}</strong><time>刚刚</time></header>
-              <div data-kass-message-body="true">${renderKassAgentMessageContent(message)}</div>
+              <div
+                data-kass-message-body="true"
+                data-kass-render-phase="${getKassAgentMessageRenderPhase(message)}"
+              >${renderKassAgentMessageContent(message)}</div>
             </div>
           </article>
         `).join("")}
 
-        ${state.kassAgentThinking ? `
-          <article class="kass-chat-turn kass-chat-turn-agent">
-            <div class="kass-agent-mark" aria-hidden="true">A</div>
-            <div class="kass-chat-content"><p class="kass-agent-thinking">正在结合客户档案整理建议<span>…</span></p></div>
-          </article>
-        ` : ""}
       </div>
 
       <footer class="kass-agent-composer">
@@ -7951,17 +7992,14 @@ function renderCustomerKassView() {
                 <div class="${message.role === "user" ? "kass-chat-avatar" : "kass-agent-mark"}" aria-hidden="true">${message.role === "user" ? "我" : "A"}</div>
                 <div class="kass-chat-content">
                   <header><strong>${message.role === "user" ? "我" : "CRM Agent"}</strong><time>刚刚</time></header>
-                  <div data-kass-message-body="true">${renderKassAgentMessageContent(message)}</div>
+                  <div
+                    data-kass-message-body="true"
+                    data-kass-render-phase="${getKassAgentMessageRenderPhase(message)}"
+                  >${renderKassAgentMessageContent(message)}</div>
                 </div>
               </article>
             `).join("")}
 
-            ${state.kassAgentThinking ? `
-              <article class="kass-chat-turn kass-chat-turn-agent">
-                <div class="kass-agent-mark" aria-hidden="true">A</div>
-                <div class="kass-chat-content"><p class="kass-agent-thinking">正在结合客户档案整理建议<span>…</span></p></div>
-              </article>
-            ` : ""}
           </div>
 
           <footer class="kass-agent-composer">
@@ -8030,6 +8068,24 @@ function renderKassCustomerRoster(group) {
  * 待办没有再放进独立卡片：它必须和产生它的那次沟通保持在同一个视觉容器中，
  * 这样业务员才能快速理解“为什么要做这件事”，而不只看到一个脱离上下文的任务名。
  *
+ * @param {unknown} status - 待办状态。
+ * @returns {boolean} 状态表示已完成时返回 true。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function isKassTaskCompletedStatus(status) {
+  return [
+    "已完成",
+    "完成",
+    "已办结",
+    "done",
+    "completed",
+    "closed"
+  ].includes(String(status || "").trim().toLowerCase());
+}
+
+/**
+ * 渲染一条由跟进记录产生的待办。
+ *
  * @param {{ id?: string, title?: string, dueDate?: string, status?: string }} task - 当前待办数据。
  * @returns {string} 待办行 HTML。
  * @throws {Error} 本函数不主动抛异常。
@@ -8042,19 +8098,15 @@ function renderKassFollowupTask(task) {
    *
    * Set 继续保留给原型里的手动勾选反馈；持久化状态则兼容中文和常见英文枚举。
    */
-  const persistedStatus = String(task.status || "").trim().toLowerCase();
-  const isCompleted = state.kassCompletedTaskIds.has(taskId) || [
-    "已完成",
-    "完成",
-    "已办结",
-    "done",
-    "completed",
-    "closed"
-  ].includes(persistedStatus);
+  const isCompleted = state.kassCompletedTaskIds.has(taskId)
+    || isKassTaskCompletedStatus(task.status);
   const isAgentSuggested = taskId.startsWith("agent-next-");
 
   return `
-    <label class="kass-linked-task ${isCompleted ? "completed" : ""}">
+    <label
+      class="kass-linked-task ${isCompleted ? "completed" : ""}"
+      data-kass-task-row="${escapeHtml(taskId)}"
+    >
       <input
         type="checkbox"
         data-kass-task-toggle="${escapeHtml(taskId)}"
@@ -8082,12 +8134,13 @@ function renderKassFollowupTask(task) {
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderKassFollowupRecord(record, index) {
+  const recordId = String(record.id || `kass-followup-${record.date || index}`);
   const tasks = Array.isArray(record.tasks) ? record.tasks : [];
   const dateLabel = [record.dayLabel, record.date].filter(Boolean).join(" · ") || "最近";
   const recordMeta = [record.time, record.owner, record.channel].filter(Boolean).join(" · ");
 
   return `
-    <article class="kass-followup-entry">
+    <article class="kass-followup-entry" data-kass-followup-id="${escapeHtml(recordId)}">
       <div class="kass-followup-date">
         <strong>${escapeHtml(dateLabel)}</strong>
         <small>${escapeHtml(record.time || "")}</small>
@@ -8366,8 +8419,12 @@ function renderKassCustomerHub(customer) {
     .join("");
 
   return `
-    <div class="kass-customer-hub">
-      <section class="kass-background-card" aria-labelledby="kass-background-title">
+    <div class="kass-customer-hub" data-kass-customer-summary-target="true">
+      <section
+        class="kass-background-card"
+        aria-labelledby="kass-background-title"
+        data-kass-profile-target="true"
+      >
         <button class="kass-profile-file" type="button" data-kass-research-open="true">
           <span class="kass-profile-file-head">
             <small>资料状态</small>
@@ -10781,14 +10838,457 @@ async function hydrateKassPrototypeCustomer(customer) {
 }
 
 /**
+ * 复制一份只用于比较动画变化的客户 CRM 快照。
+ *
+ * 快照只保留右侧界面实际消费的字段。这样每次 Plugin 写入完成后，可以根据真实
+ * 回读结果识别客户资料、背调、跟进和待办的增删改查，而不是根据 Agent 文案猜测。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {{
+ *   customer: { summary: object, profile: object },
+ *   followups: Array<{ id: string, title: string, summary: string, date: string, dayLabel: string, time: string, owner: string, channel: string, tasks: Array<{ id: string, title: string, dueDate: string, status: string }> }>
+ * }} 动画比较快照。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function createKassSyncMotionSnapshot(customer) {
+  const followups = Array.isArray(customer?.followupRecords)
+    ? customer.followupRecords
+    : [];
+  const profile = getKassBackgroundProfile(customer || {});
+
+  return {
+    customer: {
+      /*
+       * 顶层客户字段统一落到客户摘要区域。即使当前折叠视图只露出名称、等级、
+       * 国家和阶段，详细档案与 Agent 上下文仍会消费其它字段。
+       */
+      summary: {
+        name: String(customer?.name || ""),
+        country: String(customer?.country || ""),
+        level: String(customer?.level || ""),
+        stage: String(customer?.stage || ""),
+        intent: String(customer?.intent || ""),
+        product: String(customer?.product || ""),
+        quantity: String(customer?.quantity || ""),
+        tradeTerm: String(customer?.tradeTerm || ""),
+        customization: String(customer?.customization || ""),
+        inquiry: String(customer?.inquiry || ""),
+        summary: String(customer?.summary || ""),
+        nextAction: String(customer?.nextAction || ""),
+        website: String(customer?.website || ""),
+        contact: String(customer?.contact || "")
+      },
+      /*
+       * 使用归一化后的资料快照，确保来源、待完善项和所有详细档案字段都能触发反馈；
+       * 不能只比较首页当前可见的四个事实，否则抽屉里的修改会悄悄发生。
+       */
+      profile: { ...profile }
+    },
+    followups: followups.map((record, recordIndex) => ({
+      id: String(record.id || `kass-followup-${record.date || recordIndex}`),
+      title: String(record.title || record.summary || "客户跟进记录"),
+      summary: String(record.summary || record.text || ""),
+      date: String(record.date || ""),
+      dayLabel: String(record.dayLabel || ""),
+      time: String(record.time || ""),
+      owner: String(record.owner || ""),
+      channel: String(record.channel || ""),
+      tasks: (Array.isArray(record.tasks) ? record.tasks : []).map((task) => ({
+        id: String(task.id || `kass-task-${task.title || "untitled"}`),
+        title: String(task.title || "待补充事项"),
+        dueDate: String(task.dueDate || ""),
+        status: String(task.status || "")
+      }))
+    }))
+  };
+}
+
+/**
+ * 比较 Plugin 写入前后的 CRM 快照，生成完整动画计划。
+ *
+ * 纯差异判断集中在 `src/dify-config.js`，便于用 Node 测试覆盖所有 CRUD 分支；
+ * 页面层只负责创建当前客户快照与执行 DOM 动画。
+ *
+ * @param {ReturnType<typeof createKassSyncMotionSnapshot>} before - 写入前快照。
+ * @param {ReturnType<typeof createKassSyncMotionSnapshot>} after - 写入后快照。
+ * @returns {ReturnType<typeof window.YD_DIFY.buildKassCrudMotionPlan>} 动画计划。
+ * @throws {Error} Dify 前端状态模块未加载时抛出，便于开发环境发现脚本顺序问题。
+ */
+function buildKassSyncMotionPlan(before, after) {
+  if (typeof window.YD_DIFY?.buildKassCrudMotionPlan !== "function") {
+    throw new Error("KASS CRUD 动画差异规划器未加载。");
+  }
+  return window.YD_DIFY.buildKassCrudMotionPlan(before, after);
+}
+
+/**
+ * 按 data 属性的完整值寻找一个 KASS 动画目标。
+ *
+ * 不把模型或接口返回的 ID 拼进 CSS selector，可避免特殊字符导致选择器解析失败。
+ *
+ * @param {string} attributeName - data 属性名。
+ * @param {string} attributeValue - 需要完整匹配的属性值。
+ * @returns {HTMLElement | null} 匹配节点。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function findKassMotionElement(attributeName, attributeValue) {
+  return Array.from(document.querySelectorAll(`[${attributeName}]`)).find((node) => (
+    node.getAttribute(attributeName) === attributeValue
+  )) || null;
+}
+
+/**
+ * 根据动画条目的业务实体找到右侧稳定目标。
+ *
+ * @param {{ id: string, entity: "customer" | "profile" | "task" | "followup" }} entry - 动画条目。
+ * @returns {HTMLElement | null} 当前 DOM 中的目标；该区域未显示时返回 null。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getKassSyncMotionTarget(entry) {
+  if (entry.entity === "customer") {
+    return document.querySelector("[data-kass-customer-summary-target]");
+  }
+  if (entry.entity === "profile") {
+    return document.querySelector("[data-kass-profile-target]");
+  }
+  if (entry.entity === "task") {
+    return findKassMotionElement("data-kass-task-row", entry.id);
+  }
+  if (entry.entity === "followup") {
+    return findKassMotionElement("data-kass-followup-id", entry.id);
+  }
+  return null;
+}
+
+/**
+ * 返回令牌真正应抵达的视觉节点。
+ *
+ * 完成/重开需要落到复选框；跟进操作落到记录正文；客户资料操作则使用整个稳定区域。
+ *
+ * @param {HTMLElement} target - 业务实体的稳定目标。
+ * @param {{ entity: string, operation: string }} entry - 动画条目。
+ * @returns {HTMLElement} 用于计算终点坐标的节点。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getKassSyncMotionAnchor(target, entry) {
+  if (
+    entry.entity === "task"
+    && ["complete", "reopen"].includes(entry.operation)
+  ) {
+    return target.querySelector('input[type="checkbox"]') || target;
+  }
+  if (entry.entity === "followup") {
+    return target.querySelector(".kass-followup-details") || target;
+  }
+  return target;
+}
+
+/**
+ * 在飞行开始前准备新状态目标。
+ *
+ * 只有“新增”实体需要整体暂时收起；完成操作只隐藏新勾选状态。修改和重开保留
+ * 当前内容，避免右栏发生不必要的布局跳动。
+ *
+ * @param {HTMLElement} target - 当前动画目标。
+ * @param {{ entity: string, operation: string }} entry - 动画条目。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function prepareKassSyncMotionTarget(target, entry) {
+  target.setAttribute("data-kass-sync-operation", entry.operation);
+
+  if (entry.entity === "task" && entry.operation === "complete") {
+    target.classList.add("kass-task-awaiting-sync");
+    const checkbox = target.querySelector('input[type="checkbox"]');
+    if (checkbox) {
+      checkbox.checked = false;
+    }
+  }
+  if (entry.entity === "task" && entry.operation === "add") {
+    target.classList.add("kass-entity-awaiting-sync");
+  }
+  if (entry.entity === "followup" && entry.operation === "add") {
+    target.classList.add("kass-followup-awaiting-sync");
+  }
+}
+
+/**
+ * 让新增、修改、完成或重开目标在抵达时显现并短暂强调。
+ *
+ * @param {HTMLElement} target - 右侧资料、跟进或待办目标。
+ * @param {{ entity: string, operation: string }} entry - 动画条目。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function revealKassSyncMotionTarget(target, entry) {
+  target.classList.remove(
+    "kass-task-awaiting-sync",
+    "kass-followup-awaiting-sync",
+    "kass-entity-awaiting-sync"
+  );
+  if (entry.entity === "task") {
+    const checkbox = target.querySelector('input[type="checkbox"]');
+    if (checkbox && entry.operation === "complete") {
+      checkbox.checked = true;
+    }
+    if (checkbox && entry.operation === "reopen") {
+      checkbox.checked = false;
+    }
+  }
+
+  target.classList.add("kass-sync-arrived");
+  window.setTimeout(() => {
+    target.classList.remove("kass-sync-arrived");
+    if (target.getAttribute("data-kass-sync-operation") === entry.operation) {
+      target.removeAttribute("data-kass-sync-operation");
+    }
+  }, 680);
+}
+
+/**
+ * 在右栏刷新前让即将删除的旧目标退场。
+ *
+ * @param {HTMLElement} target - 仍存在于旧 DOM 的待办或跟进记录。
+ * @returns {Promise<void>} 退场完成后结束，随后才允许刷新右栏。
+ * @throws {Error} Web Animations API 异常会安全降级为立即刷新。
+ */
+function departKassSyncMotionTarget(target) {
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (reduceMotion) {
+    return Promise.resolve();
+  }
+
+  target.classList.add("kass-sync-departing");
+  if (typeof target.animate !== "function") {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, 220);
+    });
+  }
+
+  const animation = target.animate(
+    [
+      { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" },
+      { opacity: 0.18, transform: "translate3d(8px, 0, 0) scale(0.985)" }
+    ],
+    {
+      duration: 220,
+      easing: "cubic-bezier(0.4, 0, 1, 1)",
+      fill: "forwards"
+    }
+  );
+
+  return animation.finished.catch(() => undefined).then(() => undefined);
+}
+
+/**
+ * 创建一枚从 Agent 对话飞向右侧资料的同步令牌。
+ *
+ * 只使用 transform 和 opacity 做运动，避免重排；元素是 pointer-events:none，
+ * 不会阻塞用户在动画期间继续滚动或操作页面。
+ *
+ * @param {{
+ *   source: HTMLElement,
+ *   target: HTMLElement,
+ *   entry: { entity: "customer" | "profile" | "task" | "followup", operation: string, label: string },
+ *   delay: number
+ * }} options - 飞行起点、终点和展示内容。
+ * @returns {Promise<void>} 令牌抵达并显现目标后完成。
+ * @throws {Error} Web Animations API 不可用时直接显示目标状态。
+ */
+function animateKassSyncFlight({ source, target, entry, delay }) {
+  const sourceRect = source.getBoundingClientRect();
+  const targetNode = getKassSyncMotionAnchor(target, entry);
+  const targetRect = targetNode.getBoundingClientRect();
+  const startX = Math.min(sourceRect.right - 18, window.innerWidth - 42);
+  const startY = sourceRect.top + Math.min(sourceRect.height * 0.5, 64);
+  const endX = targetRect.left + Math.min(targetRect.width * 0.5, 34);
+  const endY = targetRect.top + Math.min(targetRect.height * 0.5, 30);
+  const deltaX = endX - startX;
+  const deltaY = endY - startY;
+  const token = document.createElement("span");
+
+  token.className = [
+    "kass-sync-flight",
+    `kass-sync-flight-${entry.entity}`,
+    `kass-sync-flight-${entry.operation}`
+  ].join(" ");
+  token.setAttribute("aria-hidden", "true");
+  token.style.left = `${startX}px`;
+  token.style.top = `${startY}px`;
+  token.textContent = entry.label;
+  document.body.appendChild(token);
+
+  if (typeof token.animate !== "function") {
+    token.remove();
+    return entry.operation === "remove"
+      ? departKassSyncMotionTarget(target)
+      : Promise.resolve(revealKassSyncMotionTarget(target, entry));
+  }
+
+  const animation = token.animate(
+    [
+      {
+        opacity: 0,
+        transform: "translate3d(0, 0, 0) scale(0.72)"
+      },
+      {
+        opacity: 1,
+        transform: `translate3d(${deltaX * 0.46}px, ${deltaY - 24}px, 0) scale(1)`,
+        offset: 0.42
+      },
+      {
+        opacity: 0.18,
+        transform: `translate3d(${deltaX}px, ${deltaY}px, 0) scale(${entry.operation === "complete" ? 0.7 : 0.82})`
+      }
+    ],
+    {
+      duration: 480,
+      delay,
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      fill: "both"
+    }
+  );
+
+  return animation.finished
+    .then(async () => {
+      token.remove();
+      if (entry.operation === "remove") {
+        await departKassSyncMotionTarget(target);
+      } else {
+        revealKassSyncMotionTarget(target, entry);
+      }
+    })
+    .catch(async () => {
+      token.remove();
+      if (entry.operation === "remove") {
+        await departKassSyncMotionTarget(target);
+      } else {
+        revealKassSyncMotionTarget(target, entry);
+      }
+    });
+}
+
+/**
+ * 播放同一阶段的一组 CRM 同步动画。
+ *
+ * @param {Array<{ id: string, entity: "customer" | "profile" | "task" | "followup", operation: string, label: string }>} entries - 当前阶段的动画条目。
+ * @param {string} sourceMessageId - 当前 Agent 消息 ID。
+ * @returns {Promise<void>} 本轮所有同步令牌完成后结束。
+ * @throws {Error} 缺少起点或目标时安全降级为普通实时刷新。
+ */
+function playKassSyncMotionEntries(entries, sourceMessageId) {
+  if (!state.activeMain.startsWith("customer-kass")) {
+    return Promise.resolve();
+  }
+
+  const source = findKassMotionElement("data-kass-message-id", sourceMessageId);
+  const targets = entries
+    .map((entry) => ({
+      entry,
+      target: getKassSyncMotionTarget(entry)
+    }))
+    .filter(({ target }) => target);
+
+  targets.forEach(({ target, entry }) => {
+    prepareKassSyncMotionTarget(target, entry);
+  });
+
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (!source || reduceMotion) {
+    return Promise.all(targets.map(({ target, entry }) => (
+      entry.operation === "remove"
+        ? departKassSyncMotionTarget(target)
+        : Promise.resolve(revealKassSyncMotionTarget(target, entry))
+    ))).then(() => undefined);
+  }
+
+  const flights = targets.map(({ target, entry }, index) => (
+    animateKassSyncFlight({
+      source,
+      target,
+      entry,
+      delay: index * 90
+    })
+  ));
+
+  return Promise.all(flights).then(() => undefined);
+}
+
+/**
+ * 等待当前 DOM 布局稳定后播放一组动画条目。
+ *
+ * @param {Array<object>} entries - 当前阶段动画条目。
+ * @param {string} sourceMessageId - 当前 Agent 消息 ID。
+ * @param {{ doubleFrame?: boolean }} [options] - 右栏刚刷新时使用双帧等待布局完成。
+ * @returns {Promise<void>} 布局稳定且动画完成后结束。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function scheduleKassSyncMotionEntries(
+  entries,
+  sourceMessageId,
+  { doubleFrame = false } = {}
+) {
+  if (!entries.length) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => {
+      const play = () => playKassSyncMotionEntries(entries, sourceMessageId).finally(resolve);
+      if (doubleFrame) {
+        window.requestAnimationFrame(play);
+        return;
+      }
+      play();
+    });
+  });
+}
+
+/**
+ * 在右栏刷新前播放删除类动画。
+ *
+ * @param {ReturnType<typeof buildKassSyncMotionPlan>} plan - 完整 CRUD 差异。
+ * @param {string} sourceMessageId - 当前 Agent 消息 ID。
+ * @returns {Promise<void>} 所有旧目标退场后结束。
+ * @throws {Error} Dify 动画阶段规划器未加载时抛出。
+ */
+function scheduleKassPreRefreshMotion(plan, sourceMessageId) {
+  const phases = window.YD_DIFY.getKassCrudMotionPhases(plan);
+  return scheduleKassSyncMotionEntries(phases.beforeRefresh, sourceMessageId);
+}
+
+/**
+ * 在右栏刷新后播放新增、修改、完成与重开动画。
+ *
+ * 保留原函数名，兼容现有浏览器验收脚本和其它调用点。
+ *
+ * @param {ReturnType<typeof buildKassSyncMotionPlan>} plan - 完整 CRUD 差异。
+ * @param {string} sourceMessageId - 当前 Agent 消息 ID。
+ * @returns {Promise<void>} 新状态反馈全部结束后完成。
+ * @throws {Error} Dify 动画阶段规划器未加载时抛出。
+ */
+function scheduleKassSyncMotion(plan, sourceMessageId) {
+  const phases = window.YD_DIFY.getKassCrudMotionPhases(plan);
+  return scheduleKassSyncMotionEntries(
+    phases.afterRefresh,
+    sourceMessageId,
+    { doubleFrame: true }
+  );
+}
+
+/**
  * 从原型 API 重新读取客户与跟进记录并刷新右侧界面。
  *
  * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
- * @param {{ render?: boolean }} [options] - 是否在同步后立即重画页面。
+ * @param {{ render?: boolean, motionSourceMessageId?: string }} [options] - 是否重画页面，以及动画从哪条 Agent 消息起飞。
  * @returns {Promise<object>} 最新客户快照。
  * @throws {Error} 原型 API 不可用或客户未初始化时抛出。
  */
-async function syncKassPrototypeCustomer(customer, { render = true } = {}) {
+async function syncKassPrototypeCustomer(
+  customer,
+  { render = true, motionSourceMessageId = "" } = {}
+) {
+  const beforeMotionSnapshot = createKassSyncMotionSnapshot(customer);
   state.kassPrototypeSyncing = true;
   try {
     const data = await callKassPrototypeApi("GET", {
@@ -10805,7 +11305,18 @@ async function syncKassPrototypeCustomer(customer, { render = true } = {}) {
       });
     }
     if (render) {
+      const afterMotionSnapshot = createKassSyncMotionSnapshot(customer);
+      const motionPlan = buildKassSyncMotionPlan(
+        beforeMotionSnapshot,
+        afterMotionSnapshot
+      );
+      /*
+       * 删除目标只存在于旧右栏：先让它退场，再重画出新状态。其余动画必须等
+       * 新右栏完成布局后播放，才能落到新增或更新后的真实节点。
+       */
+      await scheduleKassPreRefreshMotion(motionPlan, motionSourceMessageId);
       renderKassAgentStream();
+      await scheduleKassSyncMotion(motionPlan, motionSourceMessageId);
     }
     return data?.customer || customer;
   } finally {
@@ -10956,12 +11467,161 @@ function renderKassAgentStream() {
 }
 
 /**
+ * 刷新客户资料区，同时保留当前 Agent 对话节点。
+ *
+ * `renderApp` 负责给新生成的右栏绑定全部既有交互；随后在浏览器绘制下一帧之前，
+ * 把原来的对话节点放回去。这样右栏获得最新数据和事件，正在流式输出的左栏不会
+ * 被销毁，也不会重新播放入场动画或跳动滚动位置。
+ *
+ * @returns {void}
+ * @throws {Error} renderApp 原有错误会继续抛出。
+ */
+function renderKassContextPreservingConversation() {
+  const selector = isKassComparisonView()
+    ? ".kass-compare-agent"
+    : ".kass-crm-thread";
+  const preservedConversation = document.querySelector(selector);
+
+  if (!preservedConversation) {
+    renderApp();
+    return;
+  }
+
+  renderApp();
+  const replacementConversation = document.querySelector(selector);
+  if (replacementConversation) {
+    replacementConversation.replaceWith(preservedConversation);
+  }
+}
+
+/**
+ * 原位同步两个同类型 DOM 节点。
+ *
+ * 作用是保留已经存在的段落、列表和 Artifact 外壳，只更新真正变化的文本、属性或
+ * 子节点。这样流式 Markdown 不再通过 innerHTML 整体销毁后重建。
+ *
+ * @param {Node} currentNode - 页面上当前节点。
+ * @param {Node} nextNode - 从安全 HTML 模板解析出的下一状态节点。
+ * @returns {Node} 同步后仍在页面中的节点。
+ * @throws {Error} DOM API 异常会继续抛出，便于开发环境发现结构问题。
+ */
+function morphKassStreamNode(currentNode, nextNode) {
+  if (
+    currentNode.nodeType !== nextNode.nodeType
+    || (
+      currentNode.nodeType === Node.ELEMENT_NODE
+      && currentNode.nodeName !== nextNode.nodeName
+    )
+  ) {
+    const replacement = nextNode.cloneNode(true);
+    currentNode.replaceWith(replacement);
+    return replacement;
+  }
+
+  if (currentNode.nodeType === Node.TEXT_NODE) {
+    if (currentNode.nodeValue !== nextNode.nodeValue) {
+      currentNode.nodeValue = nextNode.nodeValue;
+    }
+    return currentNode;
+  }
+
+  if (currentNode.nodeType !== Node.ELEMENT_NODE) {
+    return currentNode;
+  }
+
+  const currentElement = /** @type {Element} */ (currentNode);
+  const nextElement = /** @type {Element} */ (nextNode);
+
+  Array.from(currentElement.attributes).forEach((attribute) => {
+    if (!nextElement.hasAttribute(attribute.name)) {
+      currentElement.removeAttribute(attribute.name);
+    }
+  });
+  Array.from(nextElement.attributes).forEach((attribute) => {
+    if (currentElement.getAttribute(attribute.name) !== attribute.value) {
+      currentElement.setAttribute(attribute.name, attribute.value);
+    }
+  });
+
+  const nextChildren = Array.from(nextElement.childNodes);
+  nextChildren.forEach((nextChild, index) => {
+    const currentChild = currentElement.childNodes[index];
+    if (currentChild) {
+      morphKassStreamNode(currentChild, nextChild);
+    } else {
+      currentElement.appendChild(nextChild.cloneNode(true));
+    }
+  });
+  while (currentElement.childNodes.length > nextChildren.length) {
+    currentElement.lastChild?.remove();
+  }
+
+  return currentElement;
+}
+
+/**
+ * 用安全渲染结果原位更新 KASS 回答容器。
+ *
+ * @param {HTMLElement} container - 稳定的回答容器。
+ * @param {string} nextHtml - `renderKassAgentAnswerHtml` 生成的安全 HTML。
+ * @returns {void}
+ * @throws {Error} 模板解析或 DOM 同步失败时继续抛出。
+ */
+function morphKassStreamHtml(container, nextHtml) {
+  const template = document.createElement("template");
+  template.innerHTML = String(nextHtml || "");
+  const nextChildren = Array.from(template.content.childNodes);
+  nextChildren.forEach((nextChild, index) => {
+    const currentChild = container.childNodes[index];
+    if (currentChild) {
+      morphKassStreamNode(currentChild, nextChild);
+    } else {
+      container.appendChild(nextChild.cloneNode(true));
+    }
+  });
+  while (container.childNodes.length > nextChildren.length) {
+    container.lastChild?.remove();
+  }
+}
+
+/**
+ * 只更新 KASS 消息内的浅灰过程提示。
+ *
+ * @param {HTMLElement} body - 当前助手消息正文。
+ * @param {object} message - 当前助手消息状态。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function patchKassProcessPanelDom(body, message) {
+  const panel = body.querySelector("[data-kass-process-panel]");
+  if (!panel) {
+    return;
+  }
+
+  const process = window.YD_DIFY.getKassProcessPresentation(message);
+  const kicker = panel.querySelector("[data-kass-process-kicker]");
+  const label = panel.querySelector("[data-kass-process-label]");
+  const detail = panel.querySelector("[data-kass-process-detail]");
+  const count = panel.querySelector("[data-kass-process-count]");
+
+  panel.hidden = !process.visible;
+  panel.classList.toggle("is-complete", process.complete);
+  if (kicker) kicker.textContent = process.complete ? "处理完成" : "Agent 处理过程";
+  if (label) label.textContent = process.label;
+  if (detail) {
+    detail.textContent = process.detail;
+    detail.hidden = !process.detail;
+  }
+  if (count) count.textContent = process.count ? `${process.count} 步` : "";
+}
+
+/**
  * 只更新一条 KASS Agent 消息的正文。
  *
- * 为什么只改正文：
- * - 流式事件可能每几个字到达一次，整页 renderApp 会反复销毁侧栏、输入框和右侧资料。
- * - 保留 article 与输入框 DOM 后，焦点、滚动条和 CSS 动画不会持续重启。
- * - Artifact 仍通过 renderKassAgentMessageContent 的安全适配器生成，不放宽任何沙箱边界。
+ * 更新策略：
+ * - 过程事件没有改变可见文字时不操作 DOM。
+ * - 正文流式返回期间只修改稳定文本节点的 textContent。
+ * - 只有进入流式阶段或执行完成时才重建一次正文；最终 Artifact 仍由安全适配器生成。
  *
  * @param {string} messageId - 当前流式助手消息的稳定 ID。
  * @returns {boolean} 找到并更新目标消息时返回 true。
@@ -10982,7 +11642,33 @@ function patchKassAgentStreamMessageDom(messageId) {
     return false;
   }
 
-  body.innerHTML = renderKassAgentMessageContent(message);
+  patchKassProcessPanelDom(body, message);
+
+  const currentPhase = body.getAttribute("data-kass-render-phase") || "";
+  const answerShell = body.querySelector("[data-kass-answer-shell]");
+  if (!answerShell) {
+    return false;
+  }
+  const renderedContent = typeof answerShell.__kassRenderedContent === "string"
+    ? answerShell.__kassRenderedContent
+    : "";
+  const plan = window.YD_DIFY.getKassStreamRenderPlan(
+    message,
+    currentPhase,
+    renderedContent
+  );
+  body.setAttribute("data-kass-render-phase", plan.phase);
+
+  if (plan.mode === "none") {
+    return true;
+  }
+
+  if (plan.mode === "morph") {
+    morphKassStreamHtml(answerShell, renderKassAgentAnswerHtml(message));
+    answerShell.__kassRenderedContent = plan.content;
+    return true;
+  }
+
   return true;
 }
 
@@ -11010,6 +11696,37 @@ function scheduleKassAgentStreamRender(messageId) {
       scrollArea.scrollTop = scrollArea.scrollHeight;
     }
   });
+}
+
+/**
+ * 在 KASS 流结束后局部恢复对话控件。
+ *
+ * 过去这里会再次调用 renderApp，导致流式回答刚稳定时整页又闪一次。现在只完成：
+ * 渲染最终富文本、移除思考占位、恢复输入区，并保持滚动位置。
+ *
+ * @param {string} messageId - 刚完成的助手消息 ID。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function finalizeKassAgentStreamDom(messageId) {
+  patchKassAgentStreamMessageDom(messageId);
+  document.querySelectorAll("[data-kass-thinking-row]").forEach((node) => {
+    node.remove();
+  });
+
+  const input = document.querySelector("[data-kass-agent-input]");
+  const sendButton = document.querySelector("[data-kass-agent-send]");
+  if (input) {
+    input.disabled = false;
+  }
+  if (sendButton) {
+    sendButton.disabled = !state.kassAgentDraft.trim();
+  }
+
+  const scrollArea = document.querySelector("[data-kass-agent-scroll]");
+  if (scrollArea) {
+    scrollArea.scrollTop = scrollArea.scrollHeight;
+  }
 }
 
 /**
@@ -11131,6 +11848,9 @@ async function sendKassAgentDraft() {
   });
   renderKassAgentStream();
 
+  const motionBeforeSnapshot = createKassSyncMotionSnapshot(customer);
+  let didKassMutation = false;
+
   try {
     let doneReceived = false;
     /*
@@ -11168,12 +11888,13 @@ async function sendKassAgentDraft() {
       const mutationStepId = String(event?.step?.id || mutationToolName);
       if (mutationToolName && !syncedMutationStepIds.has(mutationStepId)) {
         syncedMutationStepIds.add(mutationStepId);
+        didKassMutation = true;
         mutationSyncPromise = mutationSyncPromise.then(async () => {
           try {
             await syncKassPrototypeCustomer(customer, {
-              render: state.activeMain.startsWith("customer-kass")
+              render: false
             });
-            console.info("[reverse-yingdan] KASS 写操作已实时同步右侧资料", {
+            console.info("[reverse-yingdan] KASS 写操作已回读，等待 Agent 完成后刷新右侧资料", {
               customerRef: customer.id,
               toolName: mutationToolName
             });
@@ -11265,11 +11986,32 @@ async function sendKassAgentDraft() {
      * 向后兼容；新版 System Prompt 已明确禁止再输出该代码块。
      *
      * 无论响应来自新旧版本，最后都重新读取服务端快照，确保右侧资料显示的是
-     * 实际持久化结果，绝不把 Agent 的自然语言回答当作写入成功证据。
+    * 实际持久化结果，绝不把 Agent 的自然语言回答当作写入成功证据。
      */
     try {
-      await applyKassPrototypeActionFromMessage(pendingAnswerId, customer);
+      const legacyActionApplied = await applyKassPrototypeActionFromMessage(
+        pendingAnswerId,
+        customer
+      );
+      didKassMutation = didKassMutation || legacyActionApplied;
       await syncKassPrototypeCustomer(customer, { render: false });
+
+      if (didKassMutation && state.activeMain.startsWith("customer-kass")) {
+        const motionAfterSnapshot = createKassSyncMotionSnapshot(customer);
+        const motionPlan = buildKassSyncMotionPlan(
+          motionBeforeSnapshot,
+          motionAfterSnapshot
+        );
+
+        /*
+         * 先补齐最终回答，再只刷新客户资料区。原来的对话节点会跨 renderApp 保留，
+         * 所以工具完成和右栏动画不会销毁回答、输入框或对话滚动位置。
+         */
+        patchKassAgentStreamMessageDom(pendingAnswerId);
+        await scheduleKassPreRefreshMotion(motionPlan, pendingAnswerId);
+        renderKassContextPreservingConversation();
+        await scheduleKassSyncMotion(motionPlan, pendingAnswerId);
+      }
     } catch (actionError) {
       const actionMessage = actionError instanceof Error
         ? actionError.message
@@ -11311,8 +12053,8 @@ async function sendKassAgentDraft() {
       window.cancelAnimationFrame(kassStreamRenderFrame);
       kassStreamRenderFrame = null;
     }
-    // 最终只完整重画一次：移除思考占位、恢复输入框，并展示 Plugin 写入后的右侧资料。
-    renderKassAgentStream();
+    // 最终只更新当前消息和输入区，避免流结束时整页再次闪动。
+    finalizeKassAgentStreamDom(pendingAnswerId);
   }
 }
 

@@ -69,8 +69,11 @@ test("keeps the KASS Agent workflow aligned with prototype CRUD and Artifact con
   assert.doesNotMatch(workflow, /provider_name: garden\/yingdan-kass/);
 });
 
-test("renders streamed KASS assistant fences through the safe Artifact adapter", () => {
+test("morphs KASS streaming Markdown while keeping the safe Artifact adapter", () => {
   const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const answerRendererStart = source.indexOf("function renderKassAgentAnswerHtml");
+  const answerRendererEnd = source.indexOf("\n/**", answerRendererStart + 1);
+  const answerRendererSource = source.slice(answerRendererStart, answerRendererEnd);
   const rendererStart = source.indexOf("function renderKassAgentMessageContent");
   const rendererEnd = source.indexOf("\n/**", rendererStart + 1);
   const rendererSource = source.slice(rendererStart, rendererEnd);
@@ -80,8 +83,8 @@ test("renders streamed KASS assistant fences through the safe Artifact adapter",
 
   assert.ok(rendererStart >= 0 && rendererEnd > rendererStart, "应找到 KASS 消息渲染函数");
   assert.match(rendererSource, /message\?\.role === "user"/);
-  assert.match(rendererSource, /window\.YD_ARTIFACT\?\.renderArtifactCodeBlock/);
-  assert.match(rendererSource, /renderMarkdown\(content, artifactRenderer/);
+  assert.match(answerRendererSource, /window\.YD_ARTIFACT\?\.renderArtifactCodeBlock/);
+  assert.match(answerRendererSource, /renderMarkdown\(/);
   assert.match(senderSource, /feature_id: KASS_DIFY_FEATURE_ID/);
   assert.match(senderSource, /current_customer_context: buildKassAgentCustomerContext\(customer\)/);
   assert.match(senderSource, /createDifySseEventParser\(applyStreamEvent\)/);
@@ -90,22 +93,49 @@ test("renders streamed KASS assistant fences through the safe Artifact adapter",
   assert.match(senderSource, /syncKassPrototypeCustomer/);
   assert.match(senderSource, /getCompletedKassMutationToolName\(event\)/);
   assert.match(senderSource, /mutationSyncPromise/);
-  assert.match(senderSource, /KASS 写操作已实时同步右侧资料/);
+  assert.match(senderSource, /等待 Agent 完成后刷新右侧资料/);
   assert.doesNotMatch(senderSource, /component: "step-flow"/);
   assert.equal(
     (senderSource.match(/renderKassAgentStream\(\)/g) || []).length,
-    2,
-    "一次流式调用只应在开始和结束时完整渲染 KASS 页面"
+    1,
+    "一次流式调用只允许在发送前完整渲染 KASS 页面"
   );
+  assert.match(senderSource, /finalizeKassAgentStreamDom\(pendingAnswerId\)/);
   assert.match(source, /function patchKassAgentStreamMessageDom\(messageId\)/);
   assert.match(source, /function scheduleKassAgentStreamRender\(messageId\)/);
+  assert.match(source, /function finalizeKassAgentStreamDom\(messageId\)/);
   assert.match(source, /data-kass-message-id=/);
-  assert.match(source, /body\.innerHTML = renderKassAgentMessageContent\(message\)/);
+  assert.match(source, /data-kass-process-panel=/);
+  assert.match(source, /data-kass-answer-shell=/);
+  assert.match(source, /function morphKassStreamHtml\(container, nextHtml\)/);
+  assert.doesNotMatch(source, /body\.innerHTML = renderKassAgentMessageContent\(message\)/);
   assert.match(source, /window\.requestAnimationFrame/);
-  assert.match(source, /const persistedStatus = String\(task\.status/);
+  assert.match(source, /function isKassTaskCompletedStatus/);
+  assert.match(source, /isKassTaskCompletedStatus\(task\.status\)/);
   assert.match(source, /"已完成"/);
   assert.match(source, /taskId\.startsWith\("agent-next-"\)/);
   assert.match(source, /AI 建议/);
+  assert.match(source, /function buildKassSyncMotionPlan/);
+  assert.match(source, /function animateKassSyncFlight/);
+  assert.match(source, /scheduleKassSyncMotion\(motionPlan, pendingAnswerId\)/);
+  assert.match(source, /data-kass-task-row=/);
+  assert.match(source, /data-kass-followup-id=/);
+  assert.match(source, /prefers-reduced-motion: reduce/);
+});
+
+test("defers KASS customer-pane rendering until the Agent run is complete", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const senderStart = source.indexOf("async function sendKassAgentDraft");
+  const senderEnd = source.indexOf("\n/**", senderStart + 1);
+  const senderSource = source.slice(senderStart, senderEnd);
+  const mutationStart = senderSource.indexOf("mutationSyncPromise = mutationSyncPromise.then");
+  const mutationEnd = senderSource.indexOf("scheduleKassAgentStreamRender", mutationStart);
+  const mutationSource = senderSource.slice(mutationStart, mutationEnd);
+
+  assert.match(mutationSource, /render: false/);
+  assert.doesNotMatch(mutationSource, /motionSourceMessageId/);
+  assert.match(senderSource, /renderKassContextPreservingConversation\(\)/);
+  assert.match(senderSource, /scheduleKassSyncMotion\(motionPlan, pendingAnswerId\)/);
 });
 
 test("keeps the KASS prototype plugin isolated from real CRM credentials", () => {

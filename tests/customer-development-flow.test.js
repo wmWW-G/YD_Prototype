@@ -23,11 +23,11 @@ test("客户搜索页保持可见后再通过 URL 进入结果页", () => {
 test("客户搜索流程更新后使用新的前端缓存键", () => {
   assert.match(
     indexSource,
-    /src\/app\.js\?v=20260724-kass-prototype-crud-v1/
+    /src\/app\.js\?v=20260726-kass-crud-motion-v5/
   );
   assert.match(
     indexSource,
-    /src\/styles\.css\?v=20260724-kass-prototype-crud-v1/
+    /src\/styles\.css\?v=20260726-kass-crud-motion-v5/
   );
 });
 
