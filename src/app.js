@@ -19,7 +19,7 @@
  *   caseSearchQuery: string,
  *   activeCustomerId: string,
  *   activeCustomerPanel: string,
- *   activeKassTab: "conversation" | "profile",
+ *   activeKassTab: "conversation" | "profile" | "followups",
  *   activeKassView: "workbench" | "online",
  *   kassExpandedGrades: Set<string>,
  *   kassWorkbenchGroupId: string,
@@ -7950,7 +7950,8 @@ function renderCustomerKassView() {
 
           <nav class="kass-workspace-tabs" aria-label="客户工作区">
             <button class="${state.activeKassTab === "conversation" ? "active" : ""}" type="button" data-kass-tab="conversation">AI 助理</button>
-            <button class="${state.activeKassTab !== "conversation" ? "active" : ""}" type="button" data-kass-tab="profile">客户信息</button>
+            <button class="${state.activeKassTab === "profile" ? "active" : ""}" type="button" data-kass-tab="profile">客户信息</button>
+            <button class="${state.activeKassTab === "followups" ? "active" : ""}" type="button" data-kass-tab="followups">跟进记录</button>
           </nav>
 
           ${state.activeKassTab === "conversation" ? `
@@ -8007,9 +8008,13 @@ function renderCustomerKassView() {
             <textarea rows="1" data-kass-agent-input="true" placeholder="告诉 Agent 你想处理什么…">${escapeHtml(state.kassAgentDraft)}</textarea>
             <button class="kass-agent-send" type="button" data-kass-agent-send="true" ${state.kassAgentDraft.trim() && !state.kassAgentThinking ? "" : "disabled"}>发送</button>
           </footer>
-          ` : `
+          ` : state.activeKassTab === "profile" ? `
             <section class="kass-workspace-tab-body">
               ${renderKassWorkspaceTab(customer)}
+            </section>
+          ` : `
+            <section class="kass-workspace-tab-body">
+              ${renderKassFollowupTab(customer)}
             </section>
           `}
         </main>
@@ -8283,6 +8288,86 @@ function renderKassDetailField(label, value, options = {}) {
 }
 
 /**
+ * 渲染客户完整档案的五组字段。
+ *
+ * 客户信息页和 B 版抽屉必须展示同一份资料，因此把字段结构集中在这里。
+ * 后续增删字段时只改一处，可避免“页面有、抽屉没有”或字段顺序不一致。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @param {ReturnType<typeof getKassBackgroundProfile>} profile - 已归一化的稳定客户档案。
+ * @returns {string} 完整档案分组 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassDetailedProfileSections(customer, profile) {
+  const sourceLabel = profile.sources.join(" + ");
+  const incompleteItems = profile.incompleteItems;
+
+  return `
+    <section class="kass-detail-section">
+      <h3>基础信息</h3>
+      <dl class="kass-detail-grid">
+        ${renderKassDetailField("客户来源", sourceLabel)}
+        ${renderKassDetailField("入档日期", profile.enteredAt)}
+        ${renderKassDetailField("客户名称", customer.name)}
+        ${renderKassDetailField("国家 / 地区", customer.country)}
+        ${renderKassDetailField("官网", customer.website)}
+        ${renderKassDetailField("成立年份", profile.foundedYear)}
+        ${renderKassDetailField("公司规模", profile.companySize)}
+        ${renderKassDetailField("客户类型", profile.companyType)}
+        ${renderKassDetailField("公司背景", profile.companyBackground, { wide: true })}
+        ${renderKassDetailField("主营业务", profile.mainBusiness, { wide: true })}
+        ${renderKassDetailField("组织架构", profile.organization, { wide: true })}
+      </dl>
+    </section>
+
+    <section class="kass-detail-section">
+      <h3>主要联系人信息</h3>
+      <dl class="kass-detail-grid">
+        ${renderKassDetailField("姓名", profile.contactName)}
+        ${renderKassDetailField("岗位", profile.contactRole)}
+        ${renderKassDetailField("联系渠道", profile.contactEmail)}
+        ${renderKassDetailField("WhatsApp", profile.whatsapp)}
+        ${renderKassDetailField("社媒", profile.socialMedia, { wide: true })}
+        ${renderKassDetailField("采购角色", profile.purchasingRole, { wide: true })}
+      </dl>
+    </section>
+
+    <section class="kass-detail-section">
+      <h3>采购 / 市场汇总</h3>
+      <dl class="kass-detail-grid">
+        ${renderKassDetailField("合作阶段", profile.cooperationStage)}
+        ${renderKassDetailField("采购周期", profile.purchaseCycle)}
+        ${renderKassDetailField("年营业额", profile.annualRevenue)}
+        ${renderKassDetailField("采购潜力", profile.purchasePotential)}
+        ${renderKassDetailField("市场渠道", profile.marketChannels, { wide: true })}
+        ${renderKassDetailField("产品偏好", profile.productPreference, { wide: true })}
+        ${renderKassDetailField("采购偏好", profile.purchasePreference, { wide: true })}
+        ${renderKassDetailField("可拓展产品", profile.expandableProducts, { wide: true })}
+      </dl>
+    </section>
+
+    <section class="kass-detail-section">
+      <h3>资信与合作判断</h3>
+      <dl class="kass-detail-grid">
+        ${renderKassDetailField("付款条件", profile.paymentTerms, { missing: incompleteItems.includes("付款条件") })}
+        ${renderKassDetailField("最终收货主体", profile.finalConsignee, { missing: incompleteItems.includes("最终收货主体") })}
+        ${renderKassDetailField("资信情况", profile.creditStatus, { wide: true })}
+        ${renderKassDetailField("合作价值", profile.cooperationValue, { wide: true })}
+      </dl>
+    </section>
+
+    <section class="kass-detail-section">
+      <h3>竞对信息</h3>
+      <dl class="kass-detail-grid">
+        ${renderKassDetailField("主要竞对", profile.competitors, { wide: true })}
+        ${renderKassDetailField("竞争优势", profile.competitiveAdvantage, { wide: true })}
+        ${renderKassDetailField("现有供应商", profile.currentSuppliers, { wide: true })}
+      </dl>
+    </section>
+  `;
+}
+
+/**
  * 渲染“查看完整资料”抽屉。
  *
  * 主页面只展示一眼可回忆的客户档案；详细档案参考用户提供的分组表格，
@@ -8317,68 +8402,7 @@ function renderKassResearchPanel(customer, profile) {
             <p>资料来自客户背调顾问与国际站询盘，已合并为一份稳定客户档案。</p>
             ${incompleteItems.length ? `<strong>${incompleteItems.length} 项待完善</strong>` : `<strong class="is-complete">资料完整</strong>`}
           </div>
-
-          <section class="kass-detail-section">
-            <h3>基础信息</h3>
-            <dl class="kass-detail-grid">
-              ${renderKassDetailField("客户来源", sourceLabel)}
-              ${renderKassDetailField("入档日期", profile.enteredAt)}
-              ${renderKassDetailField("客户名称", customer.name)}
-              ${renderKassDetailField("国家 / 地区", customer.country)}
-              ${renderKassDetailField("官网", customer.website)}
-              ${renderKassDetailField("成立年份", profile.foundedYear)}
-              ${renderKassDetailField("公司规模", profile.companySize)}
-              ${renderKassDetailField("客户类型", profile.companyType)}
-              ${renderKassDetailField("公司背景", profile.companyBackground, { wide: true })}
-              ${renderKassDetailField("主营业务", profile.mainBusiness, { wide: true })}
-              ${renderKassDetailField("组织架构", profile.organization, { wide: true })}
-            </dl>
-          </section>
-
-          <section class="kass-detail-section">
-            <h3>主要联系人信息</h3>
-            <dl class="kass-detail-grid">
-              ${renderKassDetailField("姓名", profile.contactName)}
-              ${renderKassDetailField("岗位", profile.contactRole)}
-              ${renderKassDetailField("联系渠道", profile.contactEmail)}
-              ${renderKassDetailField("WhatsApp", profile.whatsapp)}
-              ${renderKassDetailField("社媒", profile.socialMedia, { wide: true })}
-              ${renderKassDetailField("采购角色", profile.purchasingRole, { wide: true })}
-            </dl>
-          </section>
-
-          <section class="kass-detail-section">
-            <h3>采购 / 市场汇总</h3>
-            <dl class="kass-detail-grid">
-              ${renderKassDetailField("合作阶段", profile.cooperationStage)}
-              ${renderKassDetailField("采购周期", profile.purchaseCycle)}
-              ${renderKassDetailField("年营业额", profile.annualRevenue)}
-              ${renderKassDetailField("采购潜力", profile.purchasePotential)}
-              ${renderKassDetailField("市场渠道", profile.marketChannels, { wide: true })}
-              ${renderKassDetailField("产品偏好", profile.productPreference, { wide: true })}
-              ${renderKassDetailField("采购偏好", profile.purchasePreference, { wide: true })}
-              ${renderKassDetailField("可拓展产品", profile.expandableProducts, { wide: true })}
-            </dl>
-          </section>
-
-          <section class="kass-detail-section">
-            <h3>资信与合作判断</h3>
-            <dl class="kass-detail-grid">
-              ${renderKassDetailField("付款条件", profile.paymentTerms, { missing: incompleteItems.includes("付款条件") })}
-              ${renderKassDetailField("最终收货主体", profile.finalConsignee, { missing: incompleteItems.includes("最终收货主体") })}
-              ${renderKassDetailField("资信情况", profile.creditStatus, { wide: true })}
-              ${renderKassDetailField("合作价值", profile.cooperationValue, { wide: true })}
-            </dl>
-          </section>
-
-          <section class="kass-detail-section">
-            <h3>竞对信息</h3>
-            <dl class="kass-detail-grid">
-              ${renderKassDetailField("主要竞对", profile.competitors, { wide: true })}
-              ${renderKassDetailField("竞争优势", profile.competitiveAdvantage, { wide: true })}
-              ${renderKassDetailField("现有供应商", profile.currentSuppliers, { wide: true })}
-            </dl>
-          </section>
+          ${renderKassDetailedProfileSections(customer, profile)}
         </div>
         <footer>
           <div>
@@ -8389,6 +8413,54 @@ function renderKassResearchPanel(customer, profile) {
         </footer>
       </aside>
     </div>
+  `;
+}
+
+/**
+ * 渲染独立的“跟进记录”页签内容。
+ *
+ * 跟进记录和它产生的待办继续放在同一条时间线记录里，不能拆成两个互不关联的列表。
+ * 新增入口也放在本页顶部，让“查看历史”和“记录新沟通”在同一个工作上下文完成。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {string} 跟进记录页签 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassFollowupWorkspace(customer) {
+  const records = Array.isArray(customer.followupRecords) ? customer.followupRecords : [];
+
+  return `
+    <section class="kass-followup-workspace">
+      <header class="kass-followup-heading">
+        <div><small>沟通记录与行动闭环</small><h2>跟进记录</h2></div>
+        <button type="button" data-kass-record-open="true">新增跟进记录</button>
+      </header>
+
+      ${state.kassRecordFormOpen ? `
+        <section class="kass-record-form kass-record-form-wide kass-hub-record-form">
+          <div class="kass-record-form-title"><strong>新增跟进记录</strong><button type="button" data-kass-record-cancel="true">取消</button></div>
+          <div class="kass-record-form-grid">
+            <label><span>跟进方式</span><select><option>邮件</option><option>电话</option><option>视频会议</option></select></label>
+            <label><span>日期</span><input type="date" value="2026-07-23" /></label>
+            <label><span>客户阶段</span><select><option>${escapeHtml(customer.stage || "待补充")}</option><option>谈判中</option><option>待报价</option></select></label>
+          </div>
+          <label><span>本次沟通内容</span><textarea placeholder="粘贴客户消息、电话纪要、报价反馈或会议结论…"></textarea></label>
+          <footer><button type="button" data-toast="AI 整理为原型反馈。">AI 整理成记录</button><button class="primary" type="button" data-kass-record-save="true">保存记录</button></footer>
+        </section>
+      ` : ""}
+
+      ${records.length ? `
+        <div class="kass-followup-timeline">
+          ${records.map(renderKassFollowupRecord).join("")}
+        </div>
+      ` : `
+        <div class="kass-followup-empty">
+          <strong>暂无跟进记录</strong>
+          <p>新增一次客户沟通后，可在记录下方继续关联待办。</p>
+          <button type="button" data-kass-record-open="true">新增第一条跟进</button>
+        </div>
+      `}
+    </section>
   `;
 }
 
@@ -8406,9 +8478,7 @@ function renderKassResearchPanel(customer, profile) {
  */
 function renderKassCustomerHub(customer) {
   const profile = getKassBackgroundProfile(customer);
-  const sourceLabel = profile.sources.join(" + ");
   const incompleteCount = profile.incompleteItems.length;
-  const records = Array.isArray(customer.followupRecords) ? customer.followupRecords : [];
   const sourceRows = profile.sources
     .map((source) => `
       <span class="kass-profile-source-row">
@@ -8458,43 +8528,16 @@ function renderKassCustomerHub(customer) {
         </div>
       </section>
 
-      <section class="kass-followup-workspace">
-        <header class="kass-followup-heading">
-          <div><small>沟通记录与行动闭环</small><h2>跟进与待办</h2></div>
-          <button type="button" data-kass-record-open="true">新增跟进记录</button>
-        </header>
-
-        ${state.kassRecordFormOpen ? `
-          <section class="kass-record-form kass-record-form-wide kass-hub-record-form">
-            <div class="kass-record-form-title"><strong>新增跟进记录</strong><button type="button" data-kass-record-cancel="true">取消</button></div>
-            <div class="kass-record-form-grid">
-              <label><span>跟进方式</span><select><option>邮件</option><option>电话</option><option>视频会议</option></select></label>
-              <label><span>日期</span><input type="date" value="2026-07-23" /></label>
-              <label><span>客户阶段</span><select><option>${escapeHtml(customer.stage || "待补充")}</option><option>谈判中</option><option>待报价</option></select></label>
-            </div>
-            <label><span>本次沟通内容</span><textarea placeholder="粘贴客户消息、电话纪要、报价反馈或会议结论…"></textarea></label>
-            <footer><button type="button" data-toast="AI 整理为原型反馈。">AI 整理成记录</button><button class="primary" type="button" data-kass-record-save="true">保存记录</button></footer>
-          </section>
-        ` : ""}
-
-        ${records.length ? `
-          <div class="kass-followup-timeline">
-            ${records.map(renderKassFollowupRecord).join("")}
-          </div>
-        ` : `
-          <div class="kass-followup-empty">
-            <strong>暂无跟进记录</strong>
-            <p>新增一次客户沟通后，可在记录下方继续关联待办。</p>
-            <button type="button" data-kass-record-open="true">新增第一条跟进</button>
-          </div>
-        `}
-      </section>
+      ${renderKassFollowupWorkspace(customer)}
     </div>
   `;
 }
 
 /**
- * 渲染 A 版“客户信息”页签，并在工作纸之外挂载完整档案抽屉。
+ * 渲染 A 版“客户信息”页签。
+ *
+ * 完整档案直接铺在当前界面，不再要求用户点击“查看完整资料”打开抽屉。
+ * 跟进和待办已迁移到独立页签，本页只保留稳定客户资料。
  *
  * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
  * @returns {string} A 版客户信息页签 HTML。
@@ -8502,10 +8545,52 @@ function renderKassCustomerHub(customer) {
  */
 function renderKassWorkspaceTab(customer) {
   const profile = getKassBackgroundProfile(customer);
+  const sourceLabel = profile.sources.join(" + ");
+  const incompleteItems = profile.incompleteItems;
 
   return `
-    ${renderKassCustomerHub(customer)}
-    ${renderKassResearchPanel(customer, profile)}
+    <article
+      class="kass-inline-profile"
+      data-kass-customer-summary-target="true"
+      data-kass-profile-target="true"
+      aria-labelledby="kass-inline-profile-title"
+    >
+      <header class="kass-inline-profile-head">
+        <div>
+          <small>客户资料</small>
+          <h2 id="kass-inline-profile-title">客户详细档案</h2>
+          <p>${escapeHtml(profile.overview)}</p>
+        </div>
+        ${incompleteItems.length
+          ? `<strong>${incompleteItems.length} 项待完善</strong>`
+          : `<strong class="is-complete">资料完整</strong>`}
+      </header>
+      <div class="kass-inline-profile-body">
+        ${renderKassDetailedProfileSections(customer, profile)}
+      </div>
+      <footer class="kass-inline-profile-foot">
+        <div>
+          <span>资料已合并：${escapeHtml(sourceLabel)}</span>
+          <span>更新于 ${escapeHtml(profile.updatedAt)}</span>
+        </div>
+        ${incompleteItems.length ? `<button type="button" data-toast="已记录补充背调需求（原型反馈）。">补充背调</button>` : ""}
+      </footer>
+    </article>
+  `;
+}
+
+/**
+ * 渲染 A 版“跟进记录”页签。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 当前客户。
+ * @returns {string} 跟进记录与关联待办 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderKassFollowupTab(customer) {
+  return `
+    <div class="kass-followup-tab-sheet" data-kass-customer-summary-target="true">
+      ${renderKassFollowupWorkspace(customer)}
+    </div>
   `;
 }
 
@@ -13130,7 +13215,7 @@ function bindEvents() {
   document.querySelectorAll("[data-kass-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       const nextTab = button.getAttribute("data-kass-tab");
-      if (!["conversation", "profile"].includes(nextTab)) {
+      if (!["conversation", "profile", "followups"].includes(nextTab)) {
         return;
       }
       state.activeKassTab = nextTab;

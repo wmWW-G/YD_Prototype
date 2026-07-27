@@ -17089,6 +17089,130 @@ button:disabled {
   background: #fffdfb;
 }
 
+/*
+ * A 版客户信息页直接展示完整档案。
+ * 外层只保留一张连续资料纸，字段内部沿用原有表格式分组，避免再套一层抽屉或入口卡片。
+ */
+.kass-inline-profile,
+.kass-followup-tab-sheet {
+  width: min(100%, 980px);
+  margin: 0 auto;
+}
+
+.kass-inline-profile {
+  overflow: hidden;
+  border: 1px solid #e7dfd8;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(73, 48, 29, 0.035);
+}
+
+.kass-inline-profile-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 22px 18px;
+  border-bottom: 1px solid #ece5df;
+  background: #fff;
+}
+
+.kass-inline-profile-head > div {
+  min-width: 0;
+}
+
+.kass-inline-profile-head small {
+  color: #9a9189;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.kass-inline-profile-head h2 {
+  margin: 5px 0 0;
+  color: #2d2824;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.kass-inline-profile-head p {
+  max-width: 720px;
+  margin: 9px 0 0;
+  color: #6a625c;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.kass-inline-profile-head > strong {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 999px;
+  color: #a25a34;
+  background: #fff0e6;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.kass-inline-profile-head > strong.is-complete {
+  color: #47705c;
+  background: #eef7f1;
+}
+
+.kass-inline-profile-body {
+  padding: 18px 22px 24px;
+}
+
+.kass-inline-profile-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 22px;
+  border-top: 1px solid #ece4dd;
+  background: #fff;
+}
+
+.kass-inline-profile-foot > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  color: #9b928a;
+  font-size: 10px;
+}
+
+.kass-inline-profile-foot > button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #ed5b19;
+  border-radius: 8px;
+  color: #fff;
+  background: #ed5b19;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kass-inline-profile-foot > button:hover {
+  border-color: #d64a0a;
+  background: #d64a0a;
+}
+
+/*
+ * 跟进记录页签只承载沟通时间线与关联待办。
+ * 独立边框让它在切换页签后仍保持完整工作区感，但内部不再重复客户资料。
+ */
+.kass-followup-tab-sheet {
+  overflow: hidden;
+  border: 1px solid #e7dfd8;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(73, 48, 29, 0.035);
+}
+
+.kass-followup-tab-sheet .kass-followup-workspace {
+  min-height: 100%;
+}
+
 .kass-profile-pane,
 .kass-matters-pane,
 .kass-records-pane {
@@ -17295,6 +17419,18 @@ button:disabled {
 
   .kass-workspace-tab-body {
     padding: 16px;
+  }
+
+  .kass-inline-profile-head,
+  .kass-inline-profile-foot {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .kass-inline-profile-body {
+    padding: 15px 14px 20px;
   }
 
   .kass-profile-grid,

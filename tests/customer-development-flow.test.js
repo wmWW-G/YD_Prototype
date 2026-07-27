@@ -20,14 +20,14 @@ test("客户搜索页保持可见后再通过 URL 进入结果页", () => {
   );
 });
 
-test("客户搜索流程更新后使用新的前端缓存键", () => {
+test("主原型使用当前前端缓存键", () => {
   assert.match(
     indexSource,
-    /src\/app\.js\?v=20260726-kass-crud-motion-v5/
+    /src\/app\.js\?v=20260727-kass-profile-tabs-v1/
   );
   assert.match(
     indexSource,
-    /src\/styles\.css\?v=20260726-kass-crud-motion-v5/
+    /src\/styles\.css\?v=20260727-kass-profile-tabs-v1/
   );
 });
 
