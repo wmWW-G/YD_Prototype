@@ -90,12 +90,11 @@ window.HISTORY_ITEMS = [
  * 客户背调顾问的原型数据。
  *
  * 为什么单独维护：
- * - 这个页面已经对应 Dify 里的 `客户背调DeepSeek` Chatflow。
+ * - 这个页面通过“不需要知识库的总库”执行 `customer-research` Skill。
  * - 主静态原型不能把 Dify API Key 写进前端，所以这里仅放产品可见的输入模板和结果样例。
- * - 真实接口路径、鉴权方式和测试记录维护在 `dify-chatflows/`，开发同事接后端时再查那里。
+ * - 真实路由和输入协议维护在 `dify-chatflows/Chatflow-不需要知识库的总库/`。
  *
  * @type {{
- *   engineName: string,
  *   samplePrompt: string,
  *   chips: string[],
  *   quickPrompts: Array<{ label: string, prompt: string }>,
@@ -112,7 +111,6 @@ window.HISTORY_ITEMS = [
  * }}
  */
 window.CUSTOMER_RESEARCH_FLOW = {
-  engineName: "客户背调DeepSeek",
   samplePrompt: "公司名：Yellow Door Energy\n国家/地区：阿联酋 / 中东\n行业：新能源、分布式太阳能、储能\n官网：https://www.yellowdoorenergy.com\n我的产品：工商业储能方案、光伏配套设备\n目标：判断客户采购可能性、关键决策链、切入话术和下一步动作",
   chips: ["公司名", "官网", "国家/地区", "行业标签", "我的产品", "开发目标"],
   quickPrompts: [

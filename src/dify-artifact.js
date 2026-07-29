@@ -22,8 +22,63 @@
     "html-artifact"
   ]);
 
-  /** @type {string[]} */
-  const VISUAL_COLORS = ["#5f7185", "#cf744d", "#6f8b78", "#b29458", "#88758d"];
+  /**
+   * 赢单回答内可视化的唯一主题来源。
+   *
+   * 为什么在渲染器中保存这些值：
+   * - Mermaid、ECharts 和受控 UI 是前端生成的，不能依赖模型临时选择颜色。
+   * - HTML / SVG 运行在隔离 iframe 中，无法继承宿主页面 CSS 变量，需要主动注入同一套令牌。
+   * - 不包含 Logo 或字标，只保留用户确认的中性几何风格与低饱和红橙强调。
+   */
+  const ARTIFACT_THEME = Object.freeze({
+    background: "#fbfaf7",
+    surface: "#f2efe9",
+    ink: "#1d1b18",
+    muted: "#6f6a63",
+    line: "#ddd8d0",
+    accent: "#ff7830",
+    accentDeep: "#b84700",
+    accentSoft: "#fff0e7",
+    accentInk: "#24180f",
+    shadow: "#f3e8df"
+  });
+
+  /**
+   * 图表多序列色板。
+   *
+   * 第一序列使用品牌高亮，其余序列使用墨色和暖灰，避免每条数据都抢夺注意力。
+   * @type {ReadonlyArray<string>}
+   */
+  const VISUAL_COLORS = Object.freeze([
+    ARTIFACT_THEME.accent,
+    ARTIFACT_THEME.ink,
+    "#8a8178",
+    "#c7bbb1",
+    ARTIFACT_THEME.accentDeep
+  ]);
+
+  /**
+   * 注入隔离 HTML / SVG 的主题变量。
+   *
+   * 模型生成的内容应优先引用这些 `--yd-*` 变量；即使模型没有完整写样式，
+   * 沙箱也会提供一致的背景、文字、链接和键盘焦点基础样式。
+   */
+  const ARTIFACT_THEME_CSS = [
+    ":root{",
+    `--yd-bg:${ARTIFACT_THEME.background};`,
+    `--yd-surface:${ARTIFACT_THEME.surface};`,
+    `--yd-ink:${ARTIFACT_THEME.ink};`,
+    `--yd-muted:${ARTIFACT_THEME.muted};`,
+    `--yd-line:${ARTIFACT_THEME.line};`,
+    `--yd-accent:${ARTIFACT_THEME.accent};`,
+    `--yd-accent-deep:${ARTIFACT_THEME.accentDeep};`,
+    `--yd-accent-soft:${ARTIFACT_THEME.accentSoft};`,
+    `--yd-accent-ink:${ARTIFACT_THEME.accentInk};`,
+    `--yd-shadow:${ARTIFACT_THEME.shadow};`,
+    "--yd-radius:4px 24px 4px 24px;",
+    "--yd-control-radius:4px;",
+    "}"
+  ].join("");
   const MAX_SOURCE_LENGTH = 100000;
   const MAX_SOURCE_PREVIEW_LENGTH = 12000;
   const INTERACTIVE_FRAME_MESSAGE_TYPE = "yd-artifact:resize";
@@ -78,6 +133,24 @@
   }
 
   /**
+   * 从完整 HTML 或 SVG 中读取业务标题。
+   *
+   * 外层卡片需要展示业务含义，而不是“HTML 预览”“可视化说明”等技术占位词。
+   * 标题最终仍会经过 `escapeHtml`，这里仅移除意外标签并限制长度。
+   *
+   * @param {string} source - HTML 或 SVG 源码。
+   * @param {string} fallback - 没有 title 时使用的兼容标题。
+   * @returns {string} 有限长度的业务标题。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function extractEmbeddedTitle(source, fallback) {
+    const match = String(source || "").match(/<title(?:\s[^>]*)?>([\s\S]{1,240}?)<\/title>/i);
+    if (!match) return fallback;
+    const title = toPlainText(match[1].replace(/<[^>]+>/g, " "), 100);
+    return title || fallback;
+  }
+
+  /**
    * 规范 fenced code block 的语言名称。
    *
    * @param {unknown} language - Markdown 代码块语言。
@@ -125,27 +198,45 @@
   function renderArtifactHeader(eyebrow, title) {
     return `
       <header class="yd-artifact-header">
-        <span class="yd-artifact-mark" aria-hidden="true">✦</span>
+        <span class="yd-artifact-accent" aria-hidden="true"></span>
         <div>
           <span class="yd-artifact-eyebrow">${escapeHtml(eyebrow)}</span>
           <strong>${escapeHtml(title)}</strong>
         </div>
-        <span class="yd-artifact-live">动态生成</span>
       </header>
     `;
   }
 
   /**
-   * 为可视化保留一个默认收起的源码区。
+   * 判断是否显式开启内部源码调试。
+   *
+   * 正式用户默认看不到生成源码；开发人员可通过 `?artifactDebug=1`
+   * 或临时设置 `window.YD_ARTIFACT_DEBUG_SOURCE = true` 检查模型原文。
+   *
+   * @returns {boolean} 仅在明确开启内部调试时返回 true。
+   * @throws {Error} 本函数会吞掉异常并安全返回 false。
+   */
+  function isArtifactSourceDebugEnabled() {
+    try {
+      if (globalObject?.YD_ARTIFACT_DEBUG_SOURCE === true) return true;
+      const search = String(globalObject?.location?.search || "");
+      return /(?:^|[?&])artifactDebug=1(?:&|$)/.test(search);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * 为内部调试保留一个默认收起的源码区。
    *
    * @param {string} source - 原始 Mermaid、JSON、SVG 或 HTML。
    * @param {string} language - 源码语言标签。
-   * @returns {string} details HTML；源码为空时返回空字符串。
+   * @returns {string} 调试模式下的 details HTML；正式模式或源码为空时返回空字符串。
    * @throws {Error} 本函数不主动抛异常。
    */
   function renderSourceDetails(source, language) {
     const rawSource = String(source || "");
-    if (!rawSource.trim()) return "";
+    if (!isArtifactSourceDebugEnabled() || !rawSource.trim()) return "";
 
     const preview = rawSource.length > MAX_SOURCE_PREVIEW_LENGTH
       ? `${rawSource.slice(0, MAX_SOURCE_PREVIEW_LENGTH)}\n…源码过长，已截断展示`
@@ -184,21 +275,9 @@
    * @throws {Error} 本函数不主动抛异常。
    */
   function renderArtifactLoading(language) {
-    const labelMap = {
-      mermaid: "正在绘制流程图",
-      echarts: "正在整理数据图表",
-      svg: "正在生成结构图",
-      ui: "正在组合可视化组件",
-      "yd-ui": "正在组合可视化组件",
-      artifact: "正在构建 Artifact",
-      "yd-artifact": "正在构建 Artifact",
-      "html-artifact": "正在构建 Artifact"
-    };
-    const label = labelMap[language] || "正在生成可视化";
-
     return `
-      <section class="yd-artifact yd-artifact-loading" aria-live="polite" aria-label="${escapeHtml(label)}">
-        ${renderArtifactHeader("YD Artifact", label)}
+      <section class="yd-artifact yd-artifact-loading" data-yd-artifact-loading="${escapeHtml(language)}" aria-live="polite">
+        <span class="sr-only">可视化内容生成中</span>
         <div class="yd-artifact-skeleton" aria-hidden="true">
           <span></span><span></span><span></span>
         </div>
@@ -219,7 +298,7 @@
     return renderArtifactShell({
       eyebrow: "可视化未完成",
       title: "这段内容暂时无法绘制",
-      body: `<p class="yd-artifact-error-text">${escapeHtml(message)} 已保留源码，可以继续让 AI 修正这一段。</p>`,
+      body: `<p class="yd-artifact-error-text">${escapeHtml(message)} 可以让 AI 重新生成这一段。</p>`,
       source,
       language,
       className: "yd-artifact-error"
@@ -1282,8 +1361,8 @@
   function createSandboxDocument(content, kind, options = {}) {
     const isInteractiveHtml = kind === "html";
     const baseStyle = kind === "svg"
-      ? "html,body{margin:0;min-height:100%;background:#fbfaf6}body{display:grid;place-items:center;padding:16px;box-sizing:border-box}svg{display:block;max-width:100%;height:auto}"
-      : "html,body{margin:0;min-height:100%;overflow-x:hidden;background:#fbfaf6;color:#2e2b27;font-family:system-ui,sans-serif;color-scheme:light}body{padding:24px;box-sizing:border-box}*{box-sizing:border-box}a{color:#a9512b}button,input,select,textarea{font:inherit}button,select,input:not([type=checkbox]):not([type=radio]),textarea{min-height:44px}:focus-visible{outline:2px solid #cf744d;outline-offset:2px}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}";
+      ? `${ARTIFACT_THEME_CSS}html,body{margin:0;min-height:100%;background:var(--yd-bg);color:var(--yd-ink);color-scheme:light}body{display:grid;place-items:center;padding:16px;box-sizing:border-box}svg{display:block;max-width:100%;height:auto}`
+      : `${ARTIFACT_THEME_CSS}html,body{margin:0;min-height:100%;overflow-x:hidden;background:var(--yd-bg);color:var(--yd-ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color-scheme:light}body{padding:clamp(16px,3vw,24px);box-sizing:border-box}*{box-sizing:border-box}::selection{background:var(--yd-accent-soft);color:var(--yd-ink)}a{color:var(--yd-accent-deep);text-underline-offset:.16em}button,input,select,textarea{font:inherit}button,select,input:not([type=checkbox]):not([type=radio]),textarea{min-height:44px}:focus-visible{outline:2px solid var(--yd-accent-deep);outline-offset:3px}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}`;
     const contentSecurityPolicy = isInteractiveHtml
       ? "default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; font-src data:; script-src 'unsafe-inline'; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; child-src 'none'; form-action 'none'; base-uri 'none'"
       : "default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; font-src data:; script-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; child-src 'none'; form-action 'none'; base-uri 'none'";
@@ -1309,7 +1388,7 @@
 
     return renderArtifactShell({
       eyebrow: "结构图",
-      title: "可视化说明",
+      title: extractEmbeddedTitle(source, "结构关系"),
       body,
       source,
       language: "svg",
@@ -1335,8 +1414,8 @@
     const body = `<iframe class="yd-artifact-sandbox yd-artifact-html-frame" sandbox="allow-scripts" allow="" referrerpolicy="no-referrer" loading="lazy" data-yd-artifact-frame="${escapeHtml(frameId)}" title="AI 生成的交互式 HTML Artifact" srcdoc="${escapeHtml(srcdoc)}"></iframe>`;
 
     return renderArtifactShell({
-      eyebrow: "交互式 HTML Artifact",
-      title: "交互内容预览",
+      eyebrow: "交互内容",
+      title: extractEmbeddedTitle(rawSource, "交互内容"),
       body,
       source,
       language: "html",
@@ -1374,6 +1453,7 @@
   }
 
   const publicApi = {
+    ARTIFACT_THEME,
     ARTIFACT_LANGUAGES: Object.freeze([...ARTIFACT_LANGUAGES]),
     createSandboxDocument,
     isArtifactLanguage,

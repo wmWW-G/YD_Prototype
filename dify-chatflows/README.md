@@ -15,12 +15,12 @@ dify-chatflows/<一级功能区>-<二级模块>-<chatflow名称>/
 示例：
 
 ```text
-dify-chatflows/成交顾问-客户背调顾问-客户背调DeepSeek/
-dify-chatflows/成交顾问-询盘分析回复-询盘分析DeepSeek/
-dify-chatflows/客户Kass-客户档案-跟进建议/
+dify-chatflows/Chatflow-全技能总控示例/
+dify-chatflows/Chatflow-不需要知识库的总库/
+dify-chatflows/客户Kass-客户管理-KASS-Agent/
 ```
 
-如果同一个赢单功能会调用多个 Dify 应用，就为每个应用建独立目录，不要把多个应用混在一个文件里。
+如果同一个赢单功能会调用多个独立 Dify 应用，就为每个应用建独立目录，不要把多个应用混在一个文件里。已经收进总控 Chatflow 的业务 Skill 直接维护总控里的路由和 Prompt，不再保留重复的独立 Chatflow YML。
 
 ## 应用类型和接口适配
 
@@ -37,12 +37,12 @@ dify-chatflows/客户Kass-客户档案-跟进建议/
 
 | 赢单功能路径 | Chatflow 目录 | Dify 应用 | 状态 |
 | --- | --- | --- | --- |
-| `成交顾问 > 客户背调顾问` | `成交顾问-客户背调顾问-客户背调DeepSeek/` | `客户背调DeepSeek` | 已完成 2026-07-04 API 连通性测试，`POST /chat-messages` 和 `GET /parameters` 均返回 `200` |
+| `成交顾问 > 客户背调顾问` | `Chatflow-不需要知识库的总库/` | `赢单｜不需要知识库的总库` | 通过固定 `skill_key=customer-research` 路由；使用通用 Dify 流式代理，不再保留早期独立背调 App 资料 |
 | `技能Skill > YD Artifact` | `技能Skill-YD-Artifact/` | `YD Artifact` | `prompt.md` 提供可直接替换的 LLM System Prompt，支持交互式 `html-artifact` 及现有 Mermaid、ECharts、SVG 输出 |
-| `技能Skill > 市场调研` | 由页面顶栏配置保存 | 对话型应用 | 使用普通对话应用模式；API Key 由 Vercel 后端读取或加密保存，不写入仓库 |
-| `总控 > 需要共享知识库` | `Chatflow-全技能总控示例/` | `赢单｜全技能总控 Chatflow` | 汇总 14 个需要共享知识库的业务 Skill |
+| `技能Skill > 市场调研` | `Chatflow-不需要知识库的总库/` | `赢单｜不需要知识库的总库` | 通过固定 `skill_key=market-research` 路由；API Key 由后端读取或加密保存，不写入仓库 |
+| `总控 > 需要共享知识库` | `Chatflow-全技能总控示例/` | `赢单｜全技能总控 Chatflow` | 汇总 14 个需要共享知识库的业务 Skill；Prompt 已直接内置，不依赖独立 Skill Chatflow |
 | `总控 > 不需要知识库` | `Chatflow-不需要知识库的总库/` | `赢单｜不需要知识库的总库` | 只包含客户背调和市场调研，不创建或注入知识库检索链路 |
-| `客户Kass > 客户管理` | `客户Kass-客户管理-KASS-Agent/` | `赢单｜客户 KASS CRM Agent` | 本地 DSL 已生成；Agent 使用 `yingdan-kass` Tool Plugin 的 12 个非文件工具，导入前需先安装插件并配置 Provider 凭证 |
+| `客户Kass > 客户管理` | `客户Kass-客户管理-KASS-Agent/` | `赢单｜客户 KASS CRM Agent` | 本地 DSL 已生成；Agent 使用 `yingdan-kass` Tool Plugin 的 12 个非文件工具，支持页面当前客户线索与受控 Artifact，导入前需先安装插件并配置 Provider 凭证 |
 
 ## 每个应用目录应包含
 

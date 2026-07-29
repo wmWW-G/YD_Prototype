@@ -1,0 +1,4 @@
+interface:
+  display_name: "赢单高并发测试"
+  short_description: "压测赢单正式链路并核对 Dify Console 日志与失败节点"
+  default_prompt: "使用 $yingdan-high-concurrency-test 对指定赢单正式功能链接执行可配置高并发测试，并核对用户 39 的 Dify 日志。"

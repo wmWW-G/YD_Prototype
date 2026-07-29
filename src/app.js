@@ -29,6 +29,8 @@
  *   kassAgentDraft: string,
  *   kassAgentMessages: Array<{ id: string, role: "user" | "assistant", content: string }>,
  *   kassAgentThinking: boolean,
+ *   kassPrototypeHydratedCustomerIds: Set<string>,
+ *   kassPrototypeHydratingCustomerIds: Set<string>,
  *   kassRecordFormOpen: boolean,
  *   kassResearchOpen: boolean,
  *   kassCompletedTaskIds: Set<string>,
@@ -52,12 +54,6 @@
  *   chatQuestion: string,
  *   isGenerating: boolean,
  *   generatedResult: string,
- *   customerResearchApiKey: string,
- *   customerResearchConversationId: string,
- *   customerResearchUserId: string,
- *   customerResearchLiveAnswer: string,
- *   customerResearchError: string,
- *   customerResearchMessages: Array<{ id: string, role: "user" | "assistant", content: string, status?: "loading" | "error" | "done", usage?: object | null, billingTrace?: object | null, workflowRunId?: string }>,
  *   difyFeatureConfigs: Record<string, { appType: "dialogue" | "chatflow", apiKeyDraft: string, skillKey: string, skillKeyDraft: string, hasKey: boolean, maskedKey: string, appName: string, appMode: string, loaded: boolean, loading: boolean, saving: boolean, error: string, storageReady: boolean }>,
  *   difyFeatureSessions: Record<string, { messages: Array<{ id: string, role: "user" | "assistant", content: string, status: "loading" | "error" | "done", processSteps?: object[], currentProcess?: object | null, processCollapsed?: boolean, processExpanded?: boolean, answerStarted?: boolean }>, conversationId: string, userId: string, error: string, isGenerating: boolean }>,
  *   inviteCodeDraft: string,
@@ -77,36 +73,6 @@
  * }}
  */
 const USER_PREVIEW_DEFAULT_FIELD_IDS = ["logIndex", "usedAt", "userContact", "lastActiveAt", "activeDays", "calledFeature", "calledModel", "callCount", "inputToken", "outputToken", "totalToken", "creditBalance", "runStatus", "estimatedCost", "operationLog", "trialDetails"];
-
-/**
- * 客户背调代理接口地址。
- *
- * 为什么优先走代理：
- * - GitHub Pages 是静态站，不能安全保存 Dify API Key。
- * - 用户浏览器直连 Dify 容易被扩展、网络或安全策略拦截。
- * - 代理会在服务端读取环境变量里的 key，页面无需用户手动填写。
- *
- * @type {string}
- */
-const CUSTOMER_RESEARCH_PROXY_URL = "https://yd-prototype-dify-proxy.vercel.app/api/dify-customer-research";
-
-/**
- * Dify 官方接口地址，仅保留给调试模式使用。
- *
- * @type {string}
- */
-const CUSTOMER_RESEARCH_DIRECT_DIFY_URL = "https://api.dify.ai/v1/chat-messages";
-
-/**
- * 客户背调前端等待上限。
- *
- * 为什么前端也要设上限：
- * - Dify 工作流可能因为检索、长思考或外部节点变慢，导致浏览器一直停在生成态。
- * - 超时后给出准确提示，比误报“浏览器没连上代理”更利于排查。
- *
- * @type {number}
- */
-const CUSTOMER_RESEARCH_REQUEST_TIMEOUT_MS = 240000;
 
 /**
  * 客户开发搜索动画的可见时长。
@@ -239,6 +205,8 @@ const state = {
   kassAgentThinking: false,
   kassPrototypeWorkspaceId: "",
   kassPrototypeSyncing: false,
+  kassPrototypeHydratedCustomerIds: new Set(),
+  kassPrototypeHydratingCustomerIds: new Set(),
   kassRecordFormOpen: false,
   kassResearchOpen: false,
   kassCompletedTaskIds: new Set(),
@@ -267,12 +235,6 @@ const state = {
   chatQuestion: "",
   isGenerating: false,
   generatedResult: "",
-  customerResearchApiKey: "",
-  customerResearchConversationId: "",
-  customerResearchUserId: `yd-prototype-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-  customerResearchLiveAnswer: "",
-  customerResearchError: "",
-  customerResearchMessages: [],
   difyFeatureConfigs: Object.create(null),
   difyFeatureSessions: Object.create(null),
   inviteCodeDraft: "",
@@ -877,50 +839,10 @@ function normalizeDifyApiKey(value) {
 }
 
 /**
- * 获取当前页面应该调用的客户背调代理地址。
- *
- * 为什么支持 window 注入：
- * - 线上 GitHub Pages 直接使用默认 Vercel 代理。
- * - 开发同事如果要临时换代理，可以在控制台设置 window.YD_DIFY_CUSTOMER_RESEARCH_PROXY_URL。
- * - 如果整个原型部署到 Vercel，同源 `/api/...` 也能直接工作。
- *
- * @returns {string} 代理地址；空字符串表示没有代理可用。
- * @throws {Error} 本函数不主动抛异常。
- */
-function getCustomerResearchProxyUrl() {
-  const injected = window.YD_DIFY_CUSTOMER_RESEARCH_PROXY_URL;
-
-  if (typeof injected === "string" && injected.trim()) {
-    return injected.trim();
-  }
-
-  if (window.location.hostname.endsWith("vercel.app")) {
-    return "/api/dify-customer-research";
-  }
-
-  return CUSTOMER_RESEARCH_PROXY_URL;
-}
-
-/**
- * 判断是否启用前端直连 Dify 的调试模式。
- *
- * @returns {boolean} URL 上带 ?difyDebug=1 时返回 true。
- * @throws {Error} 本函数不主动抛异常；URL 解析失败时默认关闭。
- */
-function isCustomerResearchDirectDebugMode() {
-  try {
-    return new URLSearchParams(window.location.search).get("difyDebug") === "1";
-  } catch (error) {
-    return false;
-  }
-}
-
-/**
  * 判断是否展示客户背调成本追踪面板。
  *
- * 为什么单独用 costDebug:
- * - `?difyDebug=1` 已经被用于前端直连 Dify 和临时填写 Key。
- * - 成本追踪必须走代理才能拿到聚合后的 billing_trace, 不能复用直连开关。
+ * 为什么使用独立调试参数：
+ * - 通用 Dify 代理会返回脱敏后的 billing_trace，成本面板只负责展示这份内部排障数据。
  * - 普通用户不应该看到 workflow、token、工具调用等内部信息。
  *
  * @returns {boolean} URL 上带 ?costDebug=1 或 ?difyTrace=1 时返回 true。
@@ -1506,9 +1428,7 @@ function renderApp() {
     // API Key 由环境变量或加密配置存储提供，浏览器只能得到掩码元数据。
     void loadDifyFeatureConfig(KASS_DIFY_FEATURE_ID);
     const currentKassCustomer = getKassWorkbenchCustomer(getKassWorkbenchGroup());
-    if (!state.kassPrototypeSyncing) {
-      void hydrateKassPrototypeCustomer(currentKassCustomer);
-    }
+    void hydrateKassPrototypeCustomer(currentKassCustomer);
     console.log("[reverse-yingdan] 客户 Kass 作战台已渲染", {
       activeMain: state.activeMain,
       activeCustomerId: state.activeCustomerId,
@@ -9618,37 +9538,6 @@ function renderCustomerResearchQuestionThread() {
 }
 
 /**
- * 渲染客户背调的 Dify 调试 Key 输入框。
- *
- * 为什么只在调试模式显示：
- * - 正常体验应该和其它 AI 对话入口一致，用户不需要看到接口细节。
- * - `?difyDebug=1` 是开发/排障入口，才允许临时直连 Dify 并粘贴 Key。
- * - Key 只存在当前页面内存，不落本地存储，也不会写进源码。
- *
- * @param {"default" | "compact"} variant - 控件形态；对话态左侧用 compact 版本，避免挤压输入区。
- * @returns {string} 调试输入框 HTML；非客户背调或非调试模式时返回空字符串。
- * @throws {Error} 本函数不主动抛异常。
- */
-function renderCustomerResearchDebugKeyField(variant = "default") {
-  if (state.activeMain !== "customer-research") {
-    return "";
-  }
-
-  const proxyUrl = getCustomerResearchProxyUrl();
-
-  if (proxyUrl && !isCustomerResearchDirectDebugMode()) {
-    return "";
-  }
-
-  return `
-    <label class="customer-research-debug-key ${variant === "compact" ? "compact" : ""}">
-      <span>Dify API Key</span>
-      <input type="password" placeholder="调试模式：粘贴 app- 开头的 Dify Key" value="${escapeHtml(state.customerResearchApiKey)}" data-customer-research-key="true" autocomplete="off" />
-    </label>
-  `;
-}
-
-/**
  * 把计费追踪里的数字格式化为易读文本。
  *
  * @param {unknown} value - 可能来自 Dify metadata 或 billing_trace 的数字。
@@ -10897,6 +10786,63 @@ async function ensureKassPrototypeCustomer(customer) {
 }
 
 /**
+ * 把异步恢复后的客户数据原位同步到当前可见区域。
+ *
+ * 为什么不能再调用 renderApp：
+ * - renderApp 会替换整个 #app，侧栏、页签、对话和客户资料会同时销毁重建。
+ * - 原型接口通常需要数秒才返回，延迟整页重建会形成非常明显的“又闪一下”。
+ * - 这里只更新当前客户的数据区域；现有页签和对话 DOM 保持不动。
+ *
+ * @param {typeof KASS_GROUPS[number]["customers"][number]} customer - 已完成恢复的客户。
+ * @returns {boolean} 找到并更新当前可见客户区域时返回 true。
+ * @throws {Error} DOM 模板解析错误继续抛出，便于开发环境发现结构问题。
+ */
+function refreshKassHydratedCustomerRegion(customer) {
+  if (
+    !isKassWorkbenchView()
+    || !customer
+    || state.activeCustomerId !== customer.id
+  ) {
+    return false;
+  }
+
+  if (isKassComparisonView()) {
+    const currentContext = document.querySelector(".kass-compare-context");
+    if (!currentContext) {
+      return false;
+    }
+
+    const template = document.createElement("template");
+    template.innerHTML = renderKassComparisonContext(customer).trim();
+    const nextContext = template.content.firstElementChild;
+    if (!nextContext) {
+      return false;
+    }
+
+    const updatedContext = morphKassStreamNode(currentContext, nextContext);
+    bindKassTaskToggleEvents(updatedContext);
+    return true;
+  }
+
+  if (!["profile", "followups"].includes(state.activeKassTab)) {
+    // AI 助理页没有客户资料正文；下次切换页签时会直接读取已合并的数据。
+    return false;
+  }
+
+  const tabBody = document.querySelector(".kass-workspace-tab-body");
+  if (!tabBody) {
+    return false;
+  }
+
+  const nextHtml = state.activeKassTab === "profile"
+    ? renderKassWorkspaceTab(customer)
+    : renderKassFollowupTab(customer);
+  morphKassStreamHtml(tabBody, nextHtml);
+  bindKassTaskToggleEvents(tabBody);
+  return true;
+}
+
+/**
  * 在进入 KASS 页面或切换客户后恢复该浏览器上次保存的原型状态。
  *
  * @param {typeof KASS_GROUPS[number]["customers"][number] | null | undefined} customer - 当前客户。
@@ -10904,21 +10850,33 @@ async function ensureKassPrototypeCustomer(customer) {
  * @throws {Error} 错误会在函数内记录，不阻断静态原型浏览。
  */
 async function hydrateKassPrototypeCustomer(customer) {
-  if (!customer || state.kassPrototypeSyncing) {
+  const customerRef = String(customer?.id || "");
+  if (
+    !customerRef
+    || state.kassPrototypeSyncing
+    || state.kassPrototypeHydratedCustomerIds.has(customerRef)
+    || state.kassPrototypeHydratingCustomerIds.has(customerRef)
+  ) {
     return;
   }
 
-  state.kassPrototypeSyncing = true;
+  state.kassPrototypeHydratingCustomerIds.add(customerRef);
+  const beforeSnapshot = createKassSyncMotionSnapshot(customer);
   try {
     await ensureKassPrototypeCustomer(customer);
-    renderApp();
+    state.kassPrototypeHydratedCustomerIds.add(customerRef);
+
+    const afterSnapshot = createKassSyncMotionSnapshot(customer);
+    if (JSON.stringify(beforeSnapshot) !== JSON.stringify(afterSnapshot)) {
+      refreshKassHydratedCustomerRegion(customer);
+    }
   } catch (error) {
     console.warn("[reverse-yingdan] KASS 原型客户恢复失败", {
-      customerRef: customer.id,
+      customerRef,
       message: error instanceof Error ? error.message : "unknown"
     });
   } finally {
-    state.kassPrototypeSyncing = false;
+    state.kassPrototypeHydratingCustomerIds.delete(customerRef);
   }
 }
 
@@ -12617,6 +12575,55 @@ function bindCostMonitorEvents() {
 }
 
 /**
+ * 给客户跟进区域中的待办复选框绑定一次状态切换事件。
+ *
+ * 异步恢复客户数据时会原位补充新的跟进与待办节点，因此这里支持传入局部根节点。
+ * `__kassTaskToggleBound` 防止同一个复选框重复绑定，避免一次点击执行多次状态更新。
+ *
+ * @param {Document | Element} [root=document] - 需要扫描的页面或客户局部区域。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function bindKassTaskToggleEvents(root = document) {
+  root.querySelectorAll("[data-kass-task-toggle]").forEach((checkbox) => {
+    if (checkbox.__kassTaskToggleBound) {
+      return;
+    }
+
+    checkbox.__kassTaskToggleBound = true;
+    checkbox.addEventListener("change", () => {
+      const taskId = checkbox.getAttribute("data-kass-task-toggle");
+
+      if (!taskId) {
+        return;
+      }
+
+      if (checkbox.checked) {
+        state.kassCompletedTaskIds.add(taskId);
+      } else {
+        state.kassCompletedTaskIds.delete(taskId);
+      }
+
+      console.log("[reverse-yingdan] 已更新跟进关联待办状态", {
+        customerId: state.activeCustomerId,
+        taskId,
+        completed: checkbox.checked
+      });
+
+      // 这里只局部更新当前待办，避免整页重绘把用户正在展开的历史记录重新折叠。
+      const taskRow = checkbox.closest(".kass-linked-task");
+      const statusNode = taskRow?.querySelector(".kass-linked-task-copy small");
+      taskRow?.classList.toggle("completed", checkbox.checked);
+      if (statusNode) {
+        const status = checkbox.getAttribute("data-kass-task-status") || "待处理";
+        const dueDate = checkbox.getAttribute("data-kass-task-due") || "待定";
+        statusNode.textContent = checkbox.checked ? "已完成" : `${status} · 截止 ${dueDate}`;
+      }
+    });
+  });
+}
+
+/**
  * 绑定当前页面所有静态原型交互。
  *
  * @returns {void}
@@ -13157,37 +13164,7 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll("[data-kass-task-toggle]").forEach((checkbox) => {
-    checkbox.addEventListener("change", () => {
-      const taskId = checkbox.getAttribute("data-kass-task-toggle");
-
-      if (!taskId) {
-        return;
-      }
-
-      if (checkbox.checked) {
-        state.kassCompletedTaskIds.add(taskId);
-      } else {
-        state.kassCompletedTaskIds.delete(taskId);
-      }
-
-      console.log("[reverse-yingdan] 已更新跟进关联待办状态", {
-        customerId: state.activeCustomerId,
-        taskId,
-        completed: checkbox.checked
-      });
-
-      // 这里只局部更新当前待办，避免整页重绘把用户正在展开的历史记录重新折叠。
-      const taskRow = checkbox.closest(".kass-linked-task");
-      const statusNode = taskRow?.querySelector(".kass-linked-task-copy small");
-      taskRow?.classList.toggle("completed", checkbox.checked);
-      if (statusNode) {
-        const status = checkbox.getAttribute("data-kass-task-status") || "待处理";
-        const dueDate = checkbox.getAttribute("data-kass-task-due") || "待定";
-        statusNode.textContent = checkbox.checked ? "已完成" : `${status} · 截止 ${dueDate}`;
-      }
-    });
-  });
+  bindKassTaskToggleEvents();
 
   document.querySelectorAll("[data-kass-save-analysis]").forEach((button) => {
     button.addEventListener("click", () => {

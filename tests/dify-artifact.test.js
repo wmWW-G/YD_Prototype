@@ -5,6 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const {
+  ARTIFACT_THEME,
   isArtifactLanguage,
   parseMermaidFlowchart,
   parseMermaidTimeline,
@@ -34,7 +35,67 @@ test("keeps the replacement Chatflow prompt aligned with the interactive rendere
   assert.match(prompt, /完整、自包含、可直接运行的 HTML/);
   assert.match(prompt, /至少实现一个与用户任务有关的真实交互/);
   assert.match(prompt, /禁止外部 CDN、外部脚本、外部样式/);
+  assert.match(prompt, /`<title>` 必须填写用户能理解的业务标题/);
+  assert.match(prompt, /--yd-accent: #ff7830/);
+  assert.match(prompt, /不绘制、仿制或放置赢单 Logo/);
+  assert.match(prompt, /不要在可视化内部显示“YD Artifact”“动态生成”/);
+  assert.doesNotMatch(prompt, /温暖编辑部工作台/);
   assert.doesNotMatch(prompt, /不能生成 HTML/);
+});
+
+test("uses the approved logo-free YD Artifact theme across host and sandbox rendering", () => {
+  const styles = fs.readFileSync(path.join(__dirname, "../src/styles.css"), "utf8");
+  const artifactStylesStart = styles.indexOf("YD Artifact：Dify 可视化回答适配");
+  const artifactStylesEnd = styles.indexOf("\n.chat-view", artifactStylesStart);
+  const artifactStyles = styles.slice(artifactStylesStart, artifactStylesEnd);
+  const html = renderHtmlArtifact("<main><button>继续</button></main>");
+
+  assert.equal(ARTIFACT_THEME.background, "#fbfaf7");
+  assert.equal(ARTIFACT_THEME.accent, "#ff7830");
+  assert.equal(ARTIFACT_THEME.accentDeep, "#b84700");
+  assert.match(artifactStyles, /--artifact-accent: #ff7830/);
+  assert.match(artifactStyles, /border-radius: 4px 24px 4px 24px/);
+  assert.match(artifactStyles, /\.yd-artifact-accent/);
+  assert.doesNotMatch(artifactStyles, /\.yd-artifact-mark/);
+  assert.doesNotMatch(artifactStyles, /\.yd-artifact-live/);
+  assert.match(html, /--yd-bg:#fbfaf7/);
+  assert.match(html, /--yd-accent:#ff7830/);
+  assert.match(html, /--yd-accent-deep:#b84700/);
+  assert.doesNotMatch(html, /#cf744d|#fbfaf6|#a9512b/);
+});
+
+test("keeps implementation labels and generated source out of the default user view", () => {
+  const rendered = renderUiArtifact(JSON.stringify({
+    component: "metrics",
+    title: "推进概览",
+    metrics: [{ label: "待确认", value: "3" }]
+  }));
+  const loading = renderArtifactCodeBlock({
+    language: "html-artifact",
+    code: "<main>",
+    isComplete: false
+  });
+
+  assert.doesNotMatch(rendered, /动态生成|查看生成源码|YD Artifact|✦/);
+  assert.doesNotMatch(loading, /正在构建 Artifact|YD Artifact|动态生成/);
+  assert.match(loading, /可视化内容生成中/);
+  assert.match(loading, /yd-artifact-skeleton/);
+});
+
+test("shows generated source only when internal Artifact debugging is explicitly enabled", () => {
+  globalThis.YD_ARTIFACT_DEBUG_SOURCE = true;
+  try {
+    const html = renderUiArtifact(JSON.stringify({
+      component: "metrics",
+      title: "调试样例",
+      metrics: [{ label: "数量", value: "1" }]
+    }));
+
+    assert.match(html, /查看生成源码/);
+    assert.match(html, /language-ui/);
+  } finally {
+    delete globalThis.YD_ARTIFACT_DEBUG_SOURCE;
+  }
 });
 
 test("keeps the KASS Agent workflow aligned with prototype CRUD and Artifact contracts", () => {
@@ -136,6 +197,49 @@ test("defers KASS customer-pane rendering until the Agent run is complete", () =
   assert.doesNotMatch(mutationSource, /motionSourceMessageId/);
   assert.match(senderSource, /renderKassContextPreservingConversation\(\)/);
   assert.match(senderSource, /scheduleKassSyncMotion\(motionPlan, pendingAnswerId\)/);
+});
+
+test("hydrates each KASS customer once without rebuilding the whole app", async () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const hydrateStart = source.indexOf("async function hydrateKassPrototypeCustomer");
+  const hydrateEnd = source.indexOf("\n/**", hydrateStart + 1);
+  const hydrateSource = source.slice(hydrateStart, hydrateEnd);
+  let ensureCalls = 0;
+  let regionRefreshes = 0;
+  let fullAppRenders = 0;
+  const sandbox = {
+    state: {
+      kassPrototypeSyncing: false,
+      kassPrototypeHydratedCustomerIds: new Set(),
+      kassPrototypeHydratingCustomerIds: new Set()
+    },
+    createKassSyncMotionSnapshot() {
+      return { version: ensureCalls };
+    },
+    async ensureKassPrototypeCustomer() {
+      ensureCalls += 1;
+    },
+    refreshKassHydratedCustomerRegion() {
+      regionRefreshes += 1;
+    },
+    renderApp() {
+      fullAppRenders += 1;
+    },
+    console: { warn() {} }
+  };
+
+  vm.runInNewContext(
+    `${hydrateSource}; this.hydrateKassPrototypeCustomer = hydrateKassPrototypeCustomer;`,
+    sandbox
+  );
+
+  const customer = { id: "customer-a" };
+  await sandbox.hydrateKassPrototypeCustomer(customer);
+  await sandbox.hydrateKassPrototypeCustomer(customer);
+
+  assert.equal(ensureCalls, 1, "同一客户只能请求一次初始化数据");
+  assert.equal(regionRefreshes, 1, "数据确实变化时只局部刷新客户内容");
+  assert.equal(fullAppRenders, 0, "异步数据返回后不能再次整页 renderApp");
 });
 
 test("keeps the KASS prototype plugin isolated from real CRM credentials", () => {
@@ -270,14 +374,16 @@ test("renders stable ui JSON components and escapes model-provided labels", () =
 });
 
 test("keeps SVG scriptless while allowing interactive HTML only inside an opaque sandbox", () => {
-  const svgHtml = renderSvgArtifact('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300"><rect width="600" height="300" fill="#f5f2ea"/><text x="40" y="80">结构图</text></svg>');
-  const artifactHtml = renderHtmlArtifact('<main><h1>交互内容</h1><button id="next">下一步</button><output id="result">第 1 步</output><script>document.querySelector("#next").addEventListener("click", function () { document.querySelector("#result").textContent = "第 2 步"; });</script></main>');
+  const svgHtml = renderSvgArtifact('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300"><title>客户决策关系</title><rect width="600" height="300" fill="#f5f2ea"/><text x="40" y="80">结构图</text></svg>');
+  const artifactHtml = renderHtmlArtifact('<title>客户决策推进面板</title><main><h1>交互内容</h1><button id="next">下一步</button><output id="result">第 1 步</output><script>document.querySelector("#next").addEventListener("click", function () { document.querySelector("#result").textContent = "第 2 步"; });</script></main>');
 
   assert.match(svgHtml, /sandbox=""/);
   assert.match(svgHtml, /Content-Security-Policy/);
   assert.match(svgHtml, /script-src &#039;none&#039;/);
+  assert.match(svgHtml, /客户决策关系/);
   assert.match(svgHtml, /结构图/);
   assert.match(artifactHtml, /sandbox="allow-scripts"/);
+  assert.match(artifactHtml, /客户决策推进面板/);
   assert.doesNotMatch(artifactHtml, /allow-same-origin|allow-forms|allow-popups|allow-top-navigation/);
   assert.match(artifactHtml, /script-src &#039;unsafe-inline&#039;/);
   assert.match(artifactHtml, /connect-src &#039;none&#039;/);
@@ -314,7 +420,7 @@ test("rejects dangerous SVG content and keeps it escaped inside a visible fallba
 
   assert.match(html, /可视化未完成/);
   assert.match(html, /不允许的可执行或嵌入元素/);
-  assert.match(html, /&lt;script&gt;/);
+  assert.doesNotMatch(html, /&lt;script&gt;/);
   assert.doesNotMatch(html, /<script>/i);
 });
 
@@ -337,7 +443,8 @@ test("shows a stable skeleton while a streamed visual fence is incomplete", () =
   });
 
   assert.match(html, /yd-artifact-loading/);
-  assert.match(html, /正在绘制流程图/);
+  assert.match(html, /可视化内容生成中/);
+  assert.doesNotMatch(html, /正在绘制流程图|正在构建 Artifact|动态生成/);
   assert.doesNotMatch(html, /可视化未完成/);
 });
 

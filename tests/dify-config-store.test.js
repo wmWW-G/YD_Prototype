@@ -69,7 +69,7 @@ test("saves one encrypted configuration per feature and never returns the origin
   assert.equal(metadata.appName, "外贸市场调研");
 });
 
-test("uses existing Vercel environment keys as a compatibility fallback", async () => {
+test("keeps ordinary environment fallbacks but does not revive the removed customer-research app", async () => {
   const store = createDifyConfigStore({
     fetchImpl: async () => new Response(JSON.stringify({ result: null }), { status: 200 }),
     env: {
@@ -83,8 +83,7 @@ test("uses existing Vercel environment keys as a compatibility fallback", async 
   const ydArtifact = await store.read("yd-artifact");
   const marketResearch = await store.read("market-research");
 
-  assert.equal(customerResearch.appType, APP_TYPES.CHATFLOW);
-  assert.equal(customerResearch.apiKey, "app-customer-secret");
+  assert.equal(customerResearch, null);
   assert.equal(ydArtifact.appType, APP_TYPES.CHATFLOW);
   assert.equal(ydArtifact.apiKey, "app-artifact-secret");
   assert.equal(marketResearch.appType, APP_TYPES.CHATFLOW);

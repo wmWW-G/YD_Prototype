@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>全技能总控 Chatflow｜单次运行成本追踪</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      /*
+       * 成片可能在没有网络字体的渲染环境中生成。
+       * 显式声明常见系统字体，可以让中文排版更稳定。
+       */
+      @font-face {
+        font-family: "PingFang SC";
+        src: local("PingFang SC");
+      }
+
+      @font-face {
+        font-family: "Microsoft YaHei";
+        src: local("Microsoft YaHei");
+      }
+
+      @font-face {
+        font-family: "Songti SC";
+        src: local("Songti SC");
+      }
+
+      @font-face {
+        font-family: "SFMono-Regular";
+        src: local("SFMono-Regular");
+      }
+
+      :root {
+        --paper: #f6f0e4;
+        --paper-2: #ede3d1;
+        --card: #fffaf0;
+        --ink: #173a2a;
+        --muted: #617066;
+        --line: #d6c8b0;
+        --dark: #0f2a1d;
+        --accent: #a54d20;
+        --accent-soft: #fff0dc;
+        --good: #286f4d;
+        --good-soft: #eaf4ec;
+        --idle: #62645d;
+        --white: #fffaf0;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--paper);
+        color: var(--ink);
+      }
+
+      body {
+        font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      .mono,
+      code {
+        font-family: "SFMono-Regular", monospace;
+        font-variant-numeric: tabular-nums;
+      }
+
+      #root {
+        position: relative;
+        display: grid;
+        grid-template-rows: 76px 640px 250px;
+        gap: 19px;
+        width: 1920px;
+        height: 1080px;
+        padding: 38px 48px;
+        overflow: hidden;
+        background:
+          linear-gradient(90deg, rgba(23, 58, 42, 0.025) 1px, transparent 1px) 0 0 / 24px 24px,
+          linear-gradient(rgba(23, 58, 42, 0.025) 1px, transparent 1px) 0 0 / 24px 24px,
+          var(--paper);
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        border-bottom: 2px solid var(--ink);
+      }
+
+      .title-lockup {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 52px;
+        height: 52px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--dark);
+        color: var(--white);
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .title-copy h1 {
+        font-family: "Songti SC", serif;
+        font-size: 40px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        line-height: 1;
+      }
+
+      .title-copy p {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .run-badge {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 16px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 250, 240, 0.72);
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .run-badge::before {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--accent);
+        content: "";
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 458px;
+        gap: 18px;
+        min-height: 0;
+      }
+
+      .flow-panel,
+      .ledger-panel,
+      .narration {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(255, 250, 240, 0.86);
+        box-shadow: 0 14px 34px rgba(15, 42, 29, 0.08);
+      }
+
+      .flow-panel {
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .panel-head {
+        display: flex;
+        height: 62px;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 22px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(237, 227, 209, 0.48);
+      }
+
+      .panel-head h2 {
+        font-size: 20px;
+        font-weight: 800;
+      }
+
+      .run-path {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .run-path span {
+        padding: 5px 9px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--card);
+      }
+
+      .flow-stage {
+        position: relative;
+        width: 100%;
+        height: 578px;
+        overflow: hidden;
+      }
+
+      .lane-label {
+        position: absolute;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+
+      .lane-label::before {
+        width: 18px;
+        height: 4px;
+        background: var(--line);
+        content: "";
+      }
+
+      .lane-files {
+        top: 23px;
+        left: 218px;
+      }
+
+      .lane-rag {
+        top: 183px;
+        left: 218px;
+      }
+
+      .lane-skill {
+        top: 342px;
+        left: 218px;
+      }
+
+      .connectors {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .connector {
+        fill: none;
+        stroke: #c9bba3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+      }
+
+      .connector.optional {
+        stroke-dasharray: 7 8;
+        stroke: #c9835c;
+      }
+
+      .join-dot {
+        fill: var(--accent);
+      }
+
+      .flow-node {
+        position: absolute;
+        z-index: 4;
+        min-height: 112px;
+        padding: 12px 13px;
+        border: 2px solid var(--line);
+        border-radius: 14px;
+        background: #f7f1e6;
+        opacity: 1;
+        transform-origin: center;
+        will-change: transform, opacity, background-color, border-color;
+      }
+
+      .flow-node.cost-node {
+        border-style: dashed;
+      }
+
+      .flow-node.small-node {
+        min-height: 96px;
+      }
+
+      .node-topline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .node-number {
+        color: var(--accent);
+        font-family: "SFMono-Regular", monospace;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .node-state {
+        position: relative;
+        width: 52px;
+        height: 20px;
+        color: var(--idle);
+        font-size: 11px;
+        font-weight: 700;
+        text-align: right;
+      }
+
+      .state-wait,
+      .state-done {
+        position: absolute;
+        inset: 0;
+        line-height: 20px;
+        will-change: opacity;
+      }
+
+      .state-done {
+        color: var(--good);
+        opacity: 0;
+      }
+
+      .flow-node h3 {
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1.18;
+      }
+
+      .flow-node p {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .node-cost-label {
+        display: inline-flex;
+        margin-top: 7px;
+        padding: 3px 7px;
+        border-radius: 6px;
+        background: var(--good-soft);
+        color: var(--good);
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .cost-node .node-cost-label {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .identity-alert {
+        margin-top: 8px;
+        padding: 7px 8px;
+        border-radius: 8px;
+        background: var(--dark);
+        color: var(--white);
+        font-size: 10px;
+        line-height: 1.4;
+      }
+
+      .identity-alert span,
+      .summary-equation span {
+        display: block;
+      }
+
+      #node-start {
+        top: 218px;
+        left: 20px;
+        width: 165px;
+      }
+
+      #node-files {
+        top: 56px;
+        left: 220px;
+        width: 190px;
+      }
+
+      #node-file-context {
+        top: 56px;
+        left: 438px;
+        width: 205px;
+      }
+
+      #node-retrieval-query {
+        top: 217px;
+        left: 220px;
+        width: 190px;
+      }
+
+      #node-rag {
+        top: 205px;
+        left: 438px;
+        width: 225px;
+        min-height: 135px;
+      }
+
+      #node-skill-router {
+        top: 376px;
+        left: 220px;
+        width: 190px;
+      }
+
+      #node-prompt {
+        top: 364px;
+        left: 438px;
+        width: 225px;
+        min-height: 135px;
+      }
+
+      #node-model-router {
+        top: 218px;
+        left: 728px;
+        width: 180px;
+      }
+
+      #node-agent {
+        top: 174px;
+        left: 952px;
+        width: 206px;
+        min-height: 195px;
+      }
+
+      #node-search {
+        top: 427px;
+        left: 926px;
+        width: 150px;
+      }
+
+      #node-extract {
+        top: 427px;
+        left: 1091px;
+        width: 178px;
+      }
+
+      #node-answer {
+        top: 226px;
+        left: 1204px;
+        width: 120px;
+      }
+
+      .agent-tools-label {
+        position: absolute;
+        z-index: 3;
+        top: 397px;
+        left: 952px;
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+      }
+
+      .ledger-panel {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--dark);
+        color: var(--white);
+      }
+
+      .ledger-head {
+        display: flex;
+        min-height: 78px;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        border-bottom: 1px solid rgba(255, 250, 240, 0.18);
+      }
+
+      .ledger-head h2 {
+        font-family: "Songti SC", serif;
+        font-size: 24px;
+      }
+
+      .ledger-head span {
+        color: #b9c9be;
+        font-size: 12px;
+      }
+
+      .ledger-list {
+        display: grid;
+        gap: 8px;
+        padding: 13px 14px 8px;
+      }
+
+      .ledger-row {
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: 10px;
+        min-height: 88px;
+        align-items: start;
+        padding: 11px 12px;
+        border: 1px solid rgba(255, 250, 240, 0.24);
+        border-radius: 12px;
+        background: rgba(255, 250, 240, 0.05);
+        opacity: 0.3;
+        will-change: transform, opacity, background-color, border-color;
+      }
+
+      .ledger-check {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border: 1px solid rgba(255, 250, 240, 0.3);
+        border-radius: 50%;
+        color: var(--white);
+        font-size: 14px;
+        opacity: 0;
+        will-change: opacity, transform;
+      }
+
+      .ledger-row h3 {
+        font-size: 15px;
+        line-height: 1.2;
+      }
+
+      .ledger-resource {
+        margin-top: 3px;
+        color: #e9bb99;
+        font-size: 11px;
+        line-height: 1.3;
+      }
+
+      .ledger-formula {
+        margin-top: 5px;
+        color: #b9c9be;
+        font-size: 11px;
+        line-height: 1.25;
+      }
+
+      .not-triggered {
+        margin: 0 14px 8px;
+        padding: 9px 11px;
+        border: 1px dashed rgba(255, 250, 240, 0.24);
+        border-radius: 10px;
+        color: #b9c9be;
+        font-size: 11px;
+        line-height: 1.35;
+      }
+
+      .ledger-total {
+        display: grid;
+        flex: 1;
+        min-height: 0;
+        align-content: center;
+        margin: 0 14px 14px;
+        padding: 11px 13px;
+        border-radius: 12px;
+        background: var(--accent);
+        transform-origin: center;
+        will-change: transform, background-color;
+      }
+
+      .ledger-total span {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+      }
+
+      .ledger-total strong {
+        margin-top: 4px;
+        font-size: 14px;
+        line-height: 1.35;
+      }
+
+      .narration {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .narration::before {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 10px;
+        background: var(--ink);
+        content: "";
+      }
+
+      .status-card {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-columns: 112px minmax(0, 1fr) 330px;
+        gap: 24px;
+        align-items: center;
+        padding: 26px 32px 26px 38px;
+        opacity: 0;
+        will-change: transform, opacity;
+      }
+
+      .status-step {
+        display: grid;
+        width: 88px;
+        height: 88px;
+        place-items: center;
+        border: 2px solid var(--line);
+        border-radius: 50%;
+        color: var(--accent);
+        font-family: "SFMono-Regular", monospace;
+        font-size: 28px;
+        font-weight: 800;
+      }
+
+      .status-copy .eyebrow {
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+
+      .status-copy h2 {
+        margin-top: 7px;
+        font-family: "Songti SC", serif;
+        font-size: 33px;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+      }
+
+      .status-copy p {
+        max-width: 980px;
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.5;
+      }
+
+      .decision {
+        padding: 18px 20px;
+        border-radius: 15px;
+        background: var(--good-soft);
+        color: var(--good);
+      }
+
+      .decision.cost {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .decision small {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+      }
+
+      .decision strong {
+        display: block;
+        font-size: 24px;
+        line-height: 1.2;
+      }
+
+      .decision code {
+        display: block;
+        margin-top: 8px;
+        color: currentColor;
+        font-size: 11px;
+        line-height: 1.4;
+      }
+
+      .summary-card {
+        grid-template-columns: 112px minmax(0, 1fr) 410px;
+      }
+
+      .summary-card .status-step {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: var(--white);
+      }
+
+      .summary-equation {
+        padding: 17px 20px;
+        border-radius: 15px;
+        background: var(--dark);
+        color: var(--white);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+
+      .summary-equation strong {
+        color: #efbd96;
+      }
+    </style>
+  </head>
+  <body>
+    <main data-hf-id="hf-mm1w" id="root" data-composition-id="chatflow-cost-node-run" data-start="0" data-duration="39" data-width="1920" data-height="1080">
+      <header data-hf-id="hf-6f4s" class="topbar">
+        <div data-hf-id="hf-evmh" class="title-lockup">
+          <div data-hf-id="hf-2fv2" class="brand-mark">YD</div>
+          <div data-hf-id="hf-cirs" class="title-copy">
+            <h1 data-hf-id="hf-iauk">全技能总控 Chatflow｜单次运行成本追踪</h1>
+            <p data-hf-id="hf-lz1r">一张画布看完：节点怎么走、哪里不计费、哪里才真正记账</p>
+          </div>
+        </div>
+        <div data-hf-id="hf-r568" class="run-badge mono">模拟路径 · 无附件 · cold-email · DeepSeek · Tavily × 2</div>
+      </header>
+
+      <section data-hf-id="hf-m2yj" class="workspace">
+        <section data-hf-id="hf-dubt" class="flow-panel">
+          <div data-hf-id="hf-95fx" class="panel-head">
+            <h2 data-hf-id="hf-1xbw">节点运行画布</h2>
+            <div data-hf-id="hf-4j05" class="run-path">
+              <span data-hf-id="hf-ogbw">35 个原始节点</span>
+              <span data-hf-id="hf-wrxl">非计费节点按支路归组</span>
+              <span data-hf-id="hf-2ps0">计费节点保留真实资源名</span>
+            </div>
+          </div>
+
+          <div data-hf-id="hf-9o81" class="flow-stage">
+            <div data-hf-id="hf-o65y" class="lane-label lane-files">文件支路</div>
+            <div data-hf-id="hf-pnek" class="lane-label lane-rag">知识库支路</div>
+            <div data-hf-id="hf-2h8a" class="lane-label lane-skill">Skill 支路</div>
+
+            <svg data-hf-id="hf-rr2p" class="connectors" viewBox="0 0 1348 578" aria-hidden="true">
+              <defs data-hf-id="hf-mh0t">
+                <marker data-hf-id="hf-djen" id="arrow" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto">
+                  <path data-hf-id="hf-xsm4" d="M0,0 L8,4 L0,8 Z" fill="#c9bba3" />
+                </marker>
+              </defs>
+              <path data-hf-id="hf-vqf2" class="connector" marker-end="url(#arrow)" d="M185 274 C205 274 198 112 220 112" />
+              <path data-hf-id="hf-y2y8" class="connector" marker-end="url(#arrow)" d="M410 112 L438 112" />
+              <path data-hf-id="hf-1y9j" class="connector" marker-end="url(#arrow)" d="M643 112 C690 112 670 274 728 274" />
+
+              <path data-hf-id="hf-8ati" class="connector" marker-end="url(#arrow)" d="M185 274 L220 274" />
+              <path data-hf-id="hf-fwm2" class="connector" marker-end="url(#arrow)" d="M410 274 L438 274" />
+              <path data-hf-id="hf-cz6q" class="connector" marker-end="url(#arrow)" d="M663 274 L728 274" />
+
+              <path data-hf-id="hf-shiu" class="connector" marker-end="url(#arrow)" d="M185 274 C205 274 198 432 220 432" />
+              <path data-hf-id="hf-slya" class="connector" marker-end="url(#arrow)" d="M410 432 L438 432" />
+              <path data-hf-id="hf-qjow" class="connector" marker-end="url(#arrow)" d="M663 432 C700 432 682 274 728 274" />
+
+              <circle data-hf-id="hf-bziw" class="join-dot" cx="704" cy="274" r="5" />
+              <path data-hf-id="hf-cvoz" class="connector" marker-end="url(#arrow)" d="M908 274 L952 274" />
+              <path data-hf-id="hf-gfnw" class="connector" marker-end="url(#arrow)" d="M1158 274 L1204 274" />
+              <path data-hf-id="hf-gbhy" class="connector optional" d="M1048 369 L1048 399" />
+              <path data-hf-id="hf-3inv" class="connector optional" marker-end="url(#arrow)" d="M1048 399 C1035 412 1012 414 1001 427" />
+              <path data-hf-id="hf-ktnz" class="connector optional" marker-end="url(#arrow)" d="M1048 399 C1090 405 1150 405 1180 427" />
+            </svg>
+
+            <article data-hf-id="hf-xoc3" id="node-start" class="flow-node">
+              <div data-hf-id="hf-8uqg" class="node-topline">
+                <span data-hf-id="hf-fw9q" class="node-number">01</span>
+                <span data-hf-id="hf-gzr5" class="node-state"><span data-hf-id="hf-ovvg" class="state-wait">等待</span><span data-hf-id="hf-pj0t" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-nxyp">用户输入</h3>
+              <p data-hf-id="hf-ship">问题 + skill_key + model_key</p>
+              <span data-hf-id="hf-6f3a" class="node-cost-label">不直接计费</span>
+            </article>
+
+            <article data-hf-id="hf-2g8m" id="node-files" class="flow-node">
+              <div data-hf-id="hf-n94g" class="node-topline">
+                <span data-hf-id="hf-gakr" class="node-number">02</span>
+                <span data-hf-id="hf-g4yd" class="node-state"><span data-hf-id="hf-cn6c" class="state-wait">等待</span><span data-hf-id="hf-msht" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-ds0g">筛选图片 / 文档</h3>
+              <p data-hf-id="hf-x9ml">本轮无附件，走 false 分支</p>
+              <span data-hf-id="hf-6p2v" class="node-cost-label">本轮不计费</span>
+            </article>
+
+            <article data-hf-id="hf-lyx5" id="node-file-context" class="flow-node">
+              <div data-hf-id="hf-m27d" class="node-topline">
+                <span data-hf-id="hf-9kyz" class="node-number">02B</span>
+                <span data-hf-id="hf-hbvg" class="node-state"><span data-hf-id="hf-bg99" class="state-wait">等待</span><span data-hf-id="hf-nzew" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-5j3l">汇总文件上下文</h3>
+              <p data-hf-id="hf-xwt6">模板 / 聚合器只整理数据</p>
+              <span data-hf-id="hf-r696" class="node-cost-label">不直接计费</span>
+            </article>
+
+            <article data-hf-id="hf-g89k" id="node-retrieval-query" class="flow-node">
+              <div data-hf-id="hf-mgie" class="node-topline">
+                <span data-hf-id="hf-govs" class="node-number">03</span>
+                <span data-hf-id="hf-gxkf" class="node-state"><span data-hf-id="hf-buka" class="state-wait">等待</span><span data-hf-id="hf-nl3v" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-09gf">生成检索问题</h3>
+              <p data-hf-id="hf-o93z">模板拼接 query 与 skill_key</p>
+              <span data-hf-id="hf-rkk7" class="node-cost-label">不直接计费</span>
+            </article>
+
+            <article data-hf-id="hf-eik9" id="node-rag" class="flow-node cost-node">
+              <div data-hf-id="hf-l9lb" class="node-topline">
+                <span data-hf-id="hf-dwql" class="node-number">04</span>
+                <span data-hf-id="hf-i4hi" class="node-state"><span data-hf-id="hf-du3f" class="state-wait">等待</span><span data-hf-id="hf-hjlm" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-5uyk">RAG 知识库检索</h3>
+              <p data-hf-id="hf-qvk3" class="mono">text-embedding-3-large</p>
+              <p data-hf-id="hf-9zoq">查询向量化；rerank 已关闭</p>
+              <span data-hf-id="hf-yhxt" class="node-cost-label">新增 Embedding 成本</span>
+            </article>
+
+            <article data-hf-id="hf-ic26" id="node-skill-router" class="flow-node">
+              <div data-hf-id="hf-lnwc" class="node-topline">
+                <span data-hf-id="hf-eb1m" class="node-number">05</span>
+                <span data-hf-id="hf-hq6h" class="node-state"><span data-hf-id="hf-e8eg" class="state-wait">等待</span><span data-hf-id="hf-h5al" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-wwgy">按 Skill 路由</h3>
+              <p data-hf-id="hf-zijr" class="mono">skill_key = cold-email</p>
+              <span data-hf-id="hf-ryv8" class="node-cost-label">不直接计费</span>
+            </article>
+
+            <article data-hf-id="hf-55ur" id="node-prompt" class="flow-node">
+              <div data-hf-id="hf-kgz9" class="node-topline">
+                <span data-hf-id="hf-epcn" class="node-number">06</span>
+                <span data-hf-id="hf-ix3k" class="node-state"><span data-hf-id="hf-d1hd" class="state-wait">等待</span><span data-hf-id="hf-ic7o" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-8xpr">选中 Skill Prompt</h3>
+              <p data-hf-id="hf-tzna">13 个模板中选 1 个，再聚合输出</p>
+              <p data-hf-id="hf-0bmr" class="mono">Skill｜新客开发信</p>
+              <span data-hf-id="hf-sd69" class="node-cost-label">不直接计费</span>
+            </article>
+
+            <article data-hf-id="hf-7jfa" id="node-model-router" class="flow-node">
+              <div data-hf-id="hf-kvaa" class="node-topline">
+                <span data-hf-id="hf-f3no" class="node-number">07</span>
+                <span data-hf-id="hf-iisj" class="node-state"><span data-hf-id="hf-dfse" class="state-wait">等待</span><span data-hf-id="hf-hxwn" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-4mh3">按模型路由</h3>
+              <p data-hf-id="hf-w5db" class="mono">选择值：deepseek-v4-pro</p>
+              <span data-hf-id="hf-btv5" class="node-cost-label">只选路径，不计价</span>
+            </article>
+
+            <article data-hf-id="hf-9ryg" id="node-agent" class="flow-node cost-node">
+              <div data-hf-id="hf-jod7" class="node-topline">
+                <span data-hf-id="hf-ioex" class="node-number">08</span>
+                <span data-hf-id="hf-dct6" class="node-state"><span data-hf-id="hf-ffbj" class="state-wait">等待</span><span data-hf-id="hf-qd92" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-umj7">DeepSeek Agent</h3>
+              <p data-hf-id="hf-r2of" class="mono">provider: deepseek</p>
+              <div data-hf-id="hf-sb0k" class="identity-alert mono">
+                <span data-hf-id="hf-t4zi">实际执行 model</span>
+                <span data-hf-id="hf-ist7">deepseek-v4-flash</span>
+              </div>
+              <span data-hf-id="hf-vihs" class="node-cost-label">新增 LLM token 成本</span>
+            </article>
+
+            <div data-hf-id="hf-ke76" class="agent-tools-label">Agent 实际调用时才记账</div>
+
+            <article data-hf-id="hf-9v7z" id="node-search" class="flow-node cost-node small-node">
+              <div data-hf-id="hf-k2o8" class="node-topline">
+                <span data-hf-id="hf-j2py" class="node-number">09</span>
+                <span data-hf-id="hf-cyi5" class="node-state"><span data-hf-id="hf-ftmk" class="state-wait">等待</span><span data-hf-id="hf-pyy1" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-m2n7">Tavily Search</h3>
+              <p data-hf-id="hf-uf8b">本轮模拟：调用成功</p>
+              <span data-hf-id="hf-rcjq" class="node-cost-label">新增工具成本</span>
+            </article>
+
+            <article data-hf-id="hf-6146" id="node-extract" class="flow-node cost-node small-node">
+              <div data-hf-id="hf-mhj4" class="node-topline">
+                <span data-hf-id="hf-eqaw" class="node-number">10</span>
+                <span data-hf-id="hf-8i0v" class="node-state"><span data-hf-id="hf-4w30" class="state-wait">等待</span><span data-hf-id="hf-1ffn" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-akhk">Tavily Extract</h3>
+              <p data-hf-id="hf-dn8b">本轮模拟：调用成功</p>
+              <span data-hf-id="hf-3j2i" class="node-cost-label">新增工具成本</span>
+            </article>
+
+            <article data-hf-id="hf-60pd" id="node-answer" class="flow-node small-node">
+              <div data-hf-id="hf-m383" class="node-topline">
+                <span data-hf-id="hf-ebzv" class="node-number">11</span>
+                <span data-hf-id="hf-8wbw" class="node-state"><span data-hf-id="hf-4hrz" class="state-wait">等待</span><span data-hf-id="hf-1tqo" class="state-done">已运行</span></span>
+              </div>
+              <h3 data-hf-id="hf-i7qm">回答</h3>
+              <p data-hf-id="hf-e0v7">返回已有结果</p>
+              <span data-hf-id="hf-3gkw" class="node-cost-label">不再计费</span>
+            </article>
+          </div>
+        </section>
+
+        <aside data-hf-id="hf-40jd" class="ledger-panel">
+          <div data-hf-id="hf-rgjm" class="ledger-head">
+            <h2 data-hf-id="hf-x5wz">本轮成本账本</h2>
+            <span data-hf-id="hf-ejls">发生一项，亮一行</span>
+          </div>
+
+          <div data-hf-id="hf-6984" class="ledger-list">
+            <article data-hf-id="hf-nw7k" id="ledger-embedding" class="ledger-row">
+              <span data-hf-id="hf-7due" class="ledger-check">✓</span>
+              <div data-hf-id="hf-yeow">
+                <h3 data-hf-id="hf-9675">Embedding</h3>
+                <p data-hf-id="hf-iuam" class="ledger-resource mono">openai / text-embedding-3-large</p>
+                <p data-hf-id="hf-fx95" class="ledger-formula">查询 tokens ÷ 1,000,000 × 输入单价</p>
+              </div>
+            </article>
+
+            <article data-hf-id="hf-6sgg" id="ledger-agent" class="ledger-row">
+              <span data-hf-id="hf-o88q" class="ledger-check">✓</span>
+              <div data-hf-id="hf-y7yw">
+                <h3 data-hf-id="hf-na72">Agent LLM</h3>
+                <p data-hf-id="hf-pbhh" class="ledger-resource mono">deepseek / deepseek-v4-flash</p>
+                <p data-hf-id="hf-cewi" class="ledger-formula">输入 tokens × 输入价 + 输出 tokens × 输出价</p>
+              </div>
+            </article>
+
+            <article data-hf-id="hf-9u1t" id="ledger-search" class="ledger-row">
+              <span data-hf-id="hf-omjr" class="ledger-check">✓</span>
+              <div data-hf-id="hf-x11t">
+                <h3 data-hf-id="hf-3n4z">Tavily Search</h3>
+                <p data-hf-id="hf-wpw0" class="ledger-resource mono">tavily / tavily_search</p>
+                <p data-hf-id="hf-ux98" class="ledger-formula">成功调用次数或 credits × 对应单价</p>
+              </div>
+            </article>
+
+            <article data-hf-id="hf-2irs" id="ledger-extract" class="ledger-row">
+              <span data-hf-id="hf-p0us" class="ledger-check">✓</span>
+              <div data-hf-id="hf-xfcu">
+                <h3 data-hf-id="hf-v40g">Tavily Extract</h3>
+                <p data-hf-id="hf-2ood" class="ledger-resource mono">tavily / tavily_extract</p>
+                <p data-hf-id="hf-dj2s" class="ledger-formula">成功调用次数或 credits × 对应单价</p>
+              </div>
+            </article>
+          </div>
+
+          <div data-hf-id="hf-lqbo" class="not-triggered">
+            <strong data-hf-id="hf-ool0">本轮没有记：</strong>无图片，所以 <span data-hf-id="hf-u175" class="mono">gemini-3.5-flash</span> 视觉节点没有执行；未执行就不能收费。
+          </div>
+
+          <div data-hf-id="hf-abwa" class="ledger-total">
+            <span data-hf-id="hf-ov1e">本轮供应商成本</span>
+            <strong data-hf-id="hf-je60">只相加“真实执行并拿到用量”的四行</strong>
+          </div>
+        </aside>
+      </section>
+
+      <section data-hf-id="hf-t3ve" class="narration">
+        <article data-hf-id="hf-9660" id="status-1" class="status-card">
+          <div data-hf-id="hf-8bwq" class="status-step">01</div>
+          <div data-hf-id="hf-warg" class="status-copy">
+            <span data-hf-id="hf-nf1i" class="eyebrow">开始节点</span>
+            <h2 data-hf-id="hf-o9t5">用户把一句话发进来</h2>
+            <p data-hf-id="hf-74qq">系统先收问题、Skill 选择和模型选择。这里只是接收参数，还没有调用任何模型或付费工具。</p>
+          </div>
+          <div data-hf-id="hf-tlgq" class="decision">
+            <small data-hf-id="hf-q7pf">成本判断</small>
+            <strong data-hf-id="hf-uyfi">本步不新增成本</strong>
+            <code data-hf-id="hf-d42o">不要在输入时提前记模型费</code>
+          </div>
+        </article>
+
+        <article data-hf-id="hf-k1nn" id="status-2" class="status-card">
+          <div data-hf-id="hf-8q7r" class="status-step">02</div>
+          <div data-hf-id="hf-xat0" class="status-copy">
+            <span data-hf-id="hf-rvkd" class="eyebrow">文件支路</span>
+            <h2 data-hf-id="hf-l63b">本轮没有附件，视觉模型没有跑</h2>
+            <p data-hf-id="hf-u25o">筛选、判断、模板和聚合器只是整理数据。只有图片真的进入 Gemini 视觉节点时，才新增视觉 LLM 成本。</p>
+          </div>
+          <div data-hf-id="hf-4sz2" class="decision">
+            <small data-hf-id="hf-5ekj">成本判断</small>
+            <strong data-hf-id="hf-71vl">本轮不新增成本</strong>
+            <code data-hf-id="hf-kb12">Gemini vision 调用次数 = 0</code>
+          </div>
+        </article>
+
+        <article data-hf-id="hf-dvxu" id="status-3" class="status-card">
+          <div data-hf-id="hf-94is" class="status-step">03</div>
+          <div data-hf-id="hf-w3vx" class="status-copy">
+            <span data-hf-id="hf-c4mi" class="eyebrow">知识库支路 · 模板节点</span>
+            <h2 data-hf-id="hf-7zwl">先把问题拼成知识库检索语句</h2>
+            <p data-hf-id="hf-8v7b">模板把用户问题和 skill_key 组合起来，它没有调用模型，只是在准备下一步 RAG 的输入。</p>
+          </div>
+          <div data-hf-id="hf-57a3" class="decision">
+            <small data-hf-id="hf-509i">成本判断</small>
+            <strong data-hf-id="hf-7paq">本步不新增成本</strong>
+            <code data-hf-id="hf-gla8">template-transform ≠ LLM</code>
+          </div>
+        </article>
+
+        <article data-hf-id="hf-xbtx" id="status-4" class="status-card">
+          <div data-hf-id="hf-9itt" class="status-step">04</div>
+          <div data-hf-id="hf-wi6y" class="status-copy">
+            <span data-hf-id="hf-n2gf" class="eyebrow">知识库支路 · RAG</span>
+            <h2 data-hf-id="hf-c33c">进入 RAG，查询需要先做 Embedding</h2>
+            <p data-hf-id="hf-h7kb">实际配置使用 text-embedding-3-large 把检索问题变成向量。这一刻，右侧才新增第一笔成本；rerank 已关闭，所以没有重排模型费。</p>
+          </div>
+          <div data-hf-id="hf-9cht" class="decision cost">
+            <small data-hf-id="hf-4lyh">成本判断</small>
+            <strong data-hf-id="hf-325n">记一笔 Embedding</strong>
+            <code data-hf-id="hf-qlk6">资源名必须来自知识库节点配置</code>
+          </div>
+        </article>
+
+        <article data-hf-id="hf-wk64" id="status-5" class="status-card">
+          <div data-hf-id="hf-9x4u" class="status-step">05</div>
+          <div data-hf-id="hf-yhq3" class="status-copy">
+            <span data-hf-id="hf-q8bs" class="eyebrow">Skill 支路 · 条件节点</span>
+            <h2 data-hf-id="hf-u135">按 skill_key 选择业务分支</h2>
+            <p data-hf-id="hf-t6sz">本轮 skill_key 是 cold-email，路由器只决定走“新客开发信”这条边，本身没有调用模型。</p>
+          </div>
+          <div data-hf-id="hf-5ll4" class="decision">
+            <small data-hf-id="hf-47ng">成本判断</small>
+            <strong data-hf-id="hf-83lr">本步不新增成本</strong>
+            <code data-hf-id="hf-p6eu">if-else 只是选路</code>
+          </div>
+        </article>
+
+        <article data-hf-id="hf-581z" id="status-6" class="status-card">
+          <div data-hf-id="hf-abfv" class="status-step">06</div>
+          <div data-hf-id="hf-yw14" class="status-copy">
+            <span data-hf-id="hf-uc4c" class="eyebrow">Skill 支路 · Prompt</span>
+            <h2 data-hf-id="hf-yuy4">13 个 Prompt 中选出“新客开发信”</h2>
+            <p data-hf-id="hf-c5at">Prompt 是给后续 Agent 的文字说明。选择模板和聚合输出都不单独收费，真正花 token 是 Agent 执行时。</p>
+          </div>
+          <div data-hf-id="hf-2tfx" class="decision">
+            <small data-hf-id="hf-3tcf">成本判断</small>
+            <strong data-hf-id="hf-8hws">本步不新增成本</strong>
+            <code data-hf-id="hf-pe0e">Prompt 不是一次模型调用</code>
+          </div>
+        </article>
+
+        <article data-hf-id="hf-19xy" id="status-7" class="status-card">
+          <div data-hf-id="hf-apqw" class="status-step">07</div>
+          <div data-hf-id="hf-xp41" class="status-copy">
+            <span data-hf-id="hf-biui" class="eyebrow">模型路由</span>
+            <h2 data-hf-id="hf-lmov">下拉值只负责选路，不能拿来计价</h2>
+            <p data-hf-id="hf-7t9l">YML 的下拉值写着 deepseek-v4-pro，但它只把流程送往 DeepSeek Agent。成本身份要等真实 Agent 节点执行后再确认。</p>
+          </div>
+          <div data-hf-id="hf-37qy" class="decision">
+            <small data-hf-id="hf-3f1e">成本判断</small>
+            <strong data-hf-id="hf-8w7t">本步不新增成本</strong>
+            <code data-hf-id="hf-mnt0">不要按 model_key 猜模型</code>
+          </div>
+        </article>
+
+        <article data-hf-id="hf-ii89" id="status-8" class="status-card">
+          <div data-hf-id="hf-b41x" class="status-step">08</div>
+          <div data-hf-id="hf-y3f2" class="status-copy">
+            <span data-hf-id="hf-iu6m" class="eyebrow">Agent 节点 · LLM</span>
+            <h2 data-hf-id="hf-p8p8">真正运行的是 deepseek-v4-flash</h2>
+            <p data-hf-id="hf-lbjx">现在才读取实际 provider、model、input_tokens 和 output_tokens。账单必须写 Flash，绝不能照下拉值写成 Pro，更不能写成 Gemini。</p>
+          </div>
+          <div data-hf-id="hf-7g5x" class="decision cost">
+            <small data-hf-id="hf-30qd">成本判断</small>
+            <strong data-hf-id="hf-ro10">记一笔 Agent LLM</strong>
+            <code data-hf-id="hf-xfyb">deepseek / deepseek-v4-flash</code>
+          </div>
+        </article>
+
+        <article data-hf-id="hf-hqkg" id="status-9" class="status-card">
+          <div data-hf-id="hf-bicy" class="status-step">09</div>
+          <div data-hf-id="hf-02y7" class="status-copy">
+            <span data-hf-id="hf-nijz" class="eyebrow">Agent 内部工具调用</span>
+            <h2 data-hf-id="hf-lvaa">Tavily Search 真的调用成功，才记账</h2>
+            <p data-hf-id="hf-46f7">不能因为工具挂在 Agent 上就预先收费。要等实际工具事件成功，再累计它返回的调用次数或 credits。</p>
+          </div>
+          <div data-hf-id="hf-8n30" class="decision cost">
+            <small data-hf-id="hf-2mfc">成本判断</small>
+            <strong data-hf-id="hf-6wut">记一笔 Search 工具费</strong>
+            <code data-hf-id="hf-hw5g">同一轮多次调用要逐次累计</code>
+          </div>
+        </article>
+
+        <article data-hf-id="hf-orlc" id="status-10" class="status-card">
+          <div data-hf-id="hf-75xw" class="status-step">10</div>
+          <div data-hf-id="hf-0h98" class="status-copy">
+            <span data-hf-id="hf-7qhb" class="eyebrow">Agent 内部工具调用</span>
+            <h2 data-hf-id="hf-uon0">Tavily Extract 调用成功，再加一行</h2>
+            <p data-hf-id="hf-jhs5">Search 和 Extract 是两个不同工具，必须分别匹配自己的资源名、用量字段和单价，不能合并成一个模糊的“Tavily 费”。</p>
+          </div>
+          <div data-hf-id="hf-88rz" class="decision cost">
+            <small data-hf-id="hf-284b">成本判断</small>
+            <strong data-hf-id="hf-cylc">记一笔 Extract 工具费</strong>
+            <code data-hf-id="hf-scj8">tavily_extract 单独归集</code>
+          </div>
+        </article>
+
+        <article data-hf-id="hf-pj95" id="status-11" class="status-card">
+          <div data-hf-id="hf-6rmv" class="status-step">11</div>
+          <div data-hf-id="hf-6t8s" class="status-copy">
+            <span data-hf-id="hf-h401" class="eyebrow">回答节点</span>
+            <h2 data-hf-id="hf-t7bj">把 Agent 已经生成好的内容返回给用户</h2>
+            <p data-hf-id="hf-uqya">回答节点只是输出已有结果，没有再次调用 LLM，所以不能为了“最后回答一次”又重复加一笔模型费。</p>
+          </div>
+          <div data-hf-id="hf-3m1z" class="decision">
+            <small data-hf-id="hf-vrd5">成本判断</small>
+            <strong data-hf-id="hf-9aiu">本步不新增成本</strong>
+            <code data-hf-id="hf-7gck">避免把 Agent token 重复计算</code>
+          </div>
+        </article>
+
+        <article data-hf-id="hf-ajba" id="status-summary" class="status-card summary-card">
+          <div data-hf-id="hf-8lki" class="status-step">✓</div>
+          <div data-hf-id="hf-6exr" class="status-copy">
+            <span data-hf-id="hf-nh76" class="eyebrow">本轮结束</span>
+            <h2 data-hf-id="hf-94ih">这次只产生 4 类供应商成本</h2>
+            <p data-hf-id="hf-afd8">Embedding、实际 Agent 模型、实际 Search、实际 Extract。用户输入、路由、Prompt、聚合和 Answer 都没有另加模型或工具费。</p>
+          </div>
+          <div data-hf-id="hf-z18f" class="summary-equation">
+            <span data-hf-id="hf-uckh"><strong data-hf-id="hf-ubaf">本轮成本 =</strong></span>
+            <span data-hf-id="hf-jfkm">Embedding + DeepSeek Agent</span>
+            <span data-hf-id="hf-t26w">+ Tavily Search + Tavily Extract</span>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      /**
+       * HyperFrames 会按绝对秒数控制这个暂停时间线。
+       * 所有状态都使用固定值，不读取时间、网络或随机数，因此任意跳转都能复现同一画面。
+       */
+      window.__timelines = window.__timelines || {};
+      const timeline = gsap.timeline({ paused: true });
+
+      /**
+       * 让一个流程节点从“等待”变成“已运行”。
+       *
+       * @param {string} selector - 需要点亮的节点 CSS 选择器。
+       * @param {number} startTime - 节点开始运行的绝对秒数。
+       * @param {"free"|"cost"} costKind - free 表示不新增成本，cost 表示本节点产生计费项。
+       * @returns {void} 本函数直接把动画加入主时间线，不返回额外数据。
+       */
+      function activateNode(selector, startTime, costKind) {
+        const isCost = costKind === "cost";
+        timeline.to(selector, {
+          opacity: 1,
+          scale: 1.035,
+          borderColor: isCost ? "#a54d20" : "#286f4d",
+          backgroundColor: isCost ? "#fff0dc" : "#eef5ec",
+          duration: 0.36,
+          ease: "power3.out"
+        }, startTime);
+        timeline.to(`${selector} .state-wait`, {
+          opacity: 0,
+          duration: 0.18,
+          ease: "sine.out"
+        }, startTime);
+        timeline.to(`${selector} .state-done`, {
+          opacity: 1,
+          duration: 0.22,
+          ease: "sine.out"
+        }, startTime + 0.08);
+        timeline.to(selector, {
+          scale: 1,
+          duration: 0.44,
+          ease: "power2.out"
+        }, startTime + 1.35);
+      }
+
+      /**
+       * 在计费节点运行的同一时刻点亮右侧账本行。
+       * 同步点亮能让观看者明确看到“这个节点，新增这笔成本”的因果关系。
+       *
+       * @param {string} selector - 账本行的 CSS 选择器。
+       * @param {number} startTime - 对应计费节点开始运行的绝对秒数。
+       * @returns {void} 本函数直接把动画加入主时间线。
+       */
+      function activateLedgerRow(selector, startTime) {
+        timeline.to(selector, {
+          opacity: 1,
+          y: -2,
+          borderColor: "#d68452",
+          backgroundColor: "rgba(165, 77, 32, 0.24)",
+          duration: 0.4,
+          ease: "power3.out"
+        }, startTime);
+        timeline.fromTo(`${selector} .ledger-check`, {
+          opacity: 0,
+          scale: 0.65
+        }, {
+          opacity: 1,
+          scale: 1,
+          duration: 0.36,
+          ease: "power3.out"
+        }, startTime);
+        timeline.to(selector, {
+          y: 0,
+          duration: 0.32,
+          ease: "sine.out"
+        }, startTime + 0.62);
+      }
+
+      /**
+       * 在底部切换当前节点的白话解释。
+       *
+       * @param {string} currentSelector - 当前要显示的说明卡选择器。
+       * @param {number} startTime - 当前说明开始显示的绝对秒数。
+       * @param {string|null} previousSelector - 上一张说明卡；第一张没有上一张时传 null。
+       * @returns {void} 本函数只编排透明度和轻微位移，不修改任何文案。
+       */
+      function showStatus(currentSelector, startTime, previousSelector) {
+        if (previousSelector) {
+          timeline.to(previousSelector, {
+            opacity: 0,
+            y: -12,
+            duration: 0.22,
+            ease: "sine.in"
+          }, startTime - 0.22);
+        }
+        timeline.fromTo(currentSelector, {
+          opacity: 0,
+          y: 16
+        }, {
+          opacity: 1,
+          y: 0,
+          duration: 0.34,
+          ease: "power3.out"
+        }, startTime);
+      }
+
+      /* 画布整体进入；所有节点仍保持可见，只是处于“等待”状态。 */
+      timeline.from(".topbar", {
+        y: -20,
+        duration: 0.52,
+        ease: "power3.out"
+      }, 0.12);
+      timeline.from(".flow-panel", {
+        x: -30,
+        duration: 0.62,
+        ease: "power3.out"
+      }, 0.18);
+      timeline.from(".ledger-panel", {
+        x: 30,
+        duration: 0.62,
+        ease: "power3.out"
+      }, 0.18);
+      timeline.from(".narration", {
+        y: 24,
+        duration: 0.52,
+        ease: "power3.out"
+      }, 0.3);
+      timeline.set("#status-1", {
+        opacity: 1,
+        y: 0
+      }, 0);
+
+      /*
+       * 节点按“成本审计讲解顺序”逐个点亮。
+       * 原图中的三条并行支路都保留在同一画布上，因此不会误画成不存在的直线流程。
+      */
+      activateNode("#node-start", 1.0, "free");
+
+      activateNode("#node-files", 4.0, "free");
+      activateNode("#node-file-context", 4.42, "free");
+      showStatus("#status-2", 4.0, "#status-1");
+
+      activateNode("#node-retrieval-query", 7.0, "free");
+      showStatus("#status-3", 7.0, "#status-2");
+
+      activateNode("#node-rag", 10.0, "cost");
+      activateLedgerRow("#ledger-embedding", 10.0);
+      showStatus("#status-4", 10.0, "#status-3");
+
+      activateNode("#node-skill-router", 13.2, "free");
+      showStatus("#status-5", 13.2, "#status-4");
+
+      activateNode("#node-prompt", 16.1, "free");
+      showStatus("#status-6", 16.1, "#status-5");
+
+      activateNode("#node-model-router", 19.0, "free");
+      showStatus("#status-7", 19.0, "#status-6");
+
+      activateNode("#node-agent", 22.0, "cost");
+      activateLedgerRow("#ledger-agent", 22.0);
+      showStatus("#status-8", 22.0, "#status-7");
+
+      activateNode("#node-search", 25.5, "cost");
+      activateLedgerRow("#ledger-search", 25.5);
+      showStatus("#status-9", 25.5, "#status-8");
+
+      activateNode("#node-extract", 28.5, "cost");
+      activateLedgerRow("#ledger-extract", 28.5);
+      showStatus("#status-10", 28.5, "#status-9");
+
+      activateNode("#node-answer", 31.5, "free");
+      showStatus("#status-11", 31.5, "#status-10");
+
+      /* 最终汇总仍停留在同一个画布，不做转场，方便用户回看每一笔来源。 */
+      showStatus("#status-summary", 34.5, "#status-11");
+      timeline.to(".ledger-total", {
+        scale: 1.035,
+        backgroundColor: "#934319",
+        duration: 0.42,
+        ease: "power3.out"
+      }, 34.5);
+      timeline.to(".ledger-total", {
+        scale: 1,
+        duration: 0.48,
+        ease: "sine.out"
+      }, 35.2);
+
+      window.__timelines["chatflow-cost-node-run"] = timeline;
+    </script>
+  </body>
+</html>

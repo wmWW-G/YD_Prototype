@@ -23,7 +23,7 @@ test("客户搜索页保持可见后再通过 URL 进入结果页", () => {
 test("主原型使用当前前端缓存键", () => {
   assert.match(
     indexSource,
-    /src\/app\.js\?v=20260727-kass-profile-tabs-v1/
+    /src\/app\.js\?v=20260727-kass-no-flicker-v1/
   );
   assert.match(
     indexSource,

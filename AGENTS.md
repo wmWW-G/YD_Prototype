@@ -39,6 +39,6 @@
 
 - 页面必须像真实产品一样可操作，不做功能说明页。
 - 发送、上传、导出、删除、保存、支付等动作默认只做原型反馈，不能产生真实副作用。
-- 当前例外：客户背调顾问已通过 Dify 代理做真实调用；细节看 `CONTEXT.md`、`dify-chatflows/` 和 `api/dify-customer-research.js`。
+- 当前例外：客户背调顾问已通过“不需要知识库的总库”和通用 Dify 流式代理做真实调用；细节看 `CONTEXT.md`、`dify-chatflows/Chatflow-不需要知识库的总库/`、`api/dify-chat.js` 和 `cloudflare-worker/dify-chat-worker.mjs`。
 - 修改主原型后，至少打开页面检查关键流程、文字是否溢出、按钮是否可点、窄屏是否正常。
 - 修改浏览器插件后，执行 `package.json` 里的插件检查脚本或按 `CONTEXT.md` 的验证方式逐项检查。

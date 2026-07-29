@@ -1,0 +1,26 @@
+{
+  "duration": 39,
+  "assertions": [
+    { "kind": "appearsBy", "selector": ".topbar", "bySec": 0.8 },
+    { "kind": "appearsBy", "selector": "#node-start .state-done", "bySec": 1.6 },
+    { "kind": "before", "a": "#node-start .state-done", "b": "#node-files .state-done" },
+    { "kind": "before", "a": "#node-files .state-done", "b": "#node-retrieval-query .state-done" },
+    { "kind": "before", "a": "#node-retrieval-query .state-done", "b": "#node-rag .state-done" },
+    { "kind": "before", "a": "#node-rag .state-done", "b": "#node-skill-router .state-done" },
+    { "kind": "before", "a": "#node-skill-router .state-done", "b": "#node-prompt .state-done" },
+    { "kind": "before", "a": "#node-prompt .state-done", "b": "#node-model-router .state-done" },
+    { "kind": "before", "a": "#node-model-router .state-done", "b": "#node-agent .state-done" },
+    { "kind": "before", "a": "#node-agent .state-done", "b": "#node-search .state-done" },
+    { "kind": "before", "a": "#node-search .state-done", "b": "#node-extract .state-done" },
+    { "kind": "before", "a": "#node-extract .state-done", "b": "#node-answer .state-done" },
+    { "kind": "before", "a": "#ledger-embedding", "b": "#ledger-agent" },
+    { "kind": "before", "a": "#ledger-agent", "b": "#ledger-search" },
+    { "kind": "before", "a": "#ledger-search", "b": "#ledger-extract" },
+    { "kind": "staysInFrame", "selector": "#node-start" },
+    { "kind": "staysInFrame", "selector": "#node-rag" },
+    { "kind": "staysInFrame", "selector": "#node-agent" },
+    { "kind": "staysInFrame", "selector": "#node-answer" },
+    { "kind": "staysInFrame", "selector": ".ledger-panel" },
+    { "kind": "staysInFrame", "selector": ".narration" }
+  ]
+}

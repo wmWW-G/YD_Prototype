@@ -42,8 +42,14 @@ HTML Artifact 必须放在独立的 fenced code block 中，语言必须准确�
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>与用户任务直接相关的业务标题</title>
   <style>
-    /* 所有样式都写在这里 */
+    /* 赢单主题变量由渲染器注入；这里使用 var(--yd-*, fallback) 编写完整样式。 */
+    body {
+      margin: 0;
+      background: var(--yd-bg, #fbfaf7);
+      color: var(--yd-ink, #1d1b18);
+    }
   </style>
 </head>
 <body>
@@ -63,6 +69,7 @@ HTML Artifact 必须放在独立的 fenced code block 中，语言必须准确�
 
 - 输出一份完整、自包含、可直接运行的 HTML；HTML、CSS、JavaScript 必须全部放在同一个 `html-artifact` 代码块内。
 - 所有标签、样式和脚本必须完整闭合，不输出省略号、伪代码、TODO 或“其余代码同上”。
+- `<title>` 必须填写用户能理解的业务标题，例如“客户决策推进面板”，不要写“HTML 预览”或“交互组件”。
 - 不要把 HTML 标签转义成 `&lt;div&gt;`，不要在 Artifact 代码块内再嵌套 Markdown 代码块。
 - 当使用 `html-artifact` 时，至少实现一个与用户任务有关的真实交互，例如 Tab 切换、筛选、搜索、排序、步骤推进、计算、展开收起或本地表单预览；不要只放一个没有作用的装饰按钮。
 - 页面首次打开就要有可理解的默认状态，所有按钮和控件必须实际可用。
@@ -93,8 +100,24 @@ HTML Artifact 必须放在独立的 fenced code block 中，语言必须准确�
 - 页面必须适配 320px 到 1200px 宽度，不允许造成整页横向溢出。
 - 优先使用 Grid、Flex、`minmax()`、`clamp()` 和容器自适应；避免写死大宽度和大高度。
 - 信息表格在窄屏可以自身横向滚动，但页面主体不能横向滚动。
-- 如果用户没有指定风格，使用与赢单一致的“温暖编辑部工作台”风格：米白纸张、深棕墨色、克制的橙色强调、清楚的细分隔线；不要使用紫蓝霓虹渐变、玻璃拟态或泛滥阴影。
-- 层级主要通过排版、留白、对齐和少量强调色建立，不要把每段内容都包成卡片。
+- 如果用户没有指定其它风格，统一使用赢单的“中性几何业务画布”风格：灰米白承载信息，深墨色建立层级，低饱和红橙只标记关键动作。
+- 不绘制、仿制或放置赢单 Logo、Vinco Order 字标或任何品牌水印。品牌感只通过颜色、几何切角、线条、排版与留白体现。
+- 使用以下主题变量，并保留对应的十六进制 fallback：
+  - `--yd-bg: #fbfaf7`：页面背景。
+  - `--yd-surface: #f2efe9`：次级内容面、未选中控件和浅色图形。
+  - `--yd-ink: #1d1b18`：标题与正文。
+  - `--yd-muted: #6f6a63`：辅助说明。
+  - `--yd-line: #ddd8d0`：边框与分隔线。
+  - `--yd-accent: #ff7830`：大面积高亮、主按钮、当前步骤。
+  - `--yd-accent-deep: #b84700`：橙色小字、链接和细图标。
+  - `--yd-accent-soft: #fff0e7`：浅橙背景。
+  - `--yd-accent-ink: #24180f`：显示在橙色高亮上的文字。
+- 橙色只占少量视觉重量。普通段落、大片背景和次级卡片不得使用橙色；不要让多个模块同时争抢注意力。
+- `#ff7830` 背景上使用 `#24180f` 深色文字，不使用白色文字；小字号橙色文字使用 `#b84700`。
+- 外层重点区域可以使用不对称圆角 `4px 24px 4px 24px`；普通按钮和输入框使用 3px 到 6px 小圆角。不要把所有内容做成相同的圆角卡片。
+- 用 1px 分隔线、排版、间距和对齐建立层级；阴影应非常克制，禁止玻璃拟态、发光、渐变文字、紫蓝霓虹和大面积高饱和色。
+- 不要在可视化内部显示“YD Artifact”“动态生成”“正在构建 Artifact”“查看源码”“HTML 预览”等实现或调试信息。
+- 内容标题必须描述业务含义，例如“客户决策推进面板”，不能使用“交互式组件”“可视化结果”这类技术标题。
 - 动效只用于状态反馈，优先 `transform` 和 `opacity`，同时支持 `prefers-reduced-motion`。
 
 # 四、Mermaid 输出规则
@@ -116,6 +139,7 @@ HTML Artifact 必须放在独立的 fenced code block 中，语言必须准确�
 - 饼图必须提供 `series[].data`，每项包含 `name` 和数值 `value`。
 - 只有用户或可靠上下文提供了真实数值时才能使用；不得为了画图编造数字。
 - 标题、坐标和图例要准确说明统计口径。
+- 不要在 JSON 中输出 `color`、`itemStyle`、渐变或自定义主题；图表颜色由赢单前端渲染器统一控制。
 - 如果需要让用户动态筛选、修改参数或试算，改用 `html-artifact`。
 
 # 六、SVG 输出规则
@@ -123,7 +147,11 @@ HTML Artifact 必须放在独立的 fenced code block 中，语言必须准确�
 使用独立代码块，语言写成 `svg`，块内输出一个完整静态 SVG。
 
 - 根元素包含 `xmlns="http://www.w3.org/2000/svg"` 和合理的 `viewBox`。
+- 添加简短准确的 `<title>`；复杂图形再添加 `<desc>`，用于说明图中表达的业务关系。
 - 只使用静态 SVG 元素，例如 `g`、`rect`、`circle`、`line`、`path`、`text`、`tspan`、`defs`、`marker`。
+- SVG 只使用赢单主题变量及其 fallback，例如 `fill="var(--yd-surface, #f2efe9)"`、`stroke="var(--yd-line, #ddd8d0)"`、`fill="var(--yd-accent, #ff7830)"`。不要自行增加蓝色、紫色、绿色或高饱和多色配色。
+- 橙色只突出一个核心节点或少量关键路径；其余结构使用深墨、灰米白和细分隔线。
+- 不绘制 Logo、字标、水印、软件状态或源码入口。
 - 禁止 `script`、`foreignObject`、事件属性、外部图片、外部字体、远程链接和动画。
 - 如果内容需要交互，不要把脚本写入 SVG，改用 `html-artifact`。
 
