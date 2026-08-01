@@ -14037,10 +14037,17 @@ button:disabled {
   line-height: 1.75;
 }
 
+/*
+ * 成交顾问的回答使用连续正文，不再包在大面积色块里。
+ *
+ * 为什么这样处理：
+ * - 用户需要像阅读正常 AI 回答一样顺着标题、段落和列表往下看；
+ * - 去掉卡片背景后，长回答不会在“卡片套卡片”中显得拥挤；
+ * - 这里只改变承载方式，安全 Markdown、思考过程和 Artifact 仍由原渲染链处理。
+ */
 .kass-chat-turn-agent .kass-chat-content {
-  padding: 2px 14px 14px;
-  border-radius: 12px;
-  background: #fffaf6;
+  padding: 0 2px 10px;
+  background: transparent;
 }
 
 .kass-agent-analysis,
@@ -14068,58 +14075,30 @@ button:disabled {
 }
 
 .kass-agent-next {
-  padding-top: 10px;
-  border-top: 1px solid #f1e5db;
+  margin-top: 18px;
 }
 
 .kass-agent-next ol {
-  display: grid;
-  gap: 7px;
   margin: 0;
-  padding: 0;
-  list-style: none;
+  padding-left: 22px;
 }
 
 .kass-agent-next li {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  align-items: start;
-  gap: 8px;
+  margin: 7px 0;
+  padding-left: 2px;
+  color: #514a44;
+  font-size: 13px;
+  line-height: 1.65;
 }
 
 .kass-agent-next li > span {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  border-radius: 7px;
-  color: #f05a16;
-  background: #ffe9db;
-  font-size: 11px;
-  font-weight: 750;
+  display: none;
 }
 
 .kass-agent-next li p {
-  margin: 1px 0 0;
-  color: #514a44;
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.kass-save-record {
-  min-height: 36px;
-  margin-top: 14px;
-  padding: 0 14px;
-  border: 1px solid #ff9a65;
-  border-radius: 9px;
-  color: #ea5414;
-  background: #fff;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.kass-save-record:hover {
-  background: #fff2e9;
+  margin: 0;
+  color: inherit;
+  font: inherit;
 }
 
 .kass-agent-message-text {
@@ -17034,7 +17013,7 @@ button:disabled {
 
 /*
  * A 版客户信息页直接展示完整档案。
- * 外层只保留一张连续资料纸，字段内部沿用原有表格式分组，避免再套一层抽屉或入口卡片。
+ * 页签正文就是资料承载面，不再增加整页卡片；字段内部沿用表格式分组，方便快速扫读。
  */
 .kass-inline-profile,
 .kass-followup-tab-sheet {
@@ -17043,11 +17022,7 @@ button:disabled {
 }
 
 .kass-inline-profile {
-  overflow: hidden;
-  border: 1px solid #e7dfd8;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 10px 30px rgba(73, 48, 29, 0.035);
+  overflow: visible;
 }
 
 .kass-inline-profile-head {
@@ -17055,9 +17030,9 @@ button:disabled {
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  padding: 20px 22px 18px;
+  padding: 0 0 18px;
   border-bottom: 1px solid #ece5df;
-  background: #fff;
+  background: transparent;
 }
 
 .kass-inline-profile-head > div {
@@ -17101,7 +17076,7 @@ button:disabled {
 }
 
 .kass-inline-profile-body {
-  padding: 18px 22px 24px;
+  padding: 18px 0 24px;
 }
 
 .kass-inline-profile-foot {
@@ -17109,9 +17084,9 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 13px 22px;
+  padding: 13px 0;
   border-top: 1px solid #ece4dd;
-  background: #fff;
+  background: transparent;
 }
 
 .kass-inline-profile-foot > div {
@@ -17420,8 +17395,10 @@ button:disabled {
 }
 
 .kass-crm-roster .kass-roster-item {
-  min-height: 82px;
-  padding: 13px 12px;
+  justify-self: center;
+  width: calc(100% - 8px);
+  min-height: 64px;
+  padding: 9px 10px;
 }
 
 .kass-crm-roster .kass-roster-item strong {

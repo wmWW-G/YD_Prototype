@@ -5549,8 +5549,8 @@ function renderHistoryItem(item) {
 /**
  * 渲染客户 Kass 在全局侧栏里的等级与客户快捷入口。
  *
- * A 版继续只显示等级，客户名单留在工作区内；B 版则把每个等级的高频客户直接
- * 展开为子菜单，并用“查看全部”承接长名单。两套结构并存，方便评审时直接比较。
+ * 产品已确认只对外展示 A 版：侧边栏直接显示 A/B/C/D 客户等级，
+ * 客户名单留在工作区内，不再让用户选择界面方案。
  *
  * @param {typeof NAV_GROUPS[number]} group - 客户 Kass 导航配置。
  * @returns {string} 客户 Kass 侧栏 HTML。
@@ -5574,12 +5574,6 @@ function renderKassNavGroup(group) {
       </div>
       <div class="nav-children ${isExpanded ? "expanded" : ""}">
         <div class="nav-children-inner kass-grade-list">
-          ${isWorkbench ? `
-            <div class="kass-version-switch" aria-label="界面方案">
-              <button class="${state.activeMain === "customer-kass-a" ? "active" : ""}" type="button" data-kass-version="customer-kass-a">方案 A</button>
-              <button class="${state.activeMain === "customer-kass-b" ? "active" : ""}" type="button" data-kass-version="customer-kass-b">方案 B</button>
-            </div>
-          ` : ""}
           ${KASS_GROUPS.map((kassGroup) => {
             const totalCount = Number(kassGroup.totalCount || kassGroup.customers.length);
             const isSelected = workbenchGroup?.id === kassGroup.id;
@@ -7781,7 +7775,6 @@ function renderKassComparisonConversation(customer) {
                 <li><span>3</span><p>锁定下一次沟通时间，并把承诺事项直接记录为这次跟进的待办。</p></li>
               </ol>
             </section>
-            <button class="kass-save-record" type="button" data-kass-save-analysis="true">保存为跟进记录</button>
           </div>
         </article>
 
@@ -7869,7 +7862,7 @@ function renderCustomerKassView() {
           </header>
 
           <nav class="kass-workspace-tabs" aria-label="客户工作区">
-            <button class="${state.activeKassTab === "conversation" ? "active" : ""}" type="button" data-kass-tab="conversation">AI 助理</button>
+            <button class="${state.activeKassTab === "conversation" ? "active" : ""}" type="button" data-kass-tab="conversation">成交顾问</button>
             <button class="${state.activeKassTab === "profile" ? "active" : ""}" type="button" data-kass-tab="profile">客户信息</button>
             <button class="${state.activeKassTab === "followups" ? "active" : ""}" type="button" data-kass-tab="followups">跟进记录</button>
           </nav>
@@ -7904,7 +7897,6 @@ function renderCustomerKassView() {
                     <li><span>3</span><p>准备样品方案与案例资料，安排寄样并锁定下次沟通时间。</p></li>
                   </ol>
                 </section>
-                <button class="kass-save-record" type="button" data-kass-save-analysis="true">保存为跟进记录</button>
               </div>
             </article>
 
@@ -10825,7 +10817,7 @@ function refreshKassHydratedCustomerRegion(customer) {
   }
 
   if (!["profile", "followups"].includes(state.activeKassTab)) {
-    // AI 助理页没有客户资料正文；下次切换页签时会直接读取已合并的数据。
+    // 成交顾问页没有客户资料正文；下次切换页签时会直接读取已合并的数据。
     return false;
   }
 
@@ -12791,39 +12783,6 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll("[data-kass-version]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const nextVersion = button.getAttribute("data-kass-version");
-
-      if (!["customer-kass-a", "customer-kass-b"].includes(nextVersion)) {
-        return;
-      }
-
-      state.activeMain = nextVersion;
-      state.activeKassView = "workbench";
-      const group = getKassWorkbenchGroup();
-      state.activeCustomerId = group.customers.some((customer) => customer.id === state.activeCustomerId)
-        ? state.activeCustomerId
-        : group.customers[0]?.id || null;
-      state.kassExpandedGrades = new Set([group.id]);
-      state.expandedGroups = new Set(["customer-kass"]);
-      state.kassCustomerDirectoryOpen = false;
-      state.kassDirectoryGroupId = null;
-      state.kassAgentDraft = "";
-      state.kassAgentMessages = [];
-      state.kassAgentThinking = false;
-      state.kassRecordFormOpen = false;
-      state.kassResearchOpen = false;
-      state.kassCompletedTaskIds.clear();
-      console.log("[reverse-yingdan] 已切换客户 Kass 界面方案", {
-        version: nextVersion,
-        customerGroup: group.id,
-        customerId: state.activeCustomerId
-      });
-      renderApp();
-    });
-  });
-
   document.querySelectorAll("[data-main]").forEach((button) => {
     button.addEventListener("click", () => {
       const previousMain = state.activeMain;
@@ -13165,13 +13124,6 @@ function bindEvents() {
   });
 
   bindKassTaskToggleEvents();
-
-  document.querySelectorAll("[data-kass-save-analysis]").forEach((button) => {
-    button.addEventListener("click", () => {
-      showToast("Agent 分析已保存为本地跟进记录。未写入真实客户数据。");
-      console.log("[reverse-yingdan] 已模拟保存 Agent 分析", { customerId: state.activeCustomerId });
-    });
-  });
 
   document.querySelectorAll("[data-kass-record-cancel]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -14586,6 +14538,10 @@ function findCurrentRoute() {
   const raw = window.location.hash || "";
   const pure = (raw.startsWith("#") ? raw.slice(1) : raw).split("?")[0] || "/ask";
   const deprecatedFlowRoutes = new Set(["/sales-prep/flow/a", "/sales-prep/flow/b", "/sales-prep/flow/c", "/sales-prep/flow/d"]);
+  const deprecatedKassRoutes = new Map([
+    ["/customer-kass/B", "/customer-kass/A"],
+    ["/customer-kass/B/online", "/customer-kass/A/online"]
+  ]);
 
   if (deprecatedFlowRoutes.has(pure)) {
     try {
@@ -14595,6 +14551,22 @@ function findCurrentRoute() {
     }
 
     return ROUTES.find((route) => route.hash === "/sales-prep/flow") || ROUTES[0];
+  }
+
+  /*
+   * 方案 A 已成为唯一正式界面。旧 B 链接仍可能存在于书签或评审记录中，
+   * 所以在路由入口直接改写为 A，避免先渲染 B 再跳转造成界面闪烁。
+   */
+  if (deprecatedKassRoutes.has(pure)) {
+    const canonicalPath = deprecatedKassRoutes.get(pure);
+
+    try {
+      window.history.replaceState(null, "", `#${canonicalPath}`);
+    } catch (err) {
+      window.location.hash = `#${canonicalPath}`;
+    }
+
+    return ROUTES.find((route) => route.hash === canonicalPath) || ROUTES[0];
   }
 
   return ROUTES.find((route) => route.hash === pure) || ROUTES[0];

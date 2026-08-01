@@ -23,12 +23,19 @@ test("客户搜索页保持可见后再通过 URL 进入结果页", () => {
 test("主原型使用当前前端缓存键", () => {
   assert.match(
     indexSource,
-    /src\/app\.js\?v=20260727-kass-no-flicker-v1/
+    /src\/app\.js\?v=20260731-kass-a-only-v2/
   );
   assert.match(
     indexSource,
-    /src\/styles\.css\?v=20260727-kass-profile-tabs-v1/
+    /src\/styles\.css\?v=20260731-kass-flat-profile-v2/
   );
+});
+
+test("客户 Kass 只展示方案 A 并兼容旧 B 链接", () => {
+  assert.doesNotMatch(appSource, /class="kass-version-switch"/);
+  assert.doesNotMatch(appSource, /data-kass-version=/);
+  assert.match(appSource, /\["\/customer-kass\/B", "\/customer-kass\/A"\]/);
+  assert.match(appSource, /\["\/customer-kass\/B\/online", "\/customer-kass\/A\/online"\]/);
 });
 
 test("搜索动画只描述处理进度，不输出主观匹配判断", () => {

@@ -23,7 +23,7 @@
 - `销售准备 > 了解公司`：公司资料维护、左侧资料模块、右侧编辑器、AI 提炼结果、上传文档反馈。
 - `销售准备 > 产品&市场`：产品与市场全景表、分类筛选、产品表格、选中行、产品侧边摘要、上传/导出反馈。
 - `销售准备 > 案例知识库`：资料分类、快捷筛选、搜索框、案例卡片和空态。
-- `客户Kass`：`/customer-kass/A` 与 `/customer-kass/B` 只代表两套可直接对照的信息架构，客户等级 A/B/C/D 是方案内部的独立状态，切换等级不会改变方案 URL 或布局。A 版保留工作区内独立滚动的「重点推进」客户栏，并把工作区拆为「AI 助理 / 客户信息 / 跟进记录」三个页签；客户信息页直接展示基础信息、主要联系人、采购 / 市场汇总、资信与合作判断、竞对信息五组完整档案，不再通过「查看完整资料」打开抽屉；跟进记录页统一承载新增入口、历史沟通和每条沟通产生的关联待办。B 版把 A/B/C/D 等级与高频客户直接挂在全局侧栏，点击「查看全部」打开对应等级的可搜索客户浮层，主区固定为 CRM Agent 对话，右侧直接常驻客户信息。A、B 两版的 Agent 对话共用“用户消息靠右、CRM Agent 消息靠左”的消息方向，动态追加消息保持一致。B 版桌面两栏按 Agent 36% / 客户信息 64% 分配，让承载档案、速览、跟进与待办的右栏明显成为视觉重心，较窄视口自动改为上下堆叠。B 版继续使用连续客户工作纸：上方左侧是可点击的资料状态卡，展示来源数量、来源明细与待完善数量；右侧展示四条稳定背景事实；下方跟进记录占整行，并把待办直接嵌入产生它的记录，同时保留宽幅「客户详细档案」抽屉。旧 `/customer-kass/C`、`/customer-kass/D` 深链会分别以 C/D 等级进入方案 A；`/customer-kass/A/online`、`/customer-kass/B/online` 继续作为线上版本的并行复刻页。
+- `客户Kass`：产品最终只展示方案 A，侧栏不再提供“方案 A / 方案 B”切换；旧 `/customer-kass/B` 与 `/customer-kass/B/online` 链接会分别规范到 `/customer-kass/A` 与 `/customer-kass/A/online`，B 版实现仅作为内部历史保留。A 版保留工作区内独立滚动的「重点推进」客户栏，并把工作区拆为「成交顾问 / 客户信息 / 跟进记录」三个页签；客户信息页不套整页卡片，直接在页签正文中展示基础信息、主要联系人、采购 / 市场汇总、资信与合作判断、竞对信息五组完整档案；跟进记录页统一承载新增入口、历史沟通和每条沟通产生的关联待办。Agent 正式回答使用连续正文、标题和列表，不额外包裹大面积色块。旧 `/customer-kass/C`、`/customer-kass/D` 深链会分别以 C/D 客户等级进入方案 A。
 - 抽屉、toast、菜单展开和阶段切换动效。
 - 本地 SVG 导航图标，来源为 `/Users/garden/Desktop/1/vinco-icons`，已复制到 `assets/icons/`。
 - 侧边栏历史搜索、历史项编辑/删除图标、顶部历史下拉。
@@ -404,12 +404,12 @@ reverse-yingdan/
 | `#/skills/visit-reception` | 技能 > 来访接待 |
 | `#/skills/title-combo` | 技能 > 标题组合 |
 | `#/skills/trade-show` | 技能 > 展会成交 |
-| `#/customer-kass/A` | 客户Kass > 方案 A（独立客户栏 + AI 助理 / 客户信息） |
-| `#/customer-kass/B` | 客户Kass > 方案 B（侧栏客户 + 对话 + 客户上下文） |
+| `#/customer-kass/A` | 客户Kass 正式界面（独立客户栏 + 成交顾问 / 客户信息 / 跟进记录） |
+| `#/customer-kass/B` | 旧方案 B 链接：自动规范到 `#/customer-kass/A` |
 | `#/customer-kass/C` | 旧等级深链：以 C 级客户进入方案 A |
 | `#/customer-kass/D` | 旧等级深链：以 D 级客户进入方案 A |
 | `#/customer-kass/A/online` | 客户Kass > A 分组线上版复刻 |
-| `#/customer-kass/B/online` | 客户Kass > B 分组线上版复刻 |
+| `#/customer-kass/B/online` | 旧方案 B 线上链接：自动规范到 `#/customer-kass/A/online` |
 | `#/account/usage` | 账号 > 用量明细 |
 | `#/upgrade/pay/pro`、`#/upgrade/pay/pro/checkout`、`#/upgrade/pay/pro/done` | 专业版支付三步原型 |
 | `#/upgrade/pay/team`、`#/upgrade/pay/team/checkout`、`#/upgrade/pay/team/done` | 团队版支付三步原型 |
@@ -547,7 +547,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 27. 调整到窄屏，确认顶栏配置项、正文和按钮不重叠、不溢出。
 28. 进入 `hyperframes/chatflow-cost-animation/` 运行 `npm run check`，确认 Runtime、Layout、Motion 均为 0 问题且 509/509 项文字对比度通过；再打开 HyperFrames Studio 播放 39 秒单画布时间线，并抽查 `snapshots-node-run/contact-sheet.jpg` 中 10.5 秒的 Embedding、22.5 秒的实际 Agent 模型、26 / 29 秒的两个 Tavily 工具和 35.5 秒的最终四项汇总。用户确认预览后再渲染最终 MP4。
 29. KASS 改动先运行 `node --test tests/kass-crm-gateway.test.js`，再运行完整 `npm test`。使用假 fetch 验证网关令牌、客户归属、字段白名单和 GET / POST action；不得在自动测试中调用真实赢单账号。
-30. 进入 `dify-plugins/kass-prototype-crm/`，先运行 `../nano-banana-dynamic/.venv/bin/python -m unittest discover -s tests -v`，再用 Dify Plugin CLI 执行 `dify plugin package . -o dist/kass-prototype-crm-0.1.1.difypkg` 并检查压缩包。随后对 `dify-chatflows/客户Kass-客户管理-KASS-Agent/workflow.yml` 依次运行 `dify-workflow validate --strict`、`dify-workflow checklist` 和 `dify-workflow import -o /dev/null --validate-only`。浏览器分别打开 `#/customer-kass/A` 与 `#/customer-kass/B`，切换多个等级/客户，确认右栏档案、跟进、待办完整；安装 Plugin、发布更新后的 KASS Chatflow 后，再配置其 App API Key 并验证 Plugin CRUD、SSE、多轮 `conversation_id` 与 Artifact。
+30. 进入 `dify-plugins/kass-prototype-crm/`，先运行 `../nano-banana-dynamic/.venv/bin/python -m unittest discover -s tests -v`，再用 Dify Plugin CLI 执行 `dify plugin package . -o dist/kass-prototype-crm-0.1.1.difypkg` 并检查压缩包。随后对 `dify-chatflows/客户Kass-客户管理-KASS-Agent/workflow.yml` 依次运行 `dify-workflow validate --strict`、`dify-workflow checklist` 和 `dify-workflow import -o /dev/null --validate-only`。浏览器打开 `#/customer-kass/A`，切换多个等级/客户，确认档案、跟进和待办完整；再打开旧 `#/customer-kass/B` 确认地址与界面均自动归一到 A。安装 Plugin、发布更新后的 KASS Chatflow 后，再配置其 App API Key 并验证 Plugin CRUD、SSE、多轮 `conversation_id` 与 Artifact。
 31. `赢单高并发测试` Skill 改动后，运行 `PYTHONDONTWRITEBYTECODE=1 python3 .agents/skills/yingdan-high-concurrency-test/scripts/dify_production_diagnostics.py self-test`，再运行 `python3 /Users/garden/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/yingdan-high-concurrency-test`。只有用户明确授权正式 URL 和并发数后，才可使用带 `--confirm-production` 的 `load` 或 `both`；离线验证不得调用真实账号或 Dify。
 
 浏览器插件验证方式：
