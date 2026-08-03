@@ -23,11 +23,15 @@ test("客户搜索页保持可见后再通过 URL 进入结果页", () => {
 test("主原型使用当前前端缓存键", () => {
   assert.match(
     indexSource,
-    /src\/app\.js\?v=20260731-kass-a-only-v2/
+    /src\/app\.js\?v=20260803-dify-thinking-rounds-v1/
   );
   assert.match(
     indexSource,
-    /src\/styles\.css\?v=20260731-kass-flat-profile-v2/
+    /src\/styles\.css\?v=20260803-dify-thinking-rounds-v1/
+  );
+  assert.match(
+    indexSource,
+    /src\/dify-config\.js\?v=20260803-dify-thinking-rounds-v1/
   );
 });
 

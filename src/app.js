@@ -9726,11 +9726,182 @@ function getDifyThinkingDurationText(message, currentTime = Date.now()) {
 }
 
 /**
+ * 渲染 YD Artifact 专用的“卫星环绕”思考标志。
+ *
+ * 图形和运动轨迹取自 `/Users/garden/YD/logo/effect.html` 的第 7 个效果：
+ * 黑色 V 保持稳定，橙色圆点绕标志旋转。这里移除了示例里的白色底板，
+ * 让标志可以自然融入现有回答区，而不会额外形成一张卡片。
+ *
+ * @param {boolean} interrupted - 本轮过程是否因错误而中断。
+ * @returns {string} 可直接嵌入按钮的 SVG HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderYdArtifactThinkingOrbit(interrupted) {
+  return `
+    <span class="dify-thinking-orbit ${interrupted ? "error" : ""}" aria-hidden="true">
+      <svg viewBox="0 0 558 662" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g class="logo-group">
+          <path class="v-shape" d="
+            M 67.2 109.6
+            C 62.7 109.8 60.9 113.8 63.0 120.4
+            C 83.8 167.8 104.9 215.1 126.4 262.3
+            L 266.8 562.1
+            C 276.8 583.4 298.2 598.0 321.8 598.6
+            C 347.3 599.3 368.2 586.6 383.1 565.4
+            C 393.4 550.8 400.8 534.3 408.2 518.1
+            L 459.5 407.1
+            C 462.2 401.2 464.0 393.8 459.5 391.0
+            C 456.3 389.0 449.7 392.0 444.3 394.1
+            C 429.2 399.9 413.1 405.0 397.0 398.3
+            C 371.5 387.6 355.9 362.0 340.3 330.7
+            L 257.2 150.0
+            C 245.0 123.4 224.3 110.2 199.6 108.7
+            C 157.7 106.2 111.4 108.7 67.2 109.6
+            Z" />
+          <circle class="orange-dot" cx="462" cy="186" r="78" />
+        </g>
+      </svg>
+    </span>
+  `;
+}
+
+/**
+ * 渲染 YD Artifact 可展开的思考过程。
+ *
+ * 收起时只显示卫星环绕标志、耗时摘要与箭头；展开后直接显示步骤，
+ * 不再重复显示“分析过程”或“思考过程”标题。
+ *
+ * @param {object} message - 当前助手消息。
+ * @param {object[]} steps - 本轮公开过程步骤。
+ * @param {object|null} currentStep - 当前或最后一个公开步骤。
+ * @param {boolean} isLive - 是否仍处于正式答案开始前的生成阶段。
+ * @returns {string} YD Artifact 思考过程 HTML。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderYdArtifactProcessPanel(message, steps, currentStep, isLive) {
+  const expanded = Boolean(message?.processExpanded);
+  const interrupted = message?.status === "error" || currentStep?.status === "error";
+  const summary = isLive
+    ? (getDifyThinkingDurationText(message) || "正在处理")
+    : getDifyProcessSummary(message, steps.length, interrupted);
+  const visibleSteps = steps.length > 0
+    ? steps
+    : (currentStep ? [currentStep] : []);
+
+  return `
+    <section class="dify-process-panel orbit ${isLive ? "live" : "settled"} ${expanded ? "expanded" : ""}" ${isLive ? "aria-live=\"polite\"" : ""}>
+      <button
+        type="button"
+        class="dify-process-toggle dify-thinking-orbit-toggle"
+        data-dify-process-toggle="${escapeHtml(message?.id || "")}"
+        aria-expanded="${expanded ? "true" : "false"}"
+        aria-label="${expanded ? "收起思考过程" : "展开思考过程"}"
+      >
+        ${renderYdArtifactThinkingOrbit(interrupted)}
+        <small ${isLive ? "data-dify-thinking-duration=\"true\"" : "data-dify-process-count=\"true\""}>${escapeHtml(summary)}</small>
+        <span class="dify-process-chevron" aria-hidden="true">⌄</span>
+      </button>
+      ${expanded ? `
+        <ol class="dify-process-history" aria-label="思考步骤">
+          ${visibleSteps.length > 0 ? visibleSteps.map((step) => `
+            <li class="${step.status === "error" ? "error" : ""}">
+              <span aria-hidden="true"></span>
+              <div>
+                <p>${escapeHtml(step.label || "正在分析问题")}</p>
+                ${step.detail ? `<small>${escapeHtml(step.detail)}</small>` : ""}
+              </div>
+            </li>
+          `).join("") : `
+            <li>
+              <span aria-hidden="true"></span>
+              <div><p>正在分析问题</p></div>
+            </li>
+          `}
+        </ol>
+      ` : ""}
+    </section>
+  `;
+}
+
+/**
+ * 渲染 Agent 的分轮思考时间线。
+ *
+ * 每一轮由三个层次组成：
+ * 1. `<think>` 开始/结束形成一个独立计时标题；
+ * 2. 展开后只显示后端已经脱敏的公开 thought、工具名、搜索词和节点状态；
+ * 3. `</think>` 后的可见 message 作为本轮小结，直接显示在该轮标题下方。
+ *
+ * 原始 `<think>` 正文不会进入浏览器，因此这里不会把隐藏推理伪装成公开内容。
+ *
+ * @param {object} message - 当前助手消息，包含带轮次 ID 的 processSteps。
+ * @param {number} [currentTime=Date.now()] - 当前 Unix 毫秒时间戳，供运行中轮次显示 0.1 秒计时。
+ * @returns {string} 分轮思考时间线 HTML；没有显式 thinking 轮次时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function renderDifyReasoningTimeline(message, currentTime = Date.now()) {
+  const rounds = window.YD_DIFY?.getDifyReasoningTimeline?.(message, currentTime) || [];
+  if (rounds.length === 0) {
+    return "";
+  }
+  const timelineSignature = window.YD_DIFY?.getDifyReasoningTimelineSignature?.(message) || "";
+
+  return `
+    <div
+      class="dify-reasoning-timeline"
+      aria-label="分轮思考过程"
+      data-dify-timeline-signature="${escapeHtml(timelineSignature)}"
+    >
+      ${rounds.map((round) => {
+        const isRunning = round.status === "running";
+        const safeDetails = Array.isArray(round.details) ? round.details : [];
+        const summaryContent = String(round.summary?.content || "");
+
+        return `
+          <article class="dify-reasoning-round ${isRunning ? "live" : "done"}" data-dify-reasoning-round="${escapeHtml(round.id || "")}">
+            <details
+              data-dify-thinking-round-id="${escapeHtml(round.id || "")}"
+              class="dify-thinking-round-details"
+              ${isRunning ? "open" : ""}
+            >
+              <summary>
+                <span class="dify-thinking-round-chevron" aria-hidden="true">›</span>
+                <strong>${escapeHtml(round.title || (isRunning ? "正在深度思考" : "已深度思考"))}</strong>
+                <small data-dify-thinking-duration="${escapeHtml(round.id || "")}">(${escapeHtml(round.duration || "0.0s")})</small>
+              </summary>
+              <div class="dify-thinking-round-content">
+                ${safeDetails.length > 0 ? `
+                  <ol>
+                    ${safeDetails.map((detail) => `
+                      <li data-dify-process-step-id="${escapeHtml(detail.id || "")}">
+                        <span>${escapeHtml(detail.label || "正在分析问题")}</span>
+                        <small ${detail.detail ? "" : "hidden"}>${escapeHtml(detail.detail || "")}</small>
+                      </li>
+                    `).join("")}
+                  </ol>
+                ` : `
+                  <p>正在检索、核对并整理当前阶段信息。</p>
+                `}
+              </div>
+            </details>
+            ${summaryContent ? `
+              <div
+                class="dify-reasoning-round-summary ${round.summary?.status === "running" ? "streaming" : ""}"
+                data-dify-summary-step-id="${escapeHtml(round.summary?.id || "")}"
+              >${renderMarkdown(summaryContent)}</div>
+            ` : ""}
+          </article>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+/**
  * 渲染 Dify 的安全执行过程。
  *
- * 生成期间只画 `currentProcess`，新事件到达后自然覆盖上一条；正式答案开始后默认折叠，用户点击后才查看完整步骤。
- * 这里展示节点、工具、搜索词，以及 Dify API 明确公开的 `agent_thought.thought`；模型隐藏的 `<think>` 内容仍不展示。
- * 完成后在步骤数量旁显示从发送到第一段正式答案之间的思考耗时。
+ * 旧协议生成期间只画 `currentProcess`，正式答案开始后折叠并允许用户展开历史。
+ * 显式 thinking 协议改用多轮时间线，每轮独立计时并把随后的可见 message 显示为阶段小结。
+ * 两种模式都只展示节点、工具、搜索词和 Dify 明确公开的 `agent_thought.thought`；隐藏 `<think>` 正文不展示。
  *
  * @param {object} message - 当前助手消息，包含 currentProcess、processSteps、展开状态和思考计时。
  * @returns {string} 过程区 HTML；没有过程事件时返回空字符串。
@@ -9743,6 +9914,22 @@ function renderDifyProcessPanel(message) {
 
   if (!isLive && (!currentStep || steps.length === 0)) {
     return "";
+  }
+
+  // “现在这个”仅指当前 YD Artifact 页面，因此其它 Dify 功能页继续沿用原过程样式。
+  if (state.activeMain === "yd-artifact") {
+    return renderYdArtifactProcessPanel(message, steps, currentStep, isLive);
+  }
+
+  const hasTimedThinkingRounds = steps.some((step) => String(step?.kind || "") === "thinking");
+  if (hasTimedThinkingRounds) {
+    // Agent 的阶段 message 不是正式答案起点。时间线在生成中持续追加，
+    // 最后一段被提升为正文后仍保留在上方，用户可以回看每轮思考与小结。
+    return `
+      <section class="dify-process-panel multi-round ${isLive ? "live" : "settled"}" ${isLive ? "aria-live=\"polite\"" : ""}>
+        ${renderDifyReasoningTimeline(message)}
+      </section>
+    `;
   }
 
   if (isLive) {
@@ -9822,23 +10009,41 @@ function refreshDifyThinkingDurationDom(featureId, messageId) {
   const turn = Array.from(document.querySelectorAll("[data-dify-message-id]")).find((node) => (
     node.getAttribute("data-dify-message-id") === messageId
   ));
-  const durationNode = turn?.querySelector("[data-dify-thinking-duration]");
+  const durationNodes = turn
+    ? Array.from(turn.querySelectorAll("[data-dify-thinking-duration]"))
+    : [];
 
-  if (!message || !durationNode) {
+  if (!message || durationNodes.length === 0) {
     return false;
   }
 
-  const nextText = getDifyThinkingDurationText(message);
-  if (durationNode.textContent !== nextText) {
-    durationNode.textContent = nextText;
-  }
+  durationNodes.forEach((durationNode) => {
+    const roundId = String(durationNode.getAttribute("data-dify-thinking-duration") || "");
+    const thinkingStep = roundId && roundId !== "true"
+      ? message.processSteps?.find((step) => String(step?.id || "") === roundId && step?.kind === "thinking")
+      : null;
+    const roundDuration = thinkingStep
+      ? window.YD_DIFY?.formatDifyThinkingRoundDuration(
+          thinkingStep.startedAt,
+          thinkingStep.endedAt
+        ) || ""
+      : "";
+    const nextText = thinkingStep
+      ? `(${roundDuration || "0.0s"})`
+      : getDifyThinkingDurationText(message);
+
+    if (durationNode.textContent !== nextText) {
+      durationNode.textContent = nextText;
+    }
+  });
   return true;
 }
 
 /**
  * 启动当前 Dify 回答的动态思考计时。
  *
- * 每秒只调用局部文字刷新函数。正式答案、失败或完成后由请求 `finally` 统一停止，
+ * 每 0.1 秒只调用局部文字刷新函数，让数秒级的独立 thinking 轮次可见地计时。
+ * 正式答案、失败或完成后由请求 `finally` 统一停止，
  * 因此计时不会在后台持续运行，也不会影响其它对话页面。
  *
  * @param {string} featureId - 本轮请求所属的对话页面 ID。
@@ -9851,7 +10056,7 @@ function startDifyThinkingDurationTicker(featureId, messageId) {
   refreshDifyThinkingDurationDom(featureId, messageId);
   difyThinkingDurationTimer = window.setInterval(() => {
     refreshDifyThinkingDurationDom(featureId, messageId);
-  }, 1000);
+  }, 100);
 }
 
 /**
@@ -9992,7 +10197,25 @@ function patchDifyStreamMessageDom(featureId, messageId, forceStructure = false)
   }
 
   const nextPhase = getDifyAnswerRenderPhase(message);
-  if (forceStructure || turn.getAttribute("data-dify-render-phase") !== nextPhase) {
+  const shouldRefreshExpandedArtifactProcess = nextPhase === "process"
+    && featureId === "yd-artifact"
+    && Boolean(message.processExpanded);
+  const timeline = turn.querySelector("[data-dify-timeline-signature]");
+  const nextTimelineSignature = window.YD_DIFY?.getDifyReasoningTimelineSignature?.(message) || "";
+  const hasTimedThinkingRounds = message.processSteps?.some((step) => String(step?.kind || "") === "thinking");
+  const shouldRefreshReasoningTimelineStructure = nextPhase === "process"
+    && hasTimedThinkingRounds
+    && (
+      !timeline
+      || timeline.getAttribute("data-dify-timeline-signature") !== nextTimelineSignature
+    );
+
+  if (
+    forceStructure
+    || shouldRefreshExpandedArtifactProcess
+    || shouldRefreshReasoningTimelineStructure
+    || turn.getAttribute("data-dify-render-phase") !== nextPhase
+  ) {
     const template = document.createElement("template");
     template.innerHTML = renderDifyAnswerTurn(message, messageIndex, getChatLabels()[0]).trim();
     const nextTurn = template.content.firstElementChild;
@@ -10007,6 +10230,40 @@ function patchDifyStreamMessageDom(featureId, messageId, forceStructure = false)
   }
 
   if (nextPhase === "process") {
+    if (timeline && hasTimedThinkingRounds) {
+      const rounds = window.YD_DIFY?.getDifyReasoningTimeline?.(message) || [];
+      const summaryNodes = Array.from(turn.querySelectorAll("[data-dify-summary-step-id]"));
+      const detailNodes = Array.from(turn.querySelectorAll("[data-dify-process-step-id]"));
+
+      rounds.forEach((round) => {
+        if (round.summary?.id) {
+          const summaryNode = summaryNodes.find((node) => (
+            node.getAttribute("data-dify-summary-step-id") === round.summary.id
+          ));
+          if (summaryNode) {
+            summaryNode.innerHTML = renderMarkdown(round.summary.content || "");
+            summaryNode.classList.toggle("streaming", round.summary.status === "running");
+          }
+        }
+
+        (round.details || []).forEach((detailStep) => {
+          const detailNode = detailNodes.find((node) => (
+            node.getAttribute("data-dify-process-step-id") === detailStep.id
+          ));
+          const label = detailNode?.querySelector("span");
+          const detail = detailNode?.querySelector("small");
+          if (label) label.textContent = detailStep.label || "正在分析问题";
+          if (detail) {
+            detail.textContent = detailStep.detail || "";
+            detail.hidden = !detailStep.detail;
+          }
+        });
+      });
+
+      refreshDifyThinkingDurationDom(featureId, messageId);
+      return true;
+    }
+
     const currentStep = message.currentProcess || message.processSteps?.[message.processSteps.length - 1] || {};
     const label = turn.querySelector(".dify-process-current p");
     const detail = turn.querySelector("[data-dify-process-detail]");

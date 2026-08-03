@@ -5920,6 +5920,257 @@ button:disabled {
   margin: 0 0 12px;
 }
 
+/*
+ * Agent 的显式 thinking 使用线性时间线，而不是单个“当前步骤”卡片。
+ * 每轮标题负责独立计时，公开过程收在可展开区域，紧随其后的 message
+ * 作为阶段小结直接落在标题下方，形成“思考 → 小结 → 再思考”的阅读节奏。
+ */
+.dify-process-panel.multi-round,
+.dify-process-panel.multi-round.live {
+  display: block;
+  width: min(100%, 920px);
+  min-height: 0;
+  margin: 0 0 20px;
+  padding: 5px 0 2px;
+  color: #554d47;
+  font-size: 14px;
+}
+
+.dify-reasoning-timeline {
+  display: grid;
+  gap: 18px;
+}
+
+.dify-reasoning-round {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.dify-thinking-round-details {
+  min-width: 0;
+}
+
+.dify-thinking-round-details > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  border-radius: 6px;
+  padding: 1px 4px 1px 0;
+  color: #514a45;
+  cursor: pointer;
+  list-style: none;
+}
+
+.dify-thinking-round-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dify-thinking-round-details > summary:hover,
+.dify-thinking-round-details > summary:focus-visible {
+  color: #2f2a26;
+}
+
+.dify-thinking-round-details > summary:focus-visible {
+  outline: 2px solid rgba(255, 92, 0, 0.17);
+  outline-offset: 3px;
+}
+
+.dify-thinking-round-details > summary strong {
+  font-size: 15px;
+  font-weight: 760;
+  letter-spacing: 0.01em;
+}
+
+.dify-thinking-round-details > summary small {
+  color: #827871;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.dify-reasoning-round.live .dify-thinking-round-details > summary strong,
+.dify-reasoning-round.live .dify-thinking-round-details > summary small {
+  color: #b44f16;
+}
+
+.dify-thinking-round-chevron {
+  display: inline-grid;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #766c65;
+  font-size: 21px;
+  line-height: 1;
+  transform: translateY(-1px);
+  transition: transform 0.16s ease-out;
+}
+
+.dify-thinking-round-details[open] .dify-thinking-round-chevron {
+  transform: rotate(90deg) translateX(-1px);
+}
+
+.dify-thinking-round-content {
+  margin: 4px 0 1px 7px;
+  padding: 7px 0 2px 15px;
+  border-left: 1px solid #e7ddd5;
+}
+
+.dify-thinking-round-content > p {
+  margin: 0;
+  color: #9a8e85;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.dify-thinking-round-content ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dify-thinking-round-content li {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  color: #756b64;
+  line-height: 1.55;
+}
+
+.dify-thinking-round-content li > span {
+  font-weight: 680;
+}
+
+.dify-thinking-round-content li > small {
+  overflow-wrap: anywhere;
+  color: #9c9189;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.dify-reasoning-round-summary {
+  min-width: 0;
+  padding: 0 0 2px 1px;
+  color: #35302c;
+  font-size: 15px;
+  line-height: 1.78;
+}
+
+.dify-reasoning-round-summary :is(p, ul, ol, blockquote, pre) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.dify-reasoning-round-summary.streaming::after {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 3px;
+  border-radius: 2px;
+  background: rgba(255, 92, 0, 0.5);
+  content: "";
+  vertical-align: -0.12em;
+  animation: dify-stream-caret 0.9s steps(1, end) infinite;
+}
+
+@media (max-width: 720px) {
+  .dify-process-panel.multi-round,
+  .dify-process-panel.multi-round.live {
+    margin-bottom: 15px;
+    padding-top: 1px;
+  }
+
+  .dify-reasoning-timeline {
+    gap: 15px;
+  }
+
+  .dify-thinking-round-content {
+    margin-left: 6px;
+    padding-left: 13px;
+  }
+
+  .dify-reasoning-round-summary {
+    font-size: 14px;
+    line-height: 1.72;
+  }
+}
+
+/*
+ * YD Artifact 使用 logo/effect.html 的第 7 个“卫星环绕”效果作为思考入口。
+ * 标志本身就是展开按钮，因此不再额外显示“分析过程/思考过程”标题。
+ */
+.dify-process-panel.orbit {
+  display: grid;
+  gap: 0;
+  justify-items: start;
+  min-height: 0;
+  padding: 2px 0 10px;
+}
+
+.dify-process-panel.orbit.live {
+  display: grid;
+}
+
+.dify-thinking-orbit-toggle {
+  gap: 9px;
+  min-height: 38px;
+}
+
+.dify-thinking-orbit {
+  display: grid;
+  width: 30px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.dify-thinking-orbit svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.dify-thinking-orbit :is(.logo-group, .v-shape, .orange-dot) {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.dify-thinking-orbit .v-shape {
+  fill: #26211d;
+}
+
+.dify-thinking-orbit .orange-dot {
+  fill: #f67a2f;
+}
+
+.dify-process-panel.orbit.live .dify-thinking-orbit .orange-dot {
+  animation: dify-thinking-dot-orbit 2s infinite linear;
+  transform-origin: -150px 150px;
+}
+
+.dify-thinking-orbit.error .orange-dot {
+  fill: #c86f59;
+}
+
+@keyframes dify-thinking-dot-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dify-process-panel.orbit .dify-process-history {
+  margin-top: 5px;
+  margin-left: 14px;
+}
+
 .dify-process-toggle {
   display: inline-flex;
   align-items: center;
@@ -6030,8 +6281,14 @@ button:disabled {
 
 @media (prefers-reduced-motion: reduce) {
   .dify-process-pulse::after,
+  .dify-process-panel.orbit.live .dify-thinking-orbit .orange-dot,
+  .dify-reasoning-round-summary.streaming::after,
   .research-live-answer.streaming::after {
     animation: none;
+  }
+
+  .dify-thinking-round-chevron {
+    transition: none;
   }
 }
 

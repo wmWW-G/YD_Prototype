@@ -181,12 +181,190 @@
   }
 
   /**
+   * 把单轮 thinking 耗时格式化为带一位小数的秒数。
+   *
+   * 与整轮任务的“思考了 2 分 9 秒”不同，单轮通常只有几秒，保留 0.1 秒
+   * 才能让用户看出每次思考确实重新开始，而不是同一个总计时器继续累加。
+   *
+   * @param {unknown} startedAt - 该轮 `<think>` 开始到达浏览器的 Unix 毫秒时间戳。
+   * @param {unknown} endedAt - 该轮 `</think>` 到达浏览器的 Unix 毫秒时间戳；运行中为空。
+   * @param {unknown} [currentTime=Date.now()] - 运行中用于动态计算的当前 Unix 毫秒时间戳。
+   * @returns {string} 例如 `3.3s`；时间缺失或无效时返回空字符串。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function formatDifyThinkingRoundDuration(startedAt, endedAt, currentTime = Date.now()) {
+    if (startedAt === null || startedAt === undefined) {
+      return "";
+    }
+
+    const start = Number(startedAt);
+    const effectiveEnd = endedAt === null || endedAt === undefined ? currentTime : endedAt;
+    const end = Number(effectiveEnd);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) {
+      return "";
+    }
+
+    const elapsedTenths = Math.max(0, Math.floor((end - start) / 100));
+    return `${(elapsedTenths / 10).toFixed(1)}s`;
+  }
+
+  /**
+   * 把扁平的公开过程步骤整理成“thinking → 安全过程详情 → 本轮小结”的时间线。
+   *
+   * 这里只消费后端已经脱敏的步骤：原始 `<think>` 正文、prompt、observation 和工具结果
+   * 从未进入浏览器。`details` 只会包含公开 thought、工具名、搜索词和节点状态。
+   *
+   * @param {object} message - 当前助手消息，包含 processSteps。
+   * @param {number} [currentTime=Date.now()] - 当前 Unix 毫秒时间戳，用于运行中轮次计时。
+   * @returns {Array<{id: string, status: string, title: string, duration: string, details: Array<{id: string, kind: string, label: string, detail: string, status: string}>, summary: {id: string, content: string, status: string} | null}>} 可直接渲染的思考轮次。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function getDifyReasoningTimeline(message, currentTime = Date.now()) {
+    const steps = Array.isArray(message?.processSteps) ? message.processSteps : [];
+    const rounds = [];
+    const roundsById = new Map();
+
+    steps.forEach((step) => {
+      if (!step || typeof step !== "object" || String(step.kind || "") !== "thinking") {
+        return;
+      }
+
+      const id = String(step.id || "");
+      if (!id) {
+        return;
+      }
+
+      const status = String(step.status || "running");
+      const round = {
+        id,
+        status,
+        title: String(step.label || (status === "running" ? "正在深度思考" : "已深度思考")),
+        duration: formatDifyThinkingRoundDuration(step.startedAt, step.endedAt, currentTime),
+        details: [],
+        summary: null
+      };
+      rounds.push(round);
+      roundsById.set(id, round);
+    });
+
+    steps.forEach((step) => {
+      if (!step || typeof step !== "object" || String(step.kind || "") === "thinking") {
+        return;
+      }
+
+      const roundId = String(step.roundId || "");
+      const round = roundsById.get(roundId);
+      if (!round) {
+        return;
+      }
+
+      if (String(step.kind || "") === "summary") {
+        round.summary = {
+          id: String(step.id || ""),
+          content: String(step.detail || ""),
+          status: String(step.status || "running")
+        };
+        return;
+      }
+
+      round.details.push({
+        id: String(step.id || ""),
+        kind: String(step.kind || "reasoning"),
+        label: String(step.label || "正在分析问题"),
+        detail: String(step.detail || ""),
+        status: String(step.status || "running")
+      });
+    });
+
+    return rounds;
+  }
+
+  /**
+   * 生成分轮思考时间线的轻量 DOM 结构签名。
+   *
+   * 新步骤或状态切换会改变标签、折叠状态和层级，需要重画本轮时间线；
+   * 同一阶段小结继续追加文字时签名保持不变，前端只更新对应内容节点，避免闪烁。
+   *
+   * @param {object} message - 当前助手消息，包含 processSteps。
+   * @returns {string} 由步骤 ID、类型和状态组成的稳定签名。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function getDifyReasoningTimelineSignature(message) {
+    const steps = Array.isArray(message?.processSteps) ? message.processSteps : [];
+
+    return steps
+      .filter((step) => (
+        step
+        && typeof step === "object"
+        && (String(step.kind || "") === "thinking" || Boolean(step.roundId))
+      ))
+      .map((step) => `${String(step.id || "")}:${String(step.kind || "")}:${String(step.status || "")}`)
+      .join("|");
+  }
+
+  /**
+   * 裁剪普通过程日志，同时永久保留当前回答中的 thinking 轮次与阶段小结。
+   *
+   * 工具和节点日志可能有几十条，直接 `slice(-40)` 会先删掉用户正在回看的前几轮思考。
+   * 因此先为核心时间线步骤保留位置，再用最近的普通日志填满 40 条预算；如果单是核心
+   * 时间线就超过预算，则以“轮次完整”优先，不拆掉已经显示过的思考与小结。
+   *
+   * @param {object[]} steps - 按到达顺序排列的公开过程步骤。
+   * @param {number} [maxSteps=40] - 普通过程历史的目标上限。
+   * @returns {object[]} 保持原始顺序的裁剪结果。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function trimDifyProcessSteps(steps, maxSteps = 40) {
+    const semanticSteps = steps.filter((step) => ["thinking", "summary"].includes(String(step?.kind || "")));
+    const supportingSteps = steps.filter((step) => !["thinking", "summary"].includes(String(step?.kind || "")));
+    const supportingBudget = Math.max(0, maxSteps - semanticSteps.length);
+    const retainedSupportingSteps = new Set(
+      supportingBudget > 0 ? supportingSteps.slice(-supportingBudget) : []
+    );
+
+    return steps.filter((step) => (
+      ["thinking", "summary"].includes(String(step?.kind || ""))
+      || retainedSupportingSteps.has(step)
+    ));
+  }
+
+  /**
+   * 在流结束或失败时关闭仍处于 running 的 thinking 轮次。
+   *
+   * 正常协议会先收到同一 thinking ID 的 done 事件；但网络断流、旧版 Dify
+   * 或异常节点可能直接发送终止事件。此处作为浏览器端兜底，确保独立计时不会永远增长。
+   *
+   * @param {object[]} steps - 当前公开过程步骤。
+   * @param {"done" | "error"} terminalStatus - 本次流的终止状态。
+   * @param {number} endedAt - 终止事件到达浏览器的 Unix 毫秒时间戳。
+   * @returns {object[]} 关闭运行中 thinking 后的新步骤数组。
+   * @throws {Error} 本函数不主动抛异常。
+   */
+  function closeRunningThinkingSteps(steps, terminalStatus, endedAt) {
+    return steps.map((step) => {
+      if (
+        String(step?.kind || "") !== "thinking"
+        || ["done", "error"].includes(String(step?.status || ""))
+      ) {
+        return step;
+      }
+
+      return {
+        ...step,
+        label: terminalStatus === "done" ? "已深度思考" : String(step.label || "深度思考"),
+        status: terminalStatus,
+        endedAt: step.endedAt ?? endedAt
+      };
+    });
+  }
+
+  /**
    * 将一条代理 SSE 事件应用到当前助手消息。
    *
    * 这个纯函数集中维护过程区的产品规则：
-   * - 新过程覆盖 `currentProcess`，所以生成中永远只看到最新一步。
-   * - `processSteps` 保留最多 40 步，正式答案出现后可由用户展开回看。
-   * - 第一个 answer 事件到达时自动折叠过程，避免过程信息抢占最终结论。
+   * - 新过程覆盖 `currentProcess`，供旧版单步骤过程区展示最新一步。
+   * - 普通过程日志保留最近 40 步；显式 thinking 与阶段小结始终保留为完整时间线。
+   * - 旧版过程在首个 answer 到达后折叠；显式多轮时间线仍保留在最终正文上方。
    *
    * @param {object} message - 当前助手消息对象。
    * @param {object} event - 后端公开 SSE 事件。
@@ -201,11 +379,38 @@
     const safeReceivedAt = Number.isFinite(Number(receivedAt)) ? Number(receivedAt) : Date.now();
 
     if (eventType === "process" && event.step && typeof event.step === "object") {
-      const nextStep = { ...event.step };
+      const incomingStep = { ...event.step };
       const matchingIndex = existingSteps.findIndex((step) => (
-        nextStep.id && step?.id && String(step.id) === String(nextStep.id)
+        incomingStep.id && step?.id && String(step.id) === String(incomingStep.id)
       ));
       const nextSteps = [...existingSteps];
+      const previousStep = matchingIndex >= 0 && existingSteps[matchingIndex]
+        ? existingSteps[matchingIndex]
+        : {};
+      const nextStep = {
+        ...previousStep,
+        ...incomingStep
+      };
+
+      // Agent 的阶段小结可能按几十个字符分批到达。这里只追加代理明确标记的 detailDelta，
+      // 普通节点/工具事件仍保持原有的整段覆盖语义，避免重复拼接状态文案。
+      if (Object.prototype.hasOwnProperty.call(incomingStep, "detailDelta")) {
+        nextStep.detail = `${String(previousStep.detail || "")}${String(incomingStep.detailDelta || "")}`;
+        delete nextStep.detailDelta;
+      } else if (!Object.prototype.hasOwnProperty.call(incomingStep, "detail") && previousStep.detail !== undefined) {
+        nextStep.detail = previousStep.detail;
+      }
+
+      // 每个显式 thinking 轮次独立计时；更新同一 ID 时必须保留最初开始时间，
+      // 并且只在该轮第一次变为 done/error 时冻结结束时间。
+      if (String(nextStep.kind || "") === "thinking") {
+        nextStep.startedAt = previousStep.startedAt ?? safeReceivedAt;
+        if (["done", "error"].includes(String(nextStep.status || ""))) {
+          nextStep.endedAt = previousStep.endedAt ?? safeReceivedAt;
+        } else {
+          nextStep.endedAt = previousStep.endedAt ?? null;
+        }
+      }
 
       if (matchingIndex >= 0) {
         nextSteps[matchingIndex] = nextStep;
@@ -215,7 +420,7 @@
 
       return {
         ...currentMessage,
-        processSteps: nextSteps.slice(-40),
+        processSteps: trimDifyProcessSteps(nextSteps),
         currentProcess: nextStep,
         processCollapsed: Boolean(currentMessage.answerStarted),
         processExpanded: currentMessage.answerStarted ? false : Boolean(currentMessage.processExpanded)
@@ -268,6 +473,11 @@
       const finalAnswer = currentMessage.answerStarted
         ? String(currentMessage.content || "")
         : String(result.answer || "Dify 已完成执行，但没有返回可展示的 answer。");
+      const nextSteps = closeRunningThinkingSteps(existingSteps, "done", safeReceivedAt);
+      const nextCurrentProcess = currentMessage.currentProcess?.id
+        ? nextSteps.find((step) => String(step?.id || "") === String(currentMessage.currentProcess.id))
+          || currentMessage.currentProcess
+        : (currentMessage.currentProcess || null);
 
       return {
         ...currentMessage,
@@ -275,6 +485,8 @@
         status: "done",
         answerStarted: Boolean(finalAnswer) || Boolean(currentMessage.answerStarted),
         thinkingEndedAt: currentMessage.thinkingEndedAt ?? safeReceivedAt,
+        processSteps: nextSteps,
+        currentProcess: nextCurrentProcess,
         processCollapsed: true,
         processExpanded: false,
         conversationId: String(result.conversation_id || ""),
@@ -286,20 +498,25 @@
     }
 
     if (eventType === "error") {
-      const interruptedStep = currentMessage.currentProcess
+      const closedSteps = closeRunningThinkingSteps(existingSteps, "error", safeReceivedAt);
+      const currentStep = currentMessage.currentProcess?.id
+        ? closedSteps.find((step) => String(step?.id || "") === String(currentMessage.currentProcess.id))
+          || currentMessage.currentProcess
+        : (currentMessage.currentProcess || null);
+      const interruptedStep = currentStep
         ? {
-            ...currentMessage.currentProcess,
-            label: String(currentMessage.currentProcess.label || "当前步骤").replace(/（已中断）$/, "") + "（已中断）",
+            ...currentStep,
+            label: String(currentStep.label || "当前步骤").replace(/（已中断）$/, "") + "（已中断）",
             status: "error"
           }
         : null;
       const nextSteps = interruptedStep
-        ? existingSteps.map((step) => (
+        ? closedSteps.map((step) => (
             step?.id && interruptedStep.id && String(step.id) === String(interruptedStep.id)
               ? interruptedStep
               : step
           ))
-        : existingSteps;
+        : closedSteps;
 
       return {
         ...currentMessage,
@@ -711,6 +928,9 @@
     createFeatureConfigState,
     createFeatureSessionState,
     formatDifyThinkingDuration,
+    formatDifyThinkingRoundDuration,
+    getDifyReasoningTimeline,
+    getDifyReasoningTimelineSignature,
     getKassCrudMotionPhases,
     getKassProcessPresentation,
     getKassStreamRenderPlan,

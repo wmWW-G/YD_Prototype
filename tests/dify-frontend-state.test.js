@@ -12,6 +12,9 @@ const {
   createFeatureConfigState,
   createFeatureSessionState,
   formatDifyThinkingDuration,
+  formatDifyThinkingRoundDuration,
+  getDifyReasoningTimeline,
+  getDifyReasoningTimelineSignature,
   getKassCrudMotionPhases,
   getKassStreamRenderPlan,
   getKassProcessPresentation,
@@ -308,6 +311,359 @@ test("stops counting thinking time when the first visible answer arrives", () =>
   assert.equal(formatDifyThinkingDuration(message.thinkingStartedAt, message.thinkingEndedAt), "思考了 2 分 9 秒");
 });
 
+test("tracks every thinking round independently and appends its visible stage summary", () => {
+  // 生产状态如果只保留全局 thinkingStartedAt，或者用后一块小结覆盖前一块，
+  // 就无法还原“思考 3.3 秒 → 小结 → 再思考 2.7 秒”的真实时间线。
+  let message = {
+    id: "assistant-rounds",
+    role: "assistant",
+    content: "正在生成...",
+    status: "loading",
+    processSteps: [],
+    currentProcess: null,
+    processCollapsed: false,
+    processExpanded: false,
+    answerStarted: false,
+    thinkingStartedAt: 1_000,
+    thinkingEndedAt: null
+  };
+
+  message = applyDifyStreamEventToMessage(message, {
+    type: "process",
+    step: {
+      id: "agent-thinking-1",
+      kind: "thinking",
+      label: "正在深度思考",
+      detail: "",
+      status: "running"
+    }
+  }, 1_000);
+  message = applyDifyStreamEventToMessage(message, {
+    type: "process",
+    step: {
+      id: "agent-thinking-1",
+      kind: "thinking",
+      label: "已深度思考",
+      detail: "",
+      status: "done"
+    }
+  }, 4_300);
+  message = applyDifyStreamEventToMessage(message, {
+    type: "process",
+    step: {
+      id: "agent-message-1",
+      kind: "summary",
+      label: "阶段小结",
+      detailDelta: "已确认客户",
+      roundId: "agent-thinking-1",
+      status: "running"
+    }
+  }, 4_400);
+  message = applyDifyStreamEventToMessage(message, {
+    type: "process",
+    step: {
+      id: "agent-message-1",
+      kind: "summary",
+      label: "阶段小结",
+      detailDelta: "身份。",
+      roundId: "agent-thinking-1",
+      status: "running"
+    }
+  }, 4_500);
+  message = applyDifyStreamEventToMessage(message, {
+    type: "process",
+    step: {
+      id: "agent-message-1",
+      kind: "summary",
+      label: "阶段小结",
+      detailDelta: "",
+      roundId: "agent-thinking-1",
+      status: "done"
+    }
+  }, 4_600);
+  message = applyDifyStreamEventToMessage(message, {
+    type: "process",
+    step: {
+      id: "agent-thinking-2",
+      kind: "thinking",
+      label: "正在深度思考",
+      detail: "",
+      status: "running"
+    }
+  }, 5_000);
+  message = applyDifyStreamEventToMessage(message, {
+    type: "process",
+    step: {
+      id: "agent-thinking-2",
+      kind: "thinking",
+      label: "已深度思考",
+      detail: "",
+      status: "done"
+    }
+  }, 7_700);
+
+  assert.deepEqual(
+    message.processSteps.map((step) => ({
+      id: step.id,
+      detail: step.detail,
+      status: step.status,
+      startedAt: step.startedAt ?? null,
+      endedAt: step.endedAt ?? null
+    })),
+    [
+      { id: "agent-thinking-1", detail: "", status: "done", startedAt: 1_000, endedAt: 4_300 },
+      { id: "agent-message-1", detail: "已确认客户身份。", status: "done", startedAt: null, endedAt: null },
+      { id: "agent-thinking-2", detail: "", status: "done", startedAt: 5_000, endedAt: 7_700 }
+    ]
+  );
+  assert.equal(message.answerStarted, false);
+  assert.equal(message.thinkingEndedAt, null);
+
+  message = applyDifyStreamEventToMessage(message, {
+    type: "process",
+    step: {
+      id: "agent-message-2",
+      kind: "summary",
+      label: "阶段小结",
+      detailDelta: "## 最终报告",
+      roundId: "agent-thinking-2",
+      status: "running"
+    }
+  }, 7_800);
+  message = applyDifyStreamEventToMessage(message, {
+    type: "answer_replace",
+    answer: "## 最终报告",
+    remove_process_id: "agent-message-2"
+  }, 8_000);
+
+  assert.equal(message.content, "## 最终报告");
+  assert.equal(message.answerStarted, true);
+  assert.equal(message.thinkingEndedAt, 8_000);
+  assert.equal(message.processSteps.some((step) => step.id === "agent-message-2"), false);
+  assert.equal(message.processSteps.some((step) => step.id === "agent-message-1" && step.detail === "已确认客户身份。"), true);
+});
+
+test("freezes a still-running thinking round when the stream finishes or fails", () => {
+  const baseMessage = applyDifyStreamEventToMessage({
+    id: "assistant-open-round",
+    role: "assistant",
+    content: "正在生成...",
+    status: "loading",
+    processSteps: [],
+    currentProcess: null,
+    answerStarted: false,
+    thinkingStartedAt: 1_000,
+    thinkingEndedAt: null
+  }, {
+    type: "process",
+    step: {
+      id: "agent-thinking-1",
+      kind: "thinking",
+      label: "正在深度思考",
+      status: "running"
+    }
+  }, 1_000);
+
+  const completed = applyDifyStreamEventToMessage(baseMessage, {
+    type: "done",
+    result: { answer: "最终答案", conversation_id: "conv-terminal-round" }
+  }, 4_300);
+  const failed = applyDifyStreamEventToMessage(baseMessage, {
+    type: "error",
+    message: "上游连接中断"
+  }, 2_700);
+
+  assert.deepEqual(
+    {
+      status: completed.processSteps[0].status,
+      label: completed.processSteps[0].label,
+      endedAt: completed.processSteps[0].endedAt,
+      currentStatus: completed.currentProcess.status
+    },
+    {
+      status: "done",
+      label: "已深度思考",
+      endedAt: 4_300,
+      currentStatus: "done"
+    }
+  );
+  assert.deepEqual(
+    {
+      status: failed.processSteps[0].status,
+      endedAt: failed.processSteps[0].endedAt,
+      currentStatus: failed.currentProcess.status
+    },
+    {
+      status: "error",
+      endedAt: 2_700,
+      currentStatus: "error"
+    }
+  );
+});
+
+test("keeps thinking rounds and summaries when long tool traces reach the history limit", () => {
+  let message = {
+    id: "assistant-long-round",
+    role: "assistant",
+    content: "正在生成...",
+    status: "loading",
+    processSteps: [],
+    currentProcess: null,
+    answerStarted: false
+  };
+  const coreSteps = [
+    {
+      id: "agent-thinking-1",
+      kind: "thinking",
+      label: "已深度思考",
+      status: "done"
+    },
+    {
+      id: "agent-message-1",
+      kind: "summary",
+      label: "阶段小结",
+      detail: "已确认客户身份。",
+      roundId: "agent-thinking-1",
+      status: "done"
+    }
+  ];
+
+  coreSteps.forEach((step, index) => {
+    message = applyDifyStreamEventToMessage(message, { type: "process", step }, 1_000 + index * 100);
+  });
+  Array.from({ length: 45 }, (_, index) => index + 1).forEach((index) => {
+    message = applyDifyStreamEventToMessage(message, {
+      type: "process",
+      step: {
+        id: `tool-${index}`,
+        kind: "tool",
+        label: `工具步骤 ${index}`,
+        status: "done"
+      }
+    }, 2_000 + index * 100);
+  });
+
+  assert.equal(message.processSteps.length, 40);
+  assert.equal(message.processSteps.some((step) => step.id === "agent-thinking-1"), true);
+  assert.equal(message.processSteps.some((step) => step.id === "agent-message-1"), true);
+  assert.equal(message.processSteps.some((step) => step.id === "tool-1"), false);
+  assert.equal(message.processSteps.some((step) => step.id === "tool-45"), true);
+  assert.equal(message.processSteps.findIndex((step) => step.id === "agent-thinking-1") < message.processSteps.findIndex((step) => step.id === "agent-message-1"), true);
+});
+
+test("groups safe process details and the following message under each timed thinking round", () => {
+  const message = {
+    status: "loading",
+    processSteps: [
+      {
+        id: "agent-thinking-1",
+        kind: "thinking",
+        label: "已深度思考",
+        status: "done",
+        startedAt: 1_000,
+        endedAt: 4_300
+      },
+      {
+        id: "tool-1",
+        kind: "tool",
+        label: "Tavily Search调用完成",
+        detail: "Tearrible Instincts 公司注册信息",
+        status: "done",
+        roundId: "agent-thinking-1"
+      },
+      {
+        id: "agent-message-1",
+        kind: "summary",
+        label: "阶段小结",
+        detail: "已确认客户身份，继续深挖创始团队。",
+        status: "done",
+        roundId: "agent-thinking-1"
+      },
+      {
+        id: "agent-thinking-2",
+        kind: "thinking",
+        label: "正在深度思考",
+        status: "running",
+        startedAt: 5_000,
+        endedAt: null
+      }
+    ]
+  };
+
+  assert.equal(formatDifyThinkingRoundDuration(1_000, 4_300), "3.3s");
+  assert.equal(formatDifyThinkingRoundDuration(5_000, null, 6_200), "1.2s");
+  assert.deepEqual(getDifyReasoningTimeline(message, 6_200), [
+    {
+      id: "agent-thinking-1",
+      status: "done",
+      title: "已深度思考",
+      duration: "3.3s",
+      details: [
+        {
+          id: "tool-1",
+          kind: "tool",
+          label: "Tavily Search调用完成",
+          detail: "Tearrible Instincts 公司注册信息",
+          status: "done"
+        }
+      ],
+      summary: {
+        id: "agent-message-1",
+        content: "已确认客户身份，继续深挖创始团队。",
+        status: "done"
+      }
+    },
+    {
+      id: "agent-thinking-2",
+      status: "running",
+      title: "正在深度思考",
+      duration: "1.2s",
+      details: [],
+      summary: null
+    }
+  ]);
+});
+
+test("changes the timeline structure signature only when a step or its status changes", () => {
+  const baseMessage = {
+    processSteps: [
+      { id: "agent-thinking-1", kind: "thinking", status: "done", detail: "" },
+      {
+        id: "agent-message-1",
+        kind: "summary",
+        status: "running",
+        roundId: "agent-thinking-1",
+        detail: "第一块"
+      }
+    ]
+  };
+  const sameStructureWithMoreText = {
+    processSteps: [
+      baseMessage.processSteps[0],
+      { ...baseMessage.processSteps[1], detail: "第一块和第二块" }
+    ]
+  };
+  const completedSummary = {
+    processSteps: [
+      baseMessage.processSteps[0],
+      { ...baseMessage.processSteps[1], detail: "第一块和第二块", status: "done" }
+    ]
+  };
+
+  assert.equal(
+    getDifyReasoningTimelineSignature(baseMessage),
+    "agent-thinking-1:thinking:done|agent-message-1:summary:running"
+  );
+  assert.equal(
+    getDifyReasoningTimelineSignature(sameStructureWithMoreText),
+    getDifyReasoningTimelineSignature(baseMessage)
+  );
+  assert.notEqual(
+    getDifyReasoningTimelineSignature(completedSummary),
+    getDifyReasoningTimelineSignature(baseMessage)
+  );
+});
+
 test("shows the completed thinking time beside the process step count", () => {
   const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
   const formatterStart = source.indexOf("function getDifyProcessSummary");
@@ -327,7 +683,7 @@ test("shows the completed thinking time beside the process step count", () => {
   assert.equal(sandbox.renderedSummary, "8 个步骤 · 思考了 2 分 9 秒");
 });
 
-test("updates the visible thinking duration every second without rebuilding the page", () => {
+test("updates visible thinking durations without rebuilding the page", () => {
   const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
   const panelStart = source.indexOf("function renderDifyProcessPanel");
   const panelEnd = source.indexOf("\n/**", panelStart + 1);
@@ -342,6 +698,252 @@ test("updates the visible thinking duration every second without rebuilding the 
   assert.match(tickerSource, /window\.setInterval\(/);
   assert.match(tickerSource, /refreshDifyThinkingDurationDom\(/);
   assert.doesNotMatch(tickerSource, /renderApp\(/);
+});
+
+test("refreshes every visible thinking round with its own frozen or live duration", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const refreshStart = source.indexOf("function refreshDifyThinkingDurationDom");
+  const refreshEnd = source.indexOf("\n/**", refreshStart + 1);
+  const firstDurationNode = {
+    textContent: "",
+    getAttribute() {
+      return "agent-thinking-1";
+    }
+  };
+  const secondDurationNode = {
+    textContent: "",
+    getAttribute() {
+      return "agent-thinking-2";
+    }
+  };
+  const turn = {
+    getAttribute(name) {
+      return name === "data-dify-message-id" ? "assistant-round-timer" : "";
+    },
+    querySelector() {
+      return firstDurationNode;
+    },
+    querySelectorAll() {
+      return [firstDurationNode, secondDurationNode];
+    }
+  };
+  const message = {
+    id: "assistant-round-timer",
+    processSteps: [
+      { id: "agent-thinking-1", kind: "thinking", startedAt: 1_000, endedAt: 4_300 },
+      { id: "agent-thinking-2", kind: "thinking", startedAt: 5_000, endedAt: null }
+    ]
+  };
+  const sandbox = {
+    refreshed: false,
+    state: { activeMain: "customer-research" },
+    document: { querySelectorAll: () => [turn] },
+    getDifyFeatureSession: () => ({ messages: [message] }),
+    getDifyThinkingDurationText: () => "思考了 5 秒",
+    window: {
+      YD_DIFY: {
+        formatDifyThinkingRoundDuration(startedAt, endedAt) {
+          return formatDifyThinkingRoundDuration(startedAt, endedAt, 6_200);
+        }
+      }
+    }
+  };
+
+  assert.ok(refreshStart >= 0 && refreshEnd > refreshStart, "应找到局部思考计时刷新函数");
+  vm.runInNewContext(
+    `${source.slice(refreshStart, refreshEnd)}\nrefreshed = refreshDifyThinkingDurationDom("customer-research", "assistant-round-timer");`,
+    sandbox
+  );
+
+  assert.equal(sandbox.refreshed, true);
+  assert.equal(firstDurationNode.textContent, "(3.3s)");
+  assert.equal(secondDurationNode.textContent, "(1.2s)");
+});
+
+test("ticks at one tenth of a second so each live thinking round visibly counts", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const tickerStart = source.indexOf("function startDifyThinkingDurationTicker");
+  const tickerEnd = source.indexOf("\n/**", tickerStart + 1);
+  const sandbox = {
+    scheduledDelay: null,
+    difyThinkingDurationTimer: null,
+    stopDifyThinkingDurationTicker: () => {},
+    refreshDifyThinkingDurationDom: () => true,
+    window: {
+      setInterval(_callback, delay) {
+        sandbox.scheduledDelay = delay;
+        return 1;
+      }
+    }
+  };
+
+  assert.ok(tickerStart >= 0 && tickerEnd > tickerStart, "应找到动态思考计时器函数");
+  vm.runInNewContext(
+    `${source.slice(tickerStart, tickerEnd)}\nstartDifyThinkingDurationTicker("customer-research", "assistant-round-timer");`,
+    sandbox
+  );
+
+  assert.equal(sandbox.scheduledDelay, 100);
+});
+
+test("renders completed thinking rounds, live round timing, safe details, and stage summaries in order", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const rendererStart = source.indexOf("function renderDifyReasoningTimeline");
+  const rendererEnd = source.indexOf("\n/**", rendererStart + 1);
+  const sandbox = {
+    message: { id: "assistant-timeline" },
+    rendered: "",
+    escapeHtml: (value) => String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;"),
+    renderMarkdown: (value) => `<p>${String(value || "")}</p>`,
+    window: {
+      YD_DIFY: {
+        getDifyReasoningTimeline() {
+          return [
+            {
+              id: "agent-thinking-1",
+              status: "done",
+              title: "已深度思考",
+              duration: "3.3s",
+              details: [
+                {
+                  id: "thought-1",
+                  kind: "reasoning",
+                  label: "思考过程",
+                  detail: "正在核对官网与注册信息",
+                  status: "running"
+                }
+              ],
+              summary: {
+                id: "agent-message-1",
+                content: "已确认客户身份，继续深挖创始团队。",
+                status: "done"
+              }
+            },
+            {
+              id: "agent-thinking-2",
+              status: "running",
+              title: "正在深度思考",
+              duration: "1.2s",
+              details: [],
+              summary: null
+            }
+          ];
+        },
+        getDifyReasoningTimelineSignature() {
+          return "agent-thinking-1:thinking:done|agent-thinking-2:thinking:running";
+        }
+      }
+    }
+  };
+
+  assert.ok(rendererStart >= 0 && rendererEnd > rendererStart, "应找到分轮思考时间线渲染函数");
+  vm.runInNewContext(
+    `${source.slice(rendererStart, rendererEnd)}\nrendered = renderDifyReasoningTimeline(message, 6_200);`,
+    sandbox
+  );
+
+  assert.match(sandbox.rendered, /data-dify-thinking-round-id="agent-thinking-1"/);
+  assert.match(sandbox.rendered, /data-dify-timeline-signature="agent-thinking-1:thinking:done\|agent-thinking-2:thinking:running"/);
+  assert.match(sandbox.rendered, /已深度思考/);
+  assert.match(sandbox.rendered, /3\.3s/);
+  assert.match(sandbox.rendered, /正在核对官网与注册信息/);
+  assert.match(sandbox.rendered, /已确认客户身份，继续深挖创始团队。/);
+  assert.match(sandbox.rendered, /data-dify-thinking-round-id="agent-thinking-2"[^>]*open/);
+  assert.match(sandbox.rendered, /正在深度思考/);
+  assert.match(sandbox.rendered, /1\.2s/);
+  assert.match(sandbox.rendered, /正在检索、核对并整理当前阶段信息/);
+});
+
+test("uses the multi-round timeline during generation and keeps it above the final answer", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const panelStart = source.indexOf("function renderDifyProcessPanel");
+  const panelEnd = source.indexOf("\n/**", panelStart + 1);
+  const sandbox = {
+    liveMessage: {
+      id: "assistant-live-rounds",
+      status: "loading",
+      answerStarted: false,
+      processSteps: [{ id: "agent-thinking-1", kind: "thinking", status: "running" }],
+      currentProcess: { id: "agent-thinking-1", kind: "thinking", status: "running" }
+    },
+    answerMessage: {
+      id: "assistant-live-rounds",
+      status: "loading",
+      answerStarted: true,
+      processSteps: [{ id: "agent-thinking-1", kind: "thinking", status: "done" }],
+      currentProcess: { id: "agent-thinking-1", kind: "thinking", status: "done" }
+    },
+    liveRendered: "",
+    answerRendered: "",
+    state: { activeMain: "customer-research" },
+    renderDifyReasoningTimeline: () => '<div data-test="round-timeline"></div>',
+    renderYdArtifactProcessPanel: () => "",
+    getDifyThinkingDurationText: () => "思考了 1 秒",
+    getDifyProcessSummary: () => "1 个步骤",
+    escapeHtml: (value) => String(value ?? "")
+  };
+
+  assert.ok(panelStart >= 0 && panelEnd > panelStart, "应找到通用 Dify 过程区函数");
+  vm.runInNewContext(
+    `${source.slice(panelStart, panelEnd)}
+liveRendered = renderDifyProcessPanel(liveMessage);
+answerRendered = renderDifyProcessPanel(answerMessage);`,
+    sandbox
+  );
+
+  assert.match(sandbox.liveRendered, /data-test="round-timeline"/);
+  assert.match(sandbox.answerRendered, /data-test="round-timeline"/);
+});
+
+test("YD Artifact uses the seventh orbit effect as an expandable process entry without a visible process title", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const styleSource = fs.readFileSync(path.join(__dirname, "../src/styles.css"), "utf8");
+  const orbitStart = source.indexOf("function renderYdArtifactThinkingOrbit");
+  const orbitEnd = source.indexOf("\n/**", orbitStart + 1);
+  const panelStart = source.indexOf("function renderYdArtifactProcessPanel");
+  const panelEnd = source.indexOf("\n/**", panelStart + 1);
+  const orbitSource = source.slice(orbitStart, orbitEnd);
+  const panelSource = source.slice(panelStart, panelEnd);
+  const sandbox = {
+    message: {
+      id: "artifact-process-1",
+      status: "loading",
+      processExpanded: true,
+      thinkingStartedAt: 1_000,
+      thinkingEndedAt: null
+    },
+    steps: [
+      { id: "step-1", label: "正在检索付款流程", detail: "注册与支付规则", status: "running" }
+    ],
+    rendered: "",
+    escapeHtml: (value) => String(value ?? ""),
+    getDifyThinkingDurationText: () => "思考了 8 秒",
+    getDifyProcessSummary: () => "1 个步骤 · 思考了 8 秒"
+  };
+
+  assert.ok(orbitStart >= 0 && orbitEnd > orbitStart, "应找到卫星环绕标志函数");
+  assert.ok(panelStart >= 0 && panelEnd > panelStart, "应找到 YD Artifact 过程区函数");
+  assert.match(orbitSource, /class="orange-dot"/);
+  assert.match(panelSource, /data-dify-process-toggle/);
+  assert.match(panelSource, /dify-process-history/);
+  assert.doesNotMatch(panelSource, />分析过程</);
+  assert.doesNotMatch(panelSource, />思考过程</);
+  assert.match(styleSource, /@keyframes dify-thinking-dot-orbit/);
+  assert.match(styleSource, /transform-origin:\s*-150px 150px/);
+
+  vm.runInNewContext(
+    `${orbitSource}\n${panelSource}\nrendered = renderYdArtifactProcessPanel(message, steps, steps[0], true);`,
+    sandbox
+  );
+
+  assert.match(sandbox.rendered, /aria-expanded="true"/);
+  assert.match(sandbox.rendered, /正在检索付款流程/);
+  assert.match(sandbox.rendered, /注册与支付规则/);
+  assert.doesNotMatch(sandbox.rendered, /<strong>[^<]*(分析过程|思考过程)/);
+  assert.doesNotMatch(sandbox.rendered, /<span>[^<]*(分析过程|思考过程)/);
 });
 
 test("starts the dynamic thinking ticker only for the pending Dify answer", () => {
