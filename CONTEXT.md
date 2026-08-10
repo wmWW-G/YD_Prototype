@@ -39,11 +39,16 @@
 - `后台管理 > 用户` 分组：参考同事截图重构出的用户分类菜单，含经营分析、用户总表（沿用旧 `/admin/user`）、公海客户、付费公海、销售信息、活跃用户、付费用户和邀请码管理；受邀来源信息统一进入用户总表的使用详情。
 - `后台管理 > 代理` 分组：经销代理总览，含拉新数、付费数、累计分成和状态。
 - `后台管理 > 邀请码管理`：生成邀请码表单、预览提示和邀请码列表，用于表达销售同事发放试用福利的原型流程。
-- `客户开发`：一级业务入口，用于通过 AI 获客目标生成候选客户名单，不归入 `技能Skill` 子菜单；首页以 `Lead Enrichment / 客户情报补全` 为核心定位。目标国家/地区通过「七大洲 → 国家/地区」弹窗从 249 项中单选，行业产品通过「36 个行业大类 → 432 个具体产品」弹窗单选；切换大洲或行业大类只更新弹窗内部选项，不重新渲染页面和弹窗动画。客户类型使用跨行业通用 B2B 类型，开发目标只填写客户数量；启动按钮进入即时搜索反馈后生成名单。当前原型链路为「选择国家/产品/客户类型/数量 → AI 找客户中 → 生成客户列表 → 点公司只看右侧公司信息 → 点获取联系人信息跳到联系人新界面 → 在联系人表里点某个人获取邮箱」。先保持轻量，不做客户分级、状态分栏和复杂推进流。
+- `客户开发`：一级业务入口，不归入 `技能Skill` 子菜单；首页以 `Lead Enrichment / 客户情报补全` 为核心定位。目标国家/地区通过「七大洲 → 国家/地区」弹窗从 249 项中单选，行业产品通过「36 个行业大类 → 432 个具体产品」弹窗单选；切换大洲或行业大类只更新弹窗内部选项，不重新渲染页面和弹窗动画。客户类型使用跨行业通用 B2B 类型，开发目标只填写客户数量。2026-08-07 起，本地模式的启动按钮真实调用 `/api/pdl/companies`，从 PDL Free Company Dataset 的 DuckDB 索引返回公司名、域名、总部、行业、规模、成立时间和 LinkedIn；中文国家通过浏览器 ISO 显示名转换，产品大类继续映射为宽口径 PDL 行业。2026-08-08 起，“优先客户类型（可选）”与产品行业分开发送：服务端利用 PDL 行业、公司名称和域名生成高度疑似、可能匹配、弱匹配或无法判断的可解释排序，高度疑似必须同时具备行业与身份文本两类证据；强身份词与本轮产品行业同时命中也构成两类证据，因此产品相关公司优先于只有通用角色行业的公司，但产品行业单独命中不会产生角色结论。所有推测均标记为未经公司官方资料核验；品牌商、OEM / ODM 采购商和终端用户在现有字段下保持无法判断。2026-08-09 起，结果页默认使用确定性“推荐排序”，并可切换“资料最完整”和“公司规模”：不限客户类型时推荐分由产品行业 45 分、官网/LinkedIn 可行动性 25 分、档案完整度 20 分组成；支持推测客户类型时改为产品行业 25 分、角色证据 20 分、可行动性 25 分、完整度 20 分。同分使用稳定哈希而非公司名称，因此不会再按数字、A、B 顺序机械展示；三种排序都在全量候选上完成后再分页。公司表只保留勾选、公司、国家和行业四列；客户类型推测、推荐依据、联系人状态和更新时间不在列表及右侧详情中重复展示。右侧公司信息先以 2×2 宫格展示规模、成立时间、地点和行业，再纵向展示官网与 LinkedIn 入口。具体产品匹配仍明确标记为待官网核验。PDL 免费公司库不含人员、邮箱和电话，前端不得按域名生成虚构联系人。2026-08-10 起，已知公司域名可由用户在单家公司详情中明确点击后，通过服务端 Hunter Domain Search 按需补充最多 10 位联系人；PDL 搜索、翻页和打开详情均不得自动调用 Hunter，Key 只从服务端 `HUNTER_API_KEY` 读取。返回联系人只保存在当前浏览器内存中，邮箱显示动作不重复请求；没有域名、未配置 Key、额度耗尽和无结果都显示明确状态，不用假数据兜底。公司列表保留 PDL 原始名称用于追溯，但展示层会移除无意义的前导符号、保守整理全小写名称，并以文字标识和官网收录状态组成双层公司身份。官网与 LinkedIn 地址统一规范为只允许 HTTP(S) 的安全外链，界面只显示“访问官方网站 / 查看 LinkedIn 公司页”等动作，不裸露原始 URL；结构无效时显示待核验状态。先保持轻量，不做客户分级、状态分栏和复杂推进流。
+- 客户开发的行业展示使用用户所选产品所属的英文标题式业务行业，例如“光伏组件”统一显示“Renewable Energy & Power”。PDL 原始英文行业只保存在 `pdlIndustry` 并用于后台召回、评分与审计，不得出现在公司列表或右侧档案中。右侧详情初始直接展示公司资料；只有用户点击“获取联系人”并成功取得数据后，才出现“公司资料 / 已知联系人”页签。用户界面不展示 Hunter 名称、密钥或额度等供应商实现信息。
+- 客户开发结果页顶部的“本轮获客目标”使用紧凑标题、目标组合和候选数量三层信息，不再重复展示 PDL 数据来源与许可链接；数据来源边界继续记录在项目资料中。
+- 客户开发“获取联系人”当前暂用纯前端模拟模式：点击后等待约 450ms，在当前结果页生成 3 位明确标注为模拟数据的联系人并显示“已知联系人（3）”页签。联系人使用无卡片背景的紧凑分隔列表，每人以 2×2 字段排列姓名、岗位、邮箱和电话；这四类字段与 Hunter Domain Search 当前返回的 `first_name` / `last_name`、`position`、邮箱值和 `phone_number` 对齐，岗位直接展示接口英文原文，不做中文翻译，电话缺失时显示“未提供”。模拟邮箱只使用 `example.com` 保留域名，模拟电话使用虚构的 `555-01xx` 号段，不拼接真实公司域名，也不会调用 Hunter 或消耗额度；恢复真实接口前必须关闭模拟开关并重新验收安全与额度边界。
 - 所有通用 AI 对话功能页：顶部左侧固定显示 Dify 应用类型、App API Key 和可选 Skill ID 配置栏，支持选择「对话型应用」或「Chatflow」。每个功能页独立保存配置，重复保存会覆盖更新；前端只能读取掩码，原始 Key 由后端加密保存。填写 Skill ID 时进入两个总控 Chatflow 的路由模式，后端从已保存配置注入 `inputs.skill_key`，浏览器不能临时改成其它 Skill；Skill ID 留空时保持独立 Dify App 模式。聊天框模型下拉只显示 `DeepSeek V4 Flash` 与 `Gemini 3.5 Flash`，总控模式分别传入 `deepseek-v4-pro` 与 `gemini-3.5-flash` 的 `inputs.model_key`。发送后左侧按轮次保留问题，右侧通过真实 SSE 实时展示最新过程和 Markdown 答案，并按页面独立复用 `conversation_id`。过程区展示节点、工具名、显式搜索词，以及 Dify API 明确定义为公开步骤的 `agent_thought.thought`。旧协议仍显示最新步骤并在正式答案开始后折叠；带显式 `<think>` 边界的 Agent 则按“独立 thinking 计时 → 可展开的公开过程 → 阶段 message 小结”组成时间线，下一次 `<think>` 到达时结束上一段小结并重新从 0.0 秒计时，直到最后正文出现。每轮耗时以 0.1 秒粒度局部刷新，完成或失败时单独冻结；时间线在最终正文上方保留，长任务也不会被普通工具日志挤掉。模型隐藏的 `<think>` 正文、prompt、observation 和工具输出仍不会发给浏览器。流式期间只局部更新当前回答 DOM，不再重建整个 `#app`，避免每个字符到达时整屏闪烁。
 - `成交顾问 > 客户背调顾问`：默认类型为 Chatflow，继续沿用现有背调 Dify 配置和成本追踪能力。
 - `技能Skill > YD Artifact`：默认类型为 Chatflow，沿用通用 Dify 对话、SSE 和多轮上下文；回答中的受控代码块会在正文原位置转换为流程图、时间线、数据图、指标卡或隔离预览。已适配 `mermaid`、`echarts`、`svg`、受控 `ui` JSON 和显式 `html-artifact`。共享 Artifact 渲染器统一使用无 Logo 的“中性几何业务画布”主题：灰米白承载信息、深墨建立层级、`#ff7830` 标记关键动作、`#b84700` 用于小字强调；YD Artifact 与 KASS 内的同类内容保持一致。思考阶段使用 `/Users/garden/YD/logo/effect.html` 第 7 个“卫星环绕”标志作为可点击入口，收起时只显示动效、耗时和展开箭头，展开后直接显示公开步骤，不重复显示“分析过程/思考过程”标题。正式界面不显示“动态生成”“正在构建 Artifact”或生成源码，源码仅在 `?artifactDebug=1` 内部调试时出现。`html-artifact` 可在 opaque-origin iframe 内运行本地 HTML/CSS/JavaScript，但只授予 `allow-scripts`，并通过 CSP、源码预检和宿主桥接阻断联网、外部资源、存储、表单提交、弹窗和越界导航；普通 `html` 代码块仍不会执行。
 - `技能Skill > 市场调研`：默认类型为对话型应用，已适配普通 Chatbot/Agent 的流式事件和多轮上下文。
+
+- 客户开发数据源、历史验证结果和接入边界统一记录在 `customer-development-data-sources/README.md`。其中 PDL Free Company Dataset 已有本地导入与搜索实现，Hunter Domain Search 已有单家公司按需联系人补全；Foursquare、Overture、GLEIF 等仍是候选资料，不能写成已经接入。
 
 主原型大部分只复刻界面结构和交互手感，不写入真实客户资料，不复制线上历史记录和账号隐私。当前真实调用例外包括：白名单内的通用对话页会通过 Dify 代理调用各自保存的应用，浏览器插件内测包会调用 Coze 接口验证真实询盘分析链路。它们都只能作为内部验证或原型验证使用，不能当作公开生产能力直接发布。
 
@@ -68,7 +73,7 @@ AI 工作流是本项目的重要组成部分，但当前主原型仍保持静�
 index.html
 ```
 
-浏览器直接打开即可查看。如果需要更稳定地测试本地资源，也可以在本目录启动一个静态服务器。
+浏览器直接打开仍可查看大多数静态页面。客户开发的真实 PDL 搜索必须由 `customer-development-data-sources/pdl/pdl_local.py serve` 提供同源页面和接口，直接双击 `index.html` 时不会假装返回公司数据。
 
 浏览器插件入口是：
 
@@ -180,6 +185,7 @@ reverse-yingdan/
 - `赢单api.md`：赢单后端接口文档快照，用于查阅 auth、账号、邀请码、计费、积分等接口路径、请求参数和字段口径。它是接口参考资料，不是主静态原型代码；涉及线上真实行为、安全暴露或返回字段时，必须重新做 live 验证，不能只按文档下结论。
 - `coze-workflows/`：扣子工作流资料库，记录工作流用途、schema、调用函数、字段映射和验证状态。
 - `dify-chatflows/`：Dify 对话应用与 Chatflow 资料库，记录应用类型、入口、参数快照、调用函数、API 测试记录和赢单字段映射。`客户Kass-客户管理-KASS-Agent/workflow.yml` 是可导入的 KASS 原型 CRM Chatflow DSL；Agent 节点只挂载 `garden/kass-prototype-crm/kass-prototype-crm` 的五个原型 Tool，写操作由 Plugin 真正执行，不再依赖通用 HTTP Tool 或前端 `kass-crm-action` 兜底。用户确认现有待办完成后，Agent 通过 `update_followup` 传回完整最终任务数组，默认追加 1–2 项 `agent-next-` 下一步待办并用 `update_customer` 同步 `next_action`；用户说某项“不算待办”时，从完整任务数组中移除准确任务，不删除整条跟进。前端只在 Plugin 写 Tool 完成且回读差异确认后播放跨栏同步动画：客户摘要、完整背调资料、跟进记录和关联待办都支持新增、修改、完成、重开与删除反馈；整条跟进新增/删除时不会重复播放其内部待办。删除类先从 Agent 飞向旧目标并退场，右栏刷新后再播放其余飞入或高亮，因此不会因目标提前消失而落空；`prefers-reduced-motion` 下直接显现最终状态。KASS 的公开思考与 Tool 事件显示在消息内的浅灰过程区，只通过 `textContent` 更新；流式 Markdown / Artifact 使用原位 DOM morph 保留既有节点。写 Tool 完成时只回读原型数据，等整轮 Agent 完成后才刷新右栏，并在同一绘制帧内把原对话节点放回，避免过程阶段和最终输出发生整页闪烁。进入页面或切换客户时，每个客户只恢复一次原型数据；异步恢复完成后仅原位更新当前客户资料或跟进区域，不再调用整页 `renderApp()`。分析型回答仍可输出受控 `ui` / ECharts / `html-artifact`，一轮最多一个 Artifact；结构化组件的围栏语言必须精确为 `ui`，JSON 第一项必须包含 `component`，不能降级成普通 `json` 代码块。
+- `customer-development-data-sources/pdl/pdl_local.py`：PDL 免费公司数据集的 Python + DuckDB 本地实现。`import` 接受 ZIP、CSV、PSV、JSON 或同格式分片目录；PDL 实际下载的 `.csv.zip` 若内容是 GZIP，会按文件签名直接流式读取，不重复解压出完整 CSV。导入过程在临时数据库中清洗域名、按域名/LinkedIn/PDL ID 去重并记录 CC0 1.0 元数据，再原子替换正式库；`serve` 默认只监听 `127.0.0.1:8788`，同时提供静态原型、`/api/pdl/health` 和参数绑定的 `/api/pdl/companies` 只读搜索。服务端也是20种客户类型推测与三种排序规则的唯一来源：`sort` 只接受 `recommended`、`complete`、`size_desc`，先用服务端白名单宽召回，再对完整候选集合计算产品行业、角色证据、可行动性、资料完整度和公司规模，完成排序后才分页；API 返回结构化分项与证据，但始终保持 `role_verified=false`。同一服务还提供只返回配置布尔值的 `/api/hunter/status` 和按公司域名查询的 `/api/hunter/domain-search`；Hunter API 根地址固定为官方地址，Key 只来自服务端环境，单次限制 10 位联系人，访问日志不记录查询参数，上游错误不写 URL 或响应正文。原始文件、DuckDB、虚拟环境和滚动日志均被 `.gitignore` 排除。
 - `dify-plugins/kass-prototype-crm/`：KASS 原型 CRM Dify Tool Plugin。固定连接 `https://yd-prototype-dify-proxy.vercel.app/api/kass-crm`，无 Provider 凭证和 Authorization；只开放读取上下文、更新客户、新增跟进、更新跟进和删除跟进五个 Tool。字段、客户 ID、工作区 ID 和跟进 ID 均在 Plugin 内校验；发布包位于 `dist/kass-prototype-crm-0.1.1.difypkg`。
 - `dify-plugins/yingdan-kass/`：赢单客户 KASS 固定账号 Dify Tool Plugin。Provider 保存 `api_base_url`、`user_id` 和 `access_token`；`lib/client.py` 负责 Bearer 鉴权、字段白名单、账号归属校验和 HTTP 错误归一化；`tools/` 暴露 13 个 Agent Tool；删除必须先 `prepare_delete` 再用五分钟一次性令牌调用 `execute_delete`。2026-07-22 已用临时分层、客户和跟进记录完成线上 CRUD 与最终清理实测，确认分层更新使用 `PUT`、客户更新不发送 `customerCategory` 且合作次数使用非负整数。本地包输出在插件目录的 `dist/`，其中不包含真实凭证。
 - `.agents/skills/yingdan-high-concurrency-test/`：`赢单高并发测试` Skill。它从带 `subId` 的正式功能链接读取实时角色配置，对赢单后端执行带单请求预检的可配置并发 SSE 测试，可选执行较小规模的 Dify Service API 直连对照，并通过只读 Console API 按 `user` 与唯一 marker 关联会话、workflow run 和失败节点。Chrome 只用于缺少 Console 信息时的一次性登录态引导，压测、分页和日志对账均由脚本完成；POST 不自动重试，输出不包含 Prompt、回答、工作流输入输出或原始错误。密钥只从被本目录 `.gitignore` 排除且权限为 `600` 的 Skill 本地 `.env`、进程环境变量或隐藏输入读取；仓库中的 `.env` 不得填写或提交真实值。
@@ -197,6 +203,13 @@ reverse-yingdan/
 - 优点：不用构建工具，方便直接打开和 git 交付。
 - 优点：适合逆向 UI 原型，开发同事能快速看结构和业务数据。
 - 缺点：后续如果要做大量真实业务状态、接口和权限，建议再迁移到 React 或 Vue。
+
+客户开发 PDL 本地模式使用 `Python 3.11 + DuckDB`：
+
+- 优点：无需购买数据库服务，适合批量导入千万级 CSV，并支持多个只读查询线程。
+- 优点：数据和日志只留在本机，第一阶段容易核验字段、去重和筛选口径。
+- 缺点：目前只适合这台电脑本地使用；团队在线访问时需要迁移到有持久存储的服务端数据库。
+- 缺点：PDL 行业是公司级宽分类，不代表具体产品采购意图；客户类型只是基于行业、名称和域名的未核验推测；Hunter 联系人补全依赖账户额度，不能当作无限免费数据源。
 
 浏览器插件当前使用 Chrome Manifest V3 + 原生 JavaScript：
 
@@ -433,7 +446,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 改了解公司资料模块：优先改 `src/data.js` 的 `COMPANY_MODULES`。
 - 改产品与市场表格：优先改 `src/data.js` 的 `PRODUCT_ROWS`。
 - 改案例知识库：优先改 `src/data.js` 的 `CASE_CATEGORIES` 和 `CASE_ITEMS`。
-- 改客户开发：它是一级入口，不是 `技能Skill` 子菜单；优先改 `src/data.js` 的 `CUSTOMER_DEVELOPMENT`；页面结构改 `src/app.js` 的 `renderCustomerDevelopmentView()`；样式改 `src/styles.css` 的 `.customer-dev-*`。
+- 改客户开发：它是一级入口，不是 `技能Skill` 子菜单；国家、产品和静态选项优先改 `src/data.js` 的 `CUSTOMER_DEVELOPMENT`；页面结构、PDL 国家/产品行业映射、客户类型推测展示、Hunter 按需联系人流程和 API 调用改 `src/app.js` 的 `renderCustomerDevelopmentView()`、`resolveCustomerDevPdlCountry()`、`getCustomerDevPdlProductIndustries()`、`renderCustomerDevRoleBadge()`、`runCustomerDevPdlSearch()` 与 `runCustomerDevHunterLookup()`；样式改 `src/styles.css` 的 `.customer-dev-*`；导入、去重、客户类型规则、排序、Hunter 服务端代理和本地 HTTP 服务改 `customer-development-data-sources/pdl/pdl_local.py`。PDL 免费库没有联系人，不得恢复按域名猜邮箱的旧原型逻辑；Hunter 只能由用户点击单家公司后调用。
 - 改通用 Dify 对话页：页面白名单和默认类型改 `src/dify-config.js`；顶栏配置看 `renderDifyConfigBar()`、`loadDifyFeatureConfig()`、`saveDifyFeatureConfig()`；多轮消息存在 `state.difyFeatureSessions[featureId]`；真实调用和浏览器流读取看 `sendDifyFeatureDraft()`；过程 UI 看 `renderDifyProcessPanel()`；Markdown 渲染看 `renderMarkdown()` / `renderInlineMarkdown()`。配置保存看 `api/dify-config.js`，Cloudflare 长流看 `cloudflare-worker/dify-chat-worker.mjs`，私有配置桥接看 `api/dify-runtime-config.js`，上游增量流和过程脱敏看 `lib/dify-api-client.js`；`api/dify-chat.js` 仅保留回滚。
 - 改 YD Artifact：入口、Dify 配置和会话仍走上述通用链路；特殊代码块识别、Mermaid/ECharts 本地渲染、受控 `ui` 组件、共享主题令牌和沙箱策略改 `src/dify-artifact.js`，页面视觉改 `src/styles.css` 的 `.yd-artifact-*`；Dify LLM System Prompt 改 `dify-chatflows/技能Skill-YD-Artifact/prompt.md`。默认用户视图不渲染源码入口，内部排障通过 `?artifactDebug=1` 开启。不要执行普通 `html`、远程脚本或未经校验的 SVG；交互代码只能放在显式 `html-artifact` 中，并保持 `sandbox="allow-scripts"`、无 `allow-same-origin` 的边界。
 - 改客户背调顾问：数据改 `src/data.js` 的 `CUSTOMER_RESEARCH_FLOW`；它复用上述通用 Dify 对话壳，但默认应用类型是 Chatflow，内部成本面板仍由 `renderCustomerResearchBillingTracePanel()` 控制。
@@ -549,6 +562,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 29. KASS 改动先运行 `node --test tests/kass-crm-gateway.test.js`，再运行完整 `npm test`。使用假 fetch 验证网关令牌、客户归属、字段白名单和 GET / POST action；不得在自动测试中调用真实赢单账号。
 30. 进入 `dify-plugins/kass-prototype-crm/`，先运行 `../nano-banana-dynamic/.venv/bin/python -m unittest discover -s tests -v`，再用 Dify Plugin CLI 执行 `dify plugin package . -o dist/kass-prototype-crm-0.1.1.difypkg` 并检查压缩包。随后对 `dify-chatflows/客户Kass-客户管理-KASS-Agent/workflow.yml` 依次运行 `dify-workflow validate --strict`、`dify-workflow checklist` 和 `dify-workflow import -o /dev/null --validate-only`。浏览器打开 `#/customer-kass/A`，切换多个等级/客户，确认档案、跟进和待办完整；再打开旧 `#/customer-kass/B` 确认地址与界面均自动归一到 A。安装 Plugin、发布更新后的 KASS Chatflow 后，再配置其 App API Key 并验证 Plugin CRUD、SSE、多轮 `conversation_id` 与 Artifact。
 31. `赢单高并发测试` Skill 改动后，运行 `PYTHONDONTWRITEBYTECODE=1 python3 .agents/skills/yingdan-high-concurrency-test/scripts/dify_production_diagnostics.py self-test`，再运行 `python3 /Users/garden/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/yingdan-high-concurrency-test`。只有用户明确授权正式 URL 和并发数后，才可使用带 `--confirm-production` 的 `load` 或 `both`；离线验证不得调用真实账号或 Dify。
+32. PDL 本地模式先进入 `customer-development-data-sources/pdl/` 创建 `.venv` 并安装 `requirements.txt`，再运行 `python -m unittest tests/test_pdl_local.py -v`。拿到真实下载文件后运行 `pdl_local.py import --input <文件路径>`，随后运行 `pdl_local.py serve`；打开 `http://127.0.0.1:8788/index.html#/customer-development`，确认国家/行业查询返回真实公司字段、客户类型标签与证据分开显示、未导入时有明确错误、联系人区不生成邮箱。需要验收 Hunter 时，只把真实 Key 设置为当前服务进程的 `HUNTER_API_KEY` 后重启；选择一家公司并点击「用 Hunter 获取联系人」，确认最多返回 10 位、邮箱默认隐藏、显示邮箱不重复请求，同时检查 `/api/hunter/status` 不泄露 Key。2026-08-07 已用 PDL 实际提供的 2.1 GB GZIP 压缩 CSV 完成全量导入：35,829,088 行（含表头）生成 35,828,987 家去重公司；“德国 · 光伏组件”页面实测返回 68,844 条，浏览器控制台无错误。2026-08-08 对同一只读库验证客户类型排序：德国分销商 0.127 秒、美国制造商 1.106 秒、印度系统集成商 0.196 秒、德国品牌商不可判断对照 0.012 秒，均低于页面 2.4 秒搜索动画；前三组高置信结果具备行业和身份文本两类证据，德国分销商首屏 17/20、美国制造商与印度系统集成商首屏 20/20 同时命中产品行业，品牌商结果全部保持无法判断。2026-08-09 对当前映射重新验证“德国 · 光伏组件 · 不限”得到 17,762 条；推荐、完整度、规模三种全库排序分别耗时 0.037、0.034、0.032 秒，规模排序首家为 10001+ 员工的 Enercon，页面三种切换生效且浏览器控制台无错误。2026-08-10 已用模拟 Hunter 响应验证服务端字段归一化、联系人排序和缺 Key 错误，并在页面上完成一次真实单域名调用：返回 10 位联系人，耗时约 4.0 秒；邮箱默认隐藏，点击显示邮箱没有产生第二次 Hunter 请求。真实 Key 只存在于当前本机服务进程，未写入项目文件。
 
 浏览器插件验证方式：
 

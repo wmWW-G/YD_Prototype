@@ -283,6 +283,7 @@ window.CUSTOMER_DEVELOPMENT = {
   ],
   /* 通用客户类型不绑定具体行业，便于产品选择变化后继续复用。 */
   customerTypes: [
+    "不限 / 智能推荐",
     "进口商",
     "批发商",
     "分销商",

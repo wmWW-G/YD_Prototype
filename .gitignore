@@ -9,3 +9,10 @@ yingdan-agent-lab/
 .vercel
 .env*
 .wrangler/
+
+# PDL 免费公司数据集仅供本机导入和检索，原始文件、数据库、虚拟环境与日志都不能提交。
+customer-development-data-sources/pdl/data/
+customer-development-data-sources/pdl/logs/
+customer-development-data-sources/pdl/.venv/
+__pycache__/
+*.py[cod]

@@ -1,0 +1,5 @@
+id,name,website,size,founded,industry,locality,region,country,linkedin_url
+de-solar-1,Solar Beispiel GmbH,https://www.solar-beispiel.de,11-50,2014,renewables & environment,Berlin,Berlin,germany,linkedin.com/company/solar-beispiel
+de-solar-duplicate,Solar Beispiel Duplicate,solar-beispiel.de,11-50,2014,renewables & environment,Berlin,Berlin,germany,linkedin.com/company/solar-beispiel-duplicate
+de-epc-1,Energie Bau GmbH,energie-bau.example,51-200,2009,construction,Hamburg,Hamburg,germany,linkedin.com/company/energie-bau
+us-software-1,Example Software Inc,example-software.com,51-200,2019,computer software,Austin,Texas,united states,linkedin.com/company/example-software

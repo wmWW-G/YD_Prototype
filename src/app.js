@@ -42,6 +42,13 @@
  *   customerDevProductCategory: string,
  *   customerDevSelectedLeadId: string,
  *   customerDevRevealedEmails: Set<string>,
+ *   customerDevLeads: object[],
+ *   customerDevSearchStatus: "idle" | "loading" | "ready" | "error",
+ *   customerDevSearchError: string,
+ *   customerDevSearchTotal: number,
+ *   customerDevSearchRequestId: number,
+ *   customerDevSort: "recommended" | "complete" | "size_desc",
+ *   customerDevSortLoading: boolean,
  *   customerDraft: string,
  *   isCustomerGenerating: boolean,
  *   customerResult: string,
@@ -84,6 +91,162 @@ const USER_PREVIEW_DEFAULT_FIELD_IDS = ["logIndex", "usedAt", "userContact", "la
  * @type {number}
  */
 const CUSTOMER_DEV_SEARCH_DURATION_MS = 2400;
+
+/**
+ * 客户开发联系人当前使用纯前端模拟数据。
+ *
+ * 为什么显式保留开关：原型阶段需要先确认交互和信息层级，同时必须确保点击按钮
+ * 不会调用真实供应商或消耗额度。以后恢复真实接口时，只能在重新完成安全与额度
+ * 验收后关闭此开关。
+ *
+ * @type {boolean}
+ */
+const CUSTOMER_DEV_USE_MOCK_CONTACTS = true;
+
+/**
+ * 客户开发结果页允许用户直接理解的三种排序。
+ *
+ * value 必须与本地 PDL 接口的白名单完全一致。推荐排序是默认项；另外两项解决
+ * “我先看资料齐全的”和“我只想找大公司”这两种更明确的用户意图。
+ *
+ * @type {ReadonlyArray<{ value: "recommended" | "complete" | "size_desc", label: string, description: string }>}
+ */
+const CUSTOMER_DEV_SORT_OPTIONS = Object.freeze([
+  Object.freeze({ value: "recommended", label: "推荐排序", description: "优先目标行业、客户类型线索和可联系性" }),
+  Object.freeze({ value: "complete", label: "资料最完整", description: "优先官网、LinkedIn 和公司档案较齐全的企业" }),
+  Object.freeze({ value: "size_desc", label: "公司规模", description: "按 PDL 员工规模从大到小展示" })
+]);
+
+/**
+ * 赢单产品大类到 PDL 规范行业的宽口径映射。
+ *
+ * 为什么只能做宽口径映射：PDL 免费公司库提供公司自报行业，不提供产品目录、采购意图
+ * 或客户角色。这里用于先缩小候选公司范围，最终的具体产品匹配仍要由官网补全验证，
+ * 不能把“同一行业”伪装成“已经采购该产品”。
+ *
+ * @type {Readonly<Record<string, readonly string[]>>}
+ */
+const CUSTOMER_DEV_PDL_PRODUCT_INDUSTRIES = Object.freeze({
+  energy: Object.freeze(["renewables & environment", "oil & energy", "utilities", "electrical/electronic manufacturing"]),
+  machinery: Object.freeze(["machinery", "industrial automation", "mechanical or industrial engineering"]),
+  "industrial-parts": Object.freeze(["mechanical or industrial engineering", "machinery", "industrial automation"]),
+  "electronic-components": Object.freeze(["electrical/electronic manufacturing", "semiconductors", "computer hardware"]),
+  "consumer-electronics": Object.freeze(["consumer electronics", "computer hardware", "wireless"]),
+  appliances: Object.freeze(["consumer goods", "electrical/electronic manufacturing"]),
+  lighting: Object.freeze(["electrical/electronic manufacturing", "building materials"]),
+  building: Object.freeze(["building materials", "construction", "civil engineering"]),
+  furniture: Object.freeze(["furniture", "consumer goods"]),
+  "hardware-tools": Object.freeze(["business supplies and equipment", "machinery", "building materials"]),
+  automotive: Object.freeze(["automotive"]),
+  transport: Object.freeze(["transportation/trucking/railroad", "automotive", "railroad manufacture"]),
+  "textile-materials": Object.freeze(["textiles"]),
+  apparel: Object.freeze(["apparel & fashion", "textiles"]),
+  "shoes-bags": Object.freeze(["apparel & fashion", "luxury goods & jewelry"]),
+  beauty: Object.freeze(["cosmetics", "consumer goods"]),
+  medical: Object.freeze(["medical devices", "hospital & health care", "health, wellness and fitness"]),
+  chemicals: Object.freeze(["chemicals"]),
+  "rubber-plastics": Object.freeze(["plastics", "chemicals"]),
+  metals: Object.freeze(["mining & metals", "mechanical or industrial engineering"]),
+  "food-beverage": Object.freeze(["food & beverages", "food production"]),
+  agriculture: Object.freeze(["farming", "ranching", "fishery"]),
+  packaging: Object.freeze(["packaging and containers", "printing", "paper & forest products"]),
+  "daily-consumer": Object.freeze(["consumer goods", "retail", "wholesale"]),
+  "baby-toys": Object.freeze(["consumer goods", "retail"]),
+  "sports-outdoor": Object.freeze(["sporting goods", "sports", "recreational facilities and services"]),
+  pet: Object.freeze(["veterinary", "consumer goods", "retail"]),
+  "office-education": Object.freeze(["business supplies and equipment", "education management"]),
+  "security-fire": Object.freeze(["security and investigations", "public safety", "electrical/electronic manufacturing"]),
+  "environment-water": Object.freeze(["environmental services", "renewables & environment", "utilities"]),
+  instruments: Object.freeze(["electrical/electronic manufacturing", "research", "industrial automation"]),
+  "commercial-equipment": Object.freeze(["business supplies and equipment", "hospitality", "machinery"]),
+  "gifts-crafts": Object.freeze(["arts and crafts", "consumer goods", "wholesale"]),
+  logistics: Object.freeze(["logistics and supply chain", "warehousing", "package/freight delivery"]),
+  "marine-aviation": Object.freeze(["maritime", "shipbuilding", "aviation & aerospace", "airlines/aviation"]),
+  "digital-services": Object.freeze(["information technology and services", "computer software", "internet"])
+});
+
+/**
+ * 赢单产品大类在用户界面中的英文业务标签。
+ *
+ * 为什么单独维护这组标签：PDL 的原始行业负责后台召回，例如
+ * ``renewables & environment``；但它既不等于用户选择的产品行业，也不适合直接
+ * 展示。界面改用更明确的英文标题式业务分类，同时仍保留原始值用于评分与审计。
+ *
+ * @type {Readonly<Record<string, string>>}
+ */
+const CUSTOMER_DEV_PUBLIC_INDUSTRY_LABELS = Object.freeze({
+  energy: "Renewable Energy & Power",
+  machinery: "Machinery & Industrial Equipment",
+  "industrial-parts": "Industrial Components",
+  "electronic-components": "Electronic Components",
+  "consumer-electronics": "Consumer Electronics",
+  appliances: "Home Appliances",
+  lighting: "Lighting",
+  building: "Building Materials",
+  furniture: "Furniture & Home",
+  "hardware-tools": "Hardware & Tools",
+  automotive: "Automotive Parts",
+  transport: "Transportation Equipment",
+  "textile-materials": "Textiles & Fabrics",
+  apparel: "Apparel",
+  "shoes-bags": "Footwear, Bags & Accessories",
+  beauty: "Beauty & Personal Care",
+  medical: "Medical & Healthcare",
+  chemicals: "Chemicals",
+  "rubber-plastics": "Rubber & Plastics",
+  metals: "Metals & Minerals",
+  "food-beverage": "Food & Beverage",
+  agriculture: "Agriculture & Horticulture",
+  packaging: "Packaging & Printing",
+  "daily-consumer": "Household Consumer Goods",
+  "baby-toys": "Baby Products & Toys",
+  "sports-outdoor": "Sports & Outdoors",
+  pet: "Pet Supplies",
+  "office-education": "Office & Education",
+  "security-fire": "Security & Fire Safety",
+  "environment-water": "Environmental & Water Treatment",
+  instruments: "Instruments & Meters",
+  "commercial-equipment": "Commercial Service Equipment",
+  "gifts-crafts": "Gifts & Crafts",
+  logistics: "Warehousing & Logistics Equipment",
+  "marine-aviation": "Marine & Aviation",
+  "digital-services": "Software & Digital Services"
+});
+
+/**
+ * PDL 使用英文规范国家名；这里处理赢单界面中与浏览器国际化名称不同的常用短名。
+ * 未命中的国家会由 ``Intl.DisplayNames`` 按 ISO 两位代码自动反查。
+ *
+ * @type {Readonly<Record<string, string>>}
+ */
+const CUSTOMER_DEV_PDL_COUNTRY_ALIASES = Object.freeze({
+  "美国": "united states",
+  "英国": "united kingdom",
+  "俄罗斯": "russia",
+  "韩国": "south korea",
+  "朝鲜": "north korea",
+  "阿联酋": "united arab emirates",
+  "沙特阿拉伯": "saudi arabia",
+  "中国大陆": "china",
+  "中国香港": "hong kong",
+  "中国澳门": "macao",
+  "中国台湾": "taiwan",
+  "捷克": "czechia",
+  "土耳其": "turkey",
+  "越南": "vietnam",
+  "老挝": "laos",
+  "叙利亚": "syria",
+  "伊朗": "iran",
+  "玻利维亚": "bolivia",
+  "委内瑞拉": "venezuela",
+  "坦桑尼亚": "tanzania",
+  "摩尔多瓦": "moldova",
+  "文莱": "brunei",
+  "巴勒斯坦": "palestine"
+});
+
+/** @type {Map<string, string>} */
+const customerDevPdlCountryCache = new Map();
 
 /**
  * 所有对话功能页面共用的 Dify 配置与对话服务。
@@ -215,7 +378,7 @@ const state = {
   customerDevBrief: {
     market: "德国",
     product: "光伏组件",
-    role: "EPC 承包商",
+    role: "不限 / 智能推荐",
     quantity: "100"
   },
   customerDevPicker: null,
@@ -223,6 +386,13 @@ const state = {
   customerDevProductCategory: "energy",
   customerDevSelectedLeadId: "solartech",
   customerDevRevealedEmails: new Set(),
+  customerDevLeads: [],
+  customerDevSearchStatus: "idle",
+  customerDevSearchError: "",
+  customerDevSearchTotal: 0,
+  customerDevSearchRequestId: 0,
+  customerDevSort: "recommended",
+  customerDevSortLoading: false,
   customerDraft: "Hi,\nWe are looking for 50,000 pcs of 500ml 不锈钢保温杯.\nPlease share price for FOB Shanghai, lead time, and MOQ.\nLogo printing needed.\nThanks.",
   isCustomerGenerating: false,
   customerResult: "",
@@ -5822,6 +5992,674 @@ function renderWorkspace() {
 }
 
 /**
+ * 把界面的中文国家/地区名称转换为 PDL 使用的英文规范国家名。
+ *
+ * @param {string} market - 赢单国家选择器中的中文名称。
+ * @returns {string} 小写英文国家名；无法识别时返回小写原值。
+ * @throws {Error} 本函数捕获 Intl 初始化异常并使用原值兜底，不向外抛出。
+ *
+ * 为什么不维护 249 项手工翻译：现代浏览器已经内置 ISO 国家显示名。只对“美国、
+ * 阿联酋、中国香港”等产品短名做显式别名，其余由浏览器生成，可以减少长期错漏。
+ */
+function resolveCustomerDevPdlCountry(market) {
+  const normalizedMarket = String(market || "").trim();
+  if (!normalizedMarket) {
+    return "";
+  }
+
+  if (CUSTOMER_DEV_PDL_COUNTRY_ALIASES[normalizedMarket]) {
+    return CUSTOMER_DEV_PDL_COUNTRY_ALIASES[normalizedMarket];
+  }
+  if (customerDevPdlCountryCache.has(normalizedMarket)) {
+    return customerDevPdlCountryCache.get(normalizedMarket) || normalizedMarket.toLowerCase();
+  }
+
+  try {
+    const chineseNames = new Intl.DisplayNames(["zh-CN"], { type: "region" });
+    const englishNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+    // ISO 3166-1 alpha-2 都由两个大写字母组成。无效组合通常原样返回代码，直接跳过。
+    for (let first = 65; first <= 90; first += 1) {
+      for (let second = 65; second <= 90; second += 1) {
+        const code = String.fromCharCode(first, second);
+        const chinese = chineseNames.of(code);
+        const english = englishNames.of(code);
+        if (chinese === normalizedMarket && english && english !== code) {
+          const result = english.toLowerCase();
+          customerDevPdlCountryCache.set(normalizedMarket, result);
+          return result;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[customer-development] 国家名称转换不可用", err);
+  }
+
+  const fallback = normalizedMarket.toLowerCase();
+  customerDevPdlCountryCache.set(normalizedMarket, fallback);
+  return fallback;
+}
+
+/**
+ * 根据当前产品大类生成 PDL 产品行业候选。
+ *
+ * @param {{ product: string, role: string }} brief - 当前获客条件。
+ * @returns {string[]} 去重后的 PDL 英文规范行业列表。
+ * @throws {Error} 本函数不主动抛异常；找不到映射时返回空数组，只按国家搜索。
+ */
+function getCustomerDevPdlProductIndustries(brief) {
+  const productGroup = (CUSTOMER_DEVELOPMENT.productGroups || []).find((group) => group.products.includes(brief.product));
+  return [...new Set(CUSTOMER_DEV_PDL_PRODUCT_INDUSTRIES[productGroup?.id] || [])];
+}
+
+/**
+ * 取得当前具体产品所属的用户可读英文行业大类。
+ *
+ * @param {{ product: string }} brief - 当前获客条件，product 为用户选择的具体产品。
+ * @returns {string} 例如“光伏组件”对应“Renewable Energy & Power”。
+ * @throws {Error} 本函数不主动抛异常；数据缺失时返回“Other Industries”。
+ *
+ * PDL 英文行业只负责后台召回和评分，不能直接当成产品界面的业务分类。用户已经
+ * 选择了行业大类，因此列表和详情应统一使用更自然的英文标题式业务标签。
+ */
+function getCustomerDevProductIndustryLabel(brief) {
+  const product = String(brief?.product || "").trim();
+  const productGroup = (CUSTOMER_DEVELOPMENT.productGroups || [])
+    .find((group) => group.products.includes(product));
+  return String(CUSTOMER_DEV_PUBLIC_INDUSTRY_LABELS[productGroup?.id] || "Other Industries");
+}
+
+/**
+ * 把数据源中的公司名称整理成适合产品界面展示的身份信息。
+ *
+ * @param {string} name - PDL 返回的原始公司名称。
+ * @param {string} website - PDL 返回的公司主域名或官网地址。
+ * @returns {{ displayName: string, domain: string, initial: string }} 可读名称、规范域名和文字头像。
+ * @throws {Error} 本函数不主动抛异常；名称不可用时优先使用域名兜底。
+ *
+ * PDL 原始记录中会出现 ``. #brand``、全小写名称和多余空格。这里仅做展示层整理，
+ * 不覆盖原始名称，也不猜测品牌 Logo 或新的公司身份，确保详情和后续导出仍可追溯。
+ */
+function getCustomerDevCompanyIdentity(name, website) {
+  const rawName = String(name || "").trim();
+  const domain = String(website || "")
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .split(/[/?#]/, 1)[0]
+    .toLowerCase();
+  let displayName = rawName
+    // 清理数据源偶发的列表符号和 hashtag 前缀；内部连字符仍保留为品牌名称的一部分。
+    .replace(/^[\s.#_*|/\\,:;~+=!?–—-]+/u, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*[–—]\s*/gu, " – ")
+    .trim();
+
+  // 只处理完全没有大写字母的名称，避免破坏 iPhone、eBay 等已有品牌写法。
+  if (displayName && displayName === displayName.toLocaleLowerCase()) {
+    const officialForms = new Map([
+      ["ag", "AG"],
+      ["bv", "B.V."],
+      ["gbr", "GbR"],
+      ["gmbh", "GmbH"],
+      ["inc", "Inc."],
+      ["kg", "KG"],
+      ["ltd", "Ltd."],
+      ["llc", "LLC"],
+      ["mbh", "mbH"],
+      ["odm", "ODM"],
+      ["oem", "OEM"],
+      ["ohg", "OHG"],
+      ["plc", "PLC"],
+      ["pv", "PV"],
+      ["sa", "S.A."],
+      ["sas", "SAS"],
+      ["se", "SE"],
+      ["srl", "SRL"],
+      ["ug", "UG"]
+    ]);
+    displayName = displayName
+      .split(/([\s/–—-]+)/u)
+      .map((token) => {
+        if (!/[\p{L}\p{N}]/u.test(token)) return token;
+        const normalizedToken = token.toLocaleLowerCase();
+        if (officialForms.has(normalizedToken)) return officialForms.get(normalizedToken);
+        if (/^\d+[a-z]{1,2}$/i.test(token) && token.length <= 4) return token.toLocaleUpperCase();
+        return token.replace(/^([\p{L}])/u, (letter) => letter.toLocaleUpperCase());
+      })
+      .join("");
+  }
+
+  if (!/[\p{L}\p{N}]/u.test(displayName)) {
+    displayName = domain || "公司名称待核验";
+  }
+  const initial = displayName.match(/[\p{L}\p{N}]/u)?.[0]?.toLocaleUpperCase() || "·";
+  return { displayName, domain, initial };
+}
+
+/**
+ * 把数据源中的官网或 LinkedIn 文本转换成可安全点击的绝对地址。
+ *
+ * @param {string} value - PDL 返回的原始地址，可能没有 ``https://``。
+ * @param {"website"|"linkedin"|"contact-linkedin"} kind - 地址用途；LinkedIn 会额外限制官方域名和页面路径。
+ * @returns {string} 可放入 ``href`` 的 HTTP(S) 绝对地址；不安全或结构错误时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常；URL 解析失败会返回空字符串。
+ *
+ * 这里只做结构规范化，不代表目标页面仍然有效。PDL 是快照数据，页面是否被删除、
+ * 合并或改名仍要由用户打开后确认。
+ */
+function normalizeCustomerDevExternalUrl(value, kind) {
+  const rawValue = String(value || "").trim();
+  if (!rawValue || rawValue === "待补充") return "";
+  const candidate = /^https?:\/\//i.test(rawValue)
+    ? rawValue
+    : `https://${rawValue.replace(/^\/+/, "")}`;
+
+  try {
+    const parsed = new URL(candidate);
+    const protocol = parsed.protocol.toLowerCase();
+    if (!["http:", "https:"].includes(protocol) || parsed.username || parsed.password || !parsed.hostname.includes(".")) {
+      return "";
+    }
+    parsed.hash = "";
+
+    if (kind === "linkedin" || kind === "contact-linkedin") {
+      const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+      const isLinkedInHost = hostname === "linkedin.com" || /^[a-z]{2}\.linkedin\.com$/.test(hostname);
+      const expectedPath = kind === "linkedin" ? /^\/company\/[^/]+/i : /^\/in\/[^/]+/i;
+      if (!isLinkedInHost || !expectedPath.test(parsed.pathname)) return "";
+      // PDL 和 Hunter 里都可能出现裸域名或旧地区子域名，统一到 LinkedIn 主域名。
+      parsed.protocol = "https:";
+      parsed.hostname = "www.linkedin.com";
+    }
+    return parsed.href;
+  } catch (error) {
+    console.warn("[customer-development] 外部地址结构无效", { kind, value: rawValue });
+    return "";
+  }
+}
+
+/**
+ * 渲染不暴露原始 URL 的外部访问入口。
+ *
+ * @param {string} url - 已通过 ``normalizeCustomerDevExternalUrl`` 校验的绝对地址。
+ * @param {string} label - 用户看到的动作名称。
+ * @param {string} unavailableLabel - 地址缺失或无效时显示的状态。
+ * @returns {string} 安全外链或不可用状态 HTML。
+ * @throws {Error} 本函数不主动抛异常；所有动态文本都会经过 HTML 转义。
+ */
+function renderCustomerDevExternalLink(url, label, unavailableLabel) {
+  if (!url) {
+    return `<span class="customer-dev-fact-status">${escapeHtml(unavailableLabel)}</span>`;
+  }
+  return `
+    <a class="customer-dev-fact-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">
+      <span>${escapeHtml(label)}</span><i aria-hidden="true">↗</i>
+    </a>
+  `;
+}
+
+/**
+ * 把 PDL API 公司记录转换成当前客户开发列表使用的数据结构。
+ *
+ * @param {object} company - PDL 本地搜索接口返回的公司记录。
+ * @param {{ market: string, product: string, role: string }} brief - 当前用户选择的获客条件。
+ * @returns {object} 客户开发页面可以安全展示的公司级线索。
+ * @throws {Error} 本函数不主动抛异常；缺失字段统一显示为“待补充”。
+ *
+ * 这里不会按域名猜邮箱，也不会伪造采购负责人。PDL 免费公司数据只有公司字段，
+ * 联系人和产品匹配必须由后续公开网页或独立 enrichment 数据源补充。
+ */
+function normalizeCustomerDevPdlLead(company, brief) {
+  const companyName = String(company?.name || "未命名公司").trim();
+  const industry = String(company?.industry || "").trim();
+  const displayIndustry = getCustomerDevProductIndustryLabel(brief);
+  const website = String(company?.website || "").trim();
+  const linkedin = String(company?.linkedin_url || "").trim();
+  const companyIdentity = getCustomerDevCompanyIdentity(companyName, website);
+  const websiteUrl = normalizeCustomerDevExternalUrl(website, "website");
+  const linkedinUrl = normalizeCustomerDevExternalUrl(linkedin, "linkedin");
+  const roleMatchEvidence = Array.isArray(company?.role_match_evidence)
+    ? company.role_match_evidence.map((item) => {
+        const field = String(item?.field || "").trim();
+        return {
+          field,
+          value: String(item?.value || "").trim(),
+          // 行业证据改写成用户选择的英文业务分类；原始 PDL 值仍保存在
+          // pdlIndustry 中，但不进入任何用户可见文案。
+          message: field === "industry"
+            ? `业务行业“${displayIndustry}”与当前客户类型规则一致`
+            : String(item?.message || "").trim()
+        };
+      }).filter((item) => item.message)
+    : [];
+  const roleMatchLevel = ["high", "medium", "weak", "unknown"].includes(company?.role_match_level)
+    ? company.role_match_level
+    : "unknown";
+  const roleSupport = ["high", "medium", "none"].includes(company?.role_support)
+    ? company.role_support
+    : "none";
+  const roleMatchLabel = String(company?.role_match_label || "客户类型待核验").trim();
+  const roleVerified = company?.role_verified === true;
+  const locationParts = [company?.locality, company?.region, company?.country]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  const facts = [
+    `业务行业：${displayIndustry}`,
+    website ? "PDL 已提供公司官网地址" : "PDL 官网地址待补充",
+    linkedin ? "PDL 已提供公司 LinkedIn 页面" : "PDL LinkedIn 页面待补充",
+    ...roleMatchEvidence.map((item) => item.message)
+  ];
+  const dataCompletenessScore = Number(company?.data_completeness_score) || 0;
+  const recommendationSignals = [
+    roleMatchLevel === "high" || roleMatchLevel === "medium" ? roleMatchLabel : "",
+    company?.product_industry_match === true ? "目标行业相关" : "",
+    websiteUrl ? "官网已收录" : "",
+    linkedinUrl ? "LinkedIn 已收录" : "",
+    dataCompletenessScore >= 16 ? "公司档案较完整" : ""
+  ].filter(Boolean);
+  const recommendationReason = recommendationSignals.length
+    ? `推荐依据：${recommendationSignals.slice(0, 3).join(" · ")}。`
+    : industry
+      ? `推荐依据：业务行业为 ${displayIndustry}，具体产品和客户类型仍需核验。`
+      : `已按 ${brief.market} 找到公司，行业和客户类型仍需核验。`;
+
+  return {
+    id: String(company?.id || `pdl-${companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`),
+    company: companyName,
+    displayCompany: companyIdentity.displayName,
+    companyDomain: companyIdentity.domain,
+    companyInitial: companyIdentity.initial,
+    country: String(company?.country || "").trim(),
+    countryName: brief.market,
+    type: displayIndustry,
+    industry: displayIndustry,
+    pdlIndustry: industry,
+    source: "PDL 免费公司库",
+    dataProvider: "pdl",
+    priority: "B",
+    score: Number(company?.match_score) || 0,
+    reason: recommendationReason,
+    missing: "客户类型核验、联系人、邮箱、电话、产品匹配证据",
+    next: website ? "访问官网产品页和联系页继续补全" : "先补充公司官网，再核验产品与联系人",
+    updated: new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()),
+    role: roleMatchLabel,
+    roleMatchLevel,
+    roleMatchLabel,
+    roleMatchEvidence,
+    roleSupport,
+    roleVerified,
+    requestedRole: String(company?.requested_role || brief.role).trim(),
+    productIndustryMatch: company?.product_industry_match === true,
+    matchScore: Number(company?.match_score) || 0,
+    productMatchScore: Number(company?.product_match_score) || 0,
+    roleMatchComponentScore: Number(company?.role_match_component_score) || 0,
+    actionabilityScore: Number(company?.actionability_score) || 0,
+    dataCompletenessScore,
+    contact: "PDL 不含联系人",
+    website: website || "待补充",
+    websiteUrl,
+    linkedin: linkedin || "待补充",
+    linkedinUrl,
+    location: locationParts.join(" · ") || brief.market,
+    size: String(company?.size || "").trim() || "待补充",
+    founded: company?.founded ? String(company.founded) : "待补充",
+    evidence: facts,
+    opener: "",
+    tags: [brief.product, roleMatchLabel, "PDL 公司数据"],
+    contacts: [],
+    contactLookupStatus: "idle",
+    contactLookupError: "",
+    contactProvider: "hunter",
+    hunterContactTotal: 0,
+    hunterAcceptAll: false
+  };
+}
+
+/**
+ * 调用同源的 PDL 本地公司搜索接口。
+ *
+ * @param {{ market: string, product: string, role: string, quantity: string }} brief - 当前获客条件。
+ * @param {string} sortMode - PDL 服务端白名单中的排序值。
+ * @returns {Promise<{ leads: object[], total: number }>} 规范化线索和完整匹配数。
+ * @throws {Error} 页面不是通过本地 HTTP 服务打开、数据集未导入或接口失败时抛出。
+ */
+async function fetchCustomerDevPdlCompanies(brief, sortMode = state.customerDevSort) {
+  if (!/^https?:$/.test(window.location.protocol)) {
+    throw new Error("请通过 PDL 本地服务打开页面，不能直接双击 index.html。 ");
+  }
+
+  const endpoint = new URL("/api/pdl/companies", window.location.origin);
+  endpoint.searchParams.set("country", resolveCustomerDevPdlCountry(brief.market));
+  endpoint.searchParams.set("role", brief.role);
+  endpoint.searchParams.set("sort", sortMode);
+  endpoint.searchParams.set("limit", String(Math.max(1, Math.min(Number(brief.quantity) || 20, 500))));
+  getCustomerDevPdlProductIndustries(brief).forEach((industry) => endpoint.searchParams.append("industry", industry));
+
+  const response = await fetch(endpoint, { headers: { Accept: "application/json" } });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (payload?.code === "dataset_not_imported") {
+      throw new Error("PDL 本地库尚未导入。下载完成后把文件路径发给我，我来执行导入。 ");
+    }
+    throw new Error(String(payload?.message || `PDL 搜索失败（HTTP ${response.status}）`));
+  }
+
+  const companies = Array.isArray(payload?.companies) ? payload.companies : [];
+  return {
+    leads: companies.map((company) => normalizeCustomerDevPdlLead(company, brief)),
+    total: Number(payload?.total) || 0
+  };
+}
+
+/**
+ * 把本地 Hunter 代理返回的一条记录转换成联系人页面使用的数据结构。
+ *
+ * @param {object} contact - 后端已精简的 Hunter Domain Search 联系人。
+ * @returns {object | null} 通过邮箱结构校验的联系人；无效记录返回 ``null``。
+ * @throws {Error} 本函数不主动抛异常；第三方缺失字段会使用保守占位。
+ */
+function normalizeCustomerDevHunterContact(contact) {
+  const email = String(contact?.email || "").trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 320) {
+    return null;
+  }
+
+  const emailType = contact?.type === "generic" ? "generic" : "personal";
+  const name = String(contact?.name || "").trim()
+    || (emailType === "generic" ? "通用邮箱" : "联系人姓名待补充");
+  const confidence = Math.max(0, Math.min(Number(contact?.confidence) || 0, 100));
+  const linkedinUrl = normalizeCustomerDevExternalUrl(contact?.linkedin, "contact-linkedin");
+
+  return {
+    name,
+    title: String(contact?.title || "").trim() || "职位待补充",
+    email,
+    emailType,
+    confidence,
+    department: String(contact?.department || "").trim(),
+    seniority: String(contact?.seniority || "").trim(),
+    decisionMaker: contact?.decision_maker === true,
+    verificationStatus: String(contact?.verification_status || "").trim(),
+    linkedin: String(contact?.linkedin || "").trim(),
+    linkedinUrl,
+    phone: String(contact?.phone || "").trim(),
+    source: "Hunter Domain Search",
+    sourceCount: Math.max(0, Number(contact?.source_count) || 0),
+    lastSeenOn: String(contact?.last_seen_on || "").trim()
+  };
+}
+
+/**
+ * 为联系人交互生成一组明确标注为模拟数据的虚构记录。
+ *
+ * @param {object} lead - 当前选中的公司线索，仅用于生成稳定的模拟记录 ID。
+ * @returns {Promise<{ contacts: object[], total: number, acceptAll: boolean, provider: "mock" }>} 三位模拟联系人。
+ * @throws {Error} 本函数不主动抛异常。
+ *
+ * 邮箱统一使用 RFC 保留的 ``example.com``，不能拼接真实公司域名，避免把原型数据
+ * 误认为真实联系方式。短暂延迟用于展示“获取中”反馈，不会发起任何网络请求。
+ */
+async function fetchCustomerDevMockContacts(lead) {
+  await new Promise((resolve) => window.setTimeout(resolve, 450));
+  const leadId = String(lead?.id || "company").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 36) || "company";
+  const contacts = [
+    {
+      id: `mock-${leadId}-1`,
+      name: "Alex Morgan（模拟）",
+      title: "Head of Procurement",
+      email: "alex.morgan@example.com",
+      emailType: "personal",
+      confidence: 96,
+      department: "Procurement",
+      seniority: "Head",
+      decisionMaker: true,
+      verificationStatus: "模拟数据",
+      linkedin: "",
+      linkedinUrl: "",
+      phone: "+1 202-555-0101（模拟）",
+      source: "模拟联系人数据",
+      sourceCount: 1,
+      lastSeenOn: ""
+    },
+    {
+      id: `mock-${leadId}-2`,
+      name: "Jamie Lee（模拟）",
+      title: "Business Development Manager",
+      email: "jamie.lee@example.com",
+      emailType: "personal",
+      confidence: 92,
+      department: "Business Development",
+      seniority: "Manager",
+      decisionMaker: true,
+      verificationStatus: "模拟数据",
+      linkedin: "",
+      linkedinUrl: "",
+      phone: "+1 202-555-0102（模拟）",
+      source: "模拟联系人数据",
+      sourceCount: 1,
+      lastSeenOn: ""
+    },
+    {
+      id: `mock-${leadId}-3`,
+      name: "Taylor Chen（模拟）",
+      title: "Supply Chain Specialist",
+      email: "taylor.chen@example.com",
+      emailType: "personal",
+      confidence: 88,
+      department: "Supply Chain",
+      seniority: "Senior",
+      decisionMaker: false,
+      verificationStatus: "模拟数据",
+      linkedin: "",
+      linkedinUrl: "",
+      phone: "+1 202-555-0103（模拟）",
+      source: "模拟联系人数据",
+      sourceCount: 1,
+      lastSeenOn: ""
+    }
+  ];
+
+  return { contacts, total: contacts.length, acceptAll: false, provider: "mock" };
+}
+
+/**
+ * 通过同源后端代理按一家公司的域名查询 Hunter 联系人。
+ *
+ * @param {object} lead - 已从 PDL 取得域名的公司线索。
+ * @returns {Promise<{ contacts: object[], total: number, acceptAll: boolean }>} 最多 10 位联系人和域名摘要。
+ * @throws {Error} 域名缺失、服务端未配置 Key、Hunter 额度耗尽或网络失败时抛出安全提示。
+ *
+ * Hunter Domain Search 可能消耗额度，所以该函数只能由用户点击按钮后调用，不能放进
+ * PDL 搜索、列表渲染或自动预加载流程。
+ */
+async function fetchCustomerDevHunterContacts(lead) {
+  const companyDomain = String(lead?.companyDomain || "").trim();
+  if (!companyDomain) {
+    throw new Error("这家公司没有可用官网域名，暂时无法获取联系人。");
+  }
+
+  const endpoint = new URL("/api/hunter/domain-search", window.location.origin);
+  endpoint.searchParams.set("domain", lead.companyDomain);
+  endpoint.searchParams.set("limit", "10");
+  const response = await fetch(endpoint, { headers: { Accept: "application/json" } });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    // 上游供应商、密钥名和额度细节属于实现信息，不直接暴露给业务用户。
+    if ([401, 403, 503].includes(response.status)) {
+      throw new Error("联系人服务暂不可用，请稍后再试。");
+    }
+    if ([402, 429].includes(response.status)) {
+      throw new Error("联系人查询额度暂时不足，请稍后再试。");
+    }
+    throw new Error("联系人查询失败，请稍后再试。");
+  }
+
+  const rawContacts = Array.isArray(payload?.contacts) ? payload.contacts : [];
+  return {
+    contacts: rawContacts.map(normalizeCustomerDevHunterContact).filter(Boolean),
+    total: Math.max(0, Number(payload?.total) || 0),
+    acceptAll: payload?.accept_all === true,
+    provider: "hunter"
+  };
+}
+
+/**
+ * 原位更新一家公司在联系人补全过程中的状态。
+ *
+ * @param {string} leadId - PDL 公司稳定 ID。
+ * @param {object} patch - 只覆盖联系人相关字段的补丁。
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常；找不到公司时保持现有数组不变。
+ */
+function updateCustomerDevLeadContacts(leadId, patch) {
+  state.customerDevLeads = state.customerDevLeads.map((lead) => (
+    lead.id === leadId ? { ...lead, ...patch } : lead
+  ));
+}
+
+/**
+ * 响应用户按钮，按需获取一家公司的 Hunter 联系人。
+ *
+ * @param {string} leadId - 当前公司 ID。
+ * @returns {Promise<void>} 查询完成后进入联系人页，或在详情卡显示空结果/错误。
+ * @throws {Error} 所有预期错误都会写回页面状态，不继续向事件循环抛出。
+ */
+async function runCustomerDevHunterLookup(leadId) {
+  const lead = state.customerDevLeads.find((item) => item.id === leadId);
+  if (!lead || lead.contactLookupStatus === "loading") {
+    return;
+  }
+
+  updateCustomerDevLeadContacts(leadId, {
+    contactLookupStatus: "loading",
+    contactLookupError: ""
+  });
+  renderApp();
+
+  try {
+    const result = CUSTOMER_DEV_USE_MOCK_CONTACTS
+      ? await fetchCustomerDevMockContacts(lead)
+      : await fetchCustomerDevHunterContacts(lead);
+    updateCustomerDevLeadContacts(leadId, {
+      contacts: result.contacts,
+      contactLookupStatus: result.contacts.length ? "ready" : "empty",
+      contactLookupError: "",
+      contactProvider: result.provider,
+      hunterContactTotal: result.total,
+      hunterAcceptAll: result.acceptAll
+    });
+
+    if (result.contacts.length) {
+      renderApp();
+      showToast(result.provider === "mock"
+        ? `已生成 ${result.contacts.length} 位模拟联系人`
+        : `已找到 ${result.contacts.length} 位联系人`);
+      return;
+    }
+
+    renderApp();
+    showToast("暂未找到这家公司的公开联系人");
+  } catch (error) {
+    const message = error instanceof Error ? error.message.trim() : "联系人查询失败，请稍后再试。";
+    updateCustomerDevLeadContacts(leadId, {
+      contactLookupStatus: "error",
+      contactLookupError: message
+    });
+    renderApp();
+    showToast(message);
+  }
+}
+
+/**
+ * 启动一次真实 PDL 搜索，并保证搜索反馈至少可见 2.4 秒。
+ *
+ * @returns {Promise<void>} 搜索完成或失败后进入结果页。
+ * @throws {Error} 本函数把接口异常写进页面状态，不继续向事件循环抛出。
+ */
+async function runCustomerDevPdlSearch() {
+  const requestId = state.customerDevSearchRequestId + 1;
+  const briefSnapshot = { ...state.customerDevBrief };
+  const sortSnapshot = state.customerDevSort;
+  state.customerDevSearchRequestId = requestId;
+  state.customerDevSearchStatus = "loading";
+  state.customerDevSortLoading = false;
+  state.customerDevSearchError = "";
+  state.customerDevLeads = [];
+  state.customerDevSearchTotal = 0;
+
+  const minimumDelay = new Promise((resolve) => window.setTimeout(resolve, CUSTOMER_DEV_SEARCH_DURATION_MS));
+  const [searchResult] = await Promise.allSettled([
+    fetchCustomerDevPdlCompanies(briefSnapshot, sortSnapshot),
+    minimumDelay
+  ]);
+
+  // 用户离开页面或发起了更新搜索时，旧请求不能覆盖新状态。
+  if (state.customerDevSearchRequestId !== requestId || window.location.hash !== "#/customer-development/searching") {
+    return;
+  }
+
+  if (searchResult.status === "fulfilled") {
+    state.customerDevLeads = searchResult.value.leads;
+    state.customerDevSearchTotal = searchResult.value.total;
+    state.customerDevSelectedLeadId = searchResult.value.leads[0]?.id || "";
+    state.customerDevSearchStatus = "ready";
+  } else {
+    state.customerDevSearchStatus = "error";
+    state.customerDevSearchError = searchResult.reason instanceof Error
+      ? searchResult.reason.message.trim()
+      : "PDL 本地搜索暂时不可用。";
+  }
+
+  window.location.hash = "#/customer-development/results";
+}
+
+/**
+ * 在结果页原地切换 PDL 排序，不重新播放整段搜索动画。
+ *
+ * @param {string} nextSort - 用户在下拉框选择的排序值。
+ * @returns {Promise<void>} 排序结果写入状态后重新渲染页面。
+ * @throws {Error} 请求异常会恢复原排序并以轻提示告知用户，不向事件循环继续抛出。
+ */
+async function refreshCustomerDevPdlSort(nextSort) {
+  const allowedSort = CUSTOMER_DEV_SORT_OPTIONS.find((option) => option.value === nextSort);
+  if (!allowedSort || state.customerDevSortLoading || nextSort === state.customerDevSort) {
+    return;
+  }
+
+  const previousSort = state.customerDevSort;
+  const requestId = state.customerDevSearchRequestId + 1;
+  const briefSnapshot = { ...state.customerDevBrief };
+  state.customerDevSearchRequestId = requestId;
+  state.customerDevSort = allowedSort.value;
+  state.customerDevSortLoading = true;
+  renderApp();
+
+  try {
+    const result = await fetchCustomerDevPdlCompanies(briefSnapshot, allowedSort.value);
+    // 只允许最后一次请求更新当前结果，防止快速切换或离开页面后旧请求回写。
+    if (state.customerDevSearchRequestId !== requestId || window.location.hash !== "#/customer-development/results") {
+      return;
+    }
+    state.customerDevLeads = result.leads;
+    state.customerDevSearchTotal = result.total;
+    state.customerDevSelectedLeadId = result.leads[0]?.id || "";
+    showToast(`已切换为${allowedSort.label}`);
+  } catch (error) {
+    if (state.customerDevSearchRequestId !== requestId) {
+      return;
+    }
+    state.customerDevSort = previousSort;
+    showToast(error instanceof Error ? error.message : "排序刷新失败，请稍后重试。");
+  } finally {
+    if (state.customerDevSearchRequestId === requestId) {
+      state.customerDevSortLoading = false;
+      renderApp();
+    }
+  }
+}
+
+/**
  * 渲染客户开发工作台。
  *
  * 作用：
@@ -5832,7 +6670,7 @@ function renderWorkspace() {
  * @throws {Error} 本函数不主动抛异常；如果示例数据缺失，会用空数组兜底。
  */
 function renderCustomerDevelopmentView() {
-  const leads = CUSTOMER_DEVELOPMENT.leads || [];
+  const leads = state.customerDevLeads;
   const selectedLead = leads.find((lead) => lead.id === state.customerDevSelectedLeadId) || leads[0];
   const isBrief = state.customerDevPhase === "brief";
   const isSearching = state.customerDevPhase === "searching";
@@ -5872,7 +6710,7 @@ function renderCustomerDevBriefPanel() {
         <header class="customer-dev-enrichment-hero">
           <span class="customer-dev-enrichment-kicker">Lead Enrichment&nbsp;&nbsp;·&nbsp;&nbsp;客户情报补全</span>
           <h1>从一条线索，补全成可行动的客户情报</h1>
-          <p>全网多源数据自动搜集与验证，生成完整公司与联系人画像，助你更快触达、更高转化。</p>
+          <p>先从免费公司库筛选真实企业资料，再按官网和独立联系人来源逐步补全，不猜测联系方式。</p>
         </header>
 
         <div class="customer-dev-brief-fields">
@@ -5893,8 +6731,8 @@ function renderCustomerDevBriefPanel() {
           </div>
 
           <label class="customer-dev-brief-field">
-            <span class="customer-dev-field-label"><small>03</small>客户类型</span>
-            <select class="customer-dev-field-select" data-customer-dev-field="role" aria-label="客户类型">
+            <span class="customer-dev-field-label"><small>03</small>优先客户类型（可选）</span>
+            <select class="customer-dev-field-select" data-customer-dev-field="role" aria-label="优先客户类型（可选）">
               ${[...new Set([brief.role, ...customerTypes])].map((option) => `
                 <option value="${escapeHtml(option)}" ${option === brief.role ? "selected" : ""}>${escapeHtml(option)}</option>
               `).join("")}
@@ -5921,7 +6759,7 @@ function renderCustomerDevBriefPanel() {
           </div>
           <a class="customer-dev-launch" href="#/customer-development/searching" data-customer-dev-start>
             <span>
-              <small>AI 全网搜索 · 即刻生成名单</small>
+              <small>PDL 免费公司库 · 本地真实查询</small>
               <strong>启动搜索，锁定成交机会</strong>
             </span>
             <b aria-hidden="true">↗</b>
@@ -6135,16 +6973,16 @@ function renderCustomerDevSearchingPanel() {
   return `
     <section class="customer-dev-searching" aria-label="AI 正在找客户">
       <article>
-        <span class="customer-dev-search-live"><i aria-hidden="true"></i> 全球客户信号接入中</span>
+        <span class="customer-dev-search-live"><i aria-hidden="true"></i> PDL 免费公司库查询中</span>
         <div class="customer-dev-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
         <h2>获客引擎已启动，正在锁定成交机会</h2>
         <p>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)} · ${escapeHtml(brief.quantity)} 家</p>
         <div class="customer-dev-search-log">
           ${[
             "目标市场与采购画像已确认",
-            "正在扫描官网、商业目录与公开贸易信号",
-        "符合当前筛选条件的企业正在进入候选名单",
-            "即将打开公司画像与联系人入口"
+            "正在匹配 PDL 行业、公司名称与域名证据",
+            "符合当前宽口径筛选条件的公司正在进入候选名单",
+            "即将打开真实公司资料；联系人字段不会猜测生成"
           ].map((text, index) => `
             <span class="${index < 3 ? "done" : "active"}">${escapeHtml(text)}</span>
           `).join("")}
@@ -6152,6 +6990,21 @@ function renderCustomerDevSearchingPanel() {
       </article>
     </section>
   `;
+}
+
+/**
+ * 渲染客户类型推测的保守标签。
+ *
+ * @param {object} lead - 已规范化的 PDL 公司线索。
+ * @returns {string} 带置信等级样式的标签 HTML。
+ * @throws {Error} 本函数不主动抛异常；未知等级统一降级为 unknown。
+ */
+function renderCustomerDevRoleBadge(lead) {
+  const level = ["high", "medium", "weak", "unknown"].includes(lead?.roleMatchLevel)
+    ? lead.roleMatchLevel
+    : "unknown";
+  const label = String(lead?.roleMatchLabel || "客户类型待核验").trim();
+  return `<span class="customer-dev-role-badge is-${level}">${escapeHtml(label)}</span>`;
 }
 
 /**
@@ -6168,22 +7021,67 @@ function renderCustomerDevSearchingPanel() {
  */
 function renderCustomerDevResultsWorkspace(leads, selectedLead) {
   const brief = state.customerDevBrief;
+  const total = state.customerDevSearchTotal;
+  const activeSort = CUSTOMER_DEV_SORT_OPTIONS.find((option) => option.value === state.customerDevSort)
+    || CUSTOMER_DEV_SORT_OPTIONS[0];
+  const resultCountText = new Intl.NumberFormat("zh-CN").format(total);
+  const roleCounts = leads.reduce((counts, lead) => {
+    const level = ["high", "medium", "weak", "unknown"].includes(lead?.roleMatchLevel)
+      ? lead.roleMatchLevel
+      : "unknown";
+    counts[level] += 1;
+    return counts;
+  }, { high: 0, medium: 0, weak: 0, unknown: 0 });
+  const pendingRoleCount = roleCounts.weak + roleCounts.unknown;
+  const roleSummary = brief.role === "不限 / 智能推荐"
+    ? `本页 ${leads.length} 家 · 客户类型未限定`
+    : `本页 ${leads.length} 家：${roleCounts.high} 家高度疑似 · ${roleCounts.medium} 家可能匹配 · ${pendingRoleCount} 家待核验`;
+
+  if (state.customerDevSearchStatus === "error") {
+    return `
+      <section class="customer-dev-brief-summary">
+        <div>
+          <span>本轮获客目标</span>
+          <strong>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}</strong>
+          <p>PDL 免费公司库 · 本地搜索未完成</p>
+        </div>
+        <a href="#/customer-development" data-customer-dev-reset>返回配置目标</a>
+      </section>
+      <section class="customer-dev-pdl-state" role="status">
+        <span>PDL</span>
+        <h2>公司数据暂时还不能搜索</h2>
+        <p>${escapeHtml(state.customerDevSearchError || "请确认本地数据库已经导入并通过 PDL 本地服务打开页面。")}</p>
+        <a href="#/customer-development/searching">重新尝试</a>
+      </section>
+    `;
+  }
 
   return `
     <section class="customer-dev-brief-summary">
       <div>
         <span>本轮获客目标</span>
         <strong>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}</strong>
-        <p>126 条线索 · 本页 ${leads.length} 家</p>
+        <p>${escapeHtml(resultCountText)} 条 PDL 候选公司 · ${escapeHtml(roleSummary)}</p>
       </div>
       <a href="#/customer-development" data-customer-dev-reset>重新配置目标</a>
     </section>
 
     <div class="customer-dev-list-toolbar">
-      <strong>客户列表 <span>${leads.length}</span></strong>
+      <div class="customer-dev-list-heading">
+        <strong>公司列表 <span>${leads.length}</span></strong>
+        <small>${escapeHtml(activeSort.description)}</small>
+      </div>
       <div class="customer-dev-table-actions">
+        <label class="customer-dev-sort-control">
+          <span>排序</span>
+          <select data-customer-dev-sort aria-label="客户公司排序" ${state.customerDevSortLoading ? "disabled" : ""}>
+            ${CUSTOMER_DEV_SORT_OPTIONS.map((option) => `
+              <option value="${escapeHtml(option.value)}" ${option.value === activeSort.value ? "selected" : ""}>${escapeHtml(option.label)}</option>
+            `).join("")}
+          </select>
+        </label>
         <button type="button" data-toast="已模拟导出客户列表。">导出</button>
-        <button type="button" data-toast="已模拟刷新客户池。">刷新</button>
+        <a href="#/customer-development/searching">刷新 PDL</a>
       </div>
     </div>
 
@@ -6195,30 +7093,23 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
                 <th><input type="checkbox" aria-label="全选客户" /></th>
                 <th>公司</th>
                 <th>国家</th>
-                <th>客户类型</th>
-                <th>来源</th>
-                <th>线索说明</th>
-                <th>联系人</th>
-                <th>更新时间</th>
+                <th>行业</th>
               </tr>
             </thead>
             <tbody>
-              ${leads.map((lead) => renderCustomerDevLeadRow(lead, selectedLead)).join("")}
+              ${leads.length
+                ? leads.map((lead) => renderCustomerDevLeadRow(lead, selectedLead)).join("")
+                : `<tr class="customer-dev-empty-row"><td colspan="4">PDL 当前没有符合这些宽口径条件的公司，请返回调整国家或产品。</td></tr>`}
             </tbody>
           </table>
         <footer class="customer-dev-pagination">
-          <span>共 126 条</span>
+          <span>共 ${escapeHtml(resultCountText)} 条</span>
           <div>
             <button type="button" data-toast="已在第 1 页。">‹</button>
             <button class="active" type="button">1</button>
-            <button type="button" data-toast="已模拟切到第 2 页。">2</button>
-            <button type="button" data-toast="已模拟切到第 3 页。">3</button>
-            <button type="button" data-toast="已模拟切到第 4 页。">4</button>
-            <span>...</span>
-            <button type="button" data-toast="已模拟切到第 9 页。">9</button>
-            <button type="button" data-toast="已模拟下一页。">›</button>
+            <button type="button" data-toast="下一页会在后续接入真实分页。" ${total <= leads.length ? "disabled" : ""}>›</button>
           </div>
-          <button type="button" data-toast="已模拟切换每页 20 条。">20 条/页⌄</button>
+          <button type="button" data-toast="本轮按目标数量读取，单次最多 500 家。">${leads.length} 条/页⌄</button>
         </footer>
       </article>
 
@@ -6236,16 +7127,24 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderCustomerDevLeadRow(lead, selectedLead) {
+  const displayCompany = String(lead.displayCompany || lead.company || "公司名称待核验");
+  const companyDomain = String(lead.companyDomain || "");
+  const companyInitial = String(lead.companyInitial || displayCompany.match(/[\p{L}\p{N}]/u)?.[0] || "·").toLocaleUpperCase();
+  const originalNameHint = displayCompany !== lead.company ? `原始名称：${lead.company}` : displayCompany;
   return `
     <tr class="customer-dev-data-row ${selectedLead && lead.id === selectedLead.id ? "selected" : ""}" data-dev-lead="${escapeHtml(lead.id)}">
-      <td><input type="checkbox" ${selectedLead && lead.id === selectedLead.id ? "checked" : ""} aria-label="选择${escapeHtml(lead.company)}" /></td>
-      <td><button type="button" data-dev-lead="${escapeHtml(lead.id)}">${escapeHtml(lead.company)}</button></td>
+      <td><input type="checkbox" ${selectedLead && lead.id === selectedLead.id ? "checked" : ""} aria-label="选择${escapeHtml(displayCompany)}" /></td>
+      <td class="customer-dev-company-cell">
+        <button type="button" data-dev-lead="${escapeHtml(lead.id)}" title="${escapeHtml(originalNameHint)}">
+          <span class="customer-dev-company-mark" aria-hidden="true">${escapeHtml(companyInitial)}</span>
+          <span class="customer-dev-company-copy">
+            <strong>${escapeHtml(displayCompany)}</strong>
+            <small class="${companyDomain ? "" : "is-missing"}">${companyDomain ? "官网已收录" : "官网待补充"}</small>
+          </span>
+        </button>
+      </td>
       <td>${escapeHtml(lead.countryName)}</td>
-      <td>${escapeHtml(lead.type)}</td>
-      <td>${escapeHtml(lead.source)}</td>
-      <td>${escapeHtml(lead.reason)}</td>
-      <td>${escapeHtml(lead.contact)}</td>
-      <td>${escapeHtml(lead.updated)}</td>
+      <td class="customer-dev-industry-cell">${escapeHtml(lead.type)}</td>
     </tr>
   `;
 }
@@ -6261,13 +7160,14 @@ function renderCustomerDevDetail(lead) {
   if (!lead) {
     return "";
   }
+  const displayCompany = String(lead.displayCompany || lead.company || "公司名称待核验");
 
   return `
-    <aside class="customer-dev-detail" aria-label="${escapeHtml(lead.company)} 客户详情">
+    <aside class="customer-dev-detail" aria-label="${escapeHtml(displayCompany)} 客户详情">
       <header class="customer-dev-detail-hero">
         <div class="customer-dev-detail-heading">
           <span class="customer-dev-detail-kicker">客户情报</span>
-          <h2>${escapeHtml(lead.company)}</h2>
+          <h2 title="${escapeHtml(lead.company)}">${escapeHtml(displayCompany)}</h2>
           <p class="customer-dev-detail-tags">
             <span>${escapeHtml(lead.type)}</span>
             <span>${escapeHtml(lead.countryName)}</span>
@@ -6295,39 +7195,121 @@ function renderCustomerDevDetail(lead) {
  * 为当前公司生成联系人原型数据。
  *
  * @param {typeof CUSTOMER_DEVELOPMENT.leads[number]} lead - 当前公司线索。
- * @returns {Array<{ name: string, title: string, source: string, email: string, linkedin: string, whatsapp: string }>} 联系人列表。
+ * @returns {Array<{ name: string, title: string, source: string, email: string, linkedinUrl: string, phone: string }>} 联系人列表。
  * @throws {Error} 本函数不主动抛异常。
  */
 function buildCustomerDevContacts(lead) {
-  const primaryName = lead.contact === "待确认" ? "采购负责人待确认" : lead.contact;
-  const domain = lead.website.replace(/^www\./, "");
+  // PDL 免费公司数据集没有人员记录。只有后续真实来源明确返回 contacts 时才展示，
+  // 不能再按公司域名拼出 purchase@、bd@ 或 info@ 等未经验证的邮箱。
+  return Array.isArray(lead?.contacts) ? lead.contacts : [];
+}
 
-  return [
-    {
-      name: primaryName,
-      title: lead.role,
-      source: "官网 + LinkedIn",
-      email: `purchase@${domain}`,
-      linkedin: `linkedin.com/company/${lead.id}`,
-      whatsapp: "+00 000 000 000"
-    },
-    {
-      name: "Business Development",
-      title: "业务开发",
-      source: "LinkedIn",
-      email: `bd@${domain}`,
-      linkedin: `linkedin.com/search/results/people/?keywords=${encodeURIComponent(lead.company)}`,
-      whatsapp: "待获取"
-    },
-    {
-      name: "Procurement Team",
-      title: "采购团队",
-      source: "官网表单",
-      email: `info@${domain}`,
-      linkedin: "待获取",
-      whatsapp: "待获取"
+/**
+ * 渲染右侧“已知联系人”页签的精简摘要。
+ *
+ * @param {object} lead - 当前公司线索。
+ * @returns {string} 联系人摘要、查询状态或空态 HTML。
+ * @throws {Error} 本函数不主动抛异常；所有第三方文本都会经过 HTML 转义。
+ *
+ * 姓名、岗位、邮箱和电话与 Hunter Domain Search 的联系人字段直接对齐。真实接口
+ * 可能不返回电话，因此所有缺失字段必须明确显示“未提供”，不能用推测数据填充。
+ */
+function renderCustomerDevKnownContactsPanel(lead) {
+  const contacts = buildCustomerDevContacts(lead);
+  const status = String(lead?.contactLookupStatus || "idle");
+
+  if (!contacts.length) {
+    const emptyCopy = status === "loading"
+      ? "正在获取这家公司的公开联系人…"
+      : status === "error"
+        ? String(lead?.contactLookupError || "联系人查询失败，请稍后再试。")
+        : status === "empty"
+          ? "暂未找到这家公司的公开联系人。"
+          : "尚未获取联系人。请使用下方按钮按需查询。";
+    return `
+      <div class="customer-dev-contact-empty" role="status">
+        <strong>${status === "error" ? "联系人查询未完成" : "暂无已知联系人"}</strong>
+        <span>${escapeHtml(emptyCopy)}</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="customer-dev-contact-page">
+      ${contacts.slice(0, 5).map((contact) => `
+        <article class="customer-dev-contact-compact-row">
+          <dl>
+            <div>
+              <dt>姓名</dt>
+              <dd>${escapeHtml(contact.name || "未提供")}</dd>
+            </div>
+            <div>
+              <dt>岗位</dt>
+              <dd>${escapeHtml(contact.title || "未提供")}</dd>
+            </div>
+            <div>
+              <dt>邮箱</dt>
+              <dd>${escapeHtml(contact.email || "未提供")}</dd>
+            </div>
+            <div>
+              <dt>电话</dt>
+              <dd>${escapeHtml(contact.phone || "未提供")}</dd>
+            </div>
+          </dl>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+/**
+ * 渲染详情卡底部的 Hunter 按需查询动作。
+ *
+ * @param {object} lead - 当前公司线索。
+ * @returns {string} 查询说明和按钮/联系人页入口。
+ * @throws {Error} 本函数不主动抛异常；动态文本均经过转义。
+ */
+function renderCustomerDevHunterAction(lead) {
+  const contacts = buildCustomerDevContacts(lead);
+  const status = String(lead?.contactLookupStatus || "idle");
+  const hasDomain = Boolean(String(lead?.companyDomain || "").trim());
+  let copy = "按公司官网域名查询，最多返回 10 位公开联系人。";
+  let action = "";
+
+  if (contacts.length) {
+    const total = Math.max(contacts.length, Number(lead?.hunterContactTotal) || 0);
+    copy = lead.contactProvider === "mock"
+      ? `已生成 ${contacts.length} 位模拟联系人，仅用于原型演示。`
+      : `已获取 ${contacts.length} 位联系人；该域名共匹配 ${total} 条记录。`;
+    action = `<a href="#/customer-development/contacts" data-customer-dev-open-contacts>查看联系人资料</a>`;
+  } else if (!hasDomain) {
+    copy = "这家公司还没有可用于查询联系人的官网域名。";
+    action = `<button type="button" disabled>官网域名待补充</button>`;
+  } else if (status === "loading") {
+    copy = "正在按公司域名获取公开联系人，请稍候。";
+    action = `<button type="button" disabled>获取中…</button>`;
+  } else {
+    if (status === "error") {
+      copy = String(lead?.contactLookupError || "联系人查询失败，请稍后再试。");
+    } else if (status === "empty") {
+      copy = "暂未找到公开联系人，可稍后再试或查看其他公司。";
     }
-  ];
+    action = `
+      <button type="button" data-customer-dev-hunter-lookup="${escapeHtml(lead.id)}">
+        获取联系人
+      </button>
+    `;
+  }
+
+  return `
+    <section class="customer-dev-detail-action${status === "error" ? " is-error" : ""}">
+      <div class="customer-dev-detail-action-copy">
+        <strong>联系人资料</strong>
+        <span>${escapeHtml(copy)}</span>
+      </div>
+      ${action}
+    </section>
+  `;
 }
 
 /**
@@ -6338,13 +7320,15 @@ function buildCustomerDevContacts(lead) {
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderCustomerDevCompanyPanel(lead) {
+  const contacts = buildCustomerDevContacts(lead);
   return `
     <div class="customer-dev-panel-slide">
-      <nav class="customer-dev-detail-tabs" aria-label="客户情报分类" role="tablist">
-        <button class="active" type="button" role="tab" aria-selected="true" data-customer-dev-detail-tab="overview">公司资料</button>
-        <button type="button" role="tab" aria-selected="false" data-customer-dev-detail-tab="signals">公开动态 <span>${lead.evidence.length}</span></button>
-        <button type="button" role="tab" aria-selected="false" data-customer-dev-detail-tab="contact">已知联系人</button>
-      </nav>
+      ${contacts.length ? `
+        <nav class="customer-dev-detail-tabs" aria-label="客户情报分类" role="tablist">
+          <button class="active" type="button" role="tab" aria-selected="true" data-customer-dev-detail-tab="overview">公司资料</button>
+          <button type="button" role="tab" aria-selected="false" data-customer-dev-detail-tab="contact">已知联系人 <span>${contacts.length}</span></button>
+        </nav>
+      ` : ""}
       <div class="customer-dev-detail-panels">
         <section class="customer-dev-info-list customer-dev-detail-pane" role="tabpanel" data-customer-dev-detail-panel="overview">
           <div class="customer-dev-section-head">
@@ -6354,14 +7338,6 @@ function renderCustomerDevCompanyPanel(lead) {
             </div>
           </div>
           <dl class="customer-dev-facts-grid">
-            <div class="customer-dev-fact customer-dev-fact-wide">
-              <dt>官网</dt>
-              <dd>${escapeHtml(lead.website)}</dd>
-            </div>
-            <div class="customer-dev-fact customer-dev-fact-wide">
-              <dt>总部</dt>
-              <dd>${escapeHtml(lead.location)}</dd>
-            </div>
             <div class="customer-dev-fact">
               <dt>公司规模</dt>
               <dd>${escapeHtml(lead.size)}</dd>
@@ -6370,56 +7346,69 @@ function renderCustomerDevCompanyPanel(lead) {
               <dt>成立时间</dt>
               <dd>${escapeHtml(lead.founded)}</dd>
             </div>
-          </dl>
-        </section>
-        <section class="customer-dev-evidence customer-dev-detail-pane" role="tabpanel" data-customer-dev-detail-panel="signals" hidden>
-          <div class="customer-dev-section-head">
-            <div>
-              <span class="customer-dev-section-kicker">公开来源</span>
-              <h3>公开动态</h3>
-            </div>
-            <span>更新于 ${escapeHtml(lead.updated)}</span>
-          </div>
-          <div class="customer-dev-evidence-list">
-            ${lead.evidence.map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
-          </div>
-        </section>
-        <section class="customer-dev-info-list customer-dev-detail-pane" role="tabpanel" data-customer-dev-detail-panel="contact" hidden>
-          <div class="customer-dev-section-head">
-            <div>
-              <span class="customer-dev-section-kicker">公开记录</span>
-              <h3>已知联系人</h3>
-            </div>
-          </div>
-          <dl class="customer-dev-facts-grid">
-            <div class="customer-dev-fact customer-dev-fact-wide">
-              <dt>姓名</dt>
-              <dd>${escapeHtml(lead.contact)}</dd>
-            </div>
-            <div class="customer-dev-fact customer-dev-fact-wide">
-              <dt>职位</dt>
-              <dd>${escapeHtml(lead.role)}</dd>
+            <div class="customer-dev-fact">
+              <dt>地点</dt>
+              <dd>${escapeHtml(lead.location)}</dd>
             </div>
             <div class="customer-dev-fact">
-              <dt>发现来源</dt>
-              <dd>${escapeHtml(lead.source)}</dd>
+              <dt>行业</dt>
+              <dd>${escapeHtml(lead.industry || lead.type || "待补充")}</dd>
             </div>
-            <div class="customer-dev-fact">
-              <dt>更新时间</dt>
-              <dd>${escapeHtml(lead.updated)}</dd>
+            <div class="customer-dev-fact customer-dev-fact-wide">
+              <dt>官网</dt>
+              <dd>${renderCustomerDevExternalLink(
+                lead.websiteUrl,
+                "访问官方网站",
+                lead.website && lead.website !== "待补充" ? "官网地址待核验" : "官网待补充"
+              )}</dd>
+            </div>
+            <div class="customer-dev-fact customer-dev-fact-wide">
+              <dt>LinkedIn 公司页</dt>
+              <dd>${renderCustomerDevExternalLink(
+                lead.linkedinUrl,
+                "查看 LinkedIn 公司页",
+                lead.linkedin && lead.linkedin !== "待补充" ? "LinkedIn 地址待核验" : "LinkedIn 待补充"
+              )}</dd>
             </div>
           </dl>
         </section>
+        ${contacts.length ? `
+          <section class="customer-dev-info-list customer-dev-detail-pane" role="tabpanel" data-customer-dev-detail-panel="contact" hidden>
+            <div class="customer-dev-section-head">
+              <div>
+                <span class="customer-dev-section-kicker">公开记录</span>
+                <h3>已知联系人</h3>
+              </div>
+            </div>
+            ${renderCustomerDevKnownContactsPanel(lead)}
+          </section>
+        ` : ""}
       </div>
-      <section class="customer-dev-detail-action">
-        <div class="customer-dev-detail-action-copy">
-          <strong>联系人资料</strong>
-          <span>查看姓名、职位与公开联系方式</span>
-        </div>
-        <a href="#/customer-development/contacts" data-customer-dev-open-contacts>查看联系人资料</a>
-      </section>
+      ${renderCustomerDevHunterAction(lead)}
     </div>
   `;
+}
+
+/**
+ * 渲染联系人电话与 LinkedIn 入口。
+ *
+ * @param {object} contact - 已由 Hunter 代理规范化的联系人。
+ * @returns {string} 电话文本、LinkedIn 安全外链或缺失占位。
+ * @throws {Error} 本函数不主动抛异常；链接已在规范化阶段限制为 LinkedIn 个人主页。
+ */
+function renderCustomerDevContactChannels(contact) {
+  const channels = [];
+  if (contact.phone) {
+    channels.push(`<span>${escapeHtml(contact.phone)}</span>`);
+  }
+  if (contact.linkedinUrl) {
+    channels.push(`
+      <a href="${escapeHtml(contact.linkedinUrl)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">
+        LinkedIn ↗
+      </a>
+    `);
+  }
+  return channels.length ? channels.join("") : `<span class="is-missing">待补充</span>`;
 }
 
 /**
@@ -6430,7 +7419,20 @@ function renderCustomerDevCompanyPanel(lead) {
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderCustomerDevContactsWorkspace(lead) {
+  if (!lead) {
+    return `
+      <section class="customer-dev-pdl-state" role="status">
+        <span>PDL</span>
+        <h2>请先搜索并选择一家公司</h2>
+        <p>PDL 免费公司库只提供公司资料；当前还没有可以展示的联系人记录。</p>
+        <a href="#/customer-development">返回客户开发</a>
+      </section>
+    `;
+  }
+
   const contacts = buildCustomerDevContacts(lead);
+  const isMockContacts = lead.contactProvider === "mock";
+  const displayCompany = String(lead.displayCompany || lead.company || "公司名称待核验").trim();
 
   return `
     <section class="customer-dev-contact-workspace">
@@ -6438,18 +7440,21 @@ function renderCustomerDevContactsWorkspace(lead) {
         <a href="#/customer-development/results" data-customer-dev-back-results>返回客户列表</a>
         <div>
           <span>公司信息</span>
-          <h2>${escapeHtml(lead.company)}</h2>
-          <p>${escapeHtml(lead.type)} · ${escapeHtml(lead.countryName)} · ${escapeHtml(lead.source)}</p>
+          <h2>${escapeHtml(displayCompany)}</h2>
+          <p>${escapeHtml(lead.type)} · ${escapeHtml(lead.countryName)} · 公司资料与公开联系人</p>
         </div>
       </header>
 
       <section class="customer-dev-contact-company">
+        <p>
+          <span>官网</span>
+          <strong>${renderCustomerDevExternalLink(lead.websiteUrl, "访问官方网站", "官网待补充")}</strong>
+        </p>
         ${[
-          ["官网", lead.website],
           ["总部", lead.location],
           ["公司规模", lead.size],
           ["成立时间", lead.founded],
-          ["线索说明", lead.reason]
+          ["联系人来源", isMockContacts ? "模拟联系人数据" : "公开商务数据"]
         ].map(([label, value]) => `
           <p><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></p>
         `).join("")}
@@ -6458,30 +7463,41 @@ function renderCustomerDevContactsWorkspace(lead) {
       <section class="customer-dev-contact-table-card">
         <header>
           <h3>联系人</h3>
-          <span>邮箱默认隐藏，点击后获取单个联系人邮箱</span>
+          <span>${isMockContacts ? "当前为模拟数据；" : ""}已获取 ${contacts.length} 位联系人；点击“显示邮箱”不会再次请求</span>
         </header>
         <div class="customer-dev-contact-table">
           <div class="customer-dev-contact-row head">
             <span>姓名</span>
             <span>岗位职位</span>
             <span>邮箱</span>
+            <span>电话 / LinkedIn</span>
             <span></span>
           </div>
-          ${contacts.map((contact, index) => {
+          ${contacts.length ? contacts.map((contact, index) => {
             const key = `${lead.id}-${index}`;
             const revealed = state.customerDevRevealedEmails.has(key);
 
             return `
               <div class="customer-dev-contact-row ${revealed ? "revealed" : ""}">
                 <strong>${escapeHtml(contact.name)}</strong>
-                <span>${escapeHtml(contact.title)}</span>
-                <em>${revealed ? escapeHtml(contact.email) : "待获取"}</em>
+                <span>${escapeHtml([
+                  contact.title,
+                  contact.decisionMaker ? "可能是决策人" : "",
+                  contact.confidence ? `${contact.confidence}%` : ""
+                ].filter(Boolean).join(" · "))}</span>
+                <em>${revealed ? escapeHtml(contact.email) : "待显示"}</em>
+                <span class="customer-dev-contact-channels">${renderCustomerDevContactChannels(contact)}</span>
                 <a href="#/customer-development/contacts/${index}" data-customer-dev-reveal-email="${index}">
-                  ${revealed ? "已获取" : "获取邮箱"}
+                  ${revealed ? "已显示" : "显示邮箱"}
                 </a>
               </div>
             `;
-          }).join("")}
+          }).join("") : `
+            <div class="customer-dev-contact-empty">
+              <strong>暂未获取到联系人</strong>
+              <span>这里不会按域名猜测邮箱；请返回公司列表重试或换一家具有有效域名的公司。</span>
+            </div>
+          `}
         </div>
       </section>
     </section>
@@ -10847,6 +11863,13 @@ function handleCustomerDevClick(event) {
     return;
   }
 
+  const hunterLookupButton = target.closest("[data-customer-dev-hunter-lookup]");
+  if (hunterLookupButton) {
+    const leadId = hunterLookupButton.getAttribute("data-customer-dev-hunter-lookup") || "";
+    void runCustomerDevHunterLookup(leadId);
+    return;
+  }
+
   const revealButton = target.closest("[data-customer-dev-reveal-email]");
   if (revealButton) {
     const index = revealButton.getAttribute("data-customer-dev-reveal-email") || "0";
@@ -13665,6 +14688,12 @@ function bindEvents() {
     });
   });
 
+  document.querySelectorAll("[data-customer-dev-sort]").forEach((select) => {
+    select.addEventListener("change", () => {
+      void refreshCustomerDevPdlSort(select.value);
+    });
+  });
+
   /*
    * 右侧客户情报使用页签切换，避免为了展示更多内容把面板无限拉长。
    * 这里仅切换当前客户面板内的 DOM，不修改全局状态；用户切换客户后会自然回到“概览”。
@@ -14947,15 +15976,9 @@ function applyRoute() {
   isApplyingRoute = false;
 
   if (route.main === "customer-development" && route.customerDevPhase === "searching") {
-    window.setTimeout(() => {
-      // 用户在动画结束前离开搜索页时，迟到的计时器不能强行把页面拉回结果页。
-      if (window.location.hash !== "#/customer-development/searching") {
-        return;
-      }
-
-      // 结果页必须由 URL 路由进入，刷新、前进和后退时才能保持一致状态。
-      window.location.hash = "#/customer-development/results";
-    }, CUSTOMER_DEV_SEARCH_DURATION_MS);
+    // 搜索页现在会真实请求本地 PDL 数据库。函数内部同时保证动画最短可见时长，
+    // 并用 requestId 防止旧请求在用户离开页面后覆盖新状态。
+    void runCustomerDevPdlSearch();
   }
 }
 
@@ -15016,6 +16039,23 @@ function installAutoRefreshWorker() {
   }
 
   if (window.location.protocol === "file:") {
+    return;
+  }
+
+  const localHostnames = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (localHostnames.has(window.location.hostname)) {
+    /*
+     * 自动刷新 Worker 只用于 GitHub Pages 的长期缓存问题。本地 Python 服务始终从
+     * 当前工作区读取文件，继续注册 Worker 反而会让调试浏览器反复检查旧脚本。
+     * 同时注销这个源下的历史注册，避免早期打开过原型的浏览器继续接管本地页面。
+     */
+    navigator.serviceWorker.getRegistrations()
+      .then((registrations) => Promise.all(
+        registrations.map((registration) => registration.unregister())
+      ))
+      .catch((error) => {
+        console.warn("[reverse-yingdan] 本地 Service Worker 清理失败", error);
+      });
     return;
   }
 
