@@ -22,14 +22,25 @@ test("客户搜索页调用真实 PDL 本地接口并保持最短可见时间", 
   );
 });
 
+test("GitHub Pages 使用明确标注的演示公司且不请求不存在的 PDL 接口", () => {
+  assert.match(appSource, /function isCustomerDevGitHubDemoHost\(\)/);
+  assert.match(appSource, /\.endsWith\("\.github\.io"\)/);
+  assert.match(appSource, /function buildCustomerDevGitHubDemoResult\(brief, sortMode/);
+  assert.match(appSource, /if \(isCustomerDevGitHubDemoHost\(\)\) \{\s*return buildCustomerDevGitHubDemoResult/s);
+  assert.match(appSource, /GitHub Pages 演示数据/);
+  assert.match(appSource, /demo-solar-\$\{paddedNumber\}\.example\.com/);
+  assert.match(appSource, /本轮获客目标\$\{isDemo \? " · 演示数据" : ""\}/);
+  assert.match(appSource, /\["results", "contacts"\]\.includes\(state\.customerDevPhase\)/);
+});
+
 test("主原型使用当前前端缓存键", () => {
   assert.match(
     indexSource,
-    /src\/app\.js\?v=20260810-contact-compact-v1/
+    /src\/app\.js\?v=20260810-github-demo-v1/
   );
   assert.match(
     indexSource,
-    /src\/styles\.css\?v=20260810-contact-compact-v1/
+    /src\/styles\.css\?v=20260810-github-demo-v1/
   );
   assert.match(
     indexSource,

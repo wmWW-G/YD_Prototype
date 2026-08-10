@@ -390,6 +390,7 @@ const state = {
   customerDevSearchStatus: "idle",
   customerDevSearchError: "",
   customerDevSearchTotal: 0,
+  customerDevDataMode: "pdl",
   customerDevSearchRequestId: 0,
   customerDevSort: "recommended",
   customerDevSortLoading: false,
@@ -6317,14 +6318,112 @@ function normalizeCustomerDevPdlLead(company, brief) {
 }
 
 /**
+ * 判断当前页面是否运行在 GitHub Pages 静态演示环境。
+ *
+ * @returns {boolean} 当前域名以 ``.github.io`` 结尾时返回 ``true``。
+ * @throws {Error} 本函数只读取浏览器地址，不主动抛异常。
+ *
+ * GitHub Pages 只能托管静态文件，无法运行本项目的 Python + DuckDB 接口。
+ * 因此这里使用域名做明确分流：GitHub Pages 展示演示数据，本机和其他部署
+ * 环境仍请求真实 PDL 接口，真实接口故障时也不会被演示数据掩盖。
+ */
+function isCustomerDevGitHubDemoHost() {
+  return String(window.location.hostname || "").toLowerCase().endsWith(".github.io");
+}
+
+/**
+ * 为 GitHub Pages 生成确定性的公司级演示数据。
+ *
+ * @param {{ market: string, product: string, role: string, quantity: string }} brief - 当前获客条件。
+ * @param {string} sortMode - 当前排序模式。
+ * @returns {{ leads: object[], total: number, mode: "demo" }} 可直接写入结果页状态的演示结果。
+ * @throws {Error} 本函数不主动抛异常；数量会限制在 1～500 家。
+ *
+ * 公司名称、官网和联系人均使用明确的 Demo / example.com 保留标识，防止用户
+ * 把静态原型误认为真实 PDL 结果。联系人仍由现有模拟联系人按钮按需生成。
+ */
+function buildCustomerDevGitHubDemoResult(brief, sortMode = state.customerDevSort) {
+  const requestedQuantity = Math.max(1, Math.min(Number(brief.quantity) || 20, 500));
+  const companyPrefixes = [
+    "Demo Solar Solutions",
+    "Demo Renewable Systems",
+    "Demo PV Components",
+    "Demo Energy Projects",
+    "Demo Green Power",
+    "Demo Suntech Distribution",
+    "Demo Clean Energy",
+    "Demo Solar Engineering"
+  ];
+  const companySizes = ["11-50", "51-200", "201-500", "501-1000"];
+  const companies = Array.from({ length: requestedQuantity }, (_, index) => {
+    const number = index + 1;
+    const paddedNumber = String(number).padStart(3, "0");
+    const completenessScore = 20 - (index % 5);
+    const numericSize = [50, 200, 500, 1000][index % 4];
+
+    return {
+      id: `github-demo-${paddedNumber}`,
+      name: `${companyPrefixes[index % companyPrefixes.length]} ${paddedNumber} GmbH`,
+      website: `https://demo-solar-${paddedNumber}.example.com`,
+      linkedin_url: "",
+      country: resolveCustomerDevPdlCountry(brief.market),
+      locality: "Demo City",
+      region: "Demo Region",
+      industry: getCustomerDevProductIndustryLabel(brief),
+      size: companySizes[index % companySizes.length],
+      size_numeric: numericSize,
+      founded: 1995 + (index % 25),
+      requested_role: brief.role,
+      role_match_level: "unknown",
+      role_match_label: "演示数据",
+      role_support: "none",
+      role_verified: false,
+      role_match_evidence: [],
+      product_industry_match: true,
+      match_score: 90 - (index % 20),
+      product_match_score: 25,
+      role_match_component_score: 0,
+      actionability_score: 15,
+      data_completeness_score: completenessScore
+    };
+  });
+
+  if (sortMode === "complete") {
+    companies.sort((left, right) => right.data_completeness_score - left.data_completeness_score);
+  } else if (sortMode === "size_desc") {
+    companies.sort((left, right) => right.size_numeric - left.size_numeric);
+  }
+
+  const leads = companies.map((company) => ({
+    ...normalizeCustomerDevPdlLead(company, brief),
+    source: "GitHub Pages 演示数据",
+    dataProvider: "demo",
+    contact: "演示数据不含真实联系人",
+    evidence: ["静态原型演示公司，不代表真实企业或采购意向"],
+    tags: [brief.product, "演示数据"],
+    isDemo: true
+  }));
+
+  return {
+    leads,
+    total: Math.max(requestedQuantity, 1280),
+    mode: "demo"
+  };
+}
+
+/**
  * 调用同源的 PDL 本地公司搜索接口。
  *
  * @param {{ market: string, product: string, role: string, quantity: string }} brief - 当前获客条件。
  * @param {string} sortMode - PDL 服务端白名单中的排序值。
- * @returns {Promise<{ leads: object[], total: number }>} 规范化线索和完整匹配数。
+ * @returns {Promise<{ leads: object[], total: number, mode: "pdl" | "demo" }>} 规范化线索、完整匹配数和数据模式。
  * @throws {Error} 页面不是通过本地 HTTP 服务打开、数据集未导入或接口失败时抛出。
  */
 async function fetchCustomerDevPdlCompanies(brief, sortMode = state.customerDevSort) {
+  if (isCustomerDevGitHubDemoHost()) {
+    return buildCustomerDevGitHubDemoResult(brief, sortMode);
+  }
+
   if (!/^https?:$/.test(window.location.protocol)) {
     throw new Error("请通过 PDL 本地服务打开页面，不能直接双击 index.html。 ");
   }
@@ -6348,7 +6447,8 @@ async function fetchCustomerDevPdlCompanies(brief, sortMode = state.customerDevS
   const companies = Array.isArray(payload?.companies) ? payload.companies : [];
   return {
     leads: companies.map((company) => normalizeCustomerDevPdlLead(company, brief)),
-    total: Number(payload?.total) || 0
+    total: Number(payload?.total) || 0,
+    mode: "pdl"
   };
 }
 
@@ -6602,6 +6702,7 @@ async function runCustomerDevPdlSearch() {
   if (searchResult.status === "fulfilled") {
     state.customerDevLeads = searchResult.value.leads;
     state.customerDevSearchTotal = searchResult.value.total;
+    state.customerDevDataMode = searchResult.value.mode || "pdl";
     state.customerDevSelectedLeadId = searchResult.value.leads[0]?.id || "";
     state.customerDevSearchStatus = "ready";
   } else {
@@ -6643,6 +6744,7 @@ async function refreshCustomerDevPdlSort(nextSort) {
     }
     state.customerDevLeads = result.leads;
     state.customerDevSearchTotal = result.total;
+    state.customerDevDataMode = result.mode || "pdl";
     state.customerDevSelectedLeadId = result.leads[0]?.id || "";
     showToast(`已切换为${allowedSort.label}`);
   } catch (error) {
@@ -6969,21 +7071,31 @@ function syncCustomerDevEngineSummary() {
  */
 function renderCustomerDevSearchingPanel() {
   const brief = state.customerDevBrief;
+  const isDemo = isCustomerDevGitHubDemoHost();
+  const searchStatus = isDemo ? "GitHub Pages 演示名单生成中" : "PDL 免费公司库查询中";
+  const searchSteps = isDemo
+    ? [
+        "目标市场与客户画像已确认",
+        "正在生成不会对应真实企业的演示公司",
+        "演示名单正在进入候选列表",
+        "联系人也将使用明确标注的模拟数据"
+      ]
+    : [
+        "目标市场与采购画像已确认",
+        "正在匹配 PDL 行业、公司名称与域名证据",
+        "符合当前宽口径筛选条件的公司正在进入候选名单",
+        "即将打开真实公司资料；联系人字段不会猜测生成"
+      ];
 
   return `
     <section class="customer-dev-searching" aria-label="AI 正在找客户">
       <article>
-        <span class="customer-dev-search-live"><i aria-hidden="true"></i> PDL 免费公司库查询中</span>
+        <span class="customer-dev-search-live"><i aria-hidden="true"></i> ${escapeHtml(searchStatus)}</span>
         <div class="customer-dev-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
         <h2>获客引擎已启动，正在锁定成交机会</h2>
         <p>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)} · ${escapeHtml(brief.quantity)} 家</p>
         <div class="customer-dev-search-log">
-          ${[
-            "目标市场与采购画像已确认",
-            "正在匹配 PDL 行业、公司名称与域名证据",
-            "符合当前宽口径筛选条件的公司正在进入候选名单",
-            "即将打开真实公司资料；联系人字段不会猜测生成"
-          ].map((text, index) => `
+          ${searchSteps.map((text, index) => `
             <span class="${index < 3 ? "done" : "active"}">${escapeHtml(text)}</span>
           `).join("")}
         </div>
@@ -7025,6 +7137,8 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
   const activeSort = CUSTOMER_DEV_SORT_OPTIONS.find((option) => option.value === state.customerDevSort)
     || CUSTOMER_DEV_SORT_OPTIONS[0];
   const resultCountText = new Intl.NumberFormat("zh-CN").format(total);
+  const isDemo = state.customerDevDataMode === "demo";
+  const resultSourceLabel = isDemo ? "演示候选公司" : "PDL 候选公司";
   const roleCounts = leads.reduce((counts, lead) => {
     const level = ["high", "medium", "weak", "unknown"].includes(lead?.roleMatchLevel)
       ? lead.roleMatchLevel
@@ -7059,9 +7173,9 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
   return `
     <section class="customer-dev-brief-summary">
       <div>
-        <span>本轮获客目标</span>
-        <strong>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}</strong>
-        <p>${escapeHtml(resultCountText)} 条 PDL 候选公司 · ${escapeHtml(roleSummary)}</p>
+          <span>本轮获客目标${isDemo ? " · 演示数据" : ""}</span>
+          <strong>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}</strong>
+          <p>${escapeHtml(resultCountText)} 条 ${escapeHtml(resultSourceLabel)} · ${escapeHtml(roleSummary)}</p>
       </div>
       <a href="#/customer-development" data-customer-dev-reset>重新配置目标</a>
     </section>
@@ -15893,6 +16007,22 @@ function applyRoute() {
     }
     if (typeof route.revealEmailIndex === "number") {
       state.customerDevRevealedEmails.add(`${state.customerDevSelectedLeadId}-${route.revealEmailIndex}`);
+    }
+
+    // GitHub Pages 的结果页可能被直接分享或收藏。静态环境没有 Python API，
+    // 因此直接进入结果/联系人路由时也要预先填入演示数据，不能先渲染 404 空态。
+    if (
+      isCustomerDevGitHubDemoHost()
+      && ["results", "contacts"].includes(state.customerDevPhase)
+      && state.customerDevLeads.length === 0
+    ) {
+      const demoResult = buildCustomerDevGitHubDemoResult(state.customerDevBrief, state.customerDevSort);
+      state.customerDevLeads = demoResult.leads;
+      state.customerDevSearchTotal = demoResult.total;
+      state.customerDevDataMode = demoResult.mode;
+      state.customerDevSelectedLeadId = demoResult.leads[0]?.id || "";
+      state.customerDevSearchStatus = "ready";
+      state.customerDevSearchError = "";
     }
   }
 
