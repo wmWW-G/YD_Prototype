@@ -394,6 +394,7 @@ const state = {
   customerDevSearchRequestId: 0,
   customerDevSort: "recommended",
   customerDevSortLoading: false,
+  customerDevDetailTab: "overview",
   customerDraft: "Hi,\nWe are looking for 50,000 pcs of 500ml 不锈钢保温杯.\nPlease share price for FOB Shanghai, lead time, and MOQ.\nLogo printing needed.\nThanks.",
   isCustomerGenerating: false,
   customerResult: "",
@@ -6704,6 +6705,7 @@ async function runCustomerDevPdlSearch() {
     state.customerDevSearchTotal = searchResult.value.total;
     state.customerDevDataMode = searchResult.value.mode || "pdl";
     state.customerDevSelectedLeadId = searchResult.value.leads[0]?.id || "";
+    state.customerDevDetailTab = "overview";
     state.customerDevSearchStatus = "ready";
   } else {
     state.customerDevSearchStatus = "error";
@@ -6746,6 +6748,7 @@ async function refreshCustomerDevPdlSort(nextSort) {
     state.customerDevSearchTotal = result.total;
     state.customerDevDataMode = result.mode || "pdl";
     state.customerDevSelectedLeadId = result.leads[0]?.id || "";
+    state.customerDevDetailTab = "overview";
     showToast(`已切换为${allowedSort.label}`);
   } catch (error) {
     if (state.customerDevSearchRequestId !== requestId) {
@@ -7395,7 +7398,7 @@ function renderCustomerDevHunterAction(lead) {
     copy = lead.contactProvider === "mock"
       ? `已生成 ${contacts.length} 位模拟联系人，仅用于原型演示。`
       : `已获取 ${contacts.length} 位联系人；该域名共匹配 ${total} 条记录。`;
-    action = `<a href="#/customer-development/contacts" data-customer-dev-open-contacts>查看联系人资料</a>`;
+    action = `<button type="button" data-customer-dev-open-contacts data-customer-dev-detail-tab="contact">查看联系人资料</button>`;
   } else if (!hasDomain) {
     copy = "这家公司还没有可用于查询联系人的官网域名。";
     action = `<button type="button" disabled>官网域名待补充</button>`;
@@ -7435,16 +7438,19 @@ function renderCustomerDevHunterAction(lead) {
  */
 function renderCustomerDevCompanyPanel(lead) {
   const contacts = buildCustomerDevContacts(lead);
+  const activeDetailTab = state.customerDevDetailTab === "contact" && contacts.length
+    ? "contact"
+    : "overview";
   return `
     <div class="customer-dev-panel-slide">
       ${contacts.length ? `
         <nav class="customer-dev-detail-tabs" aria-label="客户情报分类" role="tablist">
-          <button class="active" type="button" role="tab" aria-selected="true" data-customer-dev-detail-tab="overview">公司资料</button>
-          <button type="button" role="tab" aria-selected="false" data-customer-dev-detail-tab="contact">已知联系人 <span>${contacts.length}</span></button>
+          <button class="${activeDetailTab === "overview" ? "active" : ""}" type="button" role="tab" aria-selected="${activeDetailTab === "overview"}" data-customer-dev-detail-tab="overview">公司资料</button>
+          <button class="${activeDetailTab === "contact" ? "active" : ""}" type="button" role="tab" aria-selected="${activeDetailTab === "contact"}" data-customer-dev-detail-tab="contact">已知联系人 <span>${contacts.length}</span></button>
         </nav>
       ` : ""}
       <div class="customer-dev-detail-panels">
-        <section class="customer-dev-info-list customer-dev-detail-pane" role="tabpanel" data-customer-dev-detail-panel="overview">
+        <section class="customer-dev-info-list customer-dev-detail-pane" role="tabpanel" data-customer-dev-detail-panel="overview"${activeDetailTab === "overview" ? "" : " hidden"}>
           <div class="customer-dev-section-head">
             <div>
               <span class="customer-dev-section-kicker">基本档案</span>
@@ -7487,7 +7493,7 @@ function renderCustomerDevCompanyPanel(lead) {
           </dl>
         </section>
         ${contacts.length ? `
-          <section class="customer-dev-info-list customer-dev-detail-pane" role="tabpanel" data-customer-dev-detail-panel="contact" hidden>
+          <section class="customer-dev-info-list customer-dev-detail-pane" role="tabpanel" data-customer-dev-detail-panel="contact"${activeDetailTab === "contact" ? "" : " hidden"}>
             <div class="customer-dev-section-head">
               <div>
                 <span class="customer-dev-section-kicker">公开记录</span>
@@ -11893,6 +11899,23 @@ function handleCustomerDevClick(event) {
     return;
   }
 
+  const detailTabButton = target.closest("[data-customer-dev-detail-tab]");
+  if (detailTabButton) {
+    const targetPanel = detailTabButton.getAttribute("data-customer-dev-detail-tab");
+    if (["overview", "contact"].includes(targetPanel || "")) {
+      state.customerDevDetailTab = targetPanel;
+      renderApp();
+    }
+    return;
+  }
+
+  const openContactsButton = target.closest("[data-customer-dev-open-contacts]");
+  if (openContactsButton) {
+    state.customerDevDetailTab = "contact";
+    renderApp();
+    return;
+  }
+
   const pickerTrigger = target.closest("[data-customer-dev-picker]");
   if (pickerTrigger) {
     const picker = pickerTrigger.getAttribute("data-customer-dev-picker");
@@ -11995,6 +12018,7 @@ function handleCustomerDevClick(event) {
   const leadNode = target.closest("[data-dev-lead]");
   if (leadNode) {
     state.customerDevSelectedLeadId = leadNode.getAttribute("data-dev-lead") || "solartech";
+    state.customerDevDetailTab = "overview";
     state.popup = null;
     renderApp();
   }
@@ -14805,31 +14829,6 @@ function bindEvents() {
   document.querySelectorAll("[data-customer-dev-sort]").forEach((select) => {
     select.addEventListener("change", () => {
       void refreshCustomerDevPdlSort(select.value);
-    });
-  });
-
-  /*
-   * 右侧客户情报使用页签切换，避免为了展示更多内容把面板无限拉长。
-   * 这里仅切换当前客户面板内的 DOM，不修改全局状态；用户切换客户后会自然回到“概览”。
-   */
-  document.querySelectorAll("[data-customer-dev-detail-tab]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const targetPanel = button.getAttribute("data-customer-dev-detail-tab");
-      const detail = button.closest(".customer-dev-panel-slide");
-
-      if (!targetPanel || !detail) {
-        return;
-      }
-
-      detail.querySelectorAll("[data-customer-dev-detail-tab]").forEach((tab) => {
-        const isActive = tab === button;
-        tab.classList.toggle("active", isActive);
-        tab.setAttribute("aria-selected", String(isActive));
-      });
-
-      detail.querySelectorAll("[data-customer-dev-detail-panel]").forEach((panel) => {
-        panel.hidden = panel.getAttribute("data-customer-dev-detail-panel") !== targetPanel;
-      });
     });
   });
 
