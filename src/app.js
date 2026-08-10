@@ -6652,6 +6652,9 @@ async function runCustomerDevHunterLookup(leadId) {
     });
 
     if (result.contacts.length) {
+      // 联系人查询成功后直接进入右侧“已知联系人”，避免用户还要再点一次
+      // “查看联系人资料”。页签状态写入全局 state，后续异步重绘也不会跳回公司资料。
+      state.customerDevDetailTab = "contact";
       renderApp();
       showToast(result.provider === "mock"
         ? `已生成 ${result.contacts.length} 位模拟联系人`

@@ -36,11 +36,11 @@ test("GitHub Pages 使用明确标注的演示公司且不请求不存在的 PDL
 test("主原型使用当前前端缓存键", () => {
   assert.match(
     indexSource,
-    /src\/app\.js\?v=20260810-contact-panel-v4/
+    /src\/app\.js\?v=20260810-contact-panel-v5/
   );
   assert.match(
     indexSource,
-    /src\/styles\.css\?v=20260810-contact-panel-v4/
+    /src\/styles\.css\?v=20260810-contact-panel-v5/
   );
   assert.match(
     indexSource,
@@ -113,6 +113,10 @@ test("联系人按钮默认生成明确标注的模拟数据且不调用真实�
   assert.doesNotMatch(appSource, /href="#\/customer-development\/contacts" data-customer-dev-open-contacts/);
   assert.match(appSource, /customerDevDetailTab: "overview"/);
   assert.match(appSource, /state\.customerDevDetailTab = "contact";\s*renderApp\(\);/);
+  assert.match(
+    appSource,
+    /if \(result\.contacts\.length\) \{[\s\S]*state\.customerDevDetailTab = "contact";[\s\S]*renderApp\(\);/
+  );
   assert.match(appSource, /activeDetailTab === "contact" \? "" : " hidden"/);
   assert.match(stylesSource, /\.customer-dev-contact-compact-row dl\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/s);
   assert.match(stylesSource, /\.customer-dev-contact-compact-row\s*\{[^}]*border-bottom:\s*1px solid #eee5de;/s);
