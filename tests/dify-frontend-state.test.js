@@ -898,6 +898,63 @@ answerRendered = renderDifyProcessPanel(answerMessage);`,
   assert.match(sandbox.answerRendered, /data-test="round-timeline"/);
 });
 
+test("collapses the whole reasoning timeline when the final answer starts", () => {
+  // 这个用例防止只折叠单个 thinking，却把所有阶段小结继续铺在正文上方。
+  // 生产代码如果漏掉 answerStarted 分支，或错误地给总容器添加 open，本测试都会失败。
+  const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const panelStart = source.indexOf("function renderDifyProcessPanel");
+  const panelEnd = source.indexOf("\n/**", panelStart + 1);
+  const sandbox = {
+    liveMessage: {
+      id: "assistant-reasoning-live",
+      status: "loading",
+      answerStarted: false,
+      processSteps: [
+        { id: "agent-thinking-1", kind: "thinking", status: "done" },
+        { id: "agent-thinking-2", kind: "thinking", status: "running" }
+      ],
+      currentProcess: { id: "agent-thinking-2", kind: "thinking", status: "running" }
+    },
+    answerMessage: {
+      id: "assistant-reasoning-answer",
+      status: "loading",
+      answerStarted: true,
+      processSteps: [
+        { id: "agent-thinking-1", kind: "thinking", status: "done" },
+        { id: "agent-message-1", kind: "summary", status: "done", roundId: "agent-thinking-1" },
+        { id: "agent-thinking-2", kind: "thinking", status: "done" }
+      ],
+      currentProcess: { id: "agent-thinking-2", kind: "thinking", status: "done" }
+    },
+    liveRendered: "",
+    answerRendered: "",
+    state: { activeMain: "customer-research" },
+    renderDifyReasoningTimeline: () => '<div data-test="complete-reasoning-timeline"></div>',
+    renderYdArtifactProcessPanel: () => "",
+    getDifyThinkingDurationText: () => "思考了 5 秒",
+    getDifyProcessSummary: () => "3 个步骤",
+    escapeHtml: (value) => String(value ?? "")
+  };
+
+  assert.ok(panelStart >= 0 && panelEnd > panelStart, "应找到通用 Dify 过程区函数");
+  vm.runInNewContext(
+    `${source.slice(panelStart, panelEnd)}
+liveRendered = renderDifyProcessPanel(liveMessage);
+answerRendered = renderDifyProcessPanel(answerMessage);`,
+    sandbox
+  );
+
+  assert.doesNotMatch(sandbox.liveRendered, /data-dify-reasoning-history/);
+  assert.match(sandbox.answerRendered, /<details[^>]*data-dify-reasoning-history="true"[^>]*>/);
+  assert.doesNotMatch(
+    sandbox.answerRendered.match(/<details[^>]*data-dify-reasoning-history="true"[^>]*>/)?.[0] || "",
+    /\sopen(?:\s|>|=)/
+  );
+  assert.match(sandbox.answerRendered, /已完成深度思考/);
+  assert.match(sandbox.answerRendered, /2 轮/);
+  assert.match(sandbox.answerRendered, /data-test="complete-reasoning-timeline"/);
+});
+
 test("YD Artifact uses the seventh orbit effect as an expandable process entry without a visible process title", () => {
   const source = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(__dirname, "../src/styles.css"), "utf8");

@@ -483,6 +483,38 @@ class PdlLocalTest(unittest.TestCase):
             thread.join(timeout=3)
             PdlRequestHandler.hunter_client = original_client
 
+    def test_hunter_email_count_returns_only_free_aggregate_counts(self) -> None:
+        """Email Count 只返回免费汇总数量，不能提前泄露联系人明细。"""
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback):
+                return False
+
+            def read(self):
+                payload = {
+                    "data": {
+                        "total": 12,
+                        "personal_emails": 9,
+                        "generic_emails": 3,
+                    }
+                }
+                return json.dumps(payload).encode("utf-8")
+
+        client = HunterClient("test-key")
+        with mock.patch("pdl_local.urllib.request.urlopen", return_value=FakeResponse()) as urlopen:
+            result = client.email_count("https://www.example.com/contact")
+
+        requested_url = urlopen.call_args.args[0].full_url
+        self.assertIn("/email-count?", requested_url)
+        self.assertEqual(result["total"], 12)
+        self.assertEqual(result["personal"], 9)
+        self.assertEqual(result["generic"], 3)
+        self.assertNotIn("contacts", result)
+        self.assertNotIn("api_key", result)
+
     def test_import_rejects_wrong_dataset_without_name_field(self) -> None:
         """下载错文件时应给出明确错误，不能生成一个看似成功的空库。"""
 

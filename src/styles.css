@@ -4899,6 +4899,18 @@ button:disabled {
   text-decoration: none;
 }
 
+.customer-dev-table-actions .customer-dev-batch-email {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fffaf7;
+}
+
+.customer-dev-table-actions .customer-dev-batch-email:disabled {
+  border-color: #eadfd8;
+  background: #f3efec;
+  color: #a09790;
+}
+
 .customer-dev-list-toolbar {
   display: flex;
   align-items: center;
@@ -4972,10 +4984,8 @@ button:disabled {
 }
 
 .customer-dev-console {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 360px);
-  gap: 18px;
-  align-items: start;
+  display: block;
+  min-width: 0;
 }
 
 .customer-dev-table-panel {
@@ -4989,7 +4999,7 @@ button:disabled {
 
 .customer-dev-table {
   width: 100%;
-  min-width: 780px;
+  min-width: 940px;
   border-collapse: collapse;
   font-size: 13px;
   table-layout: fixed;
@@ -5086,7 +5096,7 @@ button:disabled {
 
 .customer-dev-table th:nth-child(2),
 .customer-dev-table td:nth-child(2) {
-  width: 290px;
+  width: 220px;
 }
 
 .customer-dev-table th:nth-child(3),
@@ -5096,7 +5106,22 @@ button:disabled {
 
 .customer-dev-table th:nth-child(4),
 .customer-dev-table td:nth-child(4) {
-  width: 374px;
+  width: 180px;
+}
+
+.customer-dev-table th:nth-child(5),
+.customer-dev-table td:nth-child(5) {
+  width: 80px;
+}
+
+.customer-dev-table th:nth-child(6),
+.customer-dev-table td:nth-child(6) {
+  width: 180px;
+}
+
+.customer-dev-table th:nth-child(7),
+.customer-dev-table td:nth-child(7) {
+  width: 134px;
 }
 
 .customer-dev-industry-cell {
@@ -5104,12 +5129,195 @@ button:disabled {
   font-size: 14px;
   font-weight: 750;
   letter-spacing: 0.01em;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 .customer-dev-table input[type="checkbox"] {
   width: 14px;
   height: 14px;
   accent-color: var(--accent);
+}
+
+.customer-dev-email-cell {
+  color: #6e655e;
+}
+
+.customer-dev-email-cell small {
+  display: block;
+  margin-top: 2px;
+  color: #9a8f87;
+  font-size: 10px;
+}
+
+.customer-dev-email-value {
+  max-width: 100%;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #b84700;
+  font-size: 12px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-dev-email-value:hover {
+  text-decoration: underline;
+}
+
+.customer-dev-contact-child-row td {
+  height: auto;
+  border-bottom: 1px solid #eadfd7;
+  padding: 0;
+  background: #fbf8f5;
+  overflow: visible;
+  white-space: normal;
+}
+
+.customer-dev-contact-child-row td:first-child {
+  position: relative;
+  background: #f7f2ee;
+}
+
+.customer-dev-contact-child-row td:nth-child(2) {
+  width: auto;
+}
+
+.customer-dev-contact-branch {
+  position: absolute;
+  top: 0;
+  right: 10px;
+  width: 12px;
+  height: 28px;
+  border-bottom: 1px solid #cfbfb4;
+  border-left: 1px solid #cfbfb4;
+  border-radius: 0 0 0 8px;
+}
+
+.customer-dev-contact-child {
+  display: grid;
+  grid-template-columns: 28px minmax(150px, 1fr) minmax(190px, 1.15fr) minmax(160px, 0.9fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 58px;
+  padding: 7px 14px 7px 8px;
+}
+
+.customer-dev-contact-number {
+  color: #b6a79c;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.customer-dev-contact-identity,
+.customer-dev-contact-channel {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.customer-dev-contact-identity strong,
+.customer-dev-contact-identity small,
+.customer-dev-contact-channel strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-dev-contact-identity strong {
+  color: #302a26;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.customer-dev-contact-identity small,
+.customer-dev-contact-channel span {
+  color: #94887f;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.customer-dev-contact-channel strong {
+  color: #554b44;
+  font-size: 11.5px;
+  font-weight: 750;
+}
+
+.customer-dev-contact-channel:nth-of-type(2) strong {
+  color: #a84008;
+}
+
+.customer-dev-contact-source {
+  justify-self: end;
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: #f0e9e3;
+  color: #7f7168;
+  font-size: 9.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.customer-dev-email-status {
+  color: #8b8179;
+  font-size: 12px;
+}
+
+.customer-dev-email-status.is-loading {
+  color: #b84700;
+}
+
+.customer-dev-email-status.is-error {
+  color: #b43a2f;
+}
+
+.customer-dev-contact-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  color: #625850;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.customer-dev-contact-count strong {
+  color: #b84700;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.customer-dev-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.customer-dev-row-actions button {
+  min-height: 28px;
+  border: 1px solid #eadfd8;
+  border-radius: 7px;
+  padding: 0 9px;
+  background: #fffdfa;
+  color: #5d534c;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.customer-dev-row-actions button.is-primary {
+  border-color: #ffd0b9;
+  background: #fff0e7;
+  color: #b84700;
+}
+
+.customer-dev-row-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.customer-dev-row-actions button:disabled {
+  opacity: 0.55;
 }
 
 .customer-dev-priority {
@@ -5282,10 +5490,10 @@ button:disabled {
 }
 
 .customer-dev-detail {
-  position: sticky;
-  top: 14px;
+  position: relative;
   min-width: 0;
-  max-height: calc(100vh - var(--topbar-height) - 28px);
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
   border: 1px solid #e8ddd5;
   border-radius: 14px;
   background: #ffffff;
@@ -5294,6 +5502,29 @@ button:disabled {
   overflow-y: auto;
   scrollbar-width: thin;
   animation: customer-dev-panel-in 0.22s ease-out both;
+}
+
+.customer-dev-detail-layer {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 16px;
+}
+
+.customer-dev-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(40, 31, 25, 0.22);
+}
+
+.customer-dev-detail-layer .customer-dev-detail {
+  z-index: 1;
+  height: 100%;
+  box-shadow: -18px 0 48px rgba(54, 39, 29, 0.16);
 }
 
 @keyframes customer-dev-panel-in {
@@ -6258,6 +6489,72 @@ button:disabled {
   gap: 18px;
 }
 
+/*
+ * 正式正文出现后，整条多轮时间线收进一个总折叠入口。
+ * 内层每一轮仍保留自己的 details，展开总入口后可以继续逐轮查看。
+ */
+.dify-reasoning-history {
+  min-width: 0;
+}
+
+.dify-reasoning-history > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  border-radius: 6px;
+  padding: 1px 4px 1px 0;
+  color: #514a45;
+  cursor: pointer;
+  list-style: none;
+}
+
+.dify-reasoning-history > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dify-reasoning-history > summary:hover,
+.dify-reasoning-history > summary:focus-visible {
+  color: #2f2a26;
+}
+
+.dify-reasoning-history > summary:focus-visible {
+  outline: 2px solid rgba(255, 92, 0, 0.17);
+  outline-offset: 3px;
+}
+
+.dify-reasoning-history > summary strong {
+  font-size: 15px;
+  font-weight: 760;
+}
+
+.dify-reasoning-history > summary small {
+  color: #827871;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.dify-reasoning-history-chevron {
+  display: inline-grid;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #766c65;
+  font-size: 21px;
+  line-height: 1;
+  transform: translateY(-1px);
+  transition: transform 0.16s ease-out;
+}
+
+.dify-reasoning-history[open] .dify-reasoning-history-chevron {
+  transform: rotate(90deg) translateX(-1px);
+}
+
+.dify-reasoning-history-body {
+  margin-top: 15px;
+}
+
 .dify-reasoning-round {
   display: grid;
   gap: 9px;
@@ -6605,6 +6902,10 @@ button:disabled {
   }
 
   .dify-thinking-round-chevron {
+    transition: none;
+  }
+
+  .dify-reasoning-history-chevron {
     transition: none;
   }
 }
@@ -8519,6 +8820,19 @@ button:disabled {
     overflow: visible;
   }
 
+  .customer-dev-detail-layer {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .customer-dev-detail-layer .customer-dev-detail {
+    width: 100%;
+    height: min(82vh, 760px);
+    max-height: 82vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
   .customer-dev-brief-summary {
     min-height: auto;
     padding: 8px 2px 12px;
@@ -8646,7 +8960,7 @@ button:disabled {
   }
 
   .customer-dev-table {
-    min-width: 720px;
+    min-width: 940px;
   }
 
   .customer-dev-score {

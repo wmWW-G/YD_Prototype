@@ -41,6 +41,7 @@
  *   customerDevContinent: string,
  *   customerDevProductCategory: string,
  *   customerDevSelectedLeadId: string,
+ *   customerDevExpandedContactLeadIds: Set<string>,
  *   customerDevRevealedEmails: Set<string>,
  *   customerDevLeads: object[],
  *   customerDevSearchStatus: "idle" | "loading" | "ready" | "error",
@@ -385,6 +386,10 @@ const state = {
   customerDevContinent: "europe",
   customerDevProductCategory: "energy",
   customerDevSelectedLeadId: "solartech",
+  customerDevSelectedLeadIds: new Set(),
+  customerDevExpandedContactLeadIds: new Set(),
+  customerDevDetailOpen: false,
+  customerDevBatchLookupLoading: false,
   customerDevRevealedEmails: new Set(),
   customerDevLeads: [],
   customerDevSearchStatus: "idle",
@@ -6310,6 +6315,12 @@ function normalizeCustomerDevPdlLead(company, brief) {
     opener: "",
     tags: [brief.product, roleMatchLabel, "PDL 公司数据"],
     contacts: [],
+    contactCountStatus: companyIdentity.domain
+      ? (CUSTOMER_DEV_USE_MOCK_CONTACTS ? "ready" : "idle")
+      : "unavailable",
+    // 模拟模式使用稳定数量展示完整流程；真实模式随后由免费 Email Count 覆盖。
+    contactCount: companyIdentity.domain && CUSTOMER_DEV_USE_MOCK_CONTACTS ? 3 : null,
+    contactCountError: "",
     contactLookupStatus: "idle",
     contactLookupError: "",
     contactProvider: "hunter",
@@ -6403,6 +6414,11 @@ function buildCustomerDevGitHubDemoResult(brief, sortMode = state.customerDevSor
     evidence: ["静态原型演示公司，不代表真实企业或采购意向"],
     tags: [brief.product, "演示数据"],
     isDemo: true
+  })).map((lead) => ({
+    ...lead,
+    // GitHub Pages 没有后端接口，因此用确定性的模拟数量完整演示“先看数量、再获取联系人”。
+    contactCountStatus: "ready",
+    contactCount: 3
   }));
 
   return {
@@ -6606,6 +6622,69 @@ async function fetchCustomerDevHunterContacts(lead) {
 }
 
 /**
+ * 免费查询一家公司域名下可获取的联系人数量。
+ *
+ * @param {object} lead - 已从公司库取得官网域名的公司线索。
+ * @returns {Promise<number>} Hunter 已收录的邮箱总数；零表示暂无可获取记录。
+ * @throws {Error} 域名缺失、服务端未配置或网络失败时抛出业务化提示。
+ *
+ * 该请求只调用 Hunter Email Count，不返回姓名、岗位和邮箱明文，也不消耗
+ * Domain Search 查询点数。真实联系人仍必须由用户点击“获取联系人”后单独查询。
+ */
+async function fetchCustomerDevContactCount(lead) {
+  const companyDomain = String(lead?.companyDomain || "").trim();
+  if (!companyDomain) {
+    throw new Error("官网域名待补充");
+  }
+
+  const endpoint = new URL("/api/hunter/email-count", window.location.origin);
+  endpoint.searchParams.set("domain", companyDomain);
+  const response = await fetch(endpoint, { headers: { Accept: "application/json" } });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error("联系人数量暂时无法获取");
+  }
+  return Math.max(0, Number(payload?.total) || 0);
+}
+
+/**
+ * 在公司列表出现后免费补充每家公司的可获取联系人数量。
+ *
+ * @param {string[]} leadIds - 本次需要补充数量的公司 ID。
+ * @returns {Promise<void>} 每个结果原位写回列表，单家公司失败不会中断其他公司。
+ * @throws {Error} 预期错误都写回行状态，不继续向事件循环抛出。
+ *
+ * 请求按顺序执行，避免结果页一次出现上百个并发请求。GitHub Pages 使用确定性的
+ * 模拟数量，因此不会访问不存在的静态 API。
+ */
+async function hydrateCustomerDevContactCounts(leadIds) {
+  if (CUSTOMER_DEV_USE_MOCK_CONTACTS || isCustomerDevGitHubDemoHost()) return;
+
+  for (const leadId of leadIds) {
+    const lead = state.customerDevLeads.find((item) => item.id === leadId);
+    if (!lead || lead.contactCountStatus !== "idle" || !lead.companyDomain) continue;
+
+    updateCustomerDevLeadContacts(leadId, { contactCountStatus: "loading", contactCountError: "" });
+    renderApp();
+    try {
+      const total = await fetchCustomerDevContactCount(lead);
+      updateCustomerDevLeadContacts(leadId, {
+        contactCountStatus: "ready",
+        contactCount: total,
+        contactCountError: ""
+      });
+    } catch (error) {
+      updateCustomerDevLeadContacts(leadId, {
+        contactCountStatus: "error",
+        contactCount: null,
+        contactCountError: error instanceof Error ? error.message : "联系人数量暂时无法获取"
+      });
+    }
+    renderApp();
+  }
+}
+
+/**
  * 原位更新一家公司在联系人补全过程中的状态。
  *
  * @param {string} leadId - PDL 公司稳定 ID。
@@ -6623,10 +6702,12 @@ function updateCustomerDevLeadContacts(leadId, patch) {
  * 响应用户按钮，按需获取一家公司的 Hunter 联系人。
  *
  * @param {string} leadId - 当前公司 ID。
+ * @param {{ openDetail?: boolean, silent?: boolean, expandInline?: boolean }} options - 查询完成后是否打开详情、隐藏提示或展开行内联系人。
  * @returns {Promise<void>} 查询完成后进入联系人页，或在详情卡显示空结果/错误。
  * @throws {Error} 所有预期错误都会写回页面状态，不继续向事件循环抛出。
  */
-async function runCustomerDevHunterLookup(leadId) {
+async function runCustomerDevHunterLookup(leadId, options = {}) {
+  const { openDetail = true, silent = false, expandInline = false } = options;
   const lead = state.customerDevLeads.find((item) => item.id === leadId);
   if (!lead || lead.contactLookupStatus === "loading") {
     return;
@@ -6654,16 +6735,28 @@ async function runCustomerDevHunterLookup(leadId) {
     if (result.contacts.length) {
       // 联系人查询成功后直接进入右侧“已知联系人”，避免用户还要再点一次
       // “查看联系人资料”。页签状态写入全局 state，后续异步重绘也不会跳回公司资料。
-      state.customerDevDetailTab = "contact";
+      if (openDetail) {
+        state.customerDevSelectedLeadId = leadId;
+        state.customerDevDetailOpen = true;
+        state.customerDevDetailTab = "contact";
+      }
+      if (expandInline) {
+        state.customerDevExpandedContactLeadIds = new Set([
+          ...state.customerDevExpandedContactLeadIds,
+          leadId
+        ]);
+      }
       renderApp();
-      showToast(result.provider === "mock"
-        ? `已生成 ${result.contacts.length} 位模拟联系人`
-        : `已找到 ${result.contacts.length} 位联系人`);
+      if (!silent) {
+        showToast(result.provider === "mock"
+          ? `已生成 ${result.contacts.length} 位模拟联系人`
+          : `已找到 ${result.contacts.length} 位联系人`);
+      }
       return;
     }
 
     renderApp();
-    showToast("暂未找到这家公司的公开联系人");
+    if (!silent) showToast("暂未找到这家公司的公开联系人");
   } catch (error) {
     const message = error instanceof Error ? error.message.trim() : "联系人查询失败，请稍后再试。";
     updateCustomerDevLeadContacts(leadId, {
@@ -6671,8 +6764,43 @@ async function runCustomerDevHunterLookup(leadId) {
       contactLookupError: message
     });
     renderApp();
-    showToast(message);
+    if (!silent) showToast(message);
   }
+}
+
+/**
+ * 按顺序为勾选的公司加载联系人邮箱。
+ *
+ * @returns {Promise<void>} 全部勾选公司处理完成后更新表格状态。
+ * @throws {Error} 单家公司查询错误会由 ``runCustomerDevHunterLookup`` 写回该行，
+ * 不会中断剩余公司。
+ *
+ * 真实 Hunter 查询可能消耗额度，因此批量操作只处理用户明确勾选的公司，并且
+ * 串行执行，避免瞬间并发请求造成额度和上游限流问题。当前 GitHub Pages 仍使用
+ * 明确标注的模拟联系人，但保留同一交互结构，方便后续接回真实代理。
+ */
+async function runCustomerDevBatchEmailLookup() {
+  if (state.customerDevBatchLookupLoading) return;
+
+  const leadIds = [...state.customerDevSelectedLeadIds]
+    .filter((leadId) => state.customerDevLeads.some((lead) => lead.id === leadId));
+  if (!leadIds.length) {
+    showToast("请先勾选需要加载邮箱的公司");
+    return;
+  }
+
+  state.customerDevBatchLookupLoading = true;
+  renderApp();
+
+  for (const leadId of leadIds) {
+    const lead = state.customerDevLeads.find((item) => item.id === leadId);
+    if (!lead || buildCustomerDevContacts(lead).length) continue;
+    await runCustomerDevHunterLookup(leadId, { openDetail: false, silent: true });
+  }
+
+  state.customerDevBatchLookupLoading = false;
+  renderApp();
+  showToast(`已完成 ${leadIds.length} 家公司的邮箱加载`);
 }
 
 /**
@@ -6691,6 +6819,10 @@ async function runCustomerDevPdlSearch() {
   state.customerDevSearchError = "";
   state.customerDevLeads = [];
   state.customerDevSearchTotal = 0;
+  state.customerDevSelectedLeadIds = new Set();
+  state.customerDevExpandedContactLeadIds = new Set();
+  state.customerDevDetailOpen = false;
+  state.customerDevBatchLookupLoading = false;
 
   const minimumDelay = new Promise((resolve) => window.setTimeout(resolve, CUSTOMER_DEV_SEARCH_DURATION_MS));
   const [searchResult] = await Promise.allSettled([
@@ -6718,6 +6850,9 @@ async function runCustomerDevPdlSearch() {
   }
 
   window.location.hash = "#/customer-development/results";
+  if (searchResult.status === "fulfilled") {
+    void hydrateCustomerDevContactCounts(searchResult.value.leads.map((lead) => lead.id));
+  }
 }
 
 /**
@@ -6751,7 +6886,11 @@ async function refreshCustomerDevPdlSort(nextSort) {
     state.customerDevSearchTotal = result.total;
     state.customerDevDataMode = result.mode || "pdl";
     state.customerDevSelectedLeadId = result.leads[0]?.id || "";
+    state.customerDevSelectedLeadIds = new Set();
+    state.customerDevExpandedContactLeadIds = new Set();
+    state.customerDevDetailOpen = false;
     state.customerDevDetailTab = "overview";
+    void hydrateCustomerDevContactCounts(result.leads.map((lead) => lead.id));
     showToast(`已切换为${allowedSort.label}`);
   } catch (error) {
     if (state.customerDevSearchRequestId !== requestId) {
@@ -7156,6 +7295,9 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
   const roleSummary = brief.role === "不限 / 智能推荐"
     ? `本页 ${leads.length} 家 · 客户类型未限定`
     : `本页 ${leads.length} 家：${roleCounts.high} 家高度疑似 · ${roleCounts.medium} 家可能匹配 · ${pendingRoleCount} 家待核验`;
+  const selectedLeadIds = state.customerDevSelectedLeadIds;
+  const selectedCount = leads.filter((lead) => selectedLeadIds.has(lead.id)).length;
+  const allSelected = Boolean(leads.length) && selectedCount === leads.length;
 
   if (state.customerDevSearchStatus === "error") {
     return `
@@ -7192,6 +7334,10 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
         <small>${escapeHtml(activeSort.description)}</small>
       </div>
       <div class="customer-dev-table-actions">
+        <button class="customer-dev-batch-email" type="button" data-customer-dev-batch-email
+          ${!selectedCount || state.customerDevBatchLookupLoading ? "disabled" : ""}>
+          ${state.customerDevBatchLookupLoading ? "批量获取中…" : `批量获取联系人${selectedCount ? `（${selectedCount}）` : ""}`}
+        </button>
         <label class="customer-dev-sort-control">
           <span>排序</span>
           <select data-customer-dev-sort aria-label="客户公司排序" ${state.customerDevSortLoading ? "disabled" : ""}>
@@ -7210,16 +7356,19 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
         <table class="customer-dev-table">
           <thead>
               <tr>
-                <th><input type="checkbox" aria-label="全选客户" /></th>
+                <th><input type="checkbox" data-customer-dev-select-all aria-label="全选本页公司" ${allSelected ? "checked" : ""} /></th>
                 <th>公司</th>
-                <th>国家</th>
+                <th>国家 / 地区</th>
                 <th>行业</th>
+                <th>公司规模</th>
+                <th>联系人</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               ${leads.length
                 ? leads.map((lead) => renderCustomerDevLeadRow(lead, selectedLead)).join("")
-                : `<tr class="customer-dev-empty-row"><td colspan="4">PDL 当前没有符合这些宽口径条件的公司，请返回调整国家或产品。</td></tr>`}
+                : `<tr class="customer-dev-empty-row"><td colspan="7">PDL 当前没有符合这些宽口径条件的公司，请返回调整国家或产品。</td></tr>`}
             </tbody>
           </table>
         <footer class="customer-dev-pagination">
@@ -7233,7 +7382,12 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
         </footer>
       </article>
 
-      ${renderCustomerDevDetail(selectedLead)}
+      ${state.customerDevDetailOpen && selectedLead ? `
+        <div class="customer-dev-detail-layer" role="presentation">
+          <button class="customer-dev-detail-backdrop" type="button" data-customer-dev-detail-close aria-label="关闭客户详情"></button>
+          ${renderCustomerDevDetail(selectedLead)}
+        </div>
+      ` : ""}
     </section>
   `;
 }
@@ -7251,9 +7405,32 @@ function renderCustomerDevLeadRow(lead, selectedLead) {
   const companyDomain = String(lead.companyDomain || "");
   const companyInitial = String(lead.companyInitial || displayCompany.match(/[\p{L}\p{N}]/u)?.[0] || "·").toLocaleUpperCase();
   const originalNameHint = displayCompany !== lead.company ? `原始名称：${lead.company}` : displayCompany;
-  return `
-    <tr class="customer-dev-data-row ${selectedLead && lead.id === selectedLead.id ? "selected" : ""}" data-dev-lead="${escapeHtml(lead.id)}">
-      <td><input type="checkbox" ${selectedLead && lead.id === selectedLead.id ? "checked" : ""} aria-label="选择${escapeHtml(displayCompany)}" /></td>
+  const contacts = buildCustomerDevContacts(lead);
+  const lookupStatus = String(lead.contactLookupStatus || "idle");
+  const countStatus = String(lead.contactCountStatus || "idle");
+  const availableCount = Math.max(0, Number(lead.contactCount) || 0);
+  const isChecked = state.customerDevSelectedLeadIds.has(lead.id);
+  const contactsExpanded = contacts.length > 0 && state.customerDevExpandedContactLeadIds.has(lead.id);
+  const emailCell = contacts.length
+    ? `<button class="customer-dev-email-value" type="button" data-customer-dev-toggle-contacts="${escapeHtml(lead.id)}" aria-expanded="${contactsExpanded}">${contacts.length} 位联系人</button>`
+    : lookupStatus === "loading"
+      ? `<span class="customer-dev-email-status is-loading">加载中…</span>`
+      : lookupStatus === "error"
+        ? `<span class="customer-dev-email-status is-error">加载失败</span>`
+        : lookupStatus === "empty"
+          ? `<span class="customer-dev-email-status">暂未找到</span>`
+          : countStatus === "loading"
+            ? `<span class="customer-dev-email-status is-loading">数量查询中…</span>`
+            : countStatus === "ready"
+              ? availableCount > 0
+                ? `<span class="customer-dev-contact-count"><strong>${availableCount}</strong> 位可获取</span><small>数量免费 · 获取后扣点</small>`
+                : `<span class="customer-dev-email-status">暂无可获取联系人</span>`
+              : countStatus === "error"
+                ? `<span class="customer-dev-email-status is-error">数量暂不可用</span>`
+                : `<span class="customer-dev-email-status">数量待查询</span>`;
+  const companyRow = `
+    <tr class="customer-dev-data-row ${state.customerDevDetailOpen && selectedLead && lead.id === selectedLead.id ? "selected" : ""}" data-dev-lead="${escapeHtml(lead.id)}">
+      <td><input type="checkbox" data-customer-dev-select-lead="${escapeHtml(lead.id)}" ${isChecked ? "checked" : ""} aria-label="选择${escapeHtml(displayCompany)}" /></td>
       <td class="customer-dev-company-cell">
         <button type="button" data-dev-lead="${escapeHtml(lead.id)}" title="${escapeHtml(originalNameHint)}">
           <span class="customer-dev-company-mark" aria-hidden="true">${escapeHtml(companyInitial)}</span>
@@ -7265,8 +7442,44 @@ function renderCustomerDevLeadRow(lead, selectedLead) {
       </td>
       <td>${escapeHtml(lead.countryName)}</td>
       <td class="customer-dev-industry-cell">${escapeHtml(lead.type)}</td>
+      <td>${escapeHtml(lead.size || "待补充")}</td>
+      <td class="customer-dev-email-cell">${emailCell}${contacts.length ? `<small>${contactsExpanded ? "明细已展开" : "点击查看明细"}</small>` : ""}</td>
+      <td class="customer-dev-row-actions">
+        <button type="button" data-customer-dev-detail-open="${escapeHtml(lead.id)}">详情</button>
+        ${contacts.length
+          ? `<button class="is-primary" type="button" data-customer-dev-toggle-contacts="${escapeHtml(lead.id)}" aria-expanded="${contactsExpanded}">${contactsExpanded ? "收起联系人" : "展开联系人"}</button>`
+          : `<button class="is-primary" type="button" data-customer-dev-email-lookup="${escapeHtml(lead.id)}" ${lookupStatus === "loading" || !companyDomain || (countStatus === "ready" && availableCount === 0) ? "disabled" : ""}>${lookupStatus === "loading" ? "获取中" : "获取联系人"}</button>`}
+      </td>
     </tr>
   `;
+
+  if (!contactsExpanded) return companyRow;
+
+  const contactRows = contacts.map((contact, index) => `
+    <tr class="customer-dev-contact-child-row" data-customer-dev-contact-parent="${escapeHtml(lead.id)}">
+      <td aria-hidden="true"><span class="customer-dev-contact-branch"></span></td>
+      <td colspan="6">
+        <div class="customer-dev-contact-child">
+          <span class="customer-dev-contact-number">${String(index + 1).padStart(2, "0")}</span>
+          <div class="customer-dev-contact-identity">
+            <strong>${escapeHtml(contact.name || "未提供")}</strong>
+            <small>${escapeHtml(contact.title || "未提供")}</small>
+          </div>
+          <div class="customer-dev-contact-channel">
+            <span>邮箱</span>
+            <strong>${escapeHtml(contact.email || "未提供")}</strong>
+          </div>
+          <div class="customer-dev-contact-channel">
+            <span>电话</span>
+            <strong>${escapeHtml(contact.phone || "未提供")}</strong>
+          </div>
+          <span class="customer-dev-contact-source">${contact.source === "模拟联系人数据" ? "模拟数据" : "公开记录"}</span>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+
+  return `${companyRow}${contactRows}`;
 }
 
 /**
@@ -7293,7 +7506,7 @@ function renderCustomerDevDetail(lead) {
             <span>${escapeHtml(lead.countryName)}</span>
           </p>
         </div>
-        <button class="customer-dev-detail-close" type="button" aria-label="关闭客户详情" data-toast="已模拟关闭客户详情。">关闭</button>
+        <button class="customer-dev-detail-close" type="button" aria-label="关闭客户详情" data-customer-dev-detail-close>关闭</button>
         <dl class="customer-dev-detail-meta">
           <div>
             <dt>线索来源</dt>
@@ -7393,7 +7606,13 @@ function renderCustomerDevHunterAction(lead) {
   const contacts = buildCustomerDevContacts(lead);
   const status = String(lead?.contactLookupStatus || "idle");
   const hasDomain = Boolean(String(lead?.companyDomain || "").trim());
-  let copy = "按公司官网域名查询，最多返回 10 位公开联系人。";
+  const countStatus = String(lead?.contactCountStatus || "idle");
+  const availableCount = Math.max(0, Number(lead?.contactCount) || 0);
+  let copy = countStatus === "ready"
+    ? availableCount > 0
+      ? `已找到 ${availableCount} 位可获取联系人；获取时最多展示 10 位，并按实际返回邮箱数消耗点数。`
+      : "当前域名暂未发现可获取联系人，数量查询不消耗点数。"
+    : "正在免费查询可获取联系人数量；获取资料时才会消耗点数。";
   let action = "";
 
   if (contacts.length) {
@@ -7408,6 +7627,8 @@ function renderCustomerDevHunterAction(lead) {
   } else if (status === "loading") {
     copy = "正在按公司域名获取公开联系人，请稍候。";
     action = `<button type="button" disabled>获取中…</button>`;
+  } else if (countStatus === "ready" && availableCount === 0) {
+    action = `<button type="button" disabled>暂无联系人</button>`;
   } else {
     if (status === "error") {
       copy = String(lead?.contactLookupError || "联系人查询失败，请稍后再试。");
@@ -11062,11 +11283,34 @@ function renderDifyProcessPanel(message) {
 
   const hasTimedThinkingRounds = steps.some((step) => String(step?.kind || "") === "thinking");
   if (hasTimedThinkingRounds) {
-    // Agent 的阶段 message 不是正式答案起点。时间线在生成中持续追加，
-    // 最后一段被提升为正文后仍保留在上方，用户可以回看每轮思考与小结。
+    const reasoningTimeline = renderDifyReasoningTimeline(message);
+
+    // Agent 的阶段 message 不是正式答案起点，因此生成期间继续完整展示时间线。
+    // 正式正文开始后改成一个默认关闭的总入口，避免多轮小结把最终报告推到首屏之外；
+    // 用户仍可通过原生 details 展开，回看每轮耗时、公开过程和阶段小结。
+    if (!isLive) {
+      const thinkingRoundCount = steps.filter((step) => String(step?.kind || "") === "thinking").length;
+      const interrupted = message.status === "error" || currentStep.status === "error";
+
+      return `
+        <section class="dify-process-panel multi-round settled">
+          <details class="dify-reasoning-history" data-dify-reasoning-history="true">
+            <summary>
+              <span class="dify-reasoning-history-chevron" aria-hidden="true">›</span>
+              <strong>${interrupted ? "深度思考已中断" : "已完成深度思考"}</strong>
+              <small>${thinkingRoundCount} 轮</small>
+            </summary>
+            <div class="dify-reasoning-history-body">
+              ${reasoningTimeline}
+            </div>
+          </details>
+        </section>
+      `;
+    }
+
     return `
-      <section class="dify-process-panel multi-round ${isLive ? "live" : "settled"}" ${isLive ? "aria-live=\"polite\"" : ""}>
-        ${renderDifyReasoningTimeline(message)}
+      <section class="dify-process-panel multi-round live" aria-live="polite">
+        ${reasoningTimeline}
       </section>
     `;
   }
@@ -11902,6 +12146,62 @@ function handleCustomerDevClick(event) {
     return;
   }
 
+  const selectAllCheckbox = target.closest("[data-customer-dev-select-all]");
+  if (selectAllCheckbox instanceof HTMLInputElement) {
+    const visibleLeadIds = state.customerDevLeads.map((lead) => lead.id);
+    if (selectAllCheckbox.checked) {
+      state.customerDevSelectedLeadIds = new Set(visibleLeadIds);
+    } else {
+      state.customerDevSelectedLeadIds = new Set();
+    }
+    renderApp();
+    return;
+  }
+
+  const selectLeadCheckbox = target.closest("[data-customer-dev-select-lead]");
+  if (selectLeadCheckbox instanceof HTMLInputElement) {
+    const leadId = selectLeadCheckbox.getAttribute("data-customer-dev-select-lead") || "";
+    const selectedIds = new Set(state.customerDevSelectedLeadIds);
+    if (selectLeadCheckbox.checked) selectedIds.add(leadId);
+    else selectedIds.delete(leadId);
+    state.customerDevSelectedLeadIds = selectedIds;
+    renderApp();
+    return;
+  }
+
+  const batchEmailButton = target.closest("[data-customer-dev-batch-email]");
+  if (batchEmailButton) {
+    void runCustomerDevBatchEmailLookup();
+    return;
+  }
+
+  const detailCloseButton = target.closest("[data-customer-dev-detail-close]");
+  if (detailCloseButton) {
+    state.customerDevDetailOpen = false;
+    renderApp();
+    return;
+  }
+
+  const detailOpenButton = target.closest("[data-customer-dev-detail-open]");
+  if (detailOpenButton) {
+    state.customerDevSelectedLeadId = detailOpenButton.getAttribute("data-customer-dev-detail-open") || state.customerDevSelectedLeadId;
+    state.customerDevDetailTab = "overview";
+    state.customerDevDetailOpen = true;
+    renderApp();
+    return;
+  }
+
+  const toggleContactsButton = target.closest("[data-customer-dev-toggle-contacts]");
+  if (toggleContactsButton) {
+    const leadId = toggleContactsButton.getAttribute("data-customer-dev-toggle-contacts") || "";
+    const expandedIds = new Set(state.customerDevExpandedContactLeadIds);
+    if (expandedIds.has(leadId)) expandedIds.delete(leadId);
+    else expandedIds.add(leadId);
+    state.customerDevExpandedContactLeadIds = expandedIds;
+    renderApp();
+    return;
+  }
+
   const detailTabButton = target.closest("[data-customer-dev-detail-tab]");
   if (detailTabButton) {
     const targetPanel = detailTabButton.getAttribute("data-customer-dev-detail-tab");
@@ -12010,6 +12310,13 @@ function handleCustomerDevClick(event) {
     return;
   }
 
+  const emailLookupButton = target.closest("[data-customer-dev-email-lookup]");
+  if (emailLookupButton) {
+    const leadId = emailLookupButton.getAttribute("data-customer-dev-email-lookup") || "";
+    void runCustomerDevHunterLookup(leadId, { openDetail: false, expandInline: true });
+    return;
+  }
+
   const revealButton = target.closest("[data-customer-dev-reveal-email]");
   if (revealButton) {
     const index = revealButton.getAttribute("data-customer-dev-reveal-email") || "0";
@@ -12022,6 +12329,7 @@ function handleCustomerDevClick(event) {
   if (leadNode) {
     state.customerDevSelectedLeadId = leadNode.getAttribute("data-dev-lead") || "solartech";
     state.customerDevDetailTab = "overview";
+    state.customerDevDetailOpen = true;
     state.popup = null;
     renderApp();
   }
@@ -16006,6 +16314,9 @@ function applyRoute() {
     }
     if (state.customerDevPhase === "brief") {
       state.customerDevRevealedEmails = new Set();
+      state.customerDevSelectedLeadIds = new Set();
+      state.customerDevExpandedContactLeadIds = new Set();
+      state.customerDevDetailOpen = false;
     }
     if (typeof route.revealEmailIndex === "number") {
       state.customerDevRevealedEmails.add(`${state.customerDevSelectedLeadId}-${route.revealEmailIndex}`);
@@ -16023,6 +16334,9 @@ function applyRoute() {
       state.customerDevSearchTotal = demoResult.total;
       state.customerDevDataMode = demoResult.mode;
       state.customerDevSelectedLeadId = demoResult.leads[0]?.id || "";
+      state.customerDevSelectedLeadIds = new Set();
+      state.customerDevExpandedContactLeadIds = new Set();
+      state.customerDevDetailOpen = false;
       state.customerDevSearchStatus = "ready";
       state.customerDevSearchError = "";
     }

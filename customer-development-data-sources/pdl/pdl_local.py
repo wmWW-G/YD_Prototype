@@ -449,6 +449,75 @@ class HunterClient:
             },
         }
 
+    def email_count(self, domain: object) -> dict[str, object]:
+        """免费查询一个公司域名下可获取的邮箱数量。
+
+        Args:
+            domain: PDL 公司域名或官网地址。
+
+        Returns:
+            规范域名以及 Hunter 已收录的个人邮箱、通用邮箱和总数。
+
+        Raises:
+            ValueError: 域名结构无效时抛出。
+            HunterApiError: Key 缺失、网络异常或上游响应无效时抛出。
+
+        Hunter 官方把 Email Count 定义为免费接口。它只用于在用户决定付费获取
+        联系人之前展示可获取数量，不能返回姓名、岗位或邮箱明文。
+        """
+
+        if not self.configured:
+            raise HunterApiError(
+                "hunter_not_configured",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                "Hunter 尚未配置。请在启动本地服务前设置 HUNTER_API_KEY。",
+            )
+
+        normalized_domain = normalize_hunter_domain(domain)
+        query = urlencode({"domain": normalized_domain, "api_key": self.api_key})
+        request = urllib.request.Request(
+            f"{self.api_base_url}/email-count?{query}",
+            headers={"Accept": "application/json", "User-Agent": "Yingdan-Prototype/0.2"},
+            method="GET",
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            self._raise_for_http_error(exc.code)
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise HunterApiError(
+                "hunter_network_error",
+                HTTPStatus.BAD_GATEWAY,
+                "无法连接 Hunter 联系人数量服务，请稍后重试。",
+            ) from exc
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise HunterApiError(
+                "hunter_invalid_response",
+                HTTPStatus.BAD_GATEWAY,
+                "Hunter 返回了无法识别的数据。",
+            ) from exc
+
+        if not isinstance(payload, Mapping) or not isinstance(payload.get("data"), Mapping):
+            raise HunterApiError(
+                "hunter_invalid_response",
+                HTTPStatus.BAD_GATEWAY,
+                "Hunter 返回了无法识别的数据。",
+            )
+
+        data = payload["data"]
+        personal = _safe_non_negative_int(data.get("personal_emails"), _safe_non_negative_int(data.get("personal")))
+        generic = _safe_non_negative_int(data.get("generic_emails"), _safe_non_negative_int(data.get("generic")))
+        total = _safe_non_negative_int(data.get("total"), personal + generic)
+        return {
+            "provider": "hunter",
+            "domain": normalized_domain,
+            "personal": personal,
+            "generic": generic,
+            "total": total,
+        }
+
 
 @dataclasses.dataclass(frozen=True)
 class SearchFilters:
@@ -1846,6 +1915,9 @@ class PdlRequestHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/hunter/status":
             self._handle_hunter_status()
             return
+        if parsed.path == "/api/hunter/email-count":
+            self._handle_hunter_email_count(parsed.query)
+            return
         if parsed.path == "/api/hunter/domain-search":
             self._handle_hunter_domain_search(parsed.query)
             return
@@ -1965,6 +2037,32 @@ class PdlRequestHandler(SimpleHTTPRequestHandler):
         except HunterApiError as exc:
             # 只记录稳定错误码；异常链和上游 URL 可能包含 API Key，不能写入日志。
             logger.warning("Hunter 按需查询失败，code=%s", exc.code)
+            self._send_json(exc.http_status, {"code": exc.code, "message": str(exc)})
+
+    def _handle_hunter_email_count(self, query: str) -> None:
+        """免费返回一个公司域名可获取的联系人数量，不返回个人资料。
+
+        Args:
+            query: URL 中未经解析的查询字符串，只接受 ``domain``。
+
+        Returns:
+            无返回值，数量 JSON 直接写入 HTTP 响应。
+
+        Raises:
+            所有预期错误都会转换成安全 JSON；API Key 与上游 URL 不会写入响应。
+        """
+
+        logger = logging.getLogger("hunter.count")
+        try:
+            values = parse_qs(query, keep_blank_values=False, max_num_fields=5)
+            domain = _first(values, "domain").strip()
+            payload = self.hunter_client.email_count(domain)
+            logger.info("联系人数量查询完成，总数=%d", payload["total"])
+            self._send_json(HTTPStatus.OK, payload)
+        except (ValueError, TypeError) as exc:
+            self._send_json(HTTPStatus.BAD_REQUEST, {"code": "invalid_hunter_query", "message": str(exc)})
+        except HunterApiError as exc:
+            logger.warning("联系人数量查询失败，code=%s", exc.code)
             self._send_json(exc.http_status, {"code": exc.code, "message": str(exc)})
 
     def log_request(self, code: int | str = "-", size: int | str = "-") -> None:
