@@ -49,11 +49,11 @@ test("GitHub Pages 使用明确标注的演示公司且不请求不存在的 PDL
 test("主原型使用当前前端缓存键", () => {
   assert.match(
     indexSource,
-    /src\/app\.js\?v=20260824-customer-dev-fixed-quantity-v11/
+    /src\/app\.js\?v=20260824-customer-dev-eight-sources-v12/
   );
   assert.match(
     indexSource,
-    /src\/styles\.css\?v=20260824-customer-dev-fixed-quantity-v11/
+    /src\/styles\.css\?v=20260824-customer-dev-eight-sources-v12/
   );
   assert.match(
     indexSource,
@@ -61,7 +61,7 @@ test("主原型使用当前前端缓存键", () => {
   );
   assert.match(
     indexSource,
-    /src\/data\.js\?v=20260824-customer-dev-fixed-quantity-v11/
+    /src\/data\.js\?v=20260824-customer-dev-eight-sources-v12/
   );
 });
 
