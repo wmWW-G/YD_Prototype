@@ -211,7 +211,7 @@ test("客户公司表支持行内邮箱加载、独立勾选和批量加载", ()
 test("地图获客使用外贸业务字段且不保留地推半径", () => {
   assert.match(dataSource, /quantities: \[20, 50, 100, 200\]/);
   assert.doesNotMatch(dataSource, /quantities: \[[^\]]*(?:80|120|500)[^\]]*\]/);
-  assert.match(appSource, /customerDevSource: "ai"/);
+  assert.match(appSource, /customerDevSource: "google"/);
   assert.match(appSource, /value: "map", label: "地图获客"/);
   assert.match(appSource, /data-customer-dev-source="\$\{escapeHtml\(source\.value\)\}"/);
   assert.match(appSource, /data-customer-dev-map-field="city"/);
@@ -241,6 +241,8 @@ test("地图获客使用外贸业务字段且不保留地推半径", () => {
 });
 
 test("客户开发按业务方式展示数据来源且不暴露供应商", () => {
+  assert.match(appSource, /label: "Google 搜索获客"/);
+  assert.match(appSource, /label: "TikTok 获客"/);
   assert.match(appSource, /label: "企业数据库"/);
   assert.match(appSource, /label: "地图获客"/);
   assert.match(appSource, /label: "海关获客"/);
@@ -261,12 +263,14 @@ test("客户开发按业务方式展示数据来源且不暴露供应商", () =>
   assert.doesNotMatch(appSource, /腾道|Tendata|tendata/);
   assert.match(stylesSource, /\.customer-dev-intelligence-canvas\s*\{/);
   assert.match(stylesSource, /customer-development-global-network\.png/);
-  assert.match(stylesSource, /grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(stylesSource, /\.customer-dev-intelligence-canvas \.customer-dev-source-switch\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4, minmax\(150px, 1fr\)\)/);
   assert.match(stylesSource, /\.customer-dev-enrichment-options/);
 });
 
-test("四个未接入来源使用明确标注的纯前端模拟流程", () => {
+test("未接入来源使用明确标注的纯前端模拟流程", () => {
   assert.match(appSource, /const CUSTOMER_DEV_MOCK_SOURCE_CONFIG = Object\.freeze\(\{/);
+  assert.match(appSource, /mode: "mock-google"/);
+  assert.match(appSource, /mode: "mock-tiktok"/);
   assert.match(appSource, /mode: "mock-customs"/);
   assert.match(appSource, /mode: "mock-social"/);
   assert.match(appSource, /mode: "mock-linkedin"/);

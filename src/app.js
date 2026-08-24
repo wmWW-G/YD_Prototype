@@ -36,7 +36,7 @@
  *   kassCompletedTaskIds: Set<string>,
  *   kassAssistantOpen: boolean,
  *   customerDevPhase: "brief" | "searching" | "results" | "contacts",
- *   customerDevSource: "ai" | "map" | "customs" | "social" | "linkedin" | "exhibition",
+ *   customerDevSource: "google" | "map" | "linkedin" | "social" | "tiktok" | "customs" | "ai" | "exhibition",
  *   customerDevBrief: { market: string, product: string, role: string, quantity: string },
  *   customerDevMapBrief: { city: string, category: string, contact: string },
  *   customerDevPicker: null | "market" | "product",
@@ -130,18 +130,20 @@ const CUSTOMER_DEV_SORT_OPTIONS = Object.freeze([
  * @type {ReadonlyArray<{ value: string, label: string, description: string, icon: string }>}
  */
 const CUSTOMER_DEV_SOURCE_OPTIONS = Object.freeze([
-  Object.freeze({ value: "ai", label: "企业数据库", description: "按国家、行业与客户类型筛选企业", icon: "assets/icons/02_background_check.svg" }),
+  Object.freeze({ value: "google", label: "Google 搜索获客", description: "从搜索结果与企业官网发现客户", icon: "assets/icons/01_ask.svg" }),
   Object.freeze({ value: "map", label: "地图获客", description: "按城市与商户行业发现经营主体", icon: "assets/icons/12_field_sales.svg" }),
-  Object.freeze({ value: "customs", label: "海关获客", description: "按 HS 编码与真实贸易记录找买家", icon: "assets/icons/03_market_research.svg" }),
-  Object.freeze({ value: "social", label: "社媒获客", description: "从公开社媒发现企业与关键角色", icon: "assets/icons/05_relationship.svg" }),
   Object.freeze({ value: "linkedin", label: "领英获客", description: "按公司、行业与职位锁定决策人", icon: "assets/icons/04_new_client_letter.svg" }),
+  Object.freeze({ value: "social", label: "社媒获客", description: "从公开社媒发现企业与关键角色", icon: "assets/icons/05_relationship.svg" }),
+  Object.freeze({ value: "tiktok", label: "TikTok 获客", description: "从公开视频与账号发现品牌和商家", icon: "assets/icons/11_video_meeting.svg" }),
+  Object.freeze({ value: "customs", label: "海关获客", description: "按 HS 编码与贸易记录发现买家", icon: "assets/icons/03_market_research.svg" }),
+  Object.freeze({ value: "ai", label: "企业数据库", description: "按国家、行业与客户类型筛选企业", icon: "assets/icons/02_background_check.svg" }),
   Object.freeze({ value: "exhibition", label: "展会获客", description: "按展会与参展企业扩展客户名单", icon: "assets/icons/14_exhibition.svg" })
 ]);
 
 /**
  * 尚未接入真实数据服务的获客来源配置。
  *
- * 这些配置同时驱动搜索动画、模拟名单和结果页文案，避免四套流程各自硬编码后
+ * 这些配置同时驱动搜索动画、模拟名单和结果页文案，避免每套流程各自硬编码后
  * 出现“入口叫海关获客、结果却写成企业数据库”的错位。所有生成的公司名都包含
  * Demo，官网只使用 ``example.com``，并在结果页持续显示“模拟数据”。
  *
@@ -158,6 +160,22 @@ const CUSTOMER_DEV_SOURCE_OPTIONS = Object.freeze([
  * }>>>}
  */
 const CUSTOMER_DEV_MOCK_SOURCE_CONFIG = Object.freeze({
+  google: Object.freeze({
+    mode: "mock-google",
+    sourceLabel: "Google 搜索与官网线索 · 模拟数据",
+    resultLabel: "Google 搜索企业线索（模拟）",
+    searchStatus: "Google 搜索获客模拟数据生成中",
+    headline: "正在从搜索结果与企业官网整理客户线索",
+    steps: Object.freeze([
+      "目标市场、产品与客户类型已确认",
+      "正在模拟匹配搜索结果、企业官网与产品关键词",
+      "正在整理目标企业与可获取联系人数量",
+      "即将打开 Google 搜索企业线索模拟名单"
+    ]),
+    companyPrefixes: Object.freeze(["Demo Search Commerce", "Demo Web Industry", "Demo Global Supplier", "Demo Market Discovery"]),
+    locations: Object.freeze(["Demo Berlin", "Demo Hamburg", "Demo Munich", "Demo Frankfurt"]),
+    evidenceLabel: "模拟搜索结果、企业官网与产品关键词"
+  }),
   customs: Object.freeze({
     mode: "mock-customs",
     sourceLabel: "海关贸易记录 · 模拟数据",
@@ -189,6 +207,22 @@ const CUSTOMER_DEV_MOCK_SOURCE_CONFIG = Object.freeze({
     companyPrefixes: Object.freeze(["Demo Social Commerce", "Demo Digital Industry", "Demo Market Network", "Demo Brand Community"]),
     locations: Object.freeze(["Demo Berlin", "Demo Cologne", "Demo Frankfurt", "Demo Stuttgart"]),
     evidenceLabel: "模拟企业社媒主页、公开动态与产品关键词"
+  }),
+  tiktok: Object.freeze({
+    mode: "mock-tiktok",
+    sourceLabel: "TikTok 公开内容线索 · 模拟数据",
+    resultLabel: "TikTok 品牌与商家线索（模拟）",
+    searchStatus: "TikTok 获客模拟数据生成中",
+    headline: "正在从 TikTok 公开内容整理品牌与商家线索",
+    steps: Object.freeze([
+      "目标市场、产品与客户类型已确认",
+      "正在模拟匹配公开视频、账号简介与产品关键词",
+      "正在整理活跃品牌、商家与可获取联系人数量",
+      "即将打开 TikTok 品牌与商家模拟名单"
+    ]),
+    companyPrefixes: Object.freeze(["Demo Short Video Brand", "Demo Creator Commerce", "Demo Social Retail", "Demo Viral Products"]),
+    locations: Object.freeze(["Demo Berlin", "Demo Cologne", "Demo Hamburg", "Demo Düsseldorf"]),
+    evidenceLabel: "模拟公开视频、账号简介与产品关键词"
   }),
   linkedin: Object.freeze({
     mode: "mock-linkedin",
@@ -620,7 +654,7 @@ const state = {
   kassCompletedTaskIds: new Set(),
   kassAssistantOpen: false,
   customerDevPhase: "brief",
-  customerDevSource: "ai",
+  customerDevSource: "google",
   customerDevBrief: {
     market: "德国",
     product: "光伏组件",
@@ -6893,14 +6927,14 @@ function buildCustomerDevGitHubDemoResult(brief, sortMode = state.customerDevSor
 /**
  * 为尚未接入接口的获客来源生成确定性的原型名单。
  *
- * @param {string} sourceValue - ``customs``、``social``、``linkedin`` 或 ``exhibition``。
+ * @param {string} sourceValue - 已配置为纯前端模拟数据的获客来源值。
  * @param {{ market: string, product: string, role: string, quantity: string }} brief - 当前获客条件。
  * @returns {{ leads: object[], total: number, mode: string }} 模拟公司名单、模拟总量和来源模式。
  * @throws {Error} 来源不在模拟配置白名单中时抛出错误，防止误把未知来源当成有效数据。
  *
  * 为什么继续复用公司线索结构：结果表、详情抽屉、批量勾选和联系人流程已经围绕
  * 同一个结构完成。这里只替换数据来源和证据文案，可以完整演示流程，同时不会
- * 让原型代码分裂成四套难以维护的列表组件。
+ * 让原型代码分裂成多套难以维护的列表组件。
  */
 function buildCustomerDevMockSourceResult(sourceValue, brief) {
   const config = CUSTOMER_DEV_MOCK_SOURCE_CONFIG[sourceValue];
@@ -17621,7 +17655,7 @@ function applyRoute() {
   isApplyingRoute = false;
 
   if (route.main === "customer-development" && route.customerDevPhase === "searching") {
-    // 企业数据库与地图获客保留现有查询；其余四个入口生成明确标注的模拟名单。
+    // 企业数据库与地图获客保留现有查询；其余入口生成明确标注的模拟名单。
     // 所有路径共用 requestId，避免旧请求在用户离开页面后覆盖新状态。
     void runCustomerDevSearch();
   }

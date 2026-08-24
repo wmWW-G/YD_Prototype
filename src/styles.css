@@ -5188,7 +5188,7 @@ body:has(.customer-dev-view-brief) .workspace {
 }
 
 .customer-dev-intelligence-canvas .customer-dev-source-switch {
-  grid-template-columns: repeat(6, minmax(112px, 1fr));
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
   gap: 10px;
   width: 100%;
   margin-top: 20px;
