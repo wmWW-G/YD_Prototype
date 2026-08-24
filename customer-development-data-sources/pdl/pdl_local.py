@@ -1,4 +1,4 @@
-"""PDL 免费公司数据集的本地导入、查询和静态页面服务。
+"""PDL 公司库、Foursquare 地点库和静态原型的本地数据服务。
 
 公司发现部分只处理 People Data Labs 发布的 Free Company Dataset，不调用收费的
 PDL Person Search API，也不从公司字段猜测联系人、邮箱或电话。用户明确点击单家公司后，
@@ -7,8 +7,8 @@ PDL Person Search API，也不从公司字段猜测联系人、邮箱或电话�
 典型用法：
 
 1. 导入用户从 PDL 官网下载的 CSV、PSV、JSON 或 ZIP 文件。
-2. 启动只监听本机的 HTTP 服务，同时提供赢单静态原型、只读公司搜索接口，以及使用
-   服务端 ``HUNTER_API_KEY`` 的按需联系人查询接口。
+2. 启动只监听本机的 HTTP 服务，同时提供赢单静态原型、PDL 公司搜索、Foursquare
+   OS Places 地点搜索，以及使用服务端 ``HUNTER_API_KEY`` 的按需联系人查询接口。
 
 数据库和日志默认写入本目录下被 ``.gitignore`` 排除的目录，避免把大文件或
 用户本地路径意外提交到 Git。
@@ -67,10 +67,137 @@ DEFAULT_SORT_MODE = "recommended"
 SORT_MODES = frozenset({DEFAULT_SORT_MODE, "complete", "size_desc"})
 HUNTER_API_BASE_URL = "https://api.hunter.io/v2"
 HUNTER_CONTACT_LIMIT = 10
+FOURSQUARE_DATA_DIR = PROJECT_ROOT / "customer-development-data-sources" / "foursquare" / "data" / "places_os_raw"
+FOURSQUARE_CATEGORY_CATALOG_FILE = (
+    PROJECT_ROOT / "customer-development-data-sources" / "foursquare" / "category-catalog.json"
+)
+FOURSQUARE_RAW_CATEGORY_CATALOG_FILE = (
+    PROJECT_ROOT / "customer-development-data-sources" / "foursquare" / "raw-category-catalog.json"
+)
+FOURSQUARE_MAX_RESULT_LIMIT = 200
+
+
+def _read_foursquare_category_catalog(
+    catalog_file: Path,
+) -> tuple[dict[str, object], dict[str, dict[str, tuple[str, ...]]]]:
+    """读取一份 Foursquare 行业目录并生成查询规则。
+
+    Args:
+        catalog_file: 要读取的 JSON 目录路径。业务精选目录与官方原始目录共用此结构。
+
+    Returns:
+        二元组：目录对象，以及按可提交行业值索引的 Foursquare 查询规则。
+
+    Raises:
+        OSError: 目录文件不存在或无法读取时抛出。
+        json.JSONDecodeError: 目录文件不是合法 JSON 时抛出。
+        ValueError: 分组或行业结构不完整、行业值重复时抛出。
+
+    两层目录都必须走同一个解析器，避免精选行业和高级原始分类出现不同的校验规则。
+    """
+
+    catalog = json.loads(catalog_file.read_text(encoding="utf-8"))
+    groups = catalog.get("groups")
+    if not isinstance(groups, list) or not groups:
+        raise ValueError("Foursquare 商户行业目录缺少 groups。")
+
+    rules: dict[str, dict[str, tuple[str, ...]]] = {}
+    for group in groups:
+        if not isinstance(group, dict) or not isinstance(group.get("items"), list):
+            raise ValueError("Foursquare 商户行业分组结构无效。")
+        for item in group["items"]:
+            if not isinstance(item, dict):
+                raise ValueError("Foursquare 商户行业选项结构无效。")
+            value = str(item.get("value") or "").strip()
+            category_terms = tuple(str(term).strip().lower() for term in item.get("category_terms", []) if str(term).strip())
+            name_terms = tuple(str(term).strip().lower() for term in item.get("name_terms", []) if str(term).strip())
+            if not value or not category_terms or value in rules:
+                raise ValueError(f"Foursquare 商户行业目录存在空值、重复项或缺少类别映射：{value or '未命名'}")
+            rules[value] = {"category": category_terms, "name": name_terms}
+    return catalog, rules
+
+
+def _load_foursquare_category_catalogs(
+) -> tuple[dict[str, object], dict[str, object], dict[str, dict[str, tuple[str, ...]]]]:
+    """合并产品精选目录与 Foursquare 官方原始目录。
+
+    Returns:
+        三元组：64 项 B2B 聚合目录、1,274 项官方原始映射、两者合并后的查询白名单。
+
+    Raises:
+        OSError: 任一目录无法读取时抛出。
+        json.JSONDecodeError: 任一目录不是合法 JSON 时抛出。
+        ValueError: 两层目录存在重复提交值或目录结构无效时抛出。
+
+    默认界面只展示外贸业务员容易理解的聚合行业，官方完整路径仅保留在后台映射层。
+    后端仍兼容两套规则，保证聚合标签和已有官方路径都查询同一份真实地点数据。
+    """
+
+    business_catalog, business_rules = _read_foursquare_category_catalog(FOURSQUARE_CATEGORY_CATALOG_FILE)
+    raw_catalog, raw_rules = _read_foursquare_category_catalog(FOURSQUARE_RAW_CATEGORY_CATALOG_FILE)
+    duplicate_values = set(business_rules).intersection(raw_rules)
+    if duplicate_values:
+        duplicate = sorted(duplicate_values)[0]
+        raise ValueError(f"Foursquare 两层行业目录存在重复提交值：{duplicate}")
+    return business_catalog, raw_catalog, {**business_rules, **raw_rules}
+
+
+FOURSQUARE_CATEGORY_CATALOG, FOURSQUARE_RAW_CATEGORY_CATALOG, FOURSQUARE_CATEGORY_RULES = (
+    _load_foursquare_category_catalogs()
+)
+
+FOURSQUARE_CONTACT_FILTERS = frozenset({
+    "不限联系方式",
+    "有官网或电话",
+    "有官网",
+    "有电话",
+    "有邮箱",
+    "有社交账号",
+})
+
+# Foursquare 的 locality 可能使用英文或当地语言。这里只为产品模板中的常用中文城市
+# 提供别名；未命中的输入会按用户原文做不区分大小写的精确匹配。
+FOURSQUARE_CITY_ALIASES: dict[str, tuple[str, ...]] = {
+    "汉堡": ("hamburg",),
+    "慕尼黑": ("munich", "münchen"),
+    "柏林": ("berlin",),
+    "法兰克福": ("frankfurt", "frankfurt am main"),
+    "迪拜": ("dubai", "دبي"),
+    "利雅得": ("riyadh", "الرياض"),
+    "上海": ("shanghai", "上海"),
+    "北京": ("beijing", "北京"),
+    "深圳": ("shenzhen", "深圳"),
+    "广州": ("guangzhou", "广州"),
+}
 
 
 class PdlDataError(RuntimeError):
     """表示 PDL 文件、字段或本地数据库不符合预期。"""
+
+
+class FoursquareDataError(RuntimeError):
+    """表示 Foursquare 本地文件缺失或地点查询无法执行。
+
+    Attributes:
+        code: 前端可稳定识别的错误码。
+        http_status: 本地接口应返回的 HTTP 状态码。
+    """
+
+    def __init__(self, code: str, http_status: HTTPStatus, message: str) -> None:
+        """保存可安全展示的地点查询错误。
+
+        Args:
+            code: 稳定错误码。
+            http_status: HTTP 响应状态。
+            message: 不包含本地文件路径的中文提示。
+
+        Raises:
+            本函数不主动抛异常。
+        """
+
+        super().__init__(message)
+        self.code = code
+        self.http_status = http_status
 
 
 class HunterApiError(RuntimeError):
@@ -544,6 +671,27 @@ class SearchFilters:
     founded_to: int | None = None
     query: str = ""
     sort: str = DEFAULT_SORT_MODE
+    limit: int = 20
+    offset: int = 0
+
+
+@dataclasses.dataclass(frozen=True)
+class FoursquareFilters:
+    """地图地点搜索使用的安全筛选条件。
+
+    Attributes:
+        country_code: ISO 3166-1 两位大写国家代码，例如 ``DE``。
+        city: 用户选择或输入的城市名称，可使用少量内置中文别名。
+        category: 前端业务场所类别，必须属于后端白名单。
+        contact: 公开联系方式筛选，必须属于后端白名单。
+        limit: 本次最多返回多少个地点，最高 200。
+        offset: 分页偏移量。
+    """
+
+    country_code: str
+    city: str
+    category: str
+    contact: str = "不限联系方式"
     limit: int = 20
     offset: int = 0
 
@@ -1852,10 +2000,236 @@ def parse_search_filters(query: str) -> SearchFilters:
     )
 
 
+def parse_foursquare_filters(query: str) -> FoursquareFilters:
+    """把地图获客 URL 参数转换为安全的结构化筛选条件。
+
+    Args:
+        query: URL ``?`` 后的原始查询字符串。
+
+    Returns:
+        经过白名单、长度和数值范围校验的地点筛选对象。
+
+    Raises:
+        ValueError: 国家、城市、类别、联系方式或分页参数无效时抛出。
+    """
+
+    values = parse_qs(query, keep_blank_values=False, max_num_fields=20)
+    country_code = _first(values, "country_code").strip().upper()
+    city = _first(values, "city").strip()
+    category = _first(values, "category").strip()
+    contact = _first(values, "contact", "不限联系方式").strip() or "不限联系方式"
+
+    if not re.fullmatch(r"[A-Z]{2}", country_code):
+        raise ValueError("地图获客需要有效的两位国家代码。")
+    if not city or len(city) > 120:
+        raise ValueError("城市名称不能为空且不能超过 120 个字符。")
+    if category not in FOURSQUARE_CATEGORY_RULES:
+        raise ValueError(f"不支持的场所类别：{category or '未选择'}")
+    if contact not in FOURSQUARE_CONTACT_FILTERS:
+        raise ValueError(f"不支持的联系方式筛选：{contact}")
+
+    limit = int(_first(values, "limit", "20"))
+    offset = int(_first(values, "offset", "0"))
+    return FoursquareFilters(
+        country_code=country_code,
+        city=city,
+        category=category,
+        contact=contact,
+        limit=max(1, min(limit, FOURSQUARE_MAX_RESULT_LIMIT)),
+        offset=max(0, offset),
+    )
+
+
+def _foursquare_city_candidates(city: str) -> tuple[str, ...]:
+    """把用户城市输入展开成 Foursquare locality 候选值。
+
+    Args:
+        city: 已通过长度校验的城市名称。
+
+    Returns:
+        小写、去重后的城市原文与常用别名。
+
+    Raises:
+        本函数不主动抛异常。
+    """
+
+    raw_candidates = (city, *FOURSQUARE_CITY_ALIASES.get(city, ()))
+    return tuple(dict.fromkeys(value.strip().lower() for value in raw_candidates if value.strip()))
+
+
+class FoursquareStore:
+    """直接查询本机 Foursquare OS Places Parquet 文件的只读存储层。"""
+
+    def __init__(self, data_dir: Path = FOURSQUARE_DATA_DIR) -> None:
+        """保存开放数据目录。
+
+        Args:
+            data_dir: 包含一个或多个 ``.parquet`` 文件的目录。
+
+        Raises:
+            本函数只保存路径，不主动读取或抛异常。
+        """
+
+        self.data_dir = Path(data_dir)
+
+    def _files(self) -> list[Path]:
+        """返回稳定排序的本地数据文件。
+
+        Returns:
+            当前数据目录下的 Parquet 文件列表。
+
+        Raises:
+            FoursquareDataError: 目录不存在或没有任何 Parquet 文件时抛出。
+        """
+
+        files = sorted(self.data_dir.glob("*.parquet")) if self.data_dir.is_dir() else []
+        if not files:
+            raise FoursquareDataError(
+                "foursquare_dataset_not_found",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                "Foursquare OS Places 本地数据尚未准备好。",
+            )
+        return files
+
+    def metadata(self) -> dict[str, object]:
+        """返回不泄露本地路径的就绪状态。
+
+        Returns:
+            是否就绪、文件数量和数据源名称。
+
+        Raises:
+            FoursquareDataError: 本地数据文件不存在时抛出。
+        """
+
+        files = self._files()
+        return {"ready": True, "provider": "foursquare-os-places", "files": len(files)}
+
+    def _source_sql(self) -> str:
+        """生成只指向受控本地目录的 DuckDB Parquet 表表达式。
+
+        Returns:
+            可放在 ``FROM`` 后的 ``read_parquet`` SQL 片段。
+
+        Raises:
+            FoursquareDataError: 数据目录未准备好时抛出。
+        """
+
+        self._files()
+        glob_path = self.data_dir / "*.parquet"
+        return f"read_parquet({_sql_string(str(glob_path))}, union_by_name=true)"
+
+    def search(self, filters: FoursquareFilters) -> dict[str, object]:
+        """按城市、场所类别和公开联系方式搜索真实地点。
+
+        Args:
+            filters: 已通过 ``parse_foursquare_filters`` 校验的筛选条件。
+
+        Returns:
+            地点列表、总数、城市、分页和筛选元数据。
+
+        Raises:
+            FoursquareDataError: 数据缺失或城市在该国家没有地点时抛出。
+            duckdb.Error: Parquet 损坏、schema 不兼容或查询失败时抛出。
+
+        地图获客面向外贸业务员，不采用“市中心多少公里”的地推逻辑。城市只按
+        Foursquare 的 locality/post_town 精确匹配；所有用户值都通过参数绑定进入 SQL。
+        """
+
+        source_sql = self._source_sql()
+        city_candidates = _foursquare_city_candidates(filters.city)
+        city_placeholders = ", ".join("?" for _ in city_candidates)
+        connection = duckdb.connect()
+        try:
+            category_rule = FOURSQUARE_CATEGORY_RULES[filters.category]
+            category_parts = ["category_text LIKE ?" for _ in category_rule["category"]]
+            name_parts = ["LOWER(COALESCE(name, '')) LIKE ?" for _ in category_rule["name"]]
+            category_sql = " OR ".join([*category_parts, *name_parts]) or "FALSE"
+            category_parameters = [
+                *(f"%{term.lower()}%" for term in category_rule["category"]),
+                *(f"%{term.lower()}%" for term in category_rule["name"]),
+            ]
+
+            contact_sql = {
+                "不限联系方式": "TRUE",
+                "有官网或电话": "(NULLIF(TRIM(COALESCE(website, '')), '') IS NOT NULL OR NULLIF(TRIM(COALESCE(tel, '')), '') IS NOT NULL)",
+                "有官网": "NULLIF(TRIM(COALESCE(website, '')), '') IS NOT NULL",
+                "有电话": "NULLIF(TRIM(COALESCE(tel, '')), '') IS NOT NULL",
+                "有邮箱": "NULLIF(TRIM(COALESCE(email, '')), '') IS NOT NULL",
+                "有社交账号": "(facebook_id IS NOT NULL OR NULLIF(TRIM(COALESCE(instagram, '')), '') IS NOT NULL OR NULLIF(TRIM(COALESCE(twitter, '')), '') IS NOT NULL)",
+            }[filters.contact]
+
+            search_sql = f"""
+                WITH candidates AS MATERIALIZED (
+                    SELECT
+                        fsq_place_id, name, latitude, longitude, address, locality, region,
+                        postcode, country, date_refreshed, tel, website, email, facebook_id,
+                        instagram, twitter, fsq_category_labels,
+                        LOWER(COALESCE(ARRAY_TO_STRING(fsq_category_labels, ' | '), '')) AS category_text
+                    FROM {source_sql}
+                    WHERE country = ?
+                      AND (
+                        LOWER(TRIM(COALESCE(locality, ''))) IN ({city_placeholders})
+                        OR LOWER(TRIM(COALESCE(post_town, ''))) IN ({city_placeholders})
+                      )
+                      AND (date_closed IS NULL OR TRIM(date_closed) = '')
+                      AND NOT COALESCE(LIST_CONTAINS(unresolved_flags, 'closed'), FALSE)
+                ), filtered AS (
+                    SELECT *
+                    FROM candidates
+                    WHERE ({category_sql})
+                      AND {contact_sql}
+                )
+                SELECT *, COUNT(*) OVER () AS filtered_total
+                FROM filtered
+                ORDER BY
+                  (CASE WHEN NULLIF(TRIM(COALESCE(website, '')), '') IS NOT NULL THEN 1 ELSE 0 END
+                   + CASE WHEN NULLIF(TRIM(COALESCE(tel, '')), '') IS NOT NULL THEN 1 ELSE 0 END
+                   + CASE WHEN NULLIF(TRIM(COALESCE(email, '')), '') IS NOT NULL THEN 1 ELSE 0 END) DESC,
+                  TRY_CAST(date_refreshed AS DATE) DESC NULLS LAST,
+                  name ASC
+                LIMIT ? OFFSET ?
+            """
+            parameters = [
+                filters.country_code,
+                *city_candidates,
+                *city_candidates,
+                *category_parameters,
+                filters.limit,
+                filters.offset,
+            ]
+            cursor = connection.execute(search_sql, parameters)
+            column_names = [description[0] for description in cursor.description]
+            raw_rows = cursor.fetchall()
+        finally:
+            connection.close()
+
+        places: list[dict[str, object]] = []
+        total = 0
+        for raw_row in raw_rows:
+            row = dict(zip(column_names, raw_row, strict=True))
+            total = int(row.pop("filtered_total") or 0)
+            row.pop("category_text", None)
+            if row.get("facebook_id") is not None:
+                row["facebook_id"] = str(row["facebook_id"])
+            places.append(row)
+
+        return {
+            "provider": "foursquare-os-places",
+            "places": places,
+            "total": total,
+            "limit": filters.limit,
+            "offset": filters.offset,
+            "city": filters.city,
+            "category": filters.category,
+            "contact": filters.contact,
+        }
+
+
 class PdlRequestHandler(SimpleHTTPRequestHandler):
-    """同时提供静态原型、PDL 搜索和 Hunter 联系人补全接口的请求处理器。"""
+    """同时提供静态原型、PDL、Foursquare 和 Hunter 接口的请求处理器。"""
 
     store = PdlStore()
+    foursquare_store = FoursquareStore()
     hunter_client = HunterClient.from_env()
 
     def __init__(self, *args: object, directory: str | None = None, **kwargs: object) -> None:
@@ -1912,6 +2286,12 @@ class PdlRequestHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/pdl/companies":
             self._handle_company_search(parsed.query)
             return
+        if parsed.path == "/api/foursquare/health":
+            self._handle_foursquare_health()
+            return
+        if parsed.path == "/api/foursquare/places":
+            self._handle_foursquare_search(parsed.query)
+            return
         if parsed.path == "/api/hunter/status":
             self._handle_hunter_status()
             return
@@ -1922,6 +2302,59 @@ class PdlRequestHandler(SimpleHTTPRequestHandler):
             self._handle_hunter_domain_search(parsed.query)
             return
         super().do_GET()
+
+    def _handle_foursquare_health(self) -> None:
+        """返回 Foursquare 本地开放数据是否可查询。
+
+        Returns:
+            无返回值，结果直接写入 HTTP 响应。
+
+        Raises:
+            本函数会把预期错误转换为 JSON，不向服务循环继续抛出。
+        """
+
+        try:
+            self._send_json(HTTPStatus.OK, self.foursquare_store.metadata())
+        except FoursquareDataError as exc:
+            self._send_json(exc.http_status, {"ready": False, "code": exc.code, "message": str(exc)})
+
+    def _handle_foursquare_search(self, query: str) -> None:
+        """解析地图筛选并查询本地 Foursquare Parquet。
+
+        Args:
+            query: URL 中未经解析的查询字符串。
+
+        Returns:
+            无返回值，地点列表直接写入 HTTP 响应。
+
+        Raises:
+            预期错误会转换成 400、404、503 或 500 JSON，不继续向上抛出。
+        """
+
+        logger = logging.getLogger("foursquare.http")
+        started = time.monotonic()
+        try:
+            filters = parse_foursquare_filters(query)
+            payload = self.foursquare_store.search(filters)
+            elapsed_ms = round((time.monotonic() - started) * 1000, 1)
+            payload["elapsed_ms"] = elapsed_ms
+            logger.info(
+                "Foursquare 地点搜索完成，返回=%d，总匹配=%d，耗时=%.1fms",
+                len(payload["places"]),
+                payload["total"],
+                elapsed_ms,
+            )
+            self._send_json(HTTPStatus.OK, payload)
+        except (ValueError, TypeError) as exc:
+            self._send_json(HTTPStatus.BAD_REQUEST, {"code": "invalid_foursquare_query", "message": str(exc)})
+        except FoursquareDataError as exc:
+            self._send_json(exc.http_status, {"code": exc.code, "message": str(exc)})
+        except duckdb.Error:
+            logger.exception("Foursquare 地点搜索失败")
+            self._send_json(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"code": "foursquare_database_error", "message": "Foursquare 本地数据查询失败。"},
+            )
 
     def _handle_health(self) -> None:
         """返回数据库是否已导入及其元数据。

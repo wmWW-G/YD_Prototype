@@ -36,7 +36,12 @@
  *   kassCompletedTaskIds: Set<string>,
  *   kassAssistantOpen: boolean,
  *   customerDevPhase: "brief" | "searching" | "results" | "contacts",
+ *   customerDevSource: "ai" | "map" | "customs" | "social" | "linkedin" | "exhibition",
  *   customerDevBrief: { market: string, product: string, role: string, quantity: string },
+ *   customerDevMapBrief: { city: string, category: string, contact: string, quantity: string },
+ *   customerDevMapCategoryPickerOpen: boolean,
+ *   customerDevMapCategoryGroup: string,
+ *   customerDevMapCategoryQuery: string,
  *   customerDevPicker: null | "market" | "product",
  *   customerDevContinent: string,
  *   customerDevProductCategory: string,
@@ -117,6 +122,217 @@ const CUSTOMER_DEV_SORT_OPTIONS = Object.freeze([
   Object.freeze({ value: "complete", label: "资料最完整", description: "优先官网、LinkedIn 和公司档案较齐全的企业" }),
   Object.freeze({ value: "size_desc", label: "公司规模", description: "按 PDL 员工规模从大到小展示" })
 ]);
+
+/**
+ * 客户开发首页展示的业务获客方式。
+ *
+ * 界面只呈现用户要完成的业务任务，不暴露底层供应商或接口名称。企业与地图查询
+ * 保留原有流程；其余入口使用明确标注的模拟数据补全原型交互，不能冒充真实查询。
+ *
+ * @type {ReadonlyArray<{ value: string, label: string, description: string, icon: string }>}
+ */
+const CUSTOMER_DEV_SOURCE_OPTIONS = Object.freeze([
+  Object.freeze({ value: "ai", label: "企业数据库", description: "按国家、行业与客户类型筛选企业", icon: "assets/icons/02_background_check.svg" }),
+  Object.freeze({ value: "map", label: "地图获客", description: "按城市与商户行业发现经营主体", icon: "assets/icons/12_field_sales.svg" }),
+  Object.freeze({ value: "customs", label: "海关获客", description: "按 HS 编码与真实贸易记录找买家", icon: "assets/icons/03_market_research.svg" }),
+  Object.freeze({ value: "social", label: "社媒获客", description: "从公开社媒发现企业与关键角色", icon: "assets/icons/05_relationship.svg" }),
+  Object.freeze({ value: "linkedin", label: "领英获客", description: "按公司、行业与职位锁定决策人", icon: "assets/icons/04_new_client_letter.svg" }),
+  Object.freeze({ value: "exhibition", label: "展会获客", description: "按展会与参展企业扩展客户名单", icon: "assets/icons/14_exhibition.svg" })
+]);
+
+/**
+ * 尚未接入真实数据服务的获客来源配置。
+ *
+ * 这些配置同时驱动搜索动画、模拟名单和结果页文案，避免四套流程各自硬编码后
+ * 出现“入口叫海关获客、结果却写成企业数据库”的错位。所有生成的公司名都包含
+ * Demo，官网只使用 ``example.com``，并在结果页持续显示“模拟数据”。
+ *
+ * @type {Readonly<Record<string, Readonly<{
+ *   mode: string,
+ *   sourceLabel: string,
+ *   resultLabel: string,
+ *   searchStatus: string,
+ *   headline: string,
+ *   steps: ReadonlyArray<string>,
+ *   companyPrefixes: ReadonlyArray<string>,
+ *   locations: ReadonlyArray<string>,
+ *   evidenceLabel: string
+ * }>>>}
+ */
+const CUSTOMER_DEV_MOCK_SOURCE_CONFIG = Object.freeze({
+  customs: Object.freeze({
+    mode: "mock-customs",
+    sourceLabel: "海关贸易记录 · 模拟数据",
+    resultLabel: "海关贸易线索（模拟）",
+    searchStatus: "海关获客模拟数据生成中",
+    headline: "正在按产品与市场整理贸易买家",
+    steps: Object.freeze([
+      "目标市场、产品与客户类型已确认",
+      "正在模拟匹配进口记录、交易频次与产品线索",
+      "正在整理采购企业与可获取联系人数量",
+      "即将打开海关贸易线索模拟名单"
+    ]),
+    companyPrefixes: Object.freeze(["Demo Rhine Import", "Demo Hanseatic Trading", "Demo Europa Sourcing", "Demo Global Components"]),
+    locations: Object.freeze(["Demo Hamburg", "Demo Bremen", "Demo Berlin", "Demo Munich"]),
+    evidenceLabel: "模拟贸易记录、交易频次与采购产品线索"
+  }),
+  social: Object.freeze({
+    mode: "mock-social",
+    sourceLabel: "公开社媒线索 · 模拟数据",
+    resultLabel: "社媒企业线索（模拟）",
+    searchStatus: "社媒获客模拟数据生成中",
+    headline: "正在从社媒场景整理活跃企业",
+    steps: Object.freeze([
+      "目标市场、产品与客户类型已确认",
+      "正在模拟匹配企业主页、公开动态与产品关键词",
+      "正在整理活跃企业与关键角色线索",
+      "即将打开社媒企业线索模拟名单"
+    ]),
+    companyPrefixes: Object.freeze(["Demo Social Commerce", "Demo Digital Industry", "Demo Market Network", "Demo Brand Community"]),
+    locations: Object.freeze(["Demo Berlin", "Demo Cologne", "Demo Frankfurt", "Demo Stuttgart"]),
+    evidenceLabel: "模拟企业社媒主页、公开动态与产品关键词"
+  }),
+  linkedin: Object.freeze({
+    mode: "mock-linkedin",
+    sourceLabel: "领英企业与职位线索 · 模拟数据",
+    resultLabel: "领英决策人线索（模拟）",
+    searchStatus: "领英获客模拟数据生成中",
+    headline: "正在按公司与职位整理决策人线索",
+    steps: Object.freeze([
+      "目标市场、产品与客户类型已确认",
+      "正在模拟匹配公司行业、规模与目标职位",
+      "正在整理决策人角色与可获取联系人数量",
+      "即将打开领英决策人线索模拟名单"
+    ]),
+    companyPrefixes: Object.freeze(["Demo Professional Network", "Demo Industry Leaders", "Demo Business Connect", "Demo Executive Search"]),
+    locations: Object.freeze(["Demo Düsseldorf", "Demo Berlin", "Demo Hamburg", "Demo Leipzig"]),
+    evidenceLabel: "模拟公司行业、规模与目标职位线索"
+  }),
+  exhibition: Object.freeze({
+    mode: "mock-exhibition",
+    sourceLabel: "展会参展记录 · 模拟数据",
+    resultLabel: "展会参展企业（模拟）",
+    searchStatus: "展会获客模拟数据生成中",
+    headline: "正在按展会与展品整理参展企业",
+    steps: Object.freeze([
+      "目标市场、产品与客户类型已确认",
+      "正在模拟匹配展会、展位与参展产品记录",
+      "正在整理参展企业与可获取联系人数量",
+      "即将打开展会参展企业模拟名单"
+    ]),
+    companyPrefixes: Object.freeze(["Demo Expo Solutions", "Demo Fair Exhibitor", "Demo Trade Show Systems", "Demo Pavilion Industry"]),
+    locations: Object.freeze(["Demo Hanover", "Demo Frankfurt", "Demo Munich", "Demo Nuremberg"]),
+    evidenceLabel: "模拟展会、展位与参展产品记录"
+  })
+});
+
+/**
+ * 获客结果可以继续补全的客户情报维度。
+ *
+ * “联系人获取”统一涵盖邮箱、电话、WhatsApp 和公开社媒等渠道，界面不再展示
+ * 具体联系人数据供应商名称。
+ *
+ * @type {ReadonlyArray<string>}
+ */
+const CUSTOMER_DEV_ENRICHMENT_OPTIONS = Object.freeze([
+  "联系人获取",
+  "贸易记录",
+  "工商信息",
+  "产品信息",
+  "商业关系",
+  "知识产权",
+  "新闻舆情"
+]);
+
+/**
+ * 不同获客方式在右侧展示的客户情报补全内容。
+ *
+ * 这些说明只表达用户最终能得到什么，不暴露底层数据服务商或接口实现。
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<{ label: string, description: string, icon: string }>>>}
+ */
+const CUSTOMER_DEV_SOURCE_ENRICHMENT = Object.freeze({
+  ai: Object.freeze([
+    Object.freeze({ label: "联系人获取", description: "获取核心联系人与关键决策人", icon: "assets/icons/01_ask.svg" }),
+    Object.freeze({ label: "工商信息", description: "补全企业登记与经营基础信息", icon: "assets/icons/02_background_check.svg" }),
+    Object.freeze({ label: "产品信息", description: "了解主营产品与解决方案", icon: "assets/icons/03_market_research.svg" }),
+    Object.freeze({ label: "商业关系", description: "识别合作客户与供应链关系", icon: "assets/icons/05_relationship.svg" }),
+    Object.freeze({ label: "新闻舆情", description: "查看企业动态与公开舆情", icon: "assets/icons/07_inquiry_reply.svg" })
+  ]),
+  map: Object.freeze([
+    Object.freeze({ label: "联系人获取", description: "补充公开电话、邮箱与联系人", icon: "assets/icons/01_ask.svg" }),
+    Object.freeze({ label: "商户信息", description: "补全地址、官网与经营类别", icon: "assets/icons/12_field_sales.svg" }),
+    Object.freeze({ label: "工商信息", description: "核验企业登记与经营状态", icon: "assets/icons/02_background_check.svg" }),
+    Object.freeze({ label: "产品信息", description: "了解主营产品与服务范围", icon: "assets/icons/03_market_research.svg" }),
+    Object.freeze({ label: "新闻舆情", description: "查看企业动态与公开舆情", icon: "assets/icons/07_inquiry_reply.svg" })
+  ]),
+  customs: Object.freeze([
+    Object.freeze({ label: "联系人获取", description: "获取采购联系人与关键决策人", icon: "assets/icons/01_ask.svg" }),
+    Object.freeze({ label: "贸易记录", description: "查看进出口、量价与交易频率", icon: "assets/icons/03_market_research.svg" }),
+    Object.freeze({ label: "工商信息", description: "核验企业主体与经营状态", icon: "assets/icons/02_background_check.svg" }),
+    Object.freeze({ label: "产品信息", description: "识别实际采购产品与规格", icon: "assets/icons/15b_title_sellpoints.svg" }),
+    Object.freeze({ label: "商业关系", description: "梳理上下游客户与供应商", icon: "assets/icons/05_relationship.svg" })
+  ]),
+  social: Object.freeze([
+    Object.freeze({ label: "联系人获取", description: "获取核心联系人与关键决策人", icon: "assets/icons/01_ask.svg" }),
+    Object.freeze({ label: "社媒主页", description: "补全企业社媒主页与账号信息", icon: "assets/icons/05_relationship.svg" }),
+    Object.freeze({ label: "工商信息", description: "补全公司工商登记基础信息", icon: "assets/icons/02_background_check.svg" }),
+    Object.freeze({ label: "产品信息", description: "补全主营产品与解决方案", icon: "assets/icons/03_market_research.svg" }),
+    Object.freeze({ label: "商业关系", description: "补全合作客户与供应链关系", icon: "assets/icons/00a_deal_advisor.svg" }),
+    Object.freeze({ label: "新闻舆情", description: "补全企业动态与新闻舆情", icon: "assets/icons/07_inquiry_reply.svg" })
+  ]),
+  linkedin: Object.freeze([
+    Object.freeze({ label: "联系人获取", description: "获取目标职位与关键决策人", icon: "assets/icons/01_ask.svg" }),
+    Object.freeze({ label: "领英主页", description: "补全企业与联系人领英主页", icon: "assets/icons/04_new_client_letter.svg" }),
+    Object.freeze({ label: "工商信息", description: "补全公司工商登记基础信息", icon: "assets/icons/02_background_check.svg" }),
+    Object.freeze({ label: "产品信息", description: "了解企业主营产品与服务", icon: "assets/icons/03_market_research.svg" }),
+    Object.freeze({ label: "商业关系", description: "识别企业合作与供应链关系", icon: "assets/icons/05_relationship.svg" })
+  ]),
+  exhibition: Object.freeze([
+    Object.freeze({ label: "联系人获取", description: "获取参展企业联系人与决策人", icon: "assets/icons/01_ask.svg" }),
+    Object.freeze({ label: "展会信息", description: "查看展会、展位与参展记录", icon: "assets/icons/14_exhibition.svg" }),
+    Object.freeze({ label: "工商信息", description: "核验参展企业主体与状态", icon: "assets/icons/02_background_check.svg" }),
+    Object.freeze({ label: "产品信息", description: "了解展品与主营产品方向", icon: "assets/icons/03_market_research.svg" }),
+    Object.freeze({ label: "新闻舆情", description: "查看企业最新公开动态", icon: "assets/icons/07_inquiry_reply.svg" })
+  ])
+});
+
+/** @type {{ version: number, groups: Array<{ id: string, label: string, official_label?: string, description: string, items: Array<{ value: string, label?: string, path?: string, keywords: string[], category_terms: string[], name_terms: string[] }> }> }} */
+let customerDevMapCategoryCatalog = { version: 1, groups: [] };
+
+/** @type {Promise<void> | null} */
+let customerDevMapCategoryCatalogPromise = null;
+
+/** @type {ReadonlyArray<string>} */
+const CUSTOMER_DEV_MAP_CONTACT_FILTERS = Object.freeze([
+  "不限联系方式",
+  "有官网或电话",
+  "有官网",
+  "有电话",
+  "有邮箱",
+  "有社交账号"
+]);
+
+/**
+ * 常用中文业务词到 Foursquare 官方英文分类词的搜索别名。
+ *
+ * 原始 1,274 条分类保持官方英文名称，不在前端伪造批量中文翻译；这些少量别名只负责
+ * 帮中国外贸业务员用熟悉的词找到官方分类，不会改变最终提交给后端的完整分类路径。
+ */
+const CUSTOMER_DEV_MAP_CATEGORY_SEARCH_ALIASES = Object.freeze({
+  "太阳能": "renewable energy",
+  "光伏": "renewable energy",
+  "机械": "machinery machine",
+  "工业设备": "industrial equipment",
+  "汽配": "car parts accessories",
+  "汽车配件": "car parts accessories",
+  "建材": "construction supplies",
+  "物流": "logistics transportation",
+  "包装": "packaging",
+  "纺织": "textile fabric",
+  "食品": "food",
+  "进出口": "import export"
+});
 
 /**
  * 赢单产品大类到 PDL 规范行业的宽口径映射。
@@ -250,6 +466,33 @@ const CUSTOMER_DEV_PDL_COUNTRY_ALIASES = Object.freeze({
 const customerDevPdlCountryCache = new Map();
 
 /**
+ * 产品短名与 Foursquare ``country`` 字段使用的 ISO 两位代码。
+ *
+ * 大多数国家会由 ``Intl.DisplayNames`` 自动反查；这里只覆盖浏览器地区名称与产品
+ * 短名不完全一致的常用值，确保地图模板可以稳定查询。
+ *
+ * @type {Readonly<Record<string, string>>}
+ */
+const CUSTOMER_DEV_COUNTRY_CODE_ALIASES = Object.freeze({
+  "美国": "US",
+  "英国": "GB",
+  "俄罗斯": "RU",
+  "韩国": "KR",
+  "朝鲜": "KP",
+  "阿联酋": "AE",
+  "沙特阿拉伯": "SA",
+  "中国大陆": "CN",
+  "中国香港": "HK",
+  "中国澳门": "MO",
+  "中国台湾": "TW",
+  "捷克": "CZ",
+  "土耳其": "TR"
+});
+
+/** @type {Map<string, string>} */
+const customerDevCountryCodeCache = new Map();
+
+/**
  * 所有对话功能页面共用的 Dify 配置与对话服务。
  *
  * 为什么使用两个服务端接口：
@@ -376,12 +619,24 @@ const state = {
   kassCompletedTaskIds: new Set(),
   kassAssistantOpen: false,
   customerDevPhase: "brief",
+  customerDevSource: "ai",
   customerDevBrief: {
     market: "德国",
     product: "光伏组件",
     role: "不限 / 智能推荐",
     quantity: "100"
   },
+  customerDevMapBrief: {
+    city: "汉堡",
+    category: "新能源与电力设施",
+    contact: "有官网或电话",
+    quantity: "100"
+  },
+  customerDevMapCategoryPickerOpen: false,
+  customerDevMapCategoryGroup: "energy-environment",
+  customerDevMapCategoryQuery: "",
+  customerDevMapCategoryLoading: false,
+  customerDevMapCategoryError: "",
   customerDevPicker: null,
   customerDevContinent: "europe",
   customerDevProductCategory: "energy",
@@ -1241,6 +1496,170 @@ function getChatLabels() {
   };
 
   return labels[state.activeMain] || labels.default;
+}
+
+/**
+ * 读取默认展示的 64 项 B2B 聚合行业目录。
+ *
+ * @returns {Promise<void>} 目录加载完成后更新模块级缓存。
+ * @throws {Error} 静态目录请求失败或结构不完整时抛出，由打开选择器的调用方展示。
+ *
+ * 目录使用独立 JSON，既能随 GitHub Pages 静态部署，也能由本地 Python 服务直接提供；
+ * 前端不会再维护一份容易与后端白名单漂移的行业数组。
+ */
+async function loadCustomerDevMapCategoryCatalog() {
+  if (customerDevMapCategoryCatalog.groups.length) return;
+  if (customerDevMapCategoryCatalogPromise) return customerDevMapCategoryCatalogPromise;
+
+  customerDevMapCategoryCatalogPromise = (async () => {
+    const endpoint = new URL("customer-development-data-sources/foursquare/category-catalog.json", window.location.href);
+    const response = await fetch(endpoint, { headers: { Accept: "application/json" } });
+    if (!response.ok) {
+      throw new Error(`商户行业目录加载失败（HTTP ${response.status}）`);
+    }
+    const payload = await response.json();
+    const groups = Array.isArray(payload?.groups) ? payload.groups : [];
+    const itemCount = groups.reduce((total, group) => total + (Array.isArray(group?.items) ? group.items.length : 0), 0);
+    if (groups.length !== 10 || itemCount !== 64) {
+      throw new Error("商户行业目录结构不完整，请刷新后重试。");
+    }
+    customerDevMapCategoryCatalog = { version: Number(payload.version) || 1, groups };
+  })();
+
+  try {
+    await customerDevMapCategoryCatalogPromise;
+  } finally {
+    customerDevMapCategoryCatalogPromise = null;
+  }
+}
+
+/**
+ * 返回当前 B2B 聚合行业目录。
+ *
+ * @returns {typeof customerDevMapCategoryCatalog} 当前激活的业务精选或官方原始目录。
+ * @throws {Error} 本函数不主动抛异常；目录未加载时返回空目录缓存。
+ */
+function getCustomerDevMapActiveCategoryCatalog() {
+  return customerDevMapCategoryCatalog;
+}
+
+/**
+ * 把提交查询使用的完整官方分类路径转换为紧凑的末级名称。
+ *
+ * @param {string} value - 例如 ``Retail > Automotive Retail > Car Parts and Accessories``。
+ * @returns {string} 页面主字段和结果摘要使用的末级分类名称。
+ * @throws {Error} 本函数不主动抛异常；目录尚未加载时直接从路径末段兜底。
+ */
+function getCustomerDevMapCategoryDisplayLabel(value) {
+  const normalized = String(value || "").trim();
+  for (const group of customerDevMapCategoryCatalog.groups) {
+    const item = (group.items || []).find((entry) => entry.value === normalized);
+    if (item) return String(item.label || item.value || normalized).trim();
+  }
+  return normalized.split(" > ").filter(Boolean).pop() || normalized;
+}
+
+/**
+ * 打开可搜索的外贸商户行业选择器，并确保目录已经准备好。
+ *
+ * @returns {Promise<void>} 选择器打开并完成加载后结束。
+ * @throws {Error} 本函数捕获目录错误并写入可见状态，不向事件循环继续抛出。
+ */
+async function openCustomerDevMapCategoryPicker() {
+  state.customerDevMapCategoryPickerOpen = true;
+  state.customerDevMapCategoryQuery = "";
+  state.customerDevMapCategoryLoading = !customerDevMapCategoryCatalog.groups.length;
+  state.customerDevMapCategoryError = "";
+  renderApp();
+
+  try {
+    await loadCustomerDevMapCategoryCatalog();
+    const groups = customerDevMapCategoryCatalog.groups;
+    if (!groups.some((group) => group.id === state.customerDevMapCategoryGroup)) {
+      state.customerDevMapCategoryGroup = groups[0]?.id || "";
+    }
+    state.customerDevMapCategoryLoading = false;
+  } catch (error) {
+    state.customerDevMapCategoryLoading = false;
+    state.customerDevMapCategoryError = error instanceof Error ? error.message : "商户行业目录暂时不可用。";
+  }
+  if (state.customerDevMapCategoryPickerOpen) renderApp();
+}
+
+/**
+ * 根据搜索词返回仍有匹配项的行业分组。
+ *
+ * @returns {Array<object>} 带过滤后 items 的行业分组副本。
+ * @throws {Error} 本函数不主动抛异常；空目录返回空数组。
+ */
+function getFilteredCustomerDevMapCategoryGroups() {
+  const query = state.customerDevMapCategoryQuery.trim().toLocaleLowerCase();
+  return getCustomerDevMapActiveCategoryCatalog().groups.map((group) => {
+    const items = (group.items || []).filter((item) => {
+      if (!query) return true;
+      const aliasQueries = Object.entries(CUSTOMER_DEV_MAP_CATEGORY_SEARCH_ALIASES)
+        .filter(([chinese]) => chinese.includes(query) || query.includes(chinese))
+        .map(([, english]) => english);
+      const searchQueries = [query, ...aliasQueries];
+      const haystack = [group.label, group.official_label || "", item.value, item.label || "", item.path || "", ...(item.keywords || []), ...(item.category_terms || [])]
+        .join(" ")
+        .toLocaleLowerCase();
+      return searchQueries.some((searchQuery) => searchQuery.split(/\s+/).every((term) => haystack.includes(term)));
+    });
+    return { ...group, items };
+  }).filter((group) => group.items.length);
+}
+
+/**
+ * 生成行业选择器左侧分组和右侧选项 HTML。
+ *
+ * @returns {{ nav: string, results: string, count: number }} 当前搜索与分组对应的片段。
+ * @throws {Error} 本函数不主动抛异常；动态字段均进行 HTML 转义。
+ */
+function buildCustomerDevMapCategoryPickerContent() {
+  const groups = getFilteredCustomerDevMapCategoryGroups();
+  const activeGroup = groups.find((group) => group.id === state.customerDevMapCategoryGroup) || groups[0];
+  const searching = Boolean(state.customerDevMapCategoryQuery.trim());
+  const visibleItems = searching ? groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label }))) : (activeGroup?.items || []);
+  const count = groups.reduce((total, group) => total + group.items.length, 0);
+
+  const nav = groups.map((group) => `
+    <button class="${group.id === activeGroup?.id && !searching ? "active" : ""}" type="button" data-customer-dev-map-category-group="${escapeHtml(group.id)}">
+      <span>${escapeHtml(group.label)}</span><small>${group.items.length}</small>
+    </button>
+  `).join("");
+
+  const results = visibleItems.length ? visibleItems.map((item) => `
+    <button class="customer-dev-map-category-option ${item.value === state.customerDevMapBrief.category ? "selected" : ""}" type="button" data-customer-dev-map-category-value="${escapeHtml(item.value)}">
+      <span>
+        ${searching ? `<em>${escapeHtml(item.groupLabel)}</em>` : ""}
+        <strong>${escapeHtml(item.label || item.value)}</strong>
+        <small>${escapeHtml((item.keywords || []).slice(1, 5).join(" · "))}</small>
+      </span>
+      <b>${item.value === state.customerDevMapBrief.category ? "已选择" : "选择"}</b>
+    </button>
+  `).join("") : `<div class="customer-dev-map-category-empty"><strong>没有匹配行业</strong><span>试试输入产品、目标渠道或英文行业词，例如“机械”“汽配”“建材”“物流”。</span></div>`;
+
+  return { nav, results, count };
+}
+
+/**
+ * 在不重建整页的情况下刷新行业分组与搜索结果。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常；弹层不存在时直接返回。
+ */
+function refreshCustomerDevMapCategoryPicker() {
+  const dialog = document.querySelector(".customer-dev-map-category-dialog");
+  if (!dialog) return;
+
+  const content = buildCustomerDevMapCategoryPickerContent();
+  const nav = dialog.querySelector(".customer-dev-map-category-groups");
+  const results = dialog.querySelector(".customer-dev-map-category-results");
+  const count = dialog.querySelector(".customer-dev-map-category-search small");
+  if (nav) nav.innerHTML = content.nav;
+  if (results) results.innerHTML = content.results;
+  if (count) count.textContent = state.customerDevMapCategoryQuery ? `找到 ${content.count} 项` : "支持产品、渠道与英文行业词";
 }
 
 /**
@@ -6048,6 +6467,45 @@ function resolveCustomerDevPdlCountry(market) {
 }
 
 /**
+ * 把界面中文国家/地区转换为 Foursquare 使用的 ISO 两位代码。
+ *
+ * @param {string} market - 赢单国家选择器中的中文名称。
+ * @returns {string} 两位大写代码；无法识别时返回空字符串。
+ * @throws {Error} 本函数捕获 Intl 初始化异常并返回空值，不向外抛出。
+ */
+function resolveCustomerDevCountryCode(market) {
+  const normalizedMarket = String(market || "").trim();
+  if (!normalizedMarket) return "";
+  if (CUSTOMER_DEV_COUNTRY_CODE_ALIASES[normalizedMarket]) {
+    return CUSTOMER_DEV_COUNTRY_CODE_ALIASES[normalizedMarket];
+  }
+  if (customerDevCountryCodeCache.has(normalizedMarket)) {
+    return customerDevCountryCodeCache.get(normalizedMarket) || "";
+  }
+
+  try {
+    const chineseNames = new Intl.DisplayNames(["zh-CN"], { type: "region" });
+    for (let first = 65; first <= 90; first += 1) {
+      for (let second = 65; second <= 90; second += 1) {
+        const code = String.fromCharCode(first, second);
+        // Intl 也认识 DD（东德）、UK 等历史或别名代码。Foursquare 只使用当前
+        // ISO 两位代码，所以必须跳过会被 Intl 自动规范成其它地区的旧代码。
+        if (new Intl.Locale(`und-${code}`).region !== code) continue;
+        if (chineseNames.of(code) === normalizedMarket) {
+          customerDevCountryCodeCache.set(normalizedMarket, code);
+          return code;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("[customer-development] 国家代码转换不可用", error);
+  }
+
+  customerDevCountryCodeCache.set(normalizedMarket, "");
+  return "";
+}
+
+/**
  * 根据当前产品大类生成 PDL 产品行业候选。
  *
  * @param {{ product: string, role: string }} brief - 当前获客条件。
@@ -6429,6 +6887,79 @@ function buildCustomerDevGitHubDemoResult(brief, sortMode = state.customerDevSor
 }
 
 /**
+ * 为尚未接入接口的获客来源生成确定性的原型名单。
+ *
+ * @param {string} sourceValue - ``customs``、``social``、``linkedin`` 或 ``exhibition``。
+ * @param {{ market: string, product: string, role: string, quantity: string }} brief - 当前获客条件。
+ * @returns {{ leads: object[], total: number, mode: string }} 模拟公司名单、模拟总量和来源模式。
+ * @throws {Error} 来源不在模拟配置白名单中时抛出错误，防止误把未知来源当成有效数据。
+ *
+ * 为什么继续复用公司线索结构：结果表、详情抽屉、批量勾选和联系人流程已经围绕
+ * 同一个结构完成。这里只替换数据来源和证据文案，可以完整演示流程，同时不会
+ * 让原型代码分裂成四套难以维护的列表组件。
+ */
+function buildCustomerDevMockSourceResult(sourceValue, brief) {
+  const config = CUSTOMER_DEV_MOCK_SOURCE_CONFIG[sourceValue];
+  if (!config) {
+    throw new Error("当前获客来源没有可用的模拟流程。");
+  }
+
+  const requestedQuantity = Math.max(1, Math.min(Number(brief.quantity) || 20, 500));
+  const companySizes = ["11-50", "51-200", "201-500", "501-1000"];
+  const countryCode = resolveCustomerDevPdlCountry(brief.market);
+  const companies = Array.from({ length: requestedQuantity }, (_, index) => {
+    const paddedNumber = String(index + 1).padStart(3, "0");
+    return {
+      id: `${config.mode}-${paddedNumber}`,
+      name: `${config.companyPrefixes[index % config.companyPrefixes.length]} ${paddedNumber} GmbH`,
+      website: `https://${sourceValue}-lead-${paddedNumber}.example.com`,
+      linkedin_url: "",
+      country: countryCode,
+      locality: config.locations[index % config.locations.length],
+      region: "Demo Region",
+      industry: getCustomerDevProductIndustryLabel(brief),
+      size: companySizes[index % companySizes.length],
+      founded: 1992 + (index % 28),
+      requested_role: brief.role,
+      role_match_level: "unknown",
+      role_match_label: "模拟数据",
+      role_support: "none",
+      role_verified: false,
+      role_match_evidence: [],
+      product_industry_match: true,
+      match_score: 88 - (index % 18),
+      product_match_score: 25,
+      role_match_component_score: 0,
+      actionability_score: 15,
+      data_completeness_score: 20 - (index % 5)
+    };
+  });
+
+  const leads = companies.map((company) => ({
+    ...normalizeCustomerDevPdlLead(company, brief),
+    source: config.sourceLabel,
+    dataProvider: config.mode,
+    contact: "模拟数据不含真实联系人",
+    evidence: [
+      config.evidenceLabel,
+      "原型模拟数据，不代表真实企业、贸易、社媒、职位或参展记录"
+    ],
+    tags: [brief.product, config.resultLabel, "模拟数据"],
+    contactCountStatus: "ready",
+    contactCount: 3,
+    isDemo: true,
+    isSourceMock: true
+  }));
+
+  return {
+    leads,
+    // 总量只用于展示完整结果页的分页与数量层级，不代表任何真实数据库统计。
+    total: Math.max(requestedQuantity, 680 + (sourceValue.length * 37)),
+    mode: config.mode
+  };
+}
+
+/**
  * 调用同源的 PDL 本地公司搜索接口。
  *
  * @param {{ market: string, product: string, role: string, quantity: string }} brief - 当前获客条件。
@@ -6769,7 +7300,7 @@ async function runCustomerDevHunterLookup(leadId, options = {}) {
 }
 
 /**
- * 按顺序为勾选的公司加载联系人邮箱。
+ * 按顺序为勾选的公司获取联系人。
  *
  * @returns {Promise<void>} 全部勾选公司处理完成后更新表格状态。
  * @throws {Error} 单家公司查询错误会由 ``runCustomerDevHunterLookup`` 写回该行，
@@ -6785,7 +7316,7 @@ async function runCustomerDevBatchEmailLookup() {
   const leadIds = [...state.customerDevSelectedLeadIds]
     .filter((leadId) => state.customerDevLeads.some((lead) => lead.id === leadId));
   if (!leadIds.length) {
-    showToast("请先勾选需要加载邮箱的公司");
+    showToast("请先勾选需要获取联系人的公司");
     return;
   }
 
@@ -6800,7 +7331,325 @@ async function runCustomerDevBatchEmailLookup() {
 
   state.customerDevBatchLookupLoading = false;
   renderApp();
-  showToast(`已完成 ${leadIds.length} 家公司的邮箱加载`);
+  showToast(`已完成 ${leadIds.length} 家公司的联系人获取`);
+}
+
+/**
+ * 生成地图获客的确定性原型名单。
+ *
+ * @param {{ market: string, city: string, category: string, contact: string, quantity: string }} brief - 地图获客条件。
+ * @returns {{ leads: object[], total: number, mode: "foursquare-demo" }} 可供结果页展示的场所线索。
+ * @throws {Error} 本函数不主动抛异常，数量会限制在 1～200 家。
+ *
+ * GitHub Pages 无法托管本地全量文件，因此这里使用明确带“示例”标记的确定性记录。
+ */
+function buildCustomerDevMapPrototypeResult(brief) {
+  const requestedQuantity = Math.max(1, Math.min(Number(brief.quantity) || 20, 200));
+  const categoryLabel = getCustomerDevMapCategoryDisplayLabel(brief.category);
+  const placeKinds = ["展示中心", "设备服务商", "工程服务点", "专业门店", "区域服务中心", "供应服务点"];
+  const streets = ["港口商务区", "中央工业园", "北部商业区", "城市会展区", "西部物流园", "科技产业园"];
+  const leads = Array.from({ length: requestedQuantity }, (_, index) => {
+    const number = index + 1;
+    const paddedNumber = String(number).padStart(3, "0");
+    let hasWebsite = index % 4 !== 3;
+    let hasPhone = index % 3 !== 2;
+    let hasEmail = index % 5 === 0;
+    let hasSocial = index % 4 === 0;
+
+    // 原型名单也必须遵守用户当前选择的联系方式条件，否则筛选控件只是装饰。
+    if (brief.contact === "有官网") hasWebsite = true;
+    if (brief.contact === "有电话") hasPhone = true;
+    if (brief.contact === "有邮箱") hasEmail = true;
+    if (brief.contact === "有社交账号") hasSocial = true;
+    if (brief.contact === "有官网或电话") {
+      hasWebsite = index % 2 === 0;
+      hasPhone = !hasWebsite || index % 3 === 0;
+    }
+    const displayCompany = `示例${categoryLabel}${placeKinds[index % placeKinds.length]} ${paddedNumber}`;
+    const website = hasWebsite ? `https://map-lead-${paddedNumber}.example.com` : "";
+
+    return {
+      id: `foursquare-demo-${paddedNumber}`,
+      fsqPlaceId: `demo-fsq-${paddedNumber}`,
+      company: displayCompany,
+      displayCompany,
+      companyDomain: hasWebsite ? `map-lead-${paddedNumber}.example.com` : "",
+      companyInitial: "地",
+      country: brief.market,
+      countryName: brief.market,
+      type: categoryLabel,
+      industry: categoryLabel,
+      source: "Foursquare OS Places · 原型预览",
+      dataProvider: "foursquare-demo",
+      priority: "C",
+      score: Math.max(55, 92 - index),
+      reason: `${brief.city}的场所类别匹配`,
+      missing: "客户角色、公司规模和采购意向需后续核验",
+      next: "查看公开联系方式后加入客户库",
+      updated: "数据更新时间待接入",
+      role: "地点公开资料",
+      roleMatchLevel: "unknown",
+      roleMatchLabel: "客户类型待核验",
+      contact: "地点公开信息",
+      website: website || "待补充",
+      websiteUrl: website,
+      linkedin: "待补充",
+      linkedinUrl: "",
+      location: `${brief.city} · ${streets[index % streets.length]}`,
+      size: "数据更新时间待接入",
+      founded: "不适用",
+      phone: hasPhone ? "公开电话已收录" : "",
+      email: hasEmail ? "公开邮箱已收录" : "",
+      social: hasSocial ? "Instagram 已收录" : "",
+      latitude: (53.5511 + ((index % 7) * 0.0047)).toFixed(5),
+      longitude: (9.9937 + ((index % 5) * 0.0061)).toFixed(5),
+      evidence: [
+        `场所类别：${categoryLabel}`,
+        `区域：${brief.market} · ${brief.city}`,
+        "原型示例，不代表真实商户或采购意向"
+      ],
+      opener: "",
+      tags: [categoryLabel, brief.city, "地图获客原型"],
+      contacts: [],
+      contactCountStatus: "unavailable",
+      contactCount: 0,
+      contactLookupStatus: "idle",
+      contactProvider: "hunter",
+      mapLead: true,
+      isDemo: true
+    };
+  });
+
+  return { leads, total: requestedQuantity, mode: "foursquare-demo" };
+}
+
+/**
+ * 把真实 Foursquare 地点记录转换成客户开发列表使用的统一结构。
+ *
+ * @param {object} place - 本地 Foursquare 接口返回的一条地点记录。
+ * @param {{ market: string, city: string, category: string, contact: string }} brief - 本轮地图获客条件。
+ * @returns {object} 可用于地点列表和详情抽屉的安全展示对象。
+ * @throws {Error} 本函数不主动抛异常；缺失字段使用明确占位，不推测企业属性。
+ */
+function normalizeCustomerDevFoursquarePlace(place, brief) {
+  const name = String(place?.name || "").trim() || "地点名称待核验";
+  const website = String(place?.website || "").trim();
+  const websiteUrl = normalizeCustomerDevExternalUrl(website, "website");
+  const companyIdentity = getCustomerDevCompanyIdentity(name, websiteUrl || website);
+  const categories = Array.isArray(place?.fsq_category_labels)
+    ? place.fsq_category_labels.map((value) => String(value || "").trim()).filter(Boolean)
+    : [];
+  const primaryCategory = categories[0] || brief.category;
+  const locationParts = [place?.locality, place?.region, place?.address]
+    .map((value) => String(value || "").trim())
+    .filter((value, index, values) => value && values.indexOf(value) === index);
+  const phone = String(place?.tel || "").trim();
+  const email = String(place?.email || "").trim();
+  const instagram = String(place?.instagram || "").trim();
+  const twitter = String(place?.twitter || "").trim();
+  const facebookId = String(place?.facebook_id || "").trim();
+  const socialChannels = [instagram ? "Instagram" : "", twitter ? "X / Twitter" : "", facebookId ? "Facebook" : ""].filter(Boolean);
+
+  return {
+    id: `fsq-${String(place?.fsq_place_id || `${name}-${place?.latitude}-${place?.longitude}`).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80)}`,
+    fsqPlaceId: String(place?.fsq_place_id || ""),
+    company: name,
+    displayCompany: companyIdentity.displayName,
+    companyDomain: companyIdentity.domain,
+    companyInitial: companyIdentity.initial,
+    country: String(place?.country || ""),
+    countryName: brief.market,
+    type: primaryCategory,
+    industry: primaryCategory,
+    source: "Foursquare OS Places",
+    dataProvider: "foursquare",
+    priority: "C",
+    score: 0,
+    reason: `${brief.city}命中“${getCustomerDevMapCategoryDisplayLabel(brief.category)}”`,
+    missing: "客户角色、公司规模和采购意向需后续核验",
+    next: "核验官网与业务范围后加入客户库",
+    updated: String(place?.date_refreshed || "更新时间未提供"),
+    role: "地点公开资料",
+    roleMatchLevel: "unknown",
+    roleMatchLabel: "客户类型待核验",
+    contact: "地点公开信息",
+    website: websiteUrl || website || "待补充",
+    websiteUrl,
+    linkedin: "待补充",
+    linkedinUrl: "",
+    location: locationParts.join(" · ") || `${brief.market} · ${brief.city}`,
+    size: String(place?.date_refreshed || "更新时间未提供"),
+    founded: "Foursquare 不提供",
+    phone,
+    email,
+    social: socialChannels.join("、"),
+    instagram,
+    twitter,
+    facebookId,
+    latitude: String(place?.latitude ?? ""),
+    longitude: String(place?.longitude ?? ""),
+    evidence: [
+      ...categories.slice(0, 3).map((category) => `Foursquare 分类：${category}`),
+      "地点库不代表该商户有采购意向"
+    ],
+    opener: "",
+    tags: [getCustomerDevMapCategoryDisplayLabel(brief.category), brief.city, "Foursquare 地点"],
+    contacts: [],
+    contactCountStatus: "unavailable",
+    contactCount: 0,
+    contactLookupStatus: "idle",
+    contactProvider: "hunter",
+    mapLead: true,
+    isDemo: false
+  };
+}
+
+/**
+ * 调用同源的 Foursquare 本地地点查询接口。
+ *
+ * @param {{ market: string, city: string, category: string, contact: string, quantity: string }} brief - 地图获客条件。
+ * @returns {Promise<{ leads: object[], total: number, mode: "foursquare" | "foursquare-demo" }>} 真实地点或 GitHub Pages 演示名单。
+ * @throws {Error} 国家无法转换、城市无数据、数据未下载或接口失败时抛出。
+ */
+async function fetchCustomerDevFoursquarePlaces(brief) {
+  if (isCustomerDevGitHubDemoHost()) {
+    return buildCustomerDevMapPrototypeResult(brief);
+  }
+  if (!/^https?:$/.test(window.location.protocol)) {
+    throw new Error("请通过本地数据服务打开页面，不能直接双击 index.html。");
+  }
+
+  const countryCode = resolveCustomerDevCountryCode(brief.market);
+  if (!countryCode) {
+    throw new Error(`暂时无法识别“${brief.market}”的地图国家代码。`);
+  }
+  const endpoint = new URL("/api/foursquare/places", window.location.origin);
+  endpoint.searchParams.set("country_code", countryCode);
+  endpoint.searchParams.set("city", brief.city);
+  endpoint.searchParams.set("category", brief.category);
+  endpoint.searchParams.set("contact", brief.contact);
+  endpoint.searchParams.set("limit", String(Math.max(1, Math.min(Number(brief.quantity) || 20, 200))));
+
+  const response = await fetch(endpoint, { headers: { Accept: "application/json" } });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(String(payload?.message || `Foursquare 地点搜索失败（HTTP ${response.status}）`));
+  }
+  const places = Array.isArray(payload?.places) ? payload.places : [];
+  return {
+    leads: places.map((place) => normalizeCustomerDevFoursquarePlace(place, brief)),
+    total: Math.max(0, Number(payload?.total) || 0),
+    mode: "foursquare"
+  };
+}
+
+/**
+ * 启动地图获客搜索。
+ *
+ * @returns {Promise<void>} 真实地点或 GitHub Pages 演示名单准备好后进入结果页。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+async function runCustomerDevMapSearch() {
+  const requestId = state.customerDevSearchRequestId + 1;
+  const briefSnapshot = {
+    market: state.customerDevBrief.market,
+    ...state.customerDevMapBrief
+  };
+  state.customerDevSearchRequestId = requestId;
+  state.customerDevSearchStatus = "loading";
+  state.customerDevSearchError = "";
+  state.customerDevLeads = [];
+  state.customerDevSearchTotal = 0;
+  state.customerDevSelectedLeadIds = new Set();
+  state.customerDevExpandedContactLeadIds = new Set();
+  state.customerDevDetailOpen = false;
+
+  const minimumDelay = new Promise((resolve) => window.setTimeout(resolve, 900));
+  const [searchResult] = await Promise.allSettled([
+    fetchCustomerDevFoursquarePlaces(briefSnapshot),
+    minimumDelay
+  ]);
+  if (state.customerDevSearchRequestId !== requestId || window.location.hash !== "#/customer-development/searching") {
+    return;
+  }
+
+  if (searchResult.status === "fulfilled") {
+    state.customerDevLeads = searchResult.value.leads;
+    state.customerDevSearchTotal = searchResult.value.total;
+    state.customerDevDataMode = searchResult.value.mode;
+    state.customerDevSelectedLeadId = searchResult.value.leads[0]?.id || "";
+    state.customerDevDetailTab = "overview";
+    state.customerDevSearchStatus = "ready";
+  } else {
+    state.customerDevSearchStatus = "error";
+    state.customerDevSearchError = searchResult.reason instanceof Error
+      ? searchResult.reason.message.trim()
+      : "Foursquare 本地地点搜索暂时不可用。";
+  }
+  window.location.hash = "#/customer-development/results";
+}
+
+/**
+ * 启动未接入来源的纯前端模拟搜索。
+ *
+ * @returns {Promise<void>} 模拟名单生成完成后进入结果页。
+ * @throws {Error} 本函数不向外抛异常；配置错误会写入结果页错误状态。
+ *
+ * 该流程只等待本地计时器并生成内存数据，不调用 fetch。requestId 与真实搜索共用，
+ * 因此用户中途返回或切换来源时，旧的模拟任务也不会覆盖当前页面。
+ */
+async function runCustomerDevMockSourceSearch() {
+  const requestId = state.customerDevSearchRequestId + 1;
+  const sourceSnapshot = state.customerDevSource;
+  const briefSnapshot = { ...state.customerDevBrief };
+  state.customerDevSearchRequestId = requestId;
+  state.customerDevSearchStatus = "loading";
+  state.customerDevSearchError = "";
+  state.customerDevLeads = [];
+  state.customerDevSearchTotal = 0;
+  state.customerDevSelectedLeadIds = new Set();
+  state.customerDevExpandedContactLeadIds = new Set();
+  state.customerDevDetailOpen = false;
+  state.customerDevBatchLookupLoading = false;
+
+  try {
+    await new Promise((resolve) => window.setTimeout(resolve, CUSTOMER_DEV_SEARCH_DURATION_MS));
+    if (state.customerDevSearchRequestId !== requestId || window.location.hash !== "#/customer-development/searching") {
+      return;
+    }
+    const result = buildCustomerDevMockSourceResult(sourceSnapshot, briefSnapshot);
+    state.customerDevLeads = result.leads;
+    state.customerDevSearchTotal = result.total;
+    state.customerDevDataMode = result.mode;
+    state.customerDevSelectedLeadId = result.leads[0]?.id || "";
+    state.customerDevDetailTab = "overview";
+    state.customerDevSearchStatus = "ready";
+  } catch (error) {
+    state.customerDevSearchStatus = "error";
+    state.customerDevSearchError = error instanceof Error
+      ? error.message.trim()
+      : "模拟名单暂时无法生成。";
+  }
+
+  window.location.hash = "#/customer-development/results";
+}
+
+/**
+ * 根据用户选中的获客方式启动对应流程。
+ *
+ * @returns {Promise<void>} 当前来源的搜索流程完成时结束。
+ * @throws {Error} 子流程会自行处理并展示错误，本函数不继续抛出。
+ */
+async function runCustomerDevSearch() {
+  if (state.customerDevSource === "map") {
+    await runCustomerDevMapSearch();
+    return;
+  }
+  if (CUSTOMER_DEV_MOCK_SOURCE_CONFIG[state.customerDevSource]) {
+    await runCustomerDevMockSourceSearch();
+    return;
+  }
+  await runCustomerDevPdlSearch();
 }
 
 /**
@@ -6931,6 +7780,7 @@ function renderCustomerDevelopmentView() {
       ${isResults ? renderCustomerDevResultsWorkspace(leads, selectedLead) : ""}
       ${isContacts ? renderCustomerDevContactsWorkspace(selectedLead) : ""}
       ${isBrief ? renderCustomerDevPicker() : ""}
+      ${isBrief ? renderCustomerDevMapCategoryPicker() : ""}
     </section>
   `;
 }
@@ -6947,81 +7797,164 @@ function renderCustomerDevelopmentView() {
  */
 function renderCustomerDevBriefPanel() {
   const brief = state.customerDevBrief;
+  const mapBrief = state.customerDevMapBrief;
+  const isMap = state.customerDevSource === "map";
+  const activeSource = CUSTOMER_DEV_SOURCE_OPTIONS.find((source) => source.value === state.customerDevSource)
+    || CUSTOMER_DEV_SOURCE_OPTIONS[0];
   const customerTypes = CUSTOMER_DEVELOPMENT.customerTypes || [];
   const quantities = CUSTOMER_DEVELOPMENT.quantities || [];
-  const selectedProductGroup = (CUSTOMER_DEVELOPMENT.productGroups || []).find((group) => group.products.includes(brief.product));
+  const mapCategoryLabel = getCustomerDevMapCategoryDisplayLabel(mapBrief.category);
+  const sourceTabs = `
+    <section class="customer-dev-source-section" aria-labelledby="customer-dev-source-title">
+      <h2 id="customer-dev-source-title">选择获客来源</h2>
+      <div class="customer-dev-source-switch" role="tablist" aria-label="选择获客方式">
+      ${CUSTOMER_DEV_SOURCE_OPTIONS.map((source) => `
+        <button class="${source.value === activeSource.value ? "active" : ""}" type="button" role="tab" aria-selected="${source.value === activeSource.value}" data-customer-dev-source="${escapeHtml(source.value)}">
+          <img src="${escapeHtml(source.icon)}" alt="" aria-hidden="true" />
+          <span>${escapeHtml(source.label)}</span>
+        </button>
+      `).join("")}
+      </div>
+    </section>
+  `;
+
+  const standardQuery = `
+    <div class="customer-dev-query-sentence" aria-label="用自然语言描述目标客户">
+      <strong>帮我寻找</strong>
+      <div class="customer-dev-inline-picker">
+        <button class="customer-dev-select-trigger" type="button" data-customer-dev-picker="market" aria-haspopup="dialog">
+          <span><strong>${escapeHtml(brief.market)}</strong></span>
+          <b aria-hidden="true">⌄</b>
+        </button>
+      </div>
+      <strong>的</strong>
+      <div class="customer-dev-inline-picker is-product">
+        <button class="customer-dev-select-trigger" type="button" data-customer-dev-picker="product" aria-haspopup="dialog">
+          <span><strong>${escapeHtml(brief.product)}</strong></span>
+          <b aria-hidden="true">⌄</b>
+        </button>
+      </div>
+      <label class="customer-dev-inline-picker is-role">
+        <select data-customer-dev-field="role" aria-label="优先客户类型（可选）">
+          ${[...new Set([brief.role, ...customerTypes])].map((option) => `<option value="${escapeHtml(option)}" ${option === brief.role ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
+        </select>
+      </label>
+      <strong>，共</strong>
+      <label class="customer-dev-inline-picker is-quantity">
+        <select data-customer-dev-field="quantity" aria-label="目标客户数量">
+          ${[...new Set([Number(brief.quantity), ...quantities])].map((quantity) => `<option value="${escapeHtml(quantity)}" ${String(quantity) === brief.quantity ? "selected" : ""}>${escapeHtml(quantity)}</option>`).join("")}
+        </select>
+      </label>
+      <strong>家</strong>
+    </div>
+  `;
+
+  const mapQuery = `
+    <div class="customer-dev-query-sentence is-map-query" aria-label="用自然语言描述目标商户">
+      <strong>帮我寻找</strong>
+      <div class="customer-dev-inline-picker">
+        <button class="customer-dev-select-trigger" type="button" data-customer-dev-picker="market" aria-haspopup="dialog">
+          <span><strong>${escapeHtml(brief.market)}</strong></span><b aria-hidden="true">⌄</b>
+        </button>
+      </div>
+      <label class="customer-dev-inline-picker is-city">
+        <input type="text" value="${escapeHtml(mapBrief.city)}" data-customer-dev-map-field="city" aria-label="目标城市" placeholder="目标城市" />
+      </label>
+      <strong>的</strong>
+      <div class="customer-dev-inline-picker is-product">
+        <button class="customer-dev-select-trigger" type="button" data-customer-dev-map-category-open aria-haspopup="dialog">
+          <span><strong>${escapeHtml(mapCategoryLabel)}</strong><small>10 个 B2B 大类 · 64 个聚合行业</small></span><b aria-hidden="true">⌄</b>
+        </button>
+      </div>
+      <strong>，共</strong>
+      <label class="customer-dev-inline-picker is-quantity">
+        <select data-customer-dev-map-field="quantity" aria-label="目标商户数量">
+          ${quantities.filter((quantity) => quantity <= 200).map((quantity) => `<option value="${escapeHtml(quantity)}" ${String(quantity) === mapBrief.quantity ? "selected" : ""}>${escapeHtml(quantity)}</option>`).join("")}
+        </select>
+      </label>
+      <strong>家</strong>
+      <strong>，优先</strong>
+      <label class="customer-dev-inline-picker is-contact">
+        <select data-customer-dev-map-field="contact" aria-label="公开联系方式筛选">
+          ${CUSTOMER_DEV_MAP_CONTACT_FILTERS.map((contact) => `<option value="${escapeHtml(contact)}" ${contact === mapBrief.contact ? "selected" : ""}>${escapeHtml(contact)}</option>`).join("")}
+        </select>
+      </label>
+    </div>
+  `;
 
   return `
     <section class="customer-dev-brief-panel" aria-label="输入客户开发目标">
-      <article class="customer-dev-enrichment-home">
-        <header class="customer-dev-enrichment-hero">
-          <span class="customer-dev-enrichment-kicker">Lead Enrichment&nbsp;&nbsp;·&nbsp;&nbsp;客户情报补全</span>
-          <h1>从一条线索，补全成可行动的客户情报</h1>
-          <p>先从免费公司库筛选真实企业资料，再按官网和独立联系人来源逐步补全，不猜测联系方式。</p>
-        </header>
+      <article class="customer-dev-intelligence-canvas ${isMap ? "is-map-source" : ""}">
+        <div class="customer-dev-intelligence-main">
+          ${sourceTabs}
 
-        <div class="customer-dev-brief-fields">
-          <div class="customer-dev-brief-field">
-            <span class="customer-dev-field-label"><small>01</small>目标国家 / 地区</span>
-            <button class="customer-dev-select-trigger" type="button" data-customer-dev-picker="market" aria-haspopup="dialog">
-              <span><strong>${escapeHtml(brief.market)}</strong><em>按大洲选择 · 单选</em></span>
-              <b aria-hidden="true">⌄</b>
-            </button>
+          <section class="customer-dev-query-section" aria-labelledby="customer-dev-query-title">
+            <h2 id="customer-dev-query-title">用自然语言描述你的目标客户</h2>
+            ${isMap ? mapQuery : standardQuery}
+            <p>你可以更具体地描述目标客户，例如主营产品、主营市场、企业规模等。</p>
+          </section>
+
+          <div class="customer-dev-query-action">
+            <a class="customer-dev-query-launch" href="#/customer-development/searching" data-customer-dev-start>
+              <span>${activeSource.value === "ai" ? "开始企业数据库获客" : `开始${escapeHtml(activeSource.label)}`}</span>
+            </a>
           </div>
-
-          <div class="customer-dev-brief-field">
-            <span class="customer-dev-field-label"><small>02</small>行业产品</span>
-            <button class="customer-dev-select-trigger" type="button" data-customer-dev-picker="product" aria-haspopup="dialog">
-              <span><strong>${escapeHtml(brief.product)}</strong><em>${escapeHtml(selectedProductGroup?.label || "按行业大类选择")}</em></span>
-              <b aria-hidden="true">⌄</b>
-            </button>
-          </div>
-
-          <label class="customer-dev-brief-field">
-            <span class="customer-dev-field-label"><small>03</small>优先客户类型（可选）</span>
-            <select class="customer-dev-field-select" data-customer-dev-field="role" aria-label="优先客户类型（可选）">
-              ${[...new Set([brief.role, ...customerTypes])].map((option) => `
-                <option value="${escapeHtml(option)}" ${option === brief.role ? "selected" : ""}>${escapeHtml(option)}</option>
-              `).join("")}
-            </select>
-          </label>
-
-          <label class="customer-dev-brief-field">
-            <span class="customer-dev-field-label"><small>04</small>目标客户数量</span>
-            <select class="customer-dev-field-select" data-customer-dev-field="quantity" aria-label="目标客户数量">
-              ${[...new Set([Number(brief.quantity), ...quantities])].map((quantity) => `
-                <option value="${escapeHtml(quantity)}" ${String(quantity) === brief.quantity ? "selected" : ""}>${escapeHtml(quantity)} 家</option>
-              `).join("")}
-            </select>
-          </label>
         </div>
-
-        <div class="customer-dev-enrichment-action">
-          <div class="customer-dev-engine-ready">
-            <i aria-hidden="true"></i>
-            <span>
-              <small>全球获客引擎已就绪</small>
-              <strong>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.quantity)} 家</strong>
-            </span>
-          </div>
-          <a class="customer-dev-launch" href="#/customer-development/searching" data-customer-dev-start>
-            <span>
-              <small>PDL 免费公司库 · 本地真实查询</small>
-              <strong>启动搜索，锁定成交机会</strong>
-            </span>
-            <b aria-hidden="true">↗</b>
-          </a>
-        </div>
-
-        <footer class="customer-dev-recent-searches" aria-label="最近搜索模板">
-          <span>最近搜索模板：</span>
-          <button type="button" data-customer-dev-preset="德国光伏储能">德国 · 光伏组件 · EPC 承包商 · 100 家</button>
-          <button type="button" data-customer-dev-preset="阿联酋逆变器分销">阿联酋 · 光伏逆变器 · 分销商 · 80 家</button>
-          <button type="button" data-customer-dev-preset="沙特工商业储能">沙特阿拉伯 · 工商业储能 · 系统集成商 · 120 家</button>
-          <button type="button" class="customer-dev-clear-recent" data-customer-dev-clear-history>清空历史</button>
-        </footer>
       </article>
     </section>
+  `;
+}
+
+/**
+ * 渲染地图获客的 B2B 聚合行业选择器。
+ *
+ * @returns {string} 分组、搜索和行业选项弹层；未打开时返回空字符串。
+ * @throws {Error} 本函数不主动抛异常；加载与错误状态都有明确界面反馈。
+ */
+function renderCustomerDevMapCategoryPicker() {
+  if (!state.customerDevMapCategoryPickerOpen) return "";
+
+  const content = buildCustomerDevMapCategoryPickerContent();
+  const catalog = getCustomerDevMapActiveCategoryCatalog();
+  const totalCount = catalog.groups.reduce((total, group) => total + (group.items || []).length, 0);
+  return `
+    <div class="customer-dev-map-category-layer">
+      <button class="customer-dev-map-category-backdrop" type="button" data-customer-dev-map-category-close aria-label="关闭商户行业选择器"></button>
+      <section class="customer-dev-map-category-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-dev-map-category-title">
+        <header>
+          <div>
+            <span>B2B BUSINESS DIRECTORY</span>
+            <h2 id="customer-dev-map-category-title">选择外贸目标行业</h2>
+            <p>按目标客户与销售渠道聚合，不展示本地生活式的场所小类。</p>
+          </div>
+          <div class="customer-dev-map-category-total">
+            <strong>${totalCount ? new Intl.NumberFormat("zh-CN").format(totalCount) : "—"}</strong><small>个聚合行业</small>
+          </div>
+          <button class="customer-dev-picker-close" type="button" data-customer-dev-map-category-close aria-label="关闭">×</button>
+        </header>
+
+        <label class="customer-dev-map-category-search">
+          <span aria-hidden="true">⌕</span>
+          <input type="search" value="${escapeHtml(state.customerDevMapCategoryQuery)}" data-customer-dev-map-category-search placeholder="搜索机械、汽配、建材、物流或英文分类……" autocomplete="off" />
+          <small>${state.customerDevMapCategoryQuery ? `找到 ${content.count} 项` : "支持产品、渠道与英文行业词"}</small>
+        </label>
+
+        <div class="customer-dev-map-category-scope">
+          <span>没有找到？直接输入产品、渠道或英文行业词，系统会在底层分类中匹配。</span>
+        </div>
+
+        ${state.customerDevMapCategoryLoading ? `
+          <div class="customer-dev-map-category-status"><i aria-hidden="true"></i><strong>正在加载商户行业目录…</strong></div>
+        ` : state.customerDevMapCategoryError ? `
+          <div class="customer-dev-map-category-status is-error"><strong>行业目录暂时不可用</strong><span>${escapeHtml(state.customerDevMapCategoryError)}</span></div>
+        ` : `
+          <div class="customer-dev-map-category-body">
+            <nav class="customer-dev-map-category-groups" aria-label="B2B 外贸行业大类">${content.nav}</nav>
+            <div class="customer-dev-map-category-results" aria-live="polite">${content.results}</div>
+          </div>
+        `}
+      </section>
+    </div>
   `;
 }
 
@@ -7205,6 +8138,11 @@ function syncCustomerDevEngineSummary() {
   }
 
   const { market, product, quantity } = state.customerDevBrief;
+  if (state.customerDevSource === "map") {
+    const mapBrief = state.customerDevMapBrief;
+    summary.textContent = `${market} · ${mapBrief.city || "城市待填写"} · ${getCustomerDevMapCategoryDisplayLabel(mapBrief.category)}`;
+    return;
+  }
   summary.textContent = `${market} · ${product} · ${quantity} 家`;
 }
 
@@ -7216,16 +8154,33 @@ function syncCustomerDevEngineSummary() {
  */
 function renderCustomerDevSearchingPanel() {
   const brief = state.customerDevBrief;
+  const mapBrief = state.customerDevMapBrief;
+  const isMap = state.customerDevSource === "map";
   const isDemo = isCustomerDevGitHubDemoHost();
-  const searchStatus = isDemo ? "GitHub Pages 演示名单生成中" : "PDL 免费公司库查询中";
-  const searchSteps = isDemo
-    ? [
+  const mockSourceConfig = CUSTOMER_DEV_MOCK_SOURCE_CONFIG[state.customerDevSource] || null;
+  const mapCategoryLabel = getCustomerDevMapCategoryDisplayLabel(mapBrief.category);
+  const searchStatus = mockSourceConfig
+    ? mockSourceConfig.searchStatus
+    : isMap
+      ? isDemo ? "Foursquare 地图获客原型生成中" : "Foursquare OS Places 本地查询中"
+      : isDemo ? "GitHub Pages 演示名单生成中" : "PDL 免费公司库查询中";
+  const searchSteps = mockSourceConfig
+    ? mockSourceConfig.steps
+    : isMap
+      ? [
+        "目标国家、城市与商户行业已确认",
+        "正在匹配 Foursquare 地点类别",
+        "正在检查官网、电话、邮箱和社交账号字段",
+        isDemo ? "即将打开地图商户原型名单" : "即将打开真实地点资料"
+      ]
+      : isDemo
+        ? [
         "目标市场与客户画像已确认",
         "正在生成不会对应真实企业的演示公司",
         "演示名单正在进入候选列表",
         "联系人也将使用明确标注的模拟数据"
       ]
-    : [
+        : [
         "目标市场与采购画像已确认",
         "正在匹配 PDL 行业、公司名称与域名证据",
         "符合当前宽口径筛选条件的公司正在进入候选名单",
@@ -7237,8 +8192,10 @@ function renderCustomerDevSearchingPanel() {
       <article>
         <span class="customer-dev-search-live"><i aria-hidden="true"></i> ${escapeHtml(searchStatus)}</span>
         <div class="customer-dev-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
-        <h2>获客引擎已启动，正在锁定成交机会</h2>
-        <p>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)} · ${escapeHtml(brief.quantity)} 家</p>
+        <h2>${escapeHtml(mockSourceConfig?.headline || (isMap ? "正在按城市发现潜在商户" : "获客引擎已启动，正在锁定成交机会"))}</h2>
+        <p>${isMap
+          ? `${escapeHtml(brief.market)} · ${escapeHtml(mapBrief.city)} · ${escapeHtml(mapCategoryLabel)}`
+          : `${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)} · ${escapeHtml(brief.quantity)} 家`}</p>
         <div class="customer-dev-search-log">
           ${searchSteps.map((text, index) => `
             <span class="${index < 3 ? "done" : "active"}">${escapeHtml(text)}</span>
@@ -7278,12 +8235,22 @@ function renderCustomerDevRoleBadge(lead) {
  */
 function renderCustomerDevResultsWorkspace(leads, selectedLead) {
   const brief = state.customerDevBrief;
+  const mapBrief = state.customerDevMapBrief;
   const total = state.customerDevSearchTotal;
+  const mapCategoryLabel = getCustomerDevMapCategoryDisplayLabel(mapBrief.category);
   const activeSort = CUSTOMER_DEV_SORT_OPTIONS.find((option) => option.value === state.customerDevSort)
     || CUSTOMER_DEV_SORT_OPTIONS[0];
   const resultCountText = new Intl.NumberFormat("zh-CN").format(total);
-  const isDemo = state.customerDevDataMode === "demo";
-  const resultSourceLabel = isDemo ? "演示候选公司" : "PDL 候选公司";
+  const isMap = ["foursquare", "foursquare-demo"].includes(state.customerDevDataMode) || state.customerDevSource === "map";
+  const mockSourceConfig = CUSTOMER_DEV_MOCK_SOURCE_CONFIG[state.customerDevSource] || null;
+  const isMockSource = Boolean(mockSourceConfig) || String(state.customerDevDataMode).startsWith("mock-");
+  const isDemo = ["demo", "foursquare-demo"].includes(state.customerDevDataMode) || isMockSource;
+  const resultSourceLabel = mockSourceConfig
+    ? mockSourceConfig.resultLabel
+    : isMap
+      ? isDemo ? "Foursquare 地图商户原型" : "Foursquare 真实地点"
+      : isDemo ? "演示候选公司" : "PDL 候选公司";
+  const resultDataBadge = isMockSource ? "模拟数据" : isDemo ? "演示数据" : "";
   const roleCounts = leads.reduce((counts, lead) => {
     const level = ["high", "medium", "weak", "unknown"].includes(lead?.roleMatchLevel)
       ? lead.roleMatchLevel
@@ -7292,7 +8259,11 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
     return counts;
   }, { high: 0, medium: 0, weak: 0, unknown: 0 });
   const pendingRoleCount = roleCounts.weak + roleCounts.unknown;
-  const roleSummary = brief.role === "不限 / 智能推荐"
+  const roleSummary = isMockSource
+    ? `本页 ${leads.length} 家 · 联系人流程可操作 · 全部为模拟数据`
+    : isMap
+    ? `本页 ${leads.length} 家 · ${mapBrief.contact} · 客户类型待核验`
+    : brief.role === "不限 / 智能推荐"
     ? `本页 ${leads.length} 家 · 客户类型未限定`
     : `本页 ${leads.length} 家：${roleCounts.high} 家高度疑似 · ${roleCounts.medium} 家可能匹配 · ${pendingRoleCount} 家待核验`;
   const selectedLeadIds = state.customerDevSelectedLeadIds;
@@ -7300,19 +8271,24 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
   const allSelected = Boolean(leads.length) && selectedCount === leads.length;
 
   if (state.customerDevSearchStatus === "error") {
+    const errorSourceLabel = mockSourceConfig?.resultLabel || (isMap ? "地图地点数据" : "企业数据库");
     return `
       <section class="customer-dev-brief-summary">
         <div>
           <span>本轮获客目标</span>
-          <strong>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}</strong>
-          <p>PDL 免费公司库 · 本地搜索未完成</p>
+          <strong>${isMap
+            ? `${escapeHtml(brief.market)} · ${escapeHtml(mapBrief.city)} · ${escapeHtml(mapCategoryLabel)}`
+            : `${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}`}</strong>
+          <p>${escapeHtml(errorSourceLabel)} · 搜索未完成</p>
         </div>
         <a href="#/customer-development" data-customer-dev-reset>返回配置目标</a>
       </section>
       <section class="customer-dev-pdl-state" role="status">
-        <span>PDL</span>
-        <h2>公司数据暂时还不能搜索</h2>
-        <p>${escapeHtml(state.customerDevSearchError || "请确认本地数据库已经导入并通过 PDL 本地服务打开页面。")}</p>
+        <span>${escapeHtml(errorSourceLabel)}</span>
+        <h2>${isMap ? "地点数据暂时还不能搜索" : "公司数据暂时还不能搜索"}</h2>
+        <p>${escapeHtml(state.customerDevSearchError || (isMap
+          ? "请确认 Foursquare 数据文件已下载，并通过本地数据服务打开页面。"
+          : "请确认本地数据库已经导入并通过 PDL 本地服务打开页面。"))}</p>
         <a href="#/customer-development/searching">重新尝试</a>
       </section>
     `;
@@ -7321,8 +8297,10 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
   return `
     <section class="customer-dev-brief-summary">
       <div>
-          <span>本轮获客目标${isDemo ? " · 演示数据" : ""}</span>
-          <strong>${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}</strong>
+          <span>本轮获客目标${resultDataBadge ? ` · ${escapeHtml(resultDataBadge)}` : ""}</span>
+          <strong>${isMap
+            ? `${escapeHtml(brief.market)} · ${escapeHtml(mapBrief.city)} · ${escapeHtml(mapCategoryLabel)}`
+            : `${escapeHtml(brief.market)} · ${escapeHtml(brief.product)} · ${escapeHtml(brief.role)}`}</strong>
           <p>${escapeHtml(resultCountText)} 条 ${escapeHtml(resultSourceLabel)} · ${escapeHtml(roleSummary)}</p>
       </div>
       <a href="#/customer-development" data-customer-dev-reset>重新配置目标</a>
@@ -7330,24 +8308,38 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
 
     <div class="customer-dev-list-toolbar">
       <div class="customer-dev-list-heading">
-        <strong>公司列表 <span>${leads.length}</span></strong>
-        <small>${escapeHtml(activeSort.description)}</small>
+        <strong>${isMap ? "商户列表" : "公司列表"} <span>${leads.length}</span></strong>
+        <small>${escapeHtml(isMockSource
+          ? `${mockSourceConfig?.resultLabel || "来源名单"}仅用于原型交互演示`
+          : isMap ? "优先展示公开联系方式更完整、更新较新的商户" : activeSort.description)}</small>
       </div>
       <div class="customer-dev-table-actions">
-        <button class="customer-dev-batch-email" type="button" data-customer-dev-batch-email
-          ${!selectedCount || state.customerDevBatchLookupLoading ? "disabled" : ""}>
-          ${state.customerDevBatchLookupLoading ? "批量获取中…" : `批量获取联系人${selectedCount ? `（${selectedCount}）` : ""}`}
-        </button>
-        <label class="customer-dev-sort-control">
-          <span>排序</span>
-          <select data-customer-dev-sort aria-label="客户公司排序" ${state.customerDevSortLoading ? "disabled" : ""}>
-            ${CUSTOMER_DEV_SORT_OPTIONS.map((option) => `
-              <option value="${escapeHtml(option.value)}" ${option.value === activeSort.value ? "selected" : ""}>${escapeHtml(option.label)}</option>
-            `).join("")}
-          </select>
-        </label>
+        ${isMap ? `
+          <button class="customer-dev-batch-email" type="button" data-toast="已模拟把 ${selectedCount} 家地图商户加入客户库。" ${!selectedCount ? "disabled" : ""}>
+            批量加入客户库${selectedCount ? `（${selectedCount}）` : ""}
+          </button>
+          <span class="customer-dev-map-sort-note">资料完整度优先</span>
+        ` : isMockSource ? `
+          <button class="customer-dev-batch-email" type="button" data-customer-dev-batch-email
+            ${!selectedCount || state.customerDevBatchLookupLoading ? "disabled" : ""}>
+            ${state.customerDevBatchLookupLoading ? "批量获取中…" : `批量获取联系人${selectedCount ? `（${selectedCount}）` : ""}`}
+          </button>
+        ` : `
+          <button class="customer-dev-batch-email" type="button" data-customer-dev-batch-email
+            ${!selectedCount || state.customerDevBatchLookupLoading ? "disabled" : ""}>
+            ${state.customerDevBatchLookupLoading ? "批量获取中…" : `批量获取联系人${selectedCount ? `（${selectedCount}）` : ""}`}
+          </button>
+          <label class="customer-dev-sort-control">
+            <span>排序</span>
+            <select data-customer-dev-sort aria-label="客户公司排序" ${state.customerDevSortLoading ? "disabled" : ""}>
+              ${CUSTOMER_DEV_SORT_OPTIONS.map((option) => `
+                <option value="${escapeHtml(option.value)}" ${option.value === activeSort.value ? "selected" : ""}>${escapeHtml(option.label)}</option>
+              `).join("")}
+            </select>
+          </label>
+        `}
         <button type="button" data-toast="已模拟导出客户列表。">导出</button>
-        <a href="#/customer-development/searching">刷新 PDL</a>
+        ${isMockSource ? "" : `<a href="#/customer-development/searching">${isMap ? "重新搜索地图" : "刷新 PDL"}</a>`}
       </div>
     </div>
 
@@ -7357,18 +8349,22 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
           <thead>
               <tr>
                 <th><input type="checkbox" data-customer-dev-select-all aria-label="全选本页公司" ${allSelected ? "checked" : ""} /></th>
-                <th>公司</th>
-                <th>国家 / 地区</th>
-                <th>行业</th>
-                <th>公司规模</th>
-                <th>联系人</th>
+                <th>${isMap ? "地点 / 商户" : "公司"}</th>
+                <th>${isMap ? "城市 / 区域" : "国家 / 地区"}</th>
+                <th>${isMap ? "场所类别" : "行业"}</th>
+                <th>${isMap ? "数据更新" : "公司规模"}</th>
+                <th>${isMap ? "公开联系方式" : "联系人"}</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
               ${leads.length
                 ? leads.map((lead) => renderCustomerDevLeadRow(lead, selectedLead)).join("")
-                : `<tr class="customer-dev-empty-row"><td colspan="7">PDL 当前没有符合这些宽口径条件的公司，请返回调整国家或产品。</td></tr>`}
+                : `<tr class="customer-dev-empty-row"><td colspan="7">${isMap
+                  ? "当前城市范围内没有符合这些条件的地点，请调整行业、范围或联系方式。"
+                  : isMockSource
+                    ? "当前模拟条件没有生成公司，请返回调整国家、产品或数量。"
+                    : "PDL 当前没有符合这些宽口径条件的公司，请返回调整国家或产品。"}</td></tr>`}
             </tbody>
           </table>
         <footer class="customer-dev-pagination">
@@ -7378,7 +8374,7 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
             <button class="active" type="button">1</button>
             <button type="button" data-toast="下一页会在后续接入真实分页。" ${total <= leads.length ? "disabled" : ""}>›</button>
           </div>
-          <button type="button" data-toast="本轮按目标数量读取，单次最多 500 家。">${leads.length} 条/页⌄</button>
+          <button type="button" data-toast="本轮按目标数量读取，单次最多 ${isMap ? "200" : "500"} 家。">${leads.length} 条/页⌄</button>
         </footer>
       </article>
 
@@ -7401,6 +8397,7 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderCustomerDevLeadRow(lead, selectedLead) {
+  const isMap = lead?.mapLead === true;
   const displayCompany = String(lead.displayCompany || lead.company || "公司名称待核验");
   const companyDomain = String(lead.companyDomain || "");
   const companyInitial = String(lead.companyInitial || displayCompany.match(/[\p{L}\p{N}]/u)?.[0] || "·").toLocaleUpperCase();
@@ -7411,7 +8408,12 @@ function renderCustomerDevLeadRow(lead, selectedLead) {
   const availableCount = Math.max(0, Number(lead.contactCount) || 0);
   const isChecked = state.customerDevSelectedLeadIds.has(lead.id);
   const contactsExpanded = contacts.length > 0 && state.customerDevExpandedContactLeadIds.has(lead.id);
-  const emailCell = contacts.length
+  const mapChannels = [lead.websiteUrl ? "官网" : "", lead.phone ? "电话" : "", lead.email ? "邮箱" : "", lead.social ? "社媒" : ""].filter(Boolean);
+  const emailCell = isMap
+    ? mapChannels.length
+      ? `<div class="customer-dev-map-channels">${mapChannels.map((channel) => `<span>${escapeHtml(channel)}</span>`).join("")}</div><small>${mapChannels.length} 类公开渠道</small>`
+      : `<span class="customer-dev-email-status">联系方式待补充</span>`
+    : contacts.length
     ? `<button class="customer-dev-email-value" type="button" data-customer-dev-toggle-contacts="${escapeHtml(lead.id)}" aria-expanded="${contactsExpanded}">${contacts.length} 位联系人</button>`
     : lookupStatus === "loading"
       ? `<span class="customer-dev-email-status is-loading">加载中…</span>`
@@ -7436,17 +8438,19 @@ function renderCustomerDevLeadRow(lead, selectedLead) {
           <span class="customer-dev-company-mark" aria-hidden="true">${escapeHtml(companyInitial)}</span>
           <span class="customer-dev-company-copy">
             <strong>${escapeHtml(displayCompany)}</strong>
-            <small class="${companyDomain ? "" : "is-missing"}">${companyDomain ? "官网已收录" : "官网待补充"}</small>
+            <small class="${companyDomain ? "" : "is-missing"}">${isMap ? (companyDomain ? "地点官网已收录" : "地点官网待补充") : (companyDomain ? "官网已收录" : "官网待补充")}</small>
           </span>
         </button>
       </td>
-      <td>${escapeHtml(lead.countryName)}</td>
+      <td>${escapeHtml(isMap ? lead.location : lead.countryName)}</td>
       <td class="customer-dev-industry-cell">${escapeHtml(lead.type)}</td>
-      <td>${escapeHtml(lead.size || "待补充")}</td>
+      <td>${escapeHtml(isMap ? lead.updated : (lead.size || "待补充"))}</td>
       <td class="customer-dev-email-cell">${emailCell}${contacts.length ? `<small>${contactsExpanded ? "明细已展开" : "点击查看明细"}</small>` : ""}</td>
       <td class="customer-dev-row-actions">
         <button type="button" data-customer-dev-detail-open="${escapeHtml(lead.id)}">详情</button>
-        ${contacts.length
+        ${isMap
+          ? `<button class="is-primary" type="button" data-toast="已模拟把 ${escapeHtml(displayCompany)} 加入客户库。">加入客户库</button>`
+          : contacts.length
           ? `<button class="is-primary" type="button" data-customer-dev-toggle-contacts="${escapeHtml(lead.id)}" aria-expanded="${contactsExpanded}">${contactsExpanded ? "收起联系人" : "展开联系人"}</button>`
           : `<button class="is-primary" type="button" data-customer-dev-email-lookup="${escapeHtml(lead.id)}" ${lookupStatus === "loading" || !companyDomain || (countStatus === "ready" && availableCount === 0) ? "disabled" : ""}>${lookupStatus === "loading" ? "获取中" : "获取联系人"}</button>`}
       </td>
@@ -7499,7 +8503,7 @@ function renderCustomerDevDetail(lead) {
     <aside class="customer-dev-detail" aria-label="${escapeHtml(displayCompany)} 客户详情">
       <header class="customer-dev-detail-hero">
         <div class="customer-dev-detail-heading">
-          <span class="customer-dev-detail-kicker">客户情报</span>
+          <span class="customer-dev-detail-kicker">${lead.mapLead ? "地图地点档案" : "客户情报"}</span>
           <h2 title="${escapeHtml(lead.company)}">${escapeHtml(displayCompany)}</h2>
           <p class="customer-dev-detail-tags">
             <span>${escapeHtml(lead.type)}</span>
@@ -7661,6 +8665,9 @@ function renderCustomerDevHunterAction(lead) {
  * @throws {Error} 本函数不主动抛异常。
  */
 function renderCustomerDevCompanyPanel(lead) {
+  if (lead?.mapLead === true) {
+    return renderCustomerDevMapPlacePanel(lead);
+  }
   const contacts = buildCustomerDevContacts(lead);
   const activeDetailTab = state.customerDevDetailTab === "contact" && contacts.length
     ? "contact"
@@ -7729,6 +8736,61 @@ function renderCustomerDevCompanyPanel(lead) {
         ` : ""}
       </div>
       ${renderCustomerDevHunterAction(lead)}
+    </div>
+  `;
+}
+
+/**
+ * 渲染地图获客地点详情。
+ *
+ * @param {object} lead - 已规范化的 Foursquare 地点原型记录。
+ * @returns {string} 地点坐标、公开渠道和数据边界说明。
+ * @throws {Error} 本函数不主动抛异常；所有动态内容都会经过 HTML 转义。
+ */
+function renderCustomerDevMapPlacePanel(lead) {
+  const channelItems = [
+    lead.websiteUrl ? renderCustomerDevExternalLink(lead.websiteUrl, "访问地点官网", "官网待补充") : "官网待补充",
+    escapeHtml(lead.phone || "电话待补充"),
+    escapeHtml(lead.email || "邮箱待补充"),
+    escapeHtml(lead.social || "社交账号待补充")
+  ];
+
+  return `
+    <div class="customer-dev-panel-slide customer-dev-map-detail-panel">
+      <section class="customer-dev-info-list">
+        <div class="customer-dev-section-head">
+          <div>
+            <span class="customer-dev-section-kicker">Foursquare Places</span>
+            <h3>地点公开资料</h3>
+          </div>
+          <span>${lead.isDemo ? "原型预览" : "真实地点数据"}</span>
+        </div>
+        <dl class="customer-dev-facts-grid">
+          <div class="customer-dev-fact">
+            <dt>场所类别</dt>
+            <dd>${escapeHtml(lead.type)}</dd>
+          </div>
+          <div class="customer-dev-fact">
+            <dt>数据更新</dt>
+            <dd>${escapeHtml(lead.updated)}</dd>
+          </div>
+          <div class="customer-dev-fact customer-dev-fact-wide">
+            <dt>地址</dt>
+            <dd>${escapeHtml(lead.location)}</dd>
+          </div>
+          <div class="customer-dev-fact customer-dev-fact-wide customer-dev-map-channel-list">
+            <dt>公开渠道</dt>
+            <dd>${channelItems.map((item) => `<span>${item}</span>`).join("")}</dd>
+          </div>
+        </dl>
+      </section>
+      <section class="customer-dev-detail-action">
+        <div class="customer-dev-detail-action-copy">
+          <strong>加入客户库前先核验</strong>
+          <span>Foursquare 提供地点与公开渠道，不提供客户角色、公司规模或采购意向。</span>
+        </div>
+        <button type="button" data-toast="已模拟把 ${escapeHtml(lead.displayCompany)} 加入客户库。">加入客户库</button>
+      </section>
     </div>
   `;
 }
@@ -12146,6 +13208,55 @@ function handleCustomerDevClick(event) {
     return;
   }
 
+  const mapCategoryOpenButton = target.closest("[data-customer-dev-map-category-open]");
+  if (mapCategoryOpenButton) {
+    void openCustomerDevMapCategoryPicker();
+    return;
+  }
+
+  const mapCategoryCloseButton = target.closest("[data-customer-dev-map-category-close]");
+  if (mapCategoryCloseButton) {
+    state.customerDevMapCategoryPickerOpen = false;
+    state.customerDevMapCategoryQuery = "";
+    renderApp();
+    return;
+  }
+
+  const mapCategoryGroupButton = target.closest("[data-customer-dev-map-category-group]");
+  if (mapCategoryGroupButton) {
+    state.customerDevMapCategoryGroup = mapCategoryGroupButton.getAttribute("data-customer-dev-map-category-group") || state.customerDevMapCategoryGroup;
+    state.customerDevMapCategoryQuery = "";
+    const searchInput = document.querySelector("[data-customer-dev-map-category-search]");
+    if (searchInput instanceof HTMLInputElement) searchInput.value = "";
+    refreshCustomerDevMapCategoryPicker();
+    return;
+  }
+
+  const mapCategoryValueButton = target.closest("[data-customer-dev-map-category-value]");
+  if (mapCategoryValueButton) {
+    state.customerDevMapBrief.category = mapCategoryValueButton.getAttribute("data-customer-dev-map-category-value") || state.customerDevMapBrief.category;
+    state.customerDevMapCategoryPickerOpen = false;
+    state.customerDevMapCategoryQuery = "";
+    renderApp();
+    return;
+  }
+
+  const sourceButton = target.closest("[data-customer-dev-source]");
+  if (sourceButton) {
+    const nextSource = sourceButton.getAttribute("data-customer-dev-source");
+    const isKnownSource = CUSTOMER_DEV_SOURCE_OPTIONS.some((source) => source.value === nextSource);
+    if (isKnownSource && nextSource !== state.customerDevSource) {
+      state.customerDevSource = nextSource;
+      state.customerDevLeads = [];
+      state.customerDevSearchTotal = 0;
+      state.customerDevSearchStatus = "idle";
+      state.customerDevSelectedLeadIds = new Set();
+      state.customerDevDetailOpen = false;
+      renderApp();
+    }
+    return;
+  }
+
   const selectAllCheckbox = target.closest("[data-customer-dev-select-all]");
   if (selectAllCheckbox instanceof HTMLInputElement) {
     const visibleLeadIds = state.customerDevLeads.map((lead) => lead.id);
@@ -12295,6 +13406,23 @@ function handleCustomerDevClick(event) {
     return;
   }
 
+  const mapPresetButton = target.closest("[data-customer-dev-map-preset]");
+  if (mapPresetButton) {
+    const preset = mapPresetButton.getAttribute("data-customer-dev-map-preset") || "";
+    const presetMap = {
+      "汉堡太阳能": ["德国", "汉堡", "新能源与电力设施"],
+      "迪拜工业设备": ["阿联酋", "迪拜", "工业机械与设备供应商"],
+      "利雅得建材": ["沙特阿拉伯", "利雅得", "建筑建材与装饰材料渠道"]
+    };
+    const [market, city, category] = presetMap[preset] || presetMap["汉堡太阳能"];
+    const selectedCountryGroup = (CUSTOMER_DEVELOPMENT.countryGroups || []).find((group) => group.countries.includes(market));
+    state.customerDevBrief.market = market;
+    state.customerDevMapBrief = { ...state.customerDevMapBrief, city, category };
+    state.customerDevContinent = selectedCountryGroup?.id || state.customerDevContinent;
+    renderApp();
+    return;
+  }
+
   const clearHistoryButton = target.closest("[data-customer-dev-clear-history]");
   if (clearHistoryButton) {
     const history = clearHistoryButton.closest(".customer-dev-recent-searches");
@@ -12343,11 +13471,13 @@ function handleCustomerDevClick(event) {
  * @throws {Error} 本函数不主动抛异常。
  */
 function handleCustomerDevKeydown(event) {
-  if (event.key !== "Escape" || !state.customerDevPicker) {
+  if (event.key !== "Escape" || (!state.customerDevPicker && !state.customerDevMapCategoryPickerOpen)) {
     return;
   }
 
   state.customerDevPicker = null;
+  state.customerDevMapCategoryPickerOpen = false;
+  state.customerDevMapCategoryQuery = "";
   renderApp();
 }
 
@@ -15137,6 +16267,29 @@ function bindEvents() {
     });
   });
 
+  document.querySelectorAll("[data-customer-dev-map-field]").forEach((control) => {
+    const syncMapField = () => {
+      const field = control.getAttribute("data-customer-dev-map-field");
+      if (!field || !Object.prototype.hasOwnProperty.call(state.customerDevMapBrief, field)) {
+        return;
+      }
+      state.customerDevMapBrief[field] = control.value;
+      syncCustomerDevEngineSummary();
+    };
+    control.addEventListener("change", syncMapField);
+    if (control instanceof HTMLInputElement) {
+      control.addEventListener("input", syncMapField);
+    }
+  });
+
+  const mapCategorySearch = document.querySelector("[data-customer-dev-map-category-search]");
+  if (mapCategorySearch instanceof HTMLInputElement) {
+    mapCategorySearch.addEventListener("input", () => {
+      state.customerDevMapCategoryQuery = mapCategorySearch.value;
+      refreshCustomerDevMapCategoryPicker();
+    });
+  }
+
   document.querySelectorAll("[data-customer-dev-sort]").forEach((select) => {
     select.addEventListener("change", () => {
       void refreshCustomerDevPdlSort(select.value);
@@ -16422,9 +17575,9 @@ function applyRoute() {
   isApplyingRoute = false;
 
   if (route.main === "customer-development" && route.customerDevPhase === "searching") {
-    // 搜索页现在会真实请求本地 PDL 数据库。函数内部同时保证动画最短可见时长，
-    // 并用 requestId 防止旧请求在用户离开页面后覆盖新状态。
-    void runCustomerDevPdlSearch();
+    // 企业数据库与地图获客保留现有查询；其余四个入口生成明确标注的模拟名单。
+    // 所有路径共用 requestId，避免旧请求在用户离开页面后覆盖新状态。
+    void runCustomerDevSearch();
   }
 }
 

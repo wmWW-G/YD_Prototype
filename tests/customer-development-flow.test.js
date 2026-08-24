@@ -8,6 +8,18 @@ const appSource = fs.readFileSync(path.join(projectRoot, "src/app.js"), "utf8");
 const dataSource = fs.readFileSync(path.join(projectRoot, "src/data.js"), "utf8");
 const indexSource = fs.readFileSync(path.join(projectRoot, "index.html"), "utf8");
 const stylesSource = fs.readFileSync(path.join(projectRoot, "src/styles.css"), "utf8");
+const mapCategoryCatalog = JSON.parse(
+  fs.readFileSync(
+    path.join(projectRoot, "customer-development-data-sources/foursquare/category-catalog.json"),
+    "utf8"
+  )
+);
+const mapRawCategoryCatalog = JSON.parse(
+  fs.readFileSync(
+    path.join(projectRoot, "customer-development-data-sources/foursquare/raw-category-catalog.json"),
+    "utf8"
+  )
+);
 
 test("客户搜索页调用真实 PDL 本地接口并保持最短可见时间", () => {
   assert.match(appSource, /const CUSTOMER_DEV_SEARCH_DURATION_MS = 2400;/);
@@ -18,8 +30,9 @@ test("客户搜索页调用真实 PDL 本地接口并保持最短可见时间", 
   assert.match(appSource, /await Promise\.allSettled\(/);
   assert.match(
     appSource,
-    /void runCustomerDevPdlSearch\(\)/
+    /void runCustomerDevSearch\(\)/
   );
+  assert.match(appSource, /await runCustomerDevPdlSearch\(\)/);
 });
 
 test("GitHub Pages 使用明确标注的演示公司且不请求不存在的 PDL 接口", () => {
@@ -29,18 +42,18 @@ test("GitHub Pages 使用明确标注的演示公司且不请求不存在的 PDL
   assert.match(appSource, /if \(isCustomerDevGitHubDemoHost\(\)\) \{\s*return buildCustomerDevGitHubDemoResult/s);
   assert.match(appSource, /GitHub Pages 演示数据/);
   assert.match(appSource, /demo-solar-\$\{paddedNumber\}\.example\.com/);
-  assert.match(appSource, /本轮获客目标\$\{isDemo \? " · 演示数据" : ""\}/);
+  assert.match(appSource, /const resultDataBadge = isMockSource \? "模拟数据" : isDemo \? "演示数据" : "";/);
   assert.match(appSource, /\["results", "contacts"\]\.includes\(state\.customerDevPhase\)/);
 });
 
 test("主原型使用当前前端缓存键", () => {
   assert.match(
     indexSource,
-    /src\/app\.js\?v=20260812-contact-count-v1/
+    /src\/app\.js\?v=20260824-customer-dev-mock-toolbar-v8/
   );
   assert.match(
     indexSource,
-    /src\/styles\.css\?v=20260812-contact-count-v1/
+    /src\/styles\.css\?v=20260824-customer-dev-mock-toolbar-v8/
   );
   assert.match(
     indexSource,
@@ -155,9 +168,9 @@ test("客户公司表支持行内邮箱加载、独立勾选和批量加载", ()
     appSource.indexOf("function renderCustomerDevDetail")
   );
 
-  assert.match(workspaceSource, /<th>行业<\/th>/);
-  assert.match(workspaceSource, /<th>公司规模<\/th>/);
-  assert.match(workspaceSource, /<th>联系人<\/th>/);
+  assert.match(workspaceSource, /isMap \? "场所类别" : "行业"/);
+  assert.match(workspaceSource, /isMap \? "数据更新" : "公司规模"/);
+  assert.match(workspaceSource, /isMap \? "公开联系方式" : "联系人"/);
   assert.match(workspaceSource, /<th>操作<\/th>/);
   assert.match(workspaceSource, /data-customer-dev-select-all/);
   assert.match(workspaceSource, /data-customer-dev-batch-email/);
@@ -189,6 +202,119 @@ test("客户公司表支持行内邮箱加载、独立勾选和批量加载", ()
   assert.match(stylesSource, /\.customer-dev-contact-child/);
   assert.match(stylesSource, /\.customer-dev-row-actions/);
   assert.match(stylesSource, /\.customer-dev-detail-layer/);
+});
+
+test("地图获客使用外贸业务字段且不保留地推半径", () => {
+  assert.match(appSource, /customerDevSource: "ai"/);
+  assert.match(appSource, /value: "map", label: "地图获客"/);
+  assert.match(appSource, /data-customer-dev-source="\$\{escapeHtml\(source\.value\)\}"/);
+  assert.match(appSource, /data-customer-dev-map-field="city"/);
+  assert.match(appSource, /data-customer-dev-map-category-open/);
+  assert.doesNotMatch(appSource, /data-customer-dev-map-field="category"/);
+  assert.doesNotMatch(appSource, /data-customer-dev-map-field="radius"/);
+  assert.match(appSource, /data-customer-dev-map-field="contact"/);
+  assert.match(appSource, /data-customer-dev-map-field="quantity"/);
+  assert.doesNotMatch(appSource, /endpoint\.searchParams\.set\("radius_km"/);
+  assert.match(appSource, /new URL\("\/api\/foursquare\/places", window\.location\.origin\)/);
+  assert.match(appSource, /new Intl\.Locale\(`und-\$\{code\}`\)\.region !== code/);
+  assert.match(appSource, /function normalizeCustomerDevFoursquarePlace\(place, brief\)/);
+  assert.match(appSource, /mode: "foursquare"/);
+  assert.match(appSource, /function buildCustomerDevMapPrototypeResult\(brief\)/);
+  assert.match(appSource, /mode: "foursquare-demo"/);
+  assert.match(appSource, /Foursquare OS Places · 原型预览/);
+  assert.match(appSource, /不提供客户角色、公司规模或采购意向/);
+  assert.match(appSource, /if \(brief\.contact === "有官网"\) hasWebsite = true/);
+  assert.match(appSource, /function renderCustomerDevMapPlacePanel\(lead\)/);
+  assert.match(stylesSource, /\.customer-dev-source-switch/);
+  assert.match(stylesSource, /\.customer-dev-map-channels/);
+});
+
+test("客户开发按业务方式展示数据来源且不暴露供应商", () => {
+  assert.match(appSource, /label: "企业数据库"/);
+  assert.match(appSource, /label: "地图获客"/);
+  assert.match(appSource, /label: "海关获客"/);
+  assert.match(appSource, /label: "社媒获客"/);
+  assert.match(appSource, /label: "领英获客"/);
+  assert.match(appSource, /label: "展会获客"/);
+  assert.match(appSource, /"联系人获取"/);
+  assert.match(appSource, /"贸易记录"/);
+  assert.match(appSource, /"工商信息"/);
+  assert.match(appSource, /"产品信息"/);
+  assert.match(appSource, /"商业关系"/);
+  assert.match(appSource, /"知识产权"/);
+  assert.match(appSource, /"新闻舆情"/);
+  assert.match(appSource, /customer-dev-intelligence-canvas/);
+  assert.match(appSource, /用自然语言描述你的目标客户/);
+  assert.doesNotMatch(appSource, /<aside class="customer-dev-intelligence-aside"/);
+  assert.match(appSource, /activeSource\.value === "ai" \? "开始企业数据库获客"/);
+  assert.doesNotMatch(appSource, /腾道|Tendata|tendata/);
+  assert.match(stylesSource, /\.customer-dev-intelligence-canvas\s*\{/);
+  assert.match(stylesSource, /customer-development-global-network\.png/);
+  assert.match(stylesSource, /grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(stylesSource, /\.customer-dev-enrichment-options/);
+});
+
+test("四个未接入来源使用明确标注的纯前端模拟流程", () => {
+  assert.match(appSource, /const CUSTOMER_DEV_MOCK_SOURCE_CONFIG = Object\.freeze\(\{/);
+  assert.match(appSource, /mode: "mock-customs"/);
+  assert.match(appSource, /mode: "mock-social"/);
+  assert.match(appSource, /mode: "mock-linkedin"/);
+  assert.match(appSource, /mode: "mock-exhibition"/);
+  assert.match(appSource, /function buildCustomerDevMockSourceResult\(sourceValue, brief\)/);
+  assert.match(appSource, /`https:\/\/\$\{sourceValue\}-lead-\$\{paddedNumber\}\.example\.com`/);
+  assert.match(appSource, /原型模拟数据，不代表真实企业、贸易、社媒、职位或参展记录/);
+  assert.match(appSource, /function runCustomerDevMockSourceSearch\(\)/);
+  assert.match(appSource, /if \(CUSTOMER_DEV_MOCK_SOURCE_CONFIG\[state\.customerDevSource\]\) \{\s*await runCustomerDevMockSourceSearch\(\);/s);
+  assert.match(appSource, /mockSourceConfig\.steps/);
+  assert.match(appSource, /全部为模拟数据/);
+  assert.doesNotMatch(appSource, /模拟推荐排序/);
+  assert.doesNotMatch(appSource, /重新生成\$\{escapeHtml/);
+  assert.doesNotMatch(appSource, /data-customer-dev-source-unavailable/);
+  assert.doesNotMatch(appSource, /当前数据服务暂不可用/);
+});
+
+test("商户行业展示 64 项 B2B 聚合目录并在后台保留 1,274 条原始映射", () => {
+  const businessItems = mapCategoryCatalog.groups.flatMap((group) => group.items);
+  const rawItems = mapRawCategoryCatalog.groups.flatMap((group) => group.items);
+
+  assert.equal(mapCategoryCatalog.groups.length, 10);
+  assert.equal(businessItems.length, 64);
+  assert.equal(mapRawCategoryCatalog.groups.length, 11);
+  assert.equal(rawItems.length, 1274);
+  assert.deepEqual(
+    Object.fromEntries(mapRawCategoryCatalog.groups.map((group) => [group.official_label, group.items.length])),
+    {
+      "Arts and Entertainment": 73,
+      "Business and Professional Services": 196,
+      "Community and Government": 128,
+      "Dining and Drinking": 392,
+      Event: 17,
+      "Health and Medicine": 59,
+      "Landmarks and Outdoors": 96,
+      "Nightlife Spot": 1,
+      Retail: 151,
+      "Sports and Recreation": 87,
+      "Travel and Transportation": 74,
+    }
+  );
+  assert.match(appSource, /customer-development-data-sources\/foursquare\/category-catalog\.json/);
+  assert.match(appSource, /function renderCustomerDevMapCategoryPicker\(\)/);
+  assert.match(appSource, /data-customer-dev-map-category-search/);
+  assert.match(appSource, /data-customer-dev-map-category-group/);
+  assert.doesNotMatch(appSource, /data-customer-dev-map-category-mode/);
+  assert.match(appSource, /10 个 B2B 大类 · 64 个聚合行业/);
+  assert.doesNotMatch(appSource, /查看全部 1,274 条原始分类/);
+  assert.doesNotMatch(appSource, /FOURSQUARE CATEGORY DIRECTORY/);
+  assert.match(appSource, /B2B BUSINESS DIRECTORY/);
+  assert.match(stylesSource, /\.customer-dev-map-category-dialog/);
+  assert.match(stylesSource, /\.customer-dev-map-category-groups/);
+  assert.match(stylesSource, /\.customer-dev-map-category-scope/);
+  assert.ok(businessItems.some((item) => item.value === "汽车零部件与配件渠道"));
+  assert.ok(businessItems.some((item) => item.value === "餐饮与连锁门店" && item.category_terms.includes("dining and drinking")));
+  assert.ok(rawItems.some((item) => item.value === "Retail > Automotive Retail > Car Parts and Accessories"));
+  assert.ok(rawItems.every((item) => item.path && item.label && item.category_terms.length === 1));
+  assert.match(appSource, /"汽配": "car parts accessories"/);
+  assert.ok(mapCategoryCatalog.groups.every((group) => !["地标与户外", "夜生活"].includes(group.label)));
 });
 
 test("结果页获客目标区域保持紧凑且不展示数据来源行", () => {

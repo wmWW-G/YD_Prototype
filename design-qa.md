@@ -179,3 +179,173 @@
 - 如果后续把 B 版扩展为正式移动端产品，可在小屏增加独立的“选择客户”抽屉；当前不影响本轮桌面对比展示。
 
 final result: passed
+
+---
+
+# 客户开发全球网络背景 Design QA
+
+## 对照信息
+
+- source visual truth path: `/Users/garden/.codex/generated_images/01a0315a-2ab4-7ae0-a18b-3ab054638b2e/exec-a23d1e29-9aa6-451a-9d5c-7af5fcca5003.png`
+- implementation URL: `http://127.0.0.1:8788/index.html#/customer-development`
+- generated background asset: `/Users/garden/YD/Prototype/assets/generated/customer-development-global-network.png`
+- implementation screenshot: `/Users/garden/.codex/visualizations/2026/08/24/01a0315a-2ab4-7ae0-a18b-3ab054638b2e/customer-development-network-fullbleed.png`
+- full-view comparison evidence: `/Users/garden/.codex/visualizations/2026/08/24/01a0315a-2ab4-7ae0-a18b-3ab054638b2e/customer-development-network-fullbleed-comparison.png`
+- viewport: browser CSS viewport `1440 × 1024`；responsive check `900 × 900`
+- source pixels: `1487 × 1058`；implementation pixels: `1440 × 1024`
+- density normalization: source 等比归一到 `1440 × 1024` 后与实现截图并排比较；两者均为 1× CSS 密度
+- state: 客户开发首页 → 社媒获客 → 德国 → 光伏组件 → 品牌商 → 100 家
+
+## Findings
+
+- 未发现可执行的 P0 / P1 / P2 问题。
+- [P3] 参考图的全球点阵在右下区域略密，当前独立背景资产为保证按钮和查询文字对比度，整体降低了约一档不透明度；不影响图 2 的全球网络氛围与视觉方向。
+- [P3] 项目现有侧栏宽度与参考图略有差异，主内容因此向右偏少量像素；这是复用赢单现有设计系统的有意约束。
+
+## 必查维度
+
+- 字体与层级：沿用赢单系统字体和现有字号；来源标题、自然语言查询句与主按钮的层级和参考图一致，没有新增装饰性字体。
+- 间距与布局：保留无右栏、无查询卡的完整主工作区；背景从工作区四边直接铺满，外层 padding 为 `0px`，不再形成矩形画布或留白边。六个来源同排，查询句和主按钮保持原有位置。`900px` 下页面宽度与视口一致，无横向溢出。
+- 色彩与 token：背景为低对比暖白、浅橙节点和右侧暖橙光带，继续使用赢单橙色与暖灰 token；中央文字区保持足够安静。
+- 图片与资源：全球点阵、地图、弧线和节点来自独立 `1180 × 960` ImageGen 图片资产，没有用 CSS 图形、手绘 SVG 或 DOM 元素伪造。
+- 文案与内容：数据来源、德国、光伏组件、品牌商、100 家与主按钮文案均和参考状态一致；没有加入额外说明、指标或右侧信息栏。
+- 交互与可访问性：六个来源切换、国家与产品选择、客户类型和数量下拉继续可用；地图获客仍保留城市、行业、数量和公开联系方式字段；来源 tab 保留 `aria-selected`。
+
+## Comparison history
+
+- Pass 1：将选中的图 2 与实现截图归一到同一尺寸后并排比较。全球点阵、连接弧线、右侧暖橙光带、无卡片查询区和主按钮位置均已落地；未发现 P0 / P1 / P2，因此不需要视觉返工循环。
+- Pass 2：用户指出背景仍被限制在矩形画布并留下外圈空白，记为 [P2] 页面整体仍有“大卡片”感。修复后将背景从 `.customer-dev-intelligence-canvas` 移到整个 `.workspace`，取消工作区 padding；`1440 × 1024` 对照确认背景从顶、右、底三边连续铺满，P2 已关闭。
+
+## Focused comparison
+
+- 未单独裁切局部图：原尺寸并排图中来源按钮、查询控件、主按钮和背景资产边缘均清晰可读，且本轮唯一新增可视资产是覆盖整个工作区的背景，局部裁切不会提供额外判断价值。
+
+## Verification
+
+- 浏览器：背景图片成功加载在 `.workspace`；工作区尺寸 `1180 × 960px`、padding `0px`；内部画布无背景图片；右侧说明栏数量为 0；社媒获客为选中态；控制台 0 条 error、0 条 warning。
+- 响应式：`900 × 900` 下主画布宽 `876px`，页面无横向溢出，背景自动覆盖并裁切。
+- 交互：地图获客的城市输入、64 个聚合行业入口和公开联系方式筛选均存在；恢复社媒获客后 `aria-selected="true"`。
+- 自动验证：`node --check src/app.js`、`git diff --check` 通过；`npm test` 156 项通过、0 失败。
+
+## Open Questions
+
+- 无阻塞问题。
+
+final result: passed
+
+---
+
+# 客户开发情报画布 Design QA
+
+## 对照信息
+
+- source visual truth path: `/Users/garden/.codex/generated_images/01a0315a-2ab4-7ae0-a18b-3ab054638b2e/exec-33c1201e-bd51-483f-a6a2-51704a61a747.png`
+- implementation URL: `http://127.0.0.1:8788/index.html#/customer-development`
+- implementation screenshot: `/Users/garden/.codex/visualizations/2026/08/24/01a0315a-2ab4-7ae0-a18b-3ab054638b2e/customer-development-intelligence-canvas-1440x1024.png`
+- latest full-width screenshot: `/Users/garden/.codex/visualizations/2026/08/24/01a0315a-2ab4-7ae0-a18b-3ab054638b2e/customer-development-fullwidth-1728x924.png`
+- combined comparison: `/Users/garden/.codex/visualizations/2026/08/24/01a0315a-2ab4-7ae0-a18b-3ab054638b2e/customer-development-reference-vs-implementation.png`
+- viewport: desktop `1440 × 1024`；responsive check `720 × 900`
+- state: 客户开发首页 → 社媒获客 → 德国 → 光伏组件 → 品牌商 → 100 家
+
+## Findings
+
+- 未发现可执行的 P0 / P1 / P2 问题。
+- [P3] 参考图用圆形对勾和按钮箭头强化选中态与主操作；当前实现沿用赢单已有图标资源和橙色描边、按钮投影，没有为了像素相似新增手绘图标。
+- 用户在浏览器标注中明确要求移除右侧“本次将补全”；实现已按该最新视觉决定删除整栏并让主工作区铺满，不再以原参考图的右栏作为保真目标。
+
+## 必查维度
+
+- 字体与层级：沿用赢单系统字体；“选择获客来源”和“自然语言目标客户”形成清楚的两级结构。
+- 间距与布局：桌面主工作区铺满 `1180px` 内容画布，六个来源位于同一行；`720px` 下来源自动改为两列，页面无横向溢出。
+- 色彩与 token：继续使用赢单暖白背景、浅灰边框和品牌橙，没有引入新的品牌色或渐变。
+- 图片与资源：六个来源均复用项目现有 SVG 图标，没有占位图、手绘 SVG 或 CSS 图形。
+- 文案与内容：界面只出现业务来源名称，不出现供应商品牌、接口说明或已移除的情报补全说明。
+- 交互与状态：六个来源均可切换；企业数据库和地图获客保留真实现有流程；其余来源点击主按钮只显示不可用反馈，不伪造查询结果。
+- 可访问性：来源使用 `role="tablist"` / `role="tab"` 和 `aria-selected`；查询选择器均有可读标签。
+
+## Comparison history
+
+- Pass 1：将参考图和当前 `1440 × 1024` 页面放入同一张对照图，发现六个来源最初全部挤在同一行，记为 P2。
+- Fix：改为五列来源网格，并将展会获客放到第二行右侧；同时补齐地图获客的公开联系方式筛选和行业目录副说明。
+- Pass 2：同尺寸复核后，主区、来源层级、自然语言句式、主操作和右侧情报栏均对齐，未发现新的 P0 / P1 / P2。
+- Pass 3：根据浏览器标注删除右侧“本次将补全”，主区扩展到完整 `1180px`，六个来源排成一行；`1728 × 924` 下无空白栏或横向溢出。
+- Pass 4：暖色背景加查询卡的尝试被用户明确否定，已完整撤回；后续只通过新的视觉方案探索背景层次，不在查询区套卡片。
+
+## Verification
+
+- 浏览器结构：右侧说明栏数量为 0；六个来源按钮完整显示，主画布宽度为 `1180px`。
+- 不可用来源：海关获客主按钮显示“当前数据服务暂不可用，请稍后再试”，未进入伪结果页。
+- 地图获客：目标城市、64 个聚合行业选择器、目标数量和公开联系方式筛选均存在。
+- 响应式：`720 × 900` 页面宽度与视口同为 `720px`，无横向溢出。
+- 浏览器控制台：0 条 error，0 条 warning。
+- 自动验证：`node --check src/app.js`、`git diff --check` 通过；`npm test` 156 项通过、0 失败。
+
+## Open Questions
+
+- 无阻塞问题。
+
+final result: passed
+
+---
+
+# TokenMind Dify 日志查询扩展 Design QA
+
+## 对照信息
+
+- source visual truth path: 用户本轮要求的“简约白底、三个使用场景分开”，并以被否定的旧版截图 `/private/tmp/dify-log-ui-audit/01-current-stacked-ui.png` 作为反例基线
+- implementation URL: `http://127.0.0.1:8898/sidepanel.html`
+- implementation home screenshot: `/private/tmp/dify-log-ui-audit/02-white-home.png`
+- user-failed screenshot: `/private/tmp/dify-log-ui-audit/03-user-failed.png`
+- marker screenshot: `/private/tmp/dify-log-ui-audit/04-marker.png`
+- marker custom-time screenshot: `/private/tmp/dify-log-ui-audit/05-marker-custom-time.png`
+- full-view comparison evidence: `/private/tmp/dify-log-ui-audit/06-before-after.png`
+- viewport: Chrome Side Panel 窄栏 `380 × 900` CSS px
+- source pixels: `380 × 1023`；implementation pixels: `380 × 900`
+- CSS size and density normalization: 两侧均以 `380px` 窄栏宽度、1:1 CSS 像素检查；高度差来自旧版页面内容更长，不据此判断单个控件比例
+- state: 本地预览无 Dify 登录上下文；重点验证首页信息架构、三个场景字段隔离和自定义时间展开状态
+
+## Findings
+
+- 未发现可执行的 P0 / P1 / P2 问题。
+- [P3] 当前 App 状态卡保留一条浅黄色登录引导，用于区别普通说明和需要用户处理的状态；它没有延续旧版黑金装饰，但仍比页面其他区域更醒目，这是有意的状态语义。
+
+## 必查维度
+
+- 字体与层级：使用系统无衬线字体；品牌标题、场景标题、字段标签和说明形成四级层次，窄栏下没有异常截断。
+- 间距与布局：首页只放三个场景入口；进入详情页后只呈现对应字段、时间范围、高级设置和查询按钮。`380px` 宽度无横向溢出。
+- 色彩与 token：页面背景为纯白，主色为克制的蓝色，卡片使用浅灰边框；已移除旧版黑底、金色描边和全部渐变。
+- 图片与资源：继续使用 TokenMind 原始 Logo 资源，没有用手绘 SVG、CSS 图形或占位图替代品牌资产。
+- 文案与内容：三个入口分别对应“指定用户失败”“当前 App 失败”“marker 精确定位”；详情页只解释当前场景，不再展示其他模式。
+- 交互与可访问性：三个入口与返回均为原生按钮；场景标题使用 heading；表单使用 label、fieldset、legend 和原生 radio。自定义时间展开后起止输入均可访问。
+
+## Comparison history
+
+- Pass 1：旧版把三种模式、用户 ID、时间范围和查询按钮堆在同一黑金页面，信息密度高，主任务不清楚，记为 P1。
+- Fix：改成纯白首页三入口，三种模式进入独立详情页；详情页按场景显示零个、一个或两个业务输入字段。
+- Pass 2：在 `380 × 900` 下逐一进入 `user-failed`、`app-failed`、`marker`，并展开 marker 的自定义时间。三个场景字段隔离正确，无横向溢出，未发现新的 P0 / P1 / P2。
+
+## Verification
+
+- 首页：只显示三个使用场景，不显示查询表单。
+- 指定用户：只显示终端用户 ID，不显示 marker。
+- 当前 App：不显示终端用户 ID和 marker，只显示时间范围。
+- marker：同时显示终端用户 ID 和 marker；自定义时间可展开起止时间。
+- 自动检查：Side Panel 合同测试 5 项通过，`sidepanel.js` 语法检查通过。
+
+## Open Questions
+
+- 无阻塞问题。
+
+## Implementation Checklist
+
+- [x] 改为简约纯白背景。
+- [x] 移除黑金视觉和渐变。
+- [x] 首页只保留三个场景入口。
+- [x] 三个场景使用独立操作页并隔离字段。
+- [x] 完成窄栏和关键交互状态检查。
+
+## Follow-up Polish
+
+- 等扩展在真实 Dify 日志页安装后，可再补一轮真实登录态、加载态和结果态的视觉检查。
+
+final result: passed

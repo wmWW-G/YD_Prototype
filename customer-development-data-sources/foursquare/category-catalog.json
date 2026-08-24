@@ -1,0 +1,1052 @@
+{
+  "version": 4,
+  "provider": "foursquare-os-places",
+  "raw_catalog": "raw-category-catalog.json",
+  "groups": [
+    {
+      "id": "energy-environment",
+      "label": "能源化工与环保",
+      "description": "面向能源、化工、环保设备与可持续服务渠道。",
+      "items": [
+        {
+          "value": "新能源与电力设施",
+          "keywords": [
+            "新能源与电力设施",
+            "太阳能",
+            "光伏",
+            "新能源",
+            "renewable energy",
+            "电厂",
+            "电力",
+            "power plant"
+          ],
+          "category_terms": [
+            "renewable energy service",
+            "power plant"
+          ],
+          "name_terms": [
+            "solar",
+            "photovolta"
+          ]
+        },
+        {
+          "value": "石油燃料与能源零售",
+          "keywords": [
+            "石油燃料与能源零售",
+            "石油",
+            "燃料",
+            "petroleum",
+            "加油站",
+            "燃油",
+            "fuel station"
+          ],
+          "category_terms": [
+            "petroleum supplier",
+            "fuel station"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "化工材料与工业气体",
+          "keywords": [
+            "化工材料与工业气体",
+            "工业气体",
+            "化工",
+            "industrial gas"
+          ],
+          "category_terms": [
+            "chemicals and gasses manufacturer"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "水处理与环保设备",
+          "keywords": [
+            "水处理与环保设备",
+            "水处理",
+            "污水",
+            "water treatment"
+          ],
+          "category_terms": [
+            "water treatment service"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "再生资源与废弃物处理",
+          "keywords": [
+            "再生资源与废弃物处理",
+            "回收",
+            "再生资源",
+            "recycling",
+            "废弃物",
+            "垃圾处理",
+            "waste management"
+          ],
+          "category_terms": [
+            "recycling facility",
+            "waste management service"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "环境服务与可持续机构",
+          "keywords": [
+            "环境服务与可持续机构",
+            "环保机构",
+            "环境保护",
+            "environmental"
+          ],
+          "category_terms": [
+            "environmental organization"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "冷链与制冷设备",
+          "keywords": [
+            "冷链与制冷设备",
+            "制冷",
+            "冷链",
+            "refrigeration"
+          ],
+          "category_terms": [
+            "refrigeration and ice supplier"
+          ],
+          "name_terms": []
+        }
+      ]
+    },
+    {
+      "id": "industrial-manufacturing",
+      "label": "工业设备与原材料",
+      "description": "面向工厂、设备、原材料及工业配套服务。",
+      "items": [
+        {
+          "value": "工厂与综合制造商",
+          "keywords": [
+            "工厂与综合制造商",
+            "工厂",
+            "生产基地",
+            "factory",
+            "制造商",
+            "生产商",
+            "manufacturer"
+          ],
+          "category_terms": [
+            "factory",
+            "business and professional services > manufacturer"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "工业机械与设备供应商",
+          "keywords": [
+            "工业机械与设备供应商",
+            "工业设备",
+            "机械设备",
+            "industrial equipment"
+          ],
+          "category_terms": [
+            "industrial equipment supplier"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "设备维修与工业服务",
+          "keywords": [
+            "设备维修与工业服务",
+            "机械加工",
+            "机修",
+            "machine shop"
+          ],
+          "category_terms": [
+            "machine shop"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "电气设备与工业配套",
+          "keywords": [
+            "电气设备与工业配套",
+            "电气设备",
+            "电工设备",
+            "electrical equipment"
+          ],
+          "category_terms": [
+            "electrical equipment supplier"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "金属材料与加工服务",
+          "keywords": [
+            "金属材料与加工服务",
+            "金属",
+            "钢材",
+            "metal",
+            "焊接",
+            "金属加工",
+            "welding"
+          ],
+          "category_terms": [
+            "metals supplier",
+            "welding service"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "塑料橡胶与高分子材料",
+          "keywords": [
+            "塑料橡胶与高分子材料",
+            "塑料",
+            "塑胶",
+            "plastic",
+            "橡胶",
+            "rubber"
+          ],
+          "category_terms": [
+            "plastics supplier",
+            "rubber supplier"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "仪器仪表与实验设备",
+          "keywords": [
+            "仪器仪表与实验设备",
+            "科学仪器",
+            "实验设备",
+            "scientific equipment"
+          ],
+          "category_terms": [
+            "scientific equipment supplier"
+          ],
+          "name_terms": []
+        }
+      ]
+    },
+    {
+      "id": "construction-engineering",
+      "label": "建筑建材与工程",
+      "description": "面向工程项目、建材渠道与专业承包服务。",
+      "items": [
+        {
+          "value": "建筑工程与综合承包商",
+          "keywords": [
+            "建筑工程与综合承包商",
+            "建筑工程",
+            "施工",
+            "construction",
+            "工程承包",
+            "总包",
+            "general contractor"
+          ],
+          "category_terms": [
+            "business and professional services > construction",
+            "general contractor"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "建筑建材与装饰材料渠道",
+          "keywords": [
+            "建筑建材与装饰材料渠道",
+            "建材",
+            "建筑材料",
+            "construction supplies"
+          ],
+          "category_terms": [
+            "construction supplies store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "建筑设计与工程咨询",
+          "keywords": [
+            "建筑设计与工程咨询",
+            "建筑设计",
+            "设计院",
+            "architecture"
+          ],
+          "category_terms": [
+            "architecture firm"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "机电安装与暖通工程",
+          "keywords": [
+            "机电安装与暖通工程",
+            "电气安装",
+            "电工",
+            "electrician",
+            "暖通",
+            "空调",
+            "HVAC"
+          ],
+          "category_terms": [
+            "home improvement service > electrician",
+            "heating, ventilating and air conditioning contractor"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "给排水与管道工程",
+          "keywords": [
+            "给排水与管道工程",
+            "管道",
+            "给排水",
+            "plumber"
+          ],
+          "category_terms": [
+            "home improvement service > plumber"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "门窗幕墙与建筑五金",
+          "keywords": [
+            "门窗幕墙与建筑五金",
+            "门窗",
+            "doors windows"
+          ],
+          "category_terms": [
+            "doors and windows contractor"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "地面屋面与防水工程",
+          "keywords": [
+            "地面屋面与防水工程",
+            "地板",
+            "地毯",
+            "flooring",
+            "屋面",
+            "防水",
+            "roofer"
+          ],
+          "category_terms": [
+            "carpet and flooring contractor",
+            "home improvement service > roofer"
+          ],
+          "name_terms": []
+        }
+      ]
+    },
+    {
+      "id": "electronics-technology",
+      "label": "电子电气与数字化",
+      "description": "面向电子、通信、软件、自动化与商用技术渠道。",
+      "items": [
+        {
+          "value": "电子产品与元器件渠道",
+          "keywords": [
+            "电子产品与元器件渠道",
+            "电子产品",
+            "数码",
+            "electronics"
+          ],
+          "category_terms": [
+            "electronics store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "通信设备与移动终端渠道",
+          "keywords": [
+            "通信设备与移动终端渠道",
+            "手机",
+            "移动通信",
+            "mobile phone",
+            "电信",
+            "通信",
+            "telecommunication"
+          ],
+          "category_terms": [
+            "mobile phone store",
+            "telecommunication service"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "计算机与IT技术服务",
+          "keywords": [
+            "计算机与IT技术服务",
+            "电脑维修",
+            "计算机服务",
+            "computer repair",
+            "IT服务",
+            "信息技术",
+            "IT service"
+          ],
+          "category_terms": [
+            "computer repair service",
+            "technology business > it service"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "软件与数字化解决方案",
+          "keywords": [
+            "软件与数字化解决方案",
+            "软件",
+            "SaaS",
+            "software company"
+          ],
+          "category_terms": [
+            "technology business > software company"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "工业自动化与控制系统",
+          "keywords": [
+            "工业自动化与控制系统",
+            "自动化",
+            "控制系统",
+            "automation"
+          ],
+          "category_terms": [
+            "automation and control system"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "安防监控与弱电系统",
+          "keywords": [
+            "安防监控与弱电系统",
+            "安防",
+            "安全系统",
+            "security",
+            "音视频",
+            "会议系统",
+            "audiovisual"
+          ],
+          "category_terms": [
+            "security and safety",
+            "audiovisual service"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "办公设备与商用耗材",
+          "keywords": [
+            "办公设备与商用耗材",
+            "办公设备",
+            "办公耗材",
+            "office supply"
+          ],
+          "category_terms": [
+            "office supply store"
+          ],
+          "name_terms": []
+        }
+      ]
+    },
+    {
+      "id": "automotive-transport",
+      "label": "汽车零部件与交通设备",
+      "description": "面向整车、零部件、两轮车及售后服务渠道。",
+      "items": [
+        {
+          "value": "汽车零部件与配件渠道",
+          "keywords": [
+            "汽车零部件与配件渠道",
+            "汽配",
+            "汽车配件",
+            "car parts"
+          ],
+          "category_terms": [
+            "car parts and accessories"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "汽车与商用车经销渠道",
+          "keywords": [
+            "汽车与商用车经销渠道",
+            "汽车经销",
+            "汽车销售",
+            "car dealership"
+          ],
+          "category_terms": [
+            "automotive retail > car dealership"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "摩托车与两轮车渠道",
+          "keywords": [
+            "摩托车与两轮车渠道",
+            "摩托车",
+            "motorcycle dealership",
+            "自行车",
+            "骑行用品",
+            "bicycle store"
+          ],
+          "category_terms": [
+            "motorcycle dealership",
+            "bicycle store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "车辆维修与售后服务",
+          "keywords": [
+            "车辆维修与售后服务",
+            "汽车维修",
+            "修理厂",
+            "automotive repair",
+            "轮胎",
+            "tire repair",
+            "摩托维修",
+            "motorcycle repair",
+            "变速箱",
+            "transmission",
+            "车辆检测",
+            "验车",
+            "vehicle inspection",
+            "道路救援",
+            "拖车",
+            "towing"
+          ],
+          "category_terms": [
+            "automotive repair shop",
+            "tire repair shop",
+            "motorcycle repair shop",
+            "transmissions shop",
+            "vehicle inspection station",
+            "towing service"
+          ],
+          "name_terms": []
+        }
+      ]
+    },
+    {
+      "id": "commercial-supplies",
+      "label": "家居五金与商用用品",
+      "description": "面向五金、家居、商用空间与工程配套渠道。",
+      "items": [
+        {
+          "value": "五金工具与工业门类",
+          "keywords": [
+            "五金工具与工业门类",
+            "五金",
+            "工具",
+            "hardware",
+            "车库门",
+            "工业门",
+            "garage door"
+          ],
+          "category_terms": [
+            "hardware store",
+            "garage door supplier"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "家具家居与商业空间用品",
+          "keywords": [
+            "家具家居与商业空间用品",
+            "家具",
+            "家居",
+            "furniture"
+          ],
+          "category_terms": [
+            "furniture and home store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "家电厨电与厨房用品",
+          "keywords": [
+            "家电厨电与厨房用品",
+            "家电",
+            "电器",
+            "home appliance",
+            "厨房用品",
+            "厨具",
+            "kitchen supply"
+          ],
+          "category_terms": [
+            "home appliance store",
+            "kitchen supply store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "灯具照明与电气辅材",
+          "keywords": [
+            "灯具照明与电气辅材",
+            "灯具",
+            "照明",
+            "lighting"
+          ],
+          "category_terms": [
+            "lighting store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "家纺寝具与日用消费品",
+          "keywords": [
+            "家纺寝具与日用消费品",
+            "家居用品",
+            "日用品",
+            "housewares",
+            "床垫",
+            "寝具",
+            "mattress"
+          ],
+          "category_terms": [
+            "housewares store",
+            "mattress store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "园艺景观与工程用品",
+          "keywords": [
+            "园艺景观与工程用品",
+            "园艺",
+            "园林用品",
+            "garden center"
+          ],
+          "category_terms": [
+            "garden center"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "商业地产与项目渠道",
+          "keywords": [
+            "商业地产与项目渠道",
+            "商业地产",
+            "项目开发",
+            "commercial real estate"
+          ],
+          "category_terms": [
+            "commercial real estate developer"
+          ],
+          "name_terms": []
+        }
+      ]
+    },
+    {
+      "id": "packaging-marketing",
+      "label": "包装印刷与品牌服务",
+      "description": "面向包装耗材、印刷定制与企业营销服务。",
+      "items": [
+        {
+          "value": "包装材料与纸制品供应",
+          "keywords": [
+            "包装材料与纸制品供应",
+            "包装",
+            "包装材料",
+            "packaging",
+            "纸张",
+            "纸制品",
+            "paper supplier"
+          ],
+          "category_terms": [
+            "packaging supply store",
+            "paper supplier"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "印刷图文与定制品服务",
+          "keywords": [
+            "印刷图文与定制品服务",
+            "印刷",
+            "图文",
+            "print store",
+            "促销礼品",
+            "定制品",
+            "promotional"
+          ],
+          "category_terms": [
+            "print store",
+            "promotional item service"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "广告品牌与设计服务",
+          "keywords": [
+            "广告品牌与设计服务",
+            "广告",
+            "广告代理",
+            "advertising",
+            "品牌设计",
+            "平面设计",
+            "design studio"
+          ],
+          "category_terms": [
+            "advertising agency",
+            "design studio"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "商业摄影与内容制作",
+          "keywords": [
+            "商业摄影与内容制作",
+            "商业摄影",
+            "产品摄影",
+            "photography"
+          ],
+          "category_terms": [
+            "photography service"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "数字营销与网站服务",
+          "keywords": [
+            "数字营销与网站服务",
+            "直邮",
+            "邮件营销",
+            "direct mail",
+            "搜索营销",
+            "SEO",
+            "search marketing",
+            "网站建设",
+            "网页设计",
+            "website designer"
+          ],
+          "category_terms": [
+            "direct mail and email marketing service",
+            "search engine marketing and optimization service",
+            "website designer"
+          ],
+          "name_terms": []
+        }
+      ]
+    },
+    {
+      "id": "textile-consumer",
+      "label": "纺织服装与消费品",
+      "description": "面向纺织材料、时尚消费品与零售渠道。",
+      "items": [
+        {
+          "value": "纺织面料与皮革材料",
+          "keywords": [
+            "纺织面料与皮革材料",
+            "纺织",
+            "面料",
+            "textiles",
+            "皮革",
+            "真皮",
+            "leather"
+          ],
+          "category_terms": [
+            "textiles store",
+            "leather supplier"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "服装鞋帽渠道",
+          "keywords": [
+            "服装鞋帽渠道",
+            "服装",
+            "成衣",
+            "clothing",
+            "鞋类",
+            "鞋店",
+            "shoe store"
+          ],
+          "category_terms": [
+            "fashion retail > clothing store",
+            "shoe store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "美妆个护渠道",
+          "keywords": [
+            "美妆个护渠道",
+            "美妆",
+            "化妆品",
+            "cosmetics"
+          ],
+          "category_terms": [
+            "cosmetics store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "运动户外用品渠道",
+          "keywords": [
+            "运动户外用品渠道",
+            "体育用品",
+            "运动装备",
+            "sporting goods"
+          ],
+          "category_terms": [
+            "sporting goods retail"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "珠宝箱包与时尚配饰",
+          "keywords": [
+            "珠宝箱包与时尚配饰",
+            "珠宝",
+            "首饰",
+            "jewelry",
+            "箱包",
+            "旅行用品",
+            "luggage"
+          ],
+          "category_terms": [
+            "jewelry store",
+            "luggage store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "玩具母婴与儿童用品",
+          "keywords": [
+            "玩具母婴与儿童用品",
+            "玩具",
+            "toy store",
+            "母婴",
+            "婴童用品",
+            "baby store"
+          ],
+          "category_terms": [
+            "toy store",
+            "baby store"
+          ],
+          "name_terms": []
+        }
+      ]
+    },
+    {
+      "id": "food-hospitality",
+      "label": "食品农业与酒店渠道",
+      "description": "面向食品流通、农业生产、餐饮连锁与住宿渠道。",
+      "items": [
+        {
+          "value": "食品批发与商超渠道",
+          "keywords": [
+            "食品批发与商超渠道",
+            "食品批发",
+            "食品配送",
+            "food distribution",
+            "食品杂货",
+            "商超",
+            "grocery"
+          ],
+          "category_terms": [
+            "food distribution center",
+            "grocery store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "农产品市场与农业服务",
+          "keywords": [
+            "农产品市场与农业服务",
+            "农贸市场",
+            "农产品",
+            "farmers market",
+            "农业",
+            "林业",
+            "agriculture"
+          ],
+          "category_terms": [
+            "farmers market",
+            "agriculture and forestry service"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "农场种植与养殖基地",
+          "keywords": [
+            "农场种植与养殖基地",
+            "农场",
+            "种植基地",
+            "farm"
+          ],
+          "category_terms": [
+            "landmarks and outdoors > farm"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "肉类水产与生鲜渠道",
+          "keywords": [
+            "肉类水产与生鲜渠道",
+            "肉类",
+            "水产",
+            "seafood"
+          ],
+          "category_terms": [
+            "meat and seafood store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "餐饮与连锁门店",
+          "keywords": [
+            "餐饮与连锁门店",
+            "餐饮配送",
+            "宴会",
+            "caterer",
+            "烘焙",
+            "面包",
+            "bakery",
+            "餐厅",
+            "餐饮",
+            "restaurant"
+          ],
+          "category_terms": [
+            "food and beverage service > caterer",
+            "dining and drinking"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "酒店与度假村渠道",
+          "keywords": [
+            "酒店与度假村渠道",
+            "酒店",
+            "度假村",
+            "hotel resort"
+          ],
+          "category_terms": [
+            "lodging > hotel",
+            "lodging > resort"
+          ],
+          "name_terms": []
+        }
+      ]
+    },
+    {
+      "id": "logistics-trade",
+      "label": "物流仓储与贸易服务",
+      "description": "面向跨境流通、仓储运输与企业服务渠道。",
+      "items": [
+        {
+          "value": "仓储与配送中心",
+          "keywords": [
+            "仓储与配送中心",
+            "仓库",
+            "仓储",
+            "warehouse",
+            "分拨",
+            "配送中心",
+            "distribution center"
+          ],
+          "category_terms": [
+            "business and professional services > warehouse",
+            "business and professional services > distribution center"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "货运物流与运输服务",
+          "keywords": [
+            "货运物流与运输服务",
+            "货运",
+            "物流",
+            "freight",
+            "交通运输",
+            "运输服务",
+            "transportation"
+          ],
+          "category_terms": [
+            "shipping, freight, and material transportation service",
+            "travel and transportation > transportation service"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "进出口与国际贸易服务",
+          "keywords": [
+            "进出口与国际贸易服务",
+            "进出口",
+            "外贸服务",
+            "import export"
+          ],
+          "category_terms": [
+            "import and export service"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "批发商与专业市场",
+          "keywords": [
+            "批发商与专业市场",
+            "批发商",
+            "批发市场",
+            "wholesale"
+          ],
+          "category_terms": [
+            "business and professional services > wholesaler",
+            "warehouse or wholesale store"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "港口海运与码头服务",
+          "keywords": [
+            "港口海运与码头服务",
+            "港口",
+            "海运",
+            "marine terminal"
+          ],
+          "category_terms": [
+            "marine terminal"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "商务中心与企业服务",
+          "keywords": [
+            "商务中心与企业服务",
+            "商务中心",
+            "企业服务",
+            "business center"
+          ],
+          "category_terms": [
+            "business center"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "会展会议与活动场地",
+          "keywords": [
+            "会展会议与活动场地",
+            "会展中心",
+            "会议场地",
+            "convention center"
+          ],
+          "category_terms": [
+            "convention center"
+          ],
+          "name_terms": []
+        },
+        {
+          "value": "办公楼与联合办公空间",
+          "keywords": [
+            "办公楼与联合办公空间",
+            "办公楼",
+            "联合办公",
+            "office building"
+          ],
+          "category_terms": [
+            "office > office building",
+            "office > coworking space"
+          ],
+          "name_terms": []
+        }
+      ]
+    }
+  ]
+}

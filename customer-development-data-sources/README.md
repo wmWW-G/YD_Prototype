@@ -64,9 +64,12 @@
 
 ### Foursquare OS Places
 
-- 全球超过一亿个 POI，适合下载后建立本地地点与企业候选库。
-- 后续若采用，应重新验证最新开放数据许可、下载方式、更新机制和字段覆盖。
-- 可以评估作为 Overture Places 的主源或补充源，但不能仅凭数据量决定。
+- 2026-08-19 已通过 Places Portal Iceberg Catalog 完成全量下载与本地验收：28 个 Parquet 文件，约 11 GB，共 109,255,094 条 POI，覆盖 253 个国家/地区代码。
+- 本地原始数据位于 `foursquare/data/places_os_raw/`，已由 `.gitignore` 排除；Access Token 只在下载进程内存中使用，没有写入项目文件。
+- 当前已完成开放数据落盘，并由 `pdl/pdl_local.py` 直接查询本机 Parquet：`/api/foursquare/health` 返回数据就绪状态，`/api/foursquare/places` 支持国家、城市、商户行业、公开联系方式和数量筛选。客户开发首页本地模式返回真实地点；GitHub Pages 因无法托管约 11 GB 数据，继续返回明确标注的演示名单。
+- 商户行业采用“前端业务聚合、后台完整映射”：`foursquare/category-catalog.json` 面向中国 B2B 外贸业务员，提供 10 个业务大类、64 个聚合行业；`foursquare/raw-category-catalog.json` 由本机 Parquet 的 `fsq_category_labels` 直接生成，完整保留 Foursquare 实际存在的 11 个官方一级大类和 1,274 条完整分类路径，但不再作为可浏览目录暴露给业务员。前端只显示目标客户、销售渠道和项目类型等 B2B 标签；本地服务仍加载两份文件，将聚合行业映射到真实官方分类，并保留接口兼容性。
+- 前端只保留目标国家、目标城市、商户行业、目标数量和公开联系方式五项业务条件。查询按城市行政字段匹配，不使用“以市中心为圆心多少公里”的地推半径，也不按距离排序。地点库只证明地点和公开渠道存在，不代表客户角色、公司规模或采购意向。
+- 后续接入时应按商业类别、国家/地区、`date_closed`、`date_refreshed` 和质量标记清洗，并评估官网、电话、邮箱等字段的实际完整率。
 
 ## 不计入“免费开放数据源”的项目
 

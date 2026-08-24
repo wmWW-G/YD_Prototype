@@ -10,10 +10,13 @@ import tempfile
 import threading
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
+
+import duckdb
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +25,11 @@ sys.path.insert(0, str(PDL_MODULE_DIR))
 
 from pdl_local import (  # noqa: E402
     CUSTOMER_ROLE_PROFILES,
+    FOURSQUARE_CATEGORY_CATALOG,
+    FOURSQUARE_CATEGORY_RULES,
+    FOURSQUARE_RAW_CATEGORY_CATALOG,
+    FoursquareFilters,
+    FoursquareStore,
     HunterClient,
     NO_ROLE_PREFERENCE,
     PdlDataError,
@@ -32,6 +40,7 @@ from pdl_local import (  # noqa: E402
     infer_customer_role,
     normalize_hunter_domain,
     parse_search_filters,
+    parse_foursquare_filters,
 )
 
 
@@ -280,6 +289,149 @@ class PdlLocalTest(unittest.TestCase):
         self.assertEqual(parse_search_filters("sort=size_desc").sort, "size_desc")
         with self.assertRaisesRegex(ValueError, "不支持的排序方式"):
             parse_search_filters("sort=name%20DESC%3B%20DROP%20TABLE%20companies")
+
+    def test_foursquare_filters_keep_business_fields_simple_and_bounded(self) -> None:
+        """地图接口只接受产品预设字段，并限制单次返回量。"""
+
+        renewable_category = "Business and Professional Services > Renewable Energy Service"
+        car_parts_category = "Retail > Automotive Retail > Car Parts and Accessories"
+        filters = parse_foursquare_filters(urllib.parse.urlencode({
+            "country_code": "de",
+            "city": "汉堡",
+            "category": renewable_category,
+            "contact": "有官网",
+            "limit": "9999",
+        }))
+
+        self.assertEqual(filters.country_code, "DE")
+        self.assertEqual(filters.city, "汉堡")
+        self.assertEqual(filters.limit, 200)
+        self.assertEqual(
+            parse_foursquare_filters(urllib.parse.urlencode({
+                "country_code": "DE",
+                "city": "Hamburg",
+                "category": car_parts_category,
+            })).category,
+            car_parts_category,
+        )
+        self.assertEqual(
+            parse_foursquare_filters(urllib.parse.urlencode({
+                "country_code": "DE",
+                "city": "Hamburg",
+                "category": "汽车零部件与配件渠道",
+            })).category,
+            "汽车零部件与配件渠道",
+        )
+        with self.assertRaisesRegex(ValueError, "场所类别"):
+            parse_foursquare_filters("country_code=DE&city=Hamburg&category=DROP%20TABLE")
+        with self.assertRaisesRegex(ValueError, "联系方式"):
+            parse_foursquare_filters(urllib.parse.urlencode({
+                "country_code": "DE",
+                "city": "Hamburg",
+                "category": renewable_category,
+                "contact": "未知渠道",
+            }))
+
+    def test_foursquare_catalog_keeps_business_and_official_layers(self) -> None:
+        """业务目录应聚合为 64 项，并在后台完整保留 1,274 条官方映射。"""
+
+        business_groups = FOURSQUARE_CATEGORY_CATALOG["groups"]
+        business_items = [item for group in business_groups for item in group["items"]]
+        raw_groups = FOURSQUARE_RAW_CATEGORY_CATALOG["groups"]
+        raw_items = [item for group in raw_groups for item in group["items"]]
+        business_values = {item["value"] for item in business_items}
+        raw_values = {item["value"] for item in raw_items}
+
+        self.assertEqual(len(business_groups), 10)
+        self.assertEqual(len(business_items), 64)
+        self.assertEqual(len(raw_groups), 11)
+        self.assertEqual(len(raw_items), 1274)
+        self.assertEqual(
+            {group["official_label"]: len(group["items"]) for group in raw_groups},
+            {
+                "Arts and Entertainment": 73,
+                "Business and Professional Services": 196,
+                "Community and Government": 128,
+                "Dining and Drinking": 392,
+                "Event": 17,
+                "Health and Medicine": 59,
+                "Landmarks and Outdoors": 96,
+                "Nightlife Spot": 1,
+                "Retail": 151,
+                "Sports and Recreation": 87,
+                "Travel and Transportation": 74,
+            },
+        )
+        self.assertEqual(set(FOURSQUARE_CATEGORY_RULES), business_values | raw_values)
+        self.assertTrue({"新能源与电力设施", "汽车零部件与配件渠道", "进出口与国际贸易服务"}.issubset(business_values))
+        self.assertTrue(
+            {
+                "Business and Professional Services > Renewable Energy Service",
+                "Business and Professional Services > Industrial Equipment Supplier",
+                "Retail > Automotive Retail > Car Parts and Accessories",
+                "Retail > Construction Supplies Store",
+                "Business and Professional Services > Import and Export Service",
+            }.issubset(raw_values)
+        )
+
+        # 每个业务精选规则都必须能命中至少一条真实官方路径，防止前端出现“能选但查不到”的行业。
+        lowered_raw_values = [value.lower() for value in raw_values]
+        for item in business_items:
+            for term in item["category_terms"]:
+                self.assertTrue(any(term.lower() in raw_value for raw_value in lowered_raw_values), item["value"])
+
+    def test_foursquare_store_searches_real_schema_without_inventing_buyer_fields(self) -> None:
+        """地点查询应按城市、行业和联系方式返回原始地点字段。"""
+
+        data_dir = self.root / "foursquare"
+        data_dir.mkdir()
+        parquet_path = data_dir / "places.parquet"
+        connection = duckdb.connect()
+        try:
+            connection.execute(
+                """
+                CREATE TABLE places AS
+                SELECT * FROM (VALUES
+                  ('hamburg-solar-web', 'Hamburg Solar GmbH', 53.5511, 9.9937,
+                   'Hafenstrasse 1', 'Hamburg', 'Hamburg', CAST(NULL AS VARCHAR), '20457', 'DE',
+                   '2026-08-01', CAST(NULL AS VARCHAR), '+49 40 100', 'https://solar.example', CAST(NULL AS VARCHAR),
+                   CAST(NULL AS BIGINT), CAST(NULL AS VARCHAR), CAST(NULL AS VARCHAR),
+                   ['Business and Professional Services > Renewable Energy Service'], []::VARCHAR[]),
+                  ('hamburg-solar-no-contact', 'Solar Nord', 53.5600, 10.0000,
+                   'Nordweg 2', 'Hamburg', 'Hamburg', NULL, '20095', 'DE',
+                   '2026-07-01', NULL, NULL, NULL, NULL,
+                   NULL, NULL, NULL,
+                   ['Business and Professional Services > Renewable Energy Service'], []),
+                  ('berlin-solar', 'Berlin Solar GmbH', 52.5200, 13.4050,
+                   'Berlin Mitte', 'Berlin', 'Berlin', NULL, '10115', 'DE',
+                   '2026-08-01', NULL, '+49 30 100', 'https://berlin.example', NULL,
+                   NULL, NULL, NULL,
+                   ['Business and Professional Services > Renewable Energy Service'], [])
+                ) AS source(
+                  fsq_place_id, name, latitude, longitude, address, locality, region,
+                  post_town, postcode, country, date_refreshed, date_closed, tel, website, email,
+                  facebook_id, instagram, twitter, fsq_category_labels, unresolved_flags
+                )
+                """
+            )
+            connection.execute("COPY places TO ? (FORMAT PARQUET)", [str(parquet_path)])
+        finally:
+            connection.close()
+
+        payload = FoursquareStore(data_dir).search(
+            FoursquareFilters(
+                country_code="DE",
+                city="汉堡",
+                category="Business and Professional Services > Renewable Energy Service",
+                contact="有官网",
+                limit=20,
+            )
+        )
+
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["places"][0]["fsq_place_id"], "hamburg-solar-web")
+        self.assertEqual(payload["places"][0]["website"], "https://solar.example")
+        self.assertNotIn("buyer_intent", payload["places"][0])
 
     def test_recommended_sort_scores_actionability_and_completeness_before_name(self) -> None:
         """默认推荐排序应让完整可行动的 Z 公司排在数字开头的残缺公司之前。"""

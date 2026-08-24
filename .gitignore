@@ -14,5 +14,8 @@ yingdan-agent-lab/
 customer-development-data-sources/pdl/data/
 customer-development-data-sources/pdl/logs/
 customer-development-data-sources/pdl/.venv/
+
+# Foursquare OS Places 本地开放数据。数据量超过一亿条，只保存在本机，不能提交到 Git。
+customer-development-data-sources/foursquare/data/
 __pycache__/
 *.py[cod]
