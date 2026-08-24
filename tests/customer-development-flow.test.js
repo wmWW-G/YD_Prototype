@@ -49,15 +49,19 @@ test("GitHub Pages 使用明确标注的演示公司且不请求不存在的 PDL
 test("主原型使用当前前端缓存键", () => {
   assert.match(
     indexSource,
-    /src\/app\.js\?v=20260824-customer-dev-mock-toolbar-v8/
+    /src\/app\.js\?v=20260824-customer-dev-fixed-quantity-v11/
   );
   assert.match(
     indexSource,
-    /src\/styles\.css\?v=20260824-customer-dev-mock-toolbar-v8/
+    /src\/styles\.css\?v=20260824-customer-dev-fixed-quantity-v11/
   );
   assert.match(
     indexSource,
     /src\/dify-config\.js\?v=20260803-dify-thinking-rounds-v1/
+  );
+  assert.match(
+    indexSource,
+    /src\/data\.js\?v=20260824-customer-dev-fixed-quantity-v11/
   );
 });
 
@@ -205,15 +209,22 @@ test("客户公司表支持行内邮箱加载、独立勾选和批量加载", ()
 });
 
 test("地图获客使用外贸业务字段且不保留地推半径", () => {
+  assert.match(dataSource, /quantities: \[20, 50, 100, 200\]/);
+  assert.doesNotMatch(dataSource, /quantities: \[[^\]]*(?:80|120|500)[^\]]*\]/);
   assert.match(appSource, /customerDevSource: "ai"/);
   assert.match(appSource, /value: "map", label: "地图获客"/);
   assert.match(appSource, /data-customer-dev-source="\$\{escapeHtml\(source\.value\)\}"/);
   assert.match(appSource, /data-customer-dev-map-field="city"/);
-  assert.match(appSource, /data-customer-dev-map-category-open/);
+  assert.match(appSource, /data-customer-dev-picker="product"/);
+  assert.match(appSource, /resolveCustomerDevMapCategoryFromProduct\(state\.customerDevBrief\.product\)/);
+  assert.doesNotMatch(appSource, /data-customer-dev-map-category-open/);
   assert.doesNotMatch(appSource, /data-customer-dev-map-field="category"/);
   assert.doesNotMatch(appSource, /data-customer-dev-map-field="radius"/);
   assert.match(appSource, /data-customer-dev-map-field="contact"/);
-  assert.match(appSource, /data-customer-dev-map-field="quantity"/);
+  assert.doesNotMatch(appSource, /data-customer-dev-map-field="quantity"/);
+  assert.match(appSource, /quantity: state\.customerDevBrief\.quantity/);
+  assert.doesNotMatch(appSource, /quantities\.filter\(\(quantity\) => quantity <= 200\)/);
+  assert.match(appSource, /单次最多 200 家/);
   assert.doesNotMatch(appSource, /endpoint\.searchParams\.set\("radius_km"/);
   assert.match(appSource, /new URL\("\/api\/foursquare\/places", window\.location\.origin\)/);
   assert.match(appSource, /new Intl\.Locale\(`und-\$\{code\}`\)\.region !== code/);
@@ -273,6 +284,27 @@ test("四个未接入来源使用明确标注的纯前端模拟流程", () => {
   assert.doesNotMatch(appSource, /当前数据服务暂不可用/);
 });
 
+test("产品选择器支持输入、近似推荐和保留自定义产品", () => {
+  assert.match(appSource, /customerDevProductQuery: ""/);
+  assert.match(appSource, /const CUSTOMER_DEV_PRODUCT_ALIASES = Object\.freeze\(\{/);
+  assert.match(appSource, /"光伏组件": Object\.freeze\(\["太阳能板"/);
+  assert.match(appSource, /function scoreCustomerDevProductText\(query, candidate\)/);
+  assert.match(appSource, /function getCustomerDevProductMatches\(query, limit = 8\)/);
+  assert.match(appSource, /\.filter\(\(match\) => match\.score >= 24\)/);
+  assert.match(appSource, /data-customer-dev-product-search/);
+  assert.match(appSource, /输入产品名称/);
+  assert.match(appSource, /近似匹配/);
+  assert.match(appSource, /data-customer-dev-product-custom=/);
+  assert.match(appSource, /保留自定义产品/);
+  assert.match(appSource, /宽口径匹配，结果需要人工核验/);
+  assert.match(appSource, /function refreshCustomerDevProductSearch\(\)/);
+  assert.match(appSource, /state\.customerDevBrief\.product = customProduct/);
+  assert.match(appSource, /state\.customerDevProductCategory = categoryId/);
+  assert.match(appSource, /function getCustomerDevProductGroup\(brief\)/);
+  assert.match(stylesSource, /\.customer-dev-product-search/);
+  assert.match(stylesSource, /\.customer-dev-product-custom/);
+});
+
 test("商户行业展示 64 项 B2B 聚合目录并在后台保留 1,274 条原始映射", () => {
   const businessItems = mapCategoryCatalog.groups.flatMap((group) => group.items);
   const rawItems = mapRawCategoryCatalog.groups.flatMap((group) => group.items);
@@ -298,22 +330,16 @@ test("商户行业展示 64 项 B2B 聚合目录并在后台保留 1,274 条原�
     }
   );
   assert.match(appSource, /customer-development-data-sources\/foursquare\/category-catalog\.json/);
-  assert.match(appSource, /function renderCustomerDevMapCategoryPicker\(\)/);
-  assert.match(appSource, /data-customer-dev-map-category-search/);
-  assert.match(appSource, /data-customer-dev-map-category-group/);
+  assert.match(appSource, /function resolveCustomerDevMapCategoryFromProduct\(product\)/);
+  assert.doesNotMatch(appSource, /data-customer-dev-map-category-search/);
+  assert.doesNotMatch(appSource, /data-customer-dev-map-category-group/);
   assert.doesNotMatch(appSource, /data-customer-dev-map-category-mode/);
-  assert.match(appSource, /10 个 B2B 大类 · 64 个聚合行业/);
   assert.doesNotMatch(appSource, /查看全部 1,274 条原始分类/);
   assert.doesNotMatch(appSource, /FOURSQUARE CATEGORY DIRECTORY/);
-  assert.match(appSource, /B2B BUSINESS DIRECTORY/);
-  assert.match(stylesSource, /\.customer-dev-map-category-dialog/);
-  assert.match(stylesSource, /\.customer-dev-map-category-groups/);
-  assert.match(stylesSource, /\.customer-dev-map-category-scope/);
   assert.ok(businessItems.some((item) => item.value === "汽车零部件与配件渠道"));
   assert.ok(businessItems.some((item) => item.value === "餐饮与连锁门店" && item.category_terms.includes("dining and drinking")));
   assert.ok(rawItems.some((item) => item.value === "Retail > Automotive Retail > Car Parts and Accessories"));
   assert.ok(rawItems.every((item) => item.path && item.label && item.category_terms.length === 1));
-  assert.match(appSource, /"汽配": "car parts accessories"/);
   assert.ok(mapCategoryCatalog.groups.every((group) => !["地标与户外", "夜生活"].includes(group.label)));
 });
 

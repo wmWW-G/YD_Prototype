@@ -38,13 +38,11 @@
  *   customerDevPhase: "brief" | "searching" | "results" | "contacts",
  *   customerDevSource: "ai" | "map" | "customs" | "social" | "linkedin" | "exhibition",
  *   customerDevBrief: { market: string, product: string, role: string, quantity: string },
- *   customerDevMapBrief: { city: string, category: string, contact: string, quantity: string },
- *   customerDevMapCategoryPickerOpen: boolean,
- *   customerDevMapCategoryGroup: string,
- *   customerDevMapCategoryQuery: string,
+ *   customerDevMapBrief: { city: string, category: string, contact: string },
  *   customerDevPicker: null | "market" | "product",
  *   customerDevContinent: string,
  *   customerDevProductCategory: string,
+ *   customerDevProductQuery: string,
  *   customerDevSelectedLeadId: string,
  *   customerDevExpandedContactLeadIds: Set<string>,
  *   customerDevRevealedEmails: Set<string>,
@@ -314,27 +312,6 @@ const CUSTOMER_DEV_MAP_CONTACT_FILTERS = Object.freeze([
 ]);
 
 /**
- * 常用中文业务词到 Foursquare 官方英文分类词的搜索别名。
- *
- * 原始 1,274 条分类保持官方英文名称，不在前端伪造批量中文翻译；这些少量别名只负责
- * 帮中国外贸业务员用熟悉的词找到官方分类，不会改变最终提交给后端的完整分类路径。
- */
-const CUSTOMER_DEV_MAP_CATEGORY_SEARCH_ALIASES = Object.freeze({
-  "太阳能": "renewable energy",
-  "光伏": "renewable energy",
-  "机械": "machinery machine",
-  "工业设备": "industrial equipment",
-  "汽配": "car parts accessories",
-  "汽车配件": "car parts accessories",
-  "建材": "construction supplies",
-  "物流": "logistics transportation",
-  "包装": "packaging",
-  "纺织": "textile fabric",
-  "食品": "food",
-  "进出口": "import export"
-});
-
-/**
  * 赢单产品大类到 PDL 规范行业的宽口径映射。
  *
  * 为什么只能做宽口径映射：PDL 免费公司库提供公司自报行业，不提供产品目录、采购意图
@@ -428,6 +405,30 @@ const CUSTOMER_DEV_PUBLIC_INDUSTRY_LABELS = Object.freeze({
   logistics: "Warehousing & Logistics Equipment",
   "marine-aviation": "Marine & Aviation",
   "digital-services": "Software & Digital Services"
+});
+
+/**
+ * 用户常用叫法到目录标准产品的少量别名。
+ *
+ * 字符相似度只能处理“光伏板 / 光伏组件”这类近似写法，无法理解“太阳能板”与
+ * “光伏组件”的业务同义关系。这里补充少量高频别名，仍只用于推荐，不自动替用户
+ * 作最终选择；未覆盖的输入可以保留为自定义产品。
+ *
+ * @type {Readonly<Record<string, readonly string[]>>}
+ */
+const CUSTOMER_DEV_PRODUCT_ALIASES = Object.freeze({
+  "光伏组件": Object.freeze(["太阳能板", "太阳能电池板", "光伏板", "solar panel", "pv module"]),
+  "光伏逆变器": Object.freeze(["太阳能逆变器", "pv inverter", "solar inverter"]),
+  "户用储能": Object.freeze(["家庭储能", "家用储能", "home energy storage"]),
+  "工商业储能": Object.freeze(["工商储", "商业储能", "commercial energy storage"]),
+  "锂电池组": Object.freeze(["储能电池", "锂电池包", "lithium battery pack"]),
+  "杯壶": Object.freeze(["保温杯", "不锈钢保温杯", "水杯", "tumbler"]),
+  "企业管理软件": Object.freeze(["erp", "企业资源计划软件"]),
+  "客户关系管理系统": Object.freeze(["crm", "客户管理软件"]),
+  "跨境电商软件": Object.freeze(["外贸软件", "跨境erp", "cross-border ecommerce software"]),
+  "新能源汽车配件": Object.freeze(["新能源汽配", "电动车配件", "ev parts"]),
+  "净水设备": Object.freeze(["净水机", "净水器", "water purifier"]),
+  "包装机械": Object.freeze(["包装机", "自动包装设备", "packaging machine"])
 });
 
 /**
@@ -629,17 +630,12 @@ const state = {
   customerDevMapBrief: {
     city: "汉堡",
     category: "新能源与电力设施",
-    contact: "有官网或电话",
-    quantity: "100"
+    contact: "有官网或电话"
   },
-  customerDevMapCategoryPickerOpen: false,
-  customerDevMapCategoryGroup: "energy-environment",
-  customerDevMapCategoryQuery: "",
-  customerDevMapCategoryLoading: false,
-  customerDevMapCategoryError: "",
   customerDevPicker: null,
   customerDevContinent: "europe",
   customerDevProductCategory: "energy",
+  customerDevProductQuery: "",
   customerDevSelectedLeadId: "solartech",
   customerDevSelectedLeadIds: new Set(),
   customerDevExpandedContactLeadIds: new Set(),
@@ -1534,16 +1530,6 @@ async function loadCustomerDevMapCategoryCatalog() {
 }
 
 /**
- * 返回当前 B2B 聚合行业目录。
- *
- * @returns {typeof customerDevMapCategoryCatalog} 当前激活的业务精选或官方原始目录。
- * @throws {Error} 本函数不主动抛异常；目录未加载时返回空目录缓存。
- */
-function getCustomerDevMapActiveCategoryCatalog() {
-  return customerDevMapCategoryCatalog;
-}
-
-/**
  * 把提交查询使用的完整官方分类路径转换为紧凑的末级名称。
  *
  * @param {string} value - 例如 ``Retail > Automotive Retail > Car Parts and Accessories``。
@@ -1560,106 +1546,42 @@ function getCustomerDevMapCategoryDisplayLabel(value) {
 }
 
 /**
- * 打开可搜索的外贸商户行业选择器，并确保目录已经准备好。
+ * 把统一产品输入转换成地图地点库能够理解的聚合行业。
  *
- * @returns {Promise<void>} 选择器打开并完成加载后结束。
- * @throws {Error} 本函数捕获目录错误并写入可见状态，不向事件循环继续抛出。
+ * @param {string} product - 用户在所有获客来源共用的产品字段里输入或选择的产品。
+ * @returns {string} Foursquare 查询使用的 64 项聚合行业值；没有可靠匹配时沿用上一次行业。
+ * @throws {Error} 本函数不主动抛异常；目录未加载或产品为空时安全回退。
+ *
+ * 为什么只在底层转换：用户不应该为了切换地图获客重新学习另一套“商户行业”输入器。
+ * 页面统一保留产品原文，真正查询地图数据前再从关键词、英文别名和分类词中选出最接近项。
  */
-async function openCustomerDevMapCategoryPicker() {
-  state.customerDevMapCategoryPickerOpen = true;
-  state.customerDevMapCategoryQuery = "";
-  state.customerDevMapCategoryLoading = !customerDevMapCategoryCatalog.groups.length;
-  state.customerDevMapCategoryError = "";
-  renderApp();
-
-  try {
-    await loadCustomerDevMapCategoryCatalog();
-    const groups = customerDevMapCategoryCatalog.groups;
-    if (!groups.some((group) => group.id === state.customerDevMapCategoryGroup)) {
-      state.customerDevMapCategoryGroup = groups[0]?.id || "";
-    }
-    state.customerDevMapCategoryLoading = false;
-  } catch (error) {
-    state.customerDevMapCategoryLoading = false;
-    state.customerDevMapCategoryError = error instanceof Error ? error.message : "商户行业目录暂时不可用。";
+function resolveCustomerDevMapCategoryFromProduct(product) {
+  const query = String(product || "").trim();
+  if (!query || !customerDevMapCategoryCatalog.groups.length) {
+    return state.customerDevMapBrief.category;
   }
-  if (state.customerDevMapCategoryPickerOpen) renderApp();
-}
 
-/**
- * 根据搜索词返回仍有匹配项的行业分组。
- *
- * @returns {Array<object>} 带过滤后 items 的行业分组副本。
- * @throws {Error} 本函数不主动抛异常；空目录返回空数组。
- */
-function getFilteredCustomerDevMapCategoryGroups() {
-  const query = state.customerDevMapCategoryQuery.trim().toLocaleLowerCase();
-  return getCustomerDevMapActiveCategoryCatalog().groups.map((group) => {
-    const items = (group.items || []).filter((item) => {
-      if (!query) return true;
-      const aliasQueries = Object.entries(CUSTOMER_DEV_MAP_CATEGORY_SEARCH_ALIASES)
-        .filter(([chinese]) => chinese.includes(query) || query.includes(chinese))
-        .map(([, english]) => english);
-      const searchQueries = [query, ...aliasQueries];
-      const haystack = [group.label, group.official_label || "", item.value, item.label || "", item.path || "", ...(item.keywords || []), ...(item.category_terms || [])]
-        .join(" ")
-        .toLocaleLowerCase();
-      return searchQueries.some((searchQuery) => searchQuery.split(/\s+/).every((term) => haystack.includes(term)));
+  let bestMatch = null;
+  customerDevMapCategoryCatalog.groups.forEach((group) => {
+    (group.items || []).forEach((item) => {
+      const candidates = [
+        item.label || "",
+        item.value || "",
+        ...(item.keywords || []),
+        ...(item.category_terms || []),
+        ...(item.name_terms || [])
+      ].filter(Boolean);
+      const score = Math.max(0, ...candidates.map((candidate) => scoreCustomerDevProductText(query, candidate)));
+      if (!bestMatch || score > bestMatch.score) {
+        bestMatch = { value: String(item.value || ""), score };
+      }
     });
-    return { ...group, items };
-  }).filter((group) => group.items.length);
-}
+  });
 
-/**
- * 生成行业选择器左侧分组和右侧选项 HTML。
- *
- * @returns {{ nav: string, results: string, count: number }} 当前搜索与分组对应的片段。
- * @throws {Error} 本函数不主动抛异常；动态字段均进行 HTML 转义。
- */
-function buildCustomerDevMapCategoryPickerContent() {
-  const groups = getFilteredCustomerDevMapCategoryGroups();
-  const activeGroup = groups.find((group) => group.id === state.customerDevMapCategoryGroup) || groups[0];
-  const searching = Boolean(state.customerDevMapCategoryQuery.trim());
-  const visibleItems = searching ? groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label }))) : (activeGroup?.items || []);
-  const count = groups.reduce((total, group) => total + group.items.length, 0);
-
-  const nav = groups.map((group) => `
-    <button class="${group.id === activeGroup?.id && !searching ? "active" : ""}" type="button" data-customer-dev-map-category-group="${escapeHtml(group.id)}">
-      <span>${escapeHtml(group.label)}</span><small>${group.items.length}</small>
-    </button>
-  `).join("");
-
-  const results = visibleItems.length ? visibleItems.map((item) => `
-    <button class="customer-dev-map-category-option ${item.value === state.customerDevMapBrief.category ? "selected" : ""}" type="button" data-customer-dev-map-category-value="${escapeHtml(item.value)}">
-      <span>
-        ${searching ? `<em>${escapeHtml(item.groupLabel)}</em>` : ""}
-        <strong>${escapeHtml(item.label || item.value)}</strong>
-        <small>${escapeHtml((item.keywords || []).slice(1, 5).join(" · "))}</small>
-      </span>
-      <b>${item.value === state.customerDevMapBrief.category ? "已选择" : "选择"}</b>
-    </button>
-  `).join("") : `<div class="customer-dev-map-category-empty"><strong>没有匹配行业</strong><span>试试输入产品、目标渠道或英文行业词，例如“机械”“汽配”“建材”“物流”。</span></div>`;
-
-  return { nav, results, count };
-}
-
-/**
- * 在不重建整页的情况下刷新行业分组与搜索结果。
- *
- * @returns {void}
- * @throws {Error} 本函数不主动抛异常；弹层不存在时直接返回。
- */
-function refreshCustomerDevMapCategoryPicker() {
-  const dialog = document.querySelector(".customer-dev-map-category-dialog");
-  if (!dialog) return;
-
-  const content = buildCustomerDevMapCategoryPickerContent();
-  const nav = dialog.querySelector(".customer-dev-map-category-groups");
-  const results = dialog.querySelector(".customer-dev-map-category-results");
-  const count = dialog.querySelector(".customer-dev-map-category-search small");
-  if (nav) nav.innerHTML = content.nav;
-  if (results) results.innerHTML = content.results;
-  if (count) count.textContent = state.customerDevMapCategoryQuery ? `找到 ${content.count} 项` : "支持产品、渠道与英文行业词";
+  // 低于 24 分通常只是一两个偶然相同的字，不能把它包装成可靠行业映射。
+  return bestMatch && bestMatch.score >= 24
+    ? bestMatch.value
+    : state.customerDevMapBrief.category;
 }
 
 /**
@@ -6506,6 +6428,22 @@ function resolveCustomerDevCountryCode(market) {
 }
 
 /**
+ * 找到当前产品对应的行业大类。
+ *
+ * @param {{ product: string }} brief - 当前获客条件。
+ * @returns {{ id: string, label: string, products: string[] } | undefined} 目录中的行业大类。
+ * @throws {Error} 本函数不主动抛异常；目录缺失时返回 ``undefined``。
+ *
+ * 标准产品优先按目录精确定位；自定义产品没有目录项，因此回退到用户确认自定义
+ * 产品时保存的行业大类。这样允许自由输入，同时不会把任意文字伪装成精确产品映射。
+ */
+function getCustomerDevProductGroup(brief) {
+  const groups = CUSTOMER_DEVELOPMENT.productGroups || [];
+  return groups.find((group) => group.products.includes(brief.product))
+    || groups.find((group) => group.id === state.customerDevProductCategory);
+}
+
+/**
  * 根据当前产品大类生成 PDL 产品行业候选。
  *
  * @param {{ product: string, role: string }} brief - 当前获客条件。
@@ -6513,7 +6451,7 @@ function resolveCustomerDevCountryCode(market) {
  * @throws {Error} 本函数不主动抛异常；找不到映射时返回空数组，只按国家搜索。
  */
 function getCustomerDevPdlProductIndustries(brief) {
-  const productGroup = (CUSTOMER_DEVELOPMENT.productGroups || []).find((group) => group.products.includes(brief.product));
+  const productGroup = getCustomerDevProductGroup(brief);
   return [...new Set(CUSTOMER_DEV_PDL_PRODUCT_INDUSTRIES[productGroup?.id] || [])];
 }
 
@@ -6528,10 +6466,76 @@ function getCustomerDevPdlProductIndustries(brief) {
  * 选择了行业大类，因此列表和详情应统一使用更自然的英文标题式业务标签。
  */
 function getCustomerDevProductIndustryLabel(brief) {
-  const product = String(brief?.product || "").trim();
-  const productGroup = (CUSTOMER_DEVELOPMENT.productGroups || [])
-    .find((group) => group.products.includes(product));
+  const productGroup = getCustomerDevProductGroup(brief);
   return String(CUSTOMER_DEV_PUBLIC_INDUSTRY_LABELS[productGroup?.id] || "Other Industries");
+}
+
+/**
+ * 把产品文字规范成适合相似度比较的形式。
+ *
+ * @param {string} value - 用户输入、目录产品或别名。
+ * @returns {string} 小写、去空白和常见标点后的文本。
+ * @throws {Error} 本函数不主动抛异常；空值返回空字符串。
+ */
+function normalizeCustomerDevProductText(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/**
+ * 计算两段产品名称的近似程度。
+ *
+ * @param {string} query - 已规范化的用户输入。
+ * @param {string} candidate - 已规范化的目录名称或别名。
+ * @returns {number} 0～100 的相似分；只用于排序和提示，不代表业务匹配置信度。
+ * @throws {Error} 本函数不主动抛异常；任一文本为空时返回 0。
+ */
+function scoreCustomerDevProductText(query, candidate) {
+  if (!query || !candidate) return 0;
+  if (query === candidate) return 100;
+  if (candidate.includes(query)) return Math.max(72, 94 - Math.abs(candidate.length - query.length) * 2);
+  if (query.includes(candidate)) return Math.max(66, 90 - Math.abs(candidate.length - query.length) * 2);
+
+  const queryChars = new Set([...query]);
+  const candidateChars = new Set([...candidate]);
+  const sharedChars = [...queryChars].filter((character) => candidateChars.has(character)).length;
+  const charScore = sharedChars / Math.max(queryChars.size, candidateChars.size, 1);
+  const toBigrams = (text) => text.length < 2
+    ? new Set([text])
+    : new Set(Array.from({ length: text.length - 1 }, (_, index) => text.slice(index, index + 2)));
+  const queryBigrams = toBigrams(query);
+  const candidateBigrams = toBigrams(candidate);
+  const sharedBigrams = [...queryBigrams].filter((item) => candidateBigrams.has(item)).length;
+  const diceScore = (2 * sharedBigrams) / Math.max(queryBigrams.size + candidateBigrams.size, 1);
+  return Math.round((diceScore * 0.72 + charScore * 0.28) * 100);
+}
+
+/**
+ * 从全部 432 个目录产品中生成近似推荐。
+ *
+ * @param {string} query - 用户在产品输入框中的原始文字。
+ * @param {number} limit - 最多返回多少项，默认 8 项。
+ * @returns {Array<{ product: string, groupId: string, groupLabel: string, score: number }>} 按相似度降序排列的推荐项。
+ * @throws {Error} 本函数不主动抛异常；没有足够相似项时返回空数组。
+ */
+function getCustomerDevProductMatches(query, limit = 8) {
+  const normalizedQuery = normalizeCustomerDevProductText(query);
+  if (!normalizedQuery) return [];
+
+  return (CUSTOMER_DEVELOPMENT.productGroups || [])
+    .flatMap((group) => (group.products || []).map((product) => {
+      const candidates = [product, ...(CUSTOMER_DEV_PRODUCT_ALIASES[product] || [])];
+      const score = Math.max(...candidates.map((candidate) => (
+        scoreCustomerDevProductText(normalizedQuery, normalizeCustomerDevProductText(candidate))
+      )));
+      return { product, groupId: group.id, groupLabel: group.label, score };
+    }))
+    // 低于 24 分通常只是碰巧共享一个汉字，展示出来反而会误导用户。
+    .filter((match) => match.score >= 24)
+    .sort((left, right) => right.score - left.score || left.product.localeCompare(right.product, "zh-CN"))
+    .slice(0, Math.max(1, limit));
 }
 
 /**
@@ -7551,9 +7555,16 @@ async function fetchCustomerDevFoursquarePlaces(brief) {
  */
 async function runCustomerDevMapSearch() {
   const requestId = state.customerDevSearchRequestId + 1;
+  try {
+    await loadCustomerDevMapCategoryCatalog();
+    state.customerDevMapBrief.category = resolveCustomerDevMapCategoryFromProduct(state.customerDevBrief.product);
+  } catch (_error) {
+    // 静态行业目录临时不可用时沿用上一次合法分类，避免统一输入器阻断整个地图流程。
+  }
   const briefSnapshot = {
     market: state.customerDevBrief.market,
-    ...state.customerDevMapBrief
+    ...state.customerDevMapBrief,
+    quantity: state.customerDevBrief.quantity
   };
   state.customerDevSearchRequestId = requestId;
   state.customerDevSearchStatus = "loading";
@@ -7780,7 +7791,6 @@ function renderCustomerDevelopmentView() {
       ${isResults ? renderCustomerDevResultsWorkspace(leads, selectedLead) : ""}
       ${isContacts ? renderCustomerDevContactsWorkspace(selectedLead) : ""}
       ${isBrief ? renderCustomerDevPicker() : ""}
-      ${isBrief ? renderCustomerDevMapCategoryPicker() : ""}
     </section>
   `;
 }
@@ -7803,7 +7813,6 @@ function renderCustomerDevBriefPanel() {
     || CUSTOMER_DEV_SOURCE_OPTIONS[0];
   const customerTypes = CUSTOMER_DEVELOPMENT.customerTypes || [];
   const quantities = CUSTOMER_DEVELOPMENT.quantities || [];
-  const mapCategoryLabel = getCustomerDevMapCategoryDisplayLabel(mapBrief.category);
   const sourceTabs = `
     <section class="customer-dev-source-section" aria-labelledby="customer-dev-source-title">
       <h2 id="customer-dev-source-title">选择获客来源</h2>
@@ -7842,7 +7851,7 @@ function renderCustomerDevBriefPanel() {
       <strong>，共</strong>
       <label class="customer-dev-inline-picker is-quantity">
         <select data-customer-dev-field="quantity" aria-label="目标客户数量">
-          ${[...new Set([Number(brief.quantity), ...quantities])].map((quantity) => `<option value="${escapeHtml(quantity)}" ${String(quantity) === brief.quantity ? "selected" : ""}>${escapeHtml(quantity)}</option>`).join("")}
+          ${quantities.map((quantity) => `<option value="${escapeHtml(quantity)}" ${String(quantity) === brief.quantity ? "selected" : ""}>${escapeHtml(quantity)}</option>`).join("")}
         </select>
       </label>
       <strong>家</strong>
@@ -7862,14 +7871,14 @@ function renderCustomerDevBriefPanel() {
       </label>
       <strong>的</strong>
       <div class="customer-dev-inline-picker is-product">
-        <button class="customer-dev-select-trigger" type="button" data-customer-dev-map-category-open aria-haspopup="dialog">
-          <span><strong>${escapeHtml(mapCategoryLabel)}</strong><small>10 个 B2B 大类 · 64 个聚合行业</small></span><b aria-hidden="true">⌄</b>
+        <button class="customer-dev-select-trigger" type="button" data-customer-dev-picker="product" aria-haspopup="dialog">
+          <span><strong>${escapeHtml(brief.product)}</strong></span><b aria-hidden="true">⌄</b>
         </button>
       </div>
       <strong>，共</strong>
       <label class="customer-dev-inline-picker is-quantity">
-        <select data-customer-dev-map-field="quantity" aria-label="目标商户数量">
-          ${quantities.filter((quantity) => quantity <= 200).map((quantity) => `<option value="${escapeHtml(quantity)}" ${String(quantity) === mapBrief.quantity ? "selected" : ""}>${escapeHtml(quantity)}</option>`).join("")}
+        <select data-customer-dev-field="quantity" aria-label="目标商户数量">
+          ${quantities.map((quantity) => `<option value="${escapeHtml(quantity)}" ${String(quantity) === brief.quantity ? "selected" : ""}>${escapeHtml(quantity)}</option>`).join("")}
         </select>
       </label>
       <strong>家</strong>
@@ -7906,59 +7915,6 @@ function renderCustomerDevBriefPanel() {
 }
 
 /**
- * 渲染地图获客的 B2B 聚合行业选择器。
- *
- * @returns {string} 分组、搜索和行业选项弹层；未打开时返回空字符串。
- * @throws {Error} 本函数不主动抛异常；加载与错误状态都有明确界面反馈。
- */
-function renderCustomerDevMapCategoryPicker() {
-  if (!state.customerDevMapCategoryPickerOpen) return "";
-
-  const content = buildCustomerDevMapCategoryPickerContent();
-  const catalog = getCustomerDevMapActiveCategoryCatalog();
-  const totalCount = catalog.groups.reduce((total, group) => total + (group.items || []).length, 0);
-  return `
-    <div class="customer-dev-map-category-layer">
-      <button class="customer-dev-map-category-backdrop" type="button" data-customer-dev-map-category-close aria-label="关闭商户行业选择器"></button>
-      <section class="customer-dev-map-category-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-dev-map-category-title">
-        <header>
-          <div>
-            <span>B2B BUSINESS DIRECTORY</span>
-            <h2 id="customer-dev-map-category-title">选择外贸目标行业</h2>
-            <p>按目标客户与销售渠道聚合，不展示本地生活式的场所小类。</p>
-          </div>
-          <div class="customer-dev-map-category-total">
-            <strong>${totalCount ? new Intl.NumberFormat("zh-CN").format(totalCount) : "—"}</strong><small>个聚合行业</small>
-          </div>
-          <button class="customer-dev-picker-close" type="button" data-customer-dev-map-category-close aria-label="关闭">×</button>
-        </header>
-
-        <label class="customer-dev-map-category-search">
-          <span aria-hidden="true">⌕</span>
-          <input type="search" value="${escapeHtml(state.customerDevMapCategoryQuery)}" data-customer-dev-map-category-search placeholder="搜索机械、汽配、建材、物流或英文分类……" autocomplete="off" />
-          <small>${state.customerDevMapCategoryQuery ? `找到 ${content.count} 项` : "支持产品、渠道与英文行业词"}</small>
-        </label>
-
-        <div class="customer-dev-map-category-scope">
-          <span>没有找到？直接输入产品、渠道或英文行业词，系统会在底层分类中匹配。</span>
-        </div>
-
-        ${state.customerDevMapCategoryLoading ? `
-          <div class="customer-dev-map-category-status"><i aria-hidden="true"></i><strong>正在加载商户行业目录…</strong></div>
-        ` : state.customerDevMapCategoryError ? `
-          <div class="customer-dev-map-category-status is-error"><strong>行业目录暂时不可用</strong><span>${escapeHtml(state.customerDevMapCategoryError)}</span></div>
-        ` : `
-          <div class="customer-dev-map-category-body">
-            <nav class="customer-dev-map-category-groups" aria-label="B2B 外贸行业大类">${content.nav}</nav>
-            <div class="customer-dev-map-category-results" aria-live="polite">${content.results}</div>
-          </div>
-        `}
-      </section>
-    </div>
-  `;
-}
-
-/**
  * 渲染客户开发的国家或行业产品选择弹窗。
  *
  * 作用：
@@ -7991,7 +7947,7 @@ function renderCustomerDevPicker() {
   return `
     <div class="customer-dev-picker-layer">
       <button class="customer-dev-picker-backdrop" type="button" data-customer-dev-picker-close aria-label="关闭选择弹窗"></button>
-      <section class="customer-dev-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-dev-picker-title" tabindex="-1">
+      <section class="customer-dev-picker-dialog ${isMarket ? "is-market-picker" : "is-product-picker"}" role="dialog" aria-modal="true" aria-labelledby="customer-dev-picker-title" tabindex="-1">
         <header>
           <div>
             <span>${isMarket ? "GLOBAL MARKET" : "INDUSTRY PRODUCT"}</span>
@@ -8003,6 +7959,18 @@ function renderCustomerDevPicker() {
           </div>
           <button class="customer-dev-picker-close" type="button" data-customer-dev-picker-close aria-label="关闭">×</button>
         </header>
+
+        ${isMarket ? "" : `
+          <label class="customer-dev-product-search" for="customer-dev-product-search-input">
+            <span>输入产品名称</span>
+            <div>
+              <i aria-hidden="true">⌕</i>
+              <input id="customer-dev-product-search-input" type="search" value="${escapeHtml(state.customerDevProductQuery)}" data-customer-dev-product-search placeholder="例如：太阳能板、不锈钢保温杯、CRM……" autocomplete="off" aria-describedby="customer-dev-product-search-help" />
+              <kbd>输入即匹配</kbd>
+            </div>
+            <small id="customer-dev-product-search-help">从 ${totalOptions} 个产品中推荐近似项；没有准确对应时，也可以保留你的自定义产品。</small>
+          </label>
+        `}
 
         <div class="customer-dev-picker-content">
           <nav aria-label="${isMarket ? "大洲" : "行业大类"}">
@@ -8020,13 +7988,15 @@ function renderCustomerDevPicker() {
           <div class="customer-dev-picker-options">
             <div class="customer-dev-picker-options-head">
               <div>
-                <small>${isMarket ? "按大洲浏览" : "按行业大类浏览"}</small>
-                <h3>${escapeHtml(activeGroup?.label || "请选择")}</h3>
+                <small>${isMarket ? "按大洲浏览" : state.customerDevProductQuery ? "根据输入推荐" : "按行业大类浏览"}</small>
+                <h3>${escapeHtml(!isMarket && state.customerDevProductQuery ? "近似匹配" : (activeGroup?.label || "请选择"))}</h3>
               </div>
-              <span><i aria-hidden="true"></i> 单选 · 选择后自动返回</span>
+              <span><i aria-hidden="true"></i> ${!isMarket && state.customerDevProductQuery ? "由你确认最终产品" : "单选 · 选择后自动返回"}</span>
             </div>
             <div class="customer-dev-picker-option-grid ${isMarket ? "is-country" : "is-product"}">
-              ${renderCustomerDevPickerOptions(options, isMarket, selectedValue)}
+              ${!isMarket && state.customerDevProductQuery
+                ? renderCustomerDevProductSearchResults(state.customerDevProductQuery)
+                : renderCustomerDevPickerOptions(options, isMarket, selectedValue)}
             </div>
           </div>
         </div>
@@ -8059,6 +8029,80 @@ function renderCustomerDevPickerOptions(options, isMarket, selectedValue) {
       </button>
     `;
   }).join("");
+}
+
+/**
+ * 渲染产品输入后的近似推荐和自定义入口。
+ *
+ * @param {string} query - 用户当前输入的产品名称。
+ * @returns {string} 推荐产品按钮、自定义产品按钮和必要的匹配说明。
+ * @throws {Error} 本函数不主动抛异常；动态文字均经过 HTML 转义。
+ */
+function renderCustomerDevProductSearchResults(query) {
+  const normalizedQuery = String(query || "").trim().slice(0, 80);
+  if (!normalizedQuery) return "";
+
+  const matches = getCustomerDevProductMatches(normalizedQuery);
+  const fallbackGroup = (CUSTOMER_DEVELOPMENT.productGroups || []).find((group) => (
+    group.id === (matches[0]?.groupId || state.customerDevProductCategory)
+  )) || (CUSTOMER_DEVELOPMENT.productGroups || [])[0];
+  const suggestionButtons = matches.map((match, index) => `
+    <button class="customer-dev-product-match" type="button" data-customer-dev-product="${escapeHtml(match.product)}" data-customer-dev-product-category-match="${escapeHtml(match.groupId)}">
+      <span>
+        <strong>${escapeHtml(match.product)}</strong>
+        <small>${escapeHtml(match.groupLabel)} · ${index === 0 ? "最接近" : "相近结果"}</small>
+      </span>
+      <b aria-hidden="true">→</b>
+    </button>
+  `).join("");
+
+  return `
+    ${matches.length ? suggestionButtons : `
+      <div class="customer-dev-product-no-match" role="status">
+        <strong>没有找到足够接近的标准产品</strong>
+        <span>可以保留原始输入，并选择当前最接近的行业大类继续获客。</span>
+      </div>
+    `}
+    <button class="customer-dev-product-custom" type="button" data-customer-dev-product-custom="${escapeHtml(normalizedQuery)}" data-customer-dev-product-custom-category="${escapeHtml(fallbackGroup?.id || state.customerDevProductCategory)}">
+      <span>
+        <em>保留自定义产品</em>
+        <strong>“${escapeHtml(normalizedQuery)}”</strong>
+        <small>将按「${escapeHtml(fallbackGroup?.label || "当前行业") }」宽口径匹配，结果需要人工核验</small>
+      </span>
+      <b aria-hidden="true">使用此名称</b>
+    </button>
+  `;
+}
+
+/**
+ * 产品输入变化时，只刷新弹窗右侧的匹配结果。
+ *
+ * @returns {void}
+ * @throws {Error} 本函数不主动抛异常；弹窗不存在时直接返回。
+ *
+ * 不调用 ``renderApp``，是为了保留输入焦点、光标位置和弹窗状态，让连续打字不会闪烁。
+ */
+function refreshCustomerDevProductSearch() {
+  const dialog = document.querySelector(".customer-dev-picker-dialog.is-product-picker");
+  if (!dialog) return;
+
+  const query = String(state.customerDevProductQuery || "").trim();
+  const activeGroup = (CUSTOMER_DEVELOPMENT.productGroups || []).find((group) => (
+    group.id === state.customerDevProductCategory
+  )) || (CUSTOMER_DEVELOPMENT.productGroups || [])[0];
+  const eyebrow = dialog.querySelector(".customer-dev-picker-options-head small");
+  const title = dialog.querySelector(".customer-dev-picker-options-head h3");
+  const status = dialog.querySelector(".customer-dev-picker-options-head > span");
+  const grid = dialog.querySelector(".customer-dev-picker-option-grid");
+
+  if (eyebrow) eyebrow.textContent = query ? "根据输入推荐" : "按行业大类浏览";
+  if (title) title.textContent = query ? "近似匹配" : (activeGroup?.label || "请选择");
+  if (status) status.innerHTML = `<i aria-hidden="true"></i> ${query ? "由你确认最终产品" : "单选 · 选择后自动返回"}`;
+  if (grid) {
+    grid.innerHTML = query
+      ? renderCustomerDevProductSearchResults(query)
+      : renderCustomerDevPickerOptions(activeGroup?.products || [], false, state.customerDevBrief.product);
+  }
 }
 
 /**
@@ -8374,7 +8418,7 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
             <button class="active" type="button">1</button>
             <button type="button" data-toast="下一页会在后续接入真实分页。" ${total <= leads.length ? "disabled" : ""}>›</button>
           </div>
-          <button type="button" data-toast="本轮按目标数量读取，单次最多 ${isMap ? "200" : "500"} 家。">${leads.length} 条/页⌄</button>
+          <button type="button" data-toast="本轮按目标数量读取，单次最多 200 家。">${leads.length} 条/页⌄</button>
         </footer>
       </article>
 
@@ -13208,39 +13252,6 @@ function handleCustomerDevClick(event) {
     return;
   }
 
-  const mapCategoryOpenButton = target.closest("[data-customer-dev-map-category-open]");
-  if (mapCategoryOpenButton) {
-    void openCustomerDevMapCategoryPicker();
-    return;
-  }
-
-  const mapCategoryCloseButton = target.closest("[data-customer-dev-map-category-close]");
-  if (mapCategoryCloseButton) {
-    state.customerDevMapCategoryPickerOpen = false;
-    state.customerDevMapCategoryQuery = "";
-    renderApp();
-    return;
-  }
-
-  const mapCategoryGroupButton = target.closest("[data-customer-dev-map-category-group]");
-  if (mapCategoryGroupButton) {
-    state.customerDevMapCategoryGroup = mapCategoryGroupButton.getAttribute("data-customer-dev-map-category-group") || state.customerDevMapCategoryGroup;
-    state.customerDevMapCategoryQuery = "";
-    const searchInput = document.querySelector("[data-customer-dev-map-category-search]");
-    if (searchInput instanceof HTMLInputElement) searchInput.value = "";
-    refreshCustomerDevMapCategoryPicker();
-    return;
-  }
-
-  const mapCategoryValueButton = target.closest("[data-customer-dev-map-category-value]");
-  if (mapCategoryValueButton) {
-    state.customerDevMapBrief.category = mapCategoryValueButton.getAttribute("data-customer-dev-map-category-value") || state.customerDevMapBrief.category;
-    state.customerDevMapCategoryPickerOpen = false;
-    state.customerDevMapCategoryQuery = "";
-    renderApp();
-    return;
-  }
-
   const sourceButton = target.closest("[data-customer-dev-source]");
   if (sourceButton) {
     const nextSource = sourceButton.getAttribute("data-customer-dev-source");
@@ -13343,10 +13354,18 @@ function handleCustomerDevClick(event) {
       } else {
         const selectedGroup = (CUSTOMER_DEVELOPMENT.productGroups || []).find((group) => group.products.includes(state.customerDevBrief.product));
         state.customerDevProductCategory = selectedGroup?.id || state.customerDevProductCategory;
+        state.customerDevProductQuery = "";
       }
 
       renderApp();
-      window.requestAnimationFrame(() => document.querySelector(".customer-dev-picker-dialog")?.focus());
+      window.requestAnimationFrame(() => {
+        const productSearch = document.querySelector("[data-customer-dev-product-search]");
+        if (picker === "product" && productSearch instanceof HTMLInputElement) {
+          productSearch.focus();
+          return;
+        }
+        document.querySelector(".customer-dev-picker-dialog")?.focus();
+      });
     }
     return;
   }
@@ -13354,6 +13373,7 @@ function handleCustomerDevClick(event) {
   const closePickerButton = target.closest("[data-customer-dev-picker-close]");
   if (closePickerButton) {
     state.customerDevPicker = null;
+    state.customerDevProductQuery = "";
     renderApp();
     return;
   }
@@ -13368,6 +13388,9 @@ function handleCustomerDevClick(event) {
   const productCategoryButton = target.closest("[data-customer-dev-product-category]");
   if (productCategoryButton) {
     state.customerDevProductCategory = productCategoryButton.getAttribute("data-customer-dev-product-category") || state.customerDevProductCategory;
+    state.customerDevProductQuery = "";
+    const productSearch = document.querySelector("[data-customer-dev-product-search]");
+    if (productSearch instanceof HTMLInputElement) productSearch.value = "";
     refreshCustomerDevPickerGroup();
     return;
   }
@@ -13383,6 +13406,26 @@ function handleCustomerDevClick(event) {
   const productButton = target.closest("[data-customer-dev-product]");
   if (productButton) {
     state.customerDevBrief.product = productButton.getAttribute("data-customer-dev-product") || state.customerDevBrief.product;
+    const matchedCategory = productButton.getAttribute("data-customer-dev-product-category-match");
+    const selectedGroup = (CUSTOMER_DEVELOPMENT.productGroups || []).find((group) => (
+      group.id === matchedCategory || group.products.includes(state.customerDevBrief.product)
+    ));
+    state.customerDevProductCategory = selectedGroup?.id || state.customerDevProductCategory;
+    state.customerDevProductQuery = "";
+    state.customerDevPicker = null;
+    renderApp();
+    return;
+  }
+
+  const customProductButton = target.closest("[data-customer-dev-product-custom]");
+  if (customProductButton) {
+    const customProduct = String(customProductButton.getAttribute("data-customer-dev-product-custom") || "").trim().slice(0, 80);
+    const categoryId = customProductButton.getAttribute("data-customer-dev-product-custom-category") || state.customerDevProductCategory;
+    if (customProduct) {
+      state.customerDevBrief.product = customProduct;
+      state.customerDevProductCategory = categoryId;
+    }
+    state.customerDevProductQuery = "";
     state.customerDevPicker = null;
     renderApp();
     return;
@@ -13393,8 +13436,8 @@ function handleCustomerDevClick(event) {
     const preset = presetButton.getAttribute("data-customer-dev-preset") || "";
     const presetMap = {
       "德国光伏储能": ["德国", "光伏组件", "EPC 承包商", "100"],
-      "阿联酋逆变器分销": ["阿联酋", "光伏逆变器", "分销商", "80"],
-      "沙特工商业储能": ["沙特阿拉伯", "工商业储能", "系统集成商", "120"]
+      "阿联酋逆变器分销": ["阿联酋", "光伏逆变器", "分销商", "50"],
+      "沙特工商业储能": ["沙特阿拉伯", "工商业储能", "系统集成商", "100"]
     };
     const [market, product, role, quantity] = presetMap[preset] || presetMap["德国光伏储能"];
     const selectedCountryGroup = (CUSTOMER_DEVELOPMENT.countryGroups || []).find((group) => group.countries.includes(market));
@@ -13471,13 +13514,12 @@ function handleCustomerDevClick(event) {
  * @throws {Error} 本函数不主动抛异常。
  */
 function handleCustomerDevKeydown(event) {
-  if (event.key !== "Escape" || (!state.customerDevPicker && !state.customerDevMapCategoryPickerOpen)) {
+  if (event.key !== "Escape" || !state.customerDevPicker) {
     return;
   }
 
   state.customerDevPicker = null;
-  state.customerDevMapCategoryPickerOpen = false;
-  state.customerDevMapCategoryQuery = "";
+  state.customerDevProductQuery = "";
   renderApp();
 }
 
@@ -16282,11 +16324,15 @@ function bindEvents() {
     }
   });
 
-  const mapCategorySearch = document.querySelector("[data-customer-dev-map-category-search]");
-  if (mapCategorySearch instanceof HTMLInputElement) {
-    mapCategorySearch.addEventListener("input", () => {
-      state.customerDevMapCategoryQuery = mapCategorySearch.value;
-      refreshCustomerDevMapCategoryPicker();
+  const productSearch = document.querySelector("[data-customer-dev-product-search]");
+  if (productSearch instanceof HTMLInputElement) {
+    productSearch.addEventListener("input", () => {
+      // 限制长度既能避免弹窗被超长文字撑坏，也让自定义产品继续适合作为搜索条件。
+      state.customerDevProductQuery = productSearch.value.slice(0, 80);
+      if (productSearch.value !== state.customerDevProductQuery) {
+        productSearch.value = state.customerDevProductQuery;
+      }
+      refreshCustomerDevProductSearch();
     });
   }
 
