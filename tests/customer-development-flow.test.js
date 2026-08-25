@@ -41,7 +41,8 @@ test("GitHub Pages 使用明确标注的演示公司且不请求不存在的 PDL
   assert.match(appSource, /function buildCustomerDevGitHubDemoResult\(brief, sortMode/);
   assert.match(appSource, /if \(isCustomerDevGitHubDemoHost\(\)\) \{\s*return buildCustomerDevGitHubDemoResult/s);
   assert.match(appSource, /GitHub Pages 演示数据/);
-  assert.match(appSource, /demo-solar-\$\{paddedNumber\}\.example\.com/);
+  assert.match(appSource, /enterprise-\$\{paddedNumber\}\.example\.com/);
+  assert.match(appSource, /function buildCustomerDevMockCompanyName\(config, market, index\)/);
   assert.match(appSource, /const resultDataBadge = isMockSource \? "模拟数据" : isDemo \? "演示数据" : "";/);
   assert.match(appSource, /\["results", "contacts"\]\.includes\(state\.customerDevPhase\)/);
 });
@@ -49,11 +50,11 @@ test("GitHub Pages 使用明确标注的演示公司且不请求不存在的 PDL
 test("主原型使用当前前端缓存键", () => {
   assert.match(
     indexSource,
-    /src\/app\.js\?v=20260824-customer-dev-eight-sources-v12/
+    /src\/app\.js\?v=20260825-customer-dev-map-toolbar-v14/
   );
   assert.match(
     indexSource,
-    /src\/styles\.css\?v=20260824-customer-dev-eight-sources-v12/
+    /src\/styles\.css\?v=20260825-customer-dev-map-toolbar-v14/
   );
   assert.match(
     indexSource,
@@ -61,7 +62,7 @@ test("主原型使用当前前端缓存键", () => {
   );
   assert.match(
     indexSource,
-    /src\/data\.js\?v=20260824-customer-dev-eight-sources-v12/
+    /src\/data\.js\?v=20260825-customer-dev-map-toolbar-v14/
   );
 });
 
@@ -87,9 +88,9 @@ test("PDL 公司数据不会按域名伪造联系人邮箱", () => {
 test("联系人按钮默认生成明确标注的模拟数据且不调用真实域名", () => {
   assert.match(appSource, /const CUSTOMER_DEV_USE_MOCK_CONTACTS = true;/);
   assert.match(appSource, /function fetchCustomerDevMockContacts\(lead\)/);
-  assert.match(appSource, /alex\.morgan@example\.com/);
-  assert.match(appSource, /jamie\.lee@example\.com/);
-  assert.match(appSource, /taylor\.chen@example\.com/);
+  assert.match(appSource, /@example\.com/);
+  assert.match(appSource, /Lena Hoffmann/);
+  assert.match(appSource, /Tobias Weber/);
   assert.doesNotMatch(appSource, /@\$\{lead\.companyDomain\}/);
   assert.match(appSource, /new URL\("\/api\/hunter\/domain-search", window\.location\.origin\)/);
   assert.match(appSource, /new URL\("\/api\/hunter\/email-count", window\.location\.origin\)/);
@@ -122,10 +123,10 @@ test("联系人按钮默认生成明确标注的模拟数据且不调用真实�
   assert.match(appSource, /仅用于原型演示/);
   assert.match(appSource, /<dt>姓名<\/dt>[\s\S]*<dt>岗位<\/dt>[\s\S]*<dt>邮箱<\/dt>[\s\S]*<dt>电话<\/dt>/);
   assert.match(appSource, /contact\.phone \|\| "未提供"/);
-  assert.match(appSource, /\+1 202-555-0101（模拟）/);
+  assert.match(appSource, /\+49 30 0000/);
   assert.match(appSource, /Head of Procurement/);
-  assert.match(appSource, /Business Development Manager/);
-  assert.match(appSource, /Supply Chain Specialist/);
+  assert.match(appSource, /Business Development Director/);
+  assert.match(appSource, /Supply Chain Manager/);
   assert.match(appSource, /customer-dev-contact-compact-row/);
   assert.doesNotMatch(appSource, /customer-dev-contact-card/);
   assert.match(appSource, /<button type="button" data-customer-dev-open-contacts data-customer-dev-detail-tab="contact">查看联系人资料<\/button>/);
@@ -175,6 +176,11 @@ test("客户公司表支持行内邮箱加载、独立勾选和批量加载", ()
   assert.match(workspaceSource, /isMap \? "场所类别" : "行业"/);
   assert.match(workspaceSource, /isMap \? "数据更新" : "公司规模"/);
   assert.match(workspaceSource, /isMap \? "公开联系方式" : "联系人"/);
+  assert.doesNotMatch(workspaceSource, /<th>客户编号<\/th>/);
+  assert.doesNotMatch(workspaceSource, /<th>电话<\/th>/);
+  assert.doesNotMatch(workspaceSource, /<th>优先级<\/th>/);
+  assert.doesNotMatch(workspaceSource, /<th>线索来源<\/th>/);
+  assert.match(workspaceSource, /<th>跟进状态<\/th>/);
   assert.match(workspaceSource, /<th>操作<\/th>/);
   assert.match(workspaceSource, /data-customer-dev-select-all/);
   assert.match(workspaceSource, /data-customer-dev-batch-email/);
@@ -189,6 +195,7 @@ test("客户公司表支持行内邮箱加载、独立勾选和批量加载", ()
   assert.doesNotMatch(workspaceSource, /<th>更新时间<\/th>/);
   assert.doesNotMatch(workspaceSource, /escapeHtml\(lead\.(reason|contact|updated)\)/);
   assert.match(workspaceSource, /colspan="7"/);
+  assert.match(workspaceSource, /href="#\/agents\/customer-research"[^>]*>背调<\/a>/);
   assert.match(appSource, /data-customer-dev-select-lead/);
   assert.match(appSource, /data-customer-dev-email-lookup/);
   assert.match(appSource, /runCustomerDevHunterLookup\(leadId, \{ openDetail: false, expandInline: true \}\)/);
@@ -236,6 +243,9 @@ test("地图获客使用外贸业务字段且不保留地推半径", () => {
   assert.match(appSource, /不提供客户角色、公司规模或采购意向/);
   assert.match(appSource, /if \(brief\.contact === "有官网"\) hasWebsite = true/);
   assert.match(appSource, /function renderCustomerDevMapPlacePanel\(lead\)/);
+  assert.doesNotMatch(appSource, /批量加入客户库/);
+  assert.doesNotMatch(appSource, /资料完整度优先/);
+  assert.doesNotMatch(stylesSource, /\.customer-dev-map-sort-note/);
   assert.match(stylesSource, /\.customer-dev-source-switch/);
   assert.match(stylesSource, /\.customer-dev-map-channels/);
 });

@@ -141,11 +141,24 @@ const CUSTOMER_DEV_SOURCE_OPTIONS = Object.freeze([
 ]);
 
 /**
+ * 所有获客方式共用的客户跟进状态。
+ *
+ * 来源只决定线索从哪里来，后续管理统一进入同一套客户列表和状态体系。
+ */
+const CUSTOMER_DEV_RESULT_STATUS_OPTIONS = Object.freeze([
+  Object.freeze({ value: "new", label: "新线索" }),
+  Object.freeze({ value: "contacted", label: "已联系" }),
+  Object.freeze({ value: "quoted", label: "已报价" }),
+  Object.freeze({ value: "negotiating", label: "谈判中" }),
+  Object.freeze({ value: "won", label: "已成交" })
+]);
+
+/**
  * 尚未接入真实数据服务的获客来源配置。
  *
  * 这些配置同时驱动搜索动画、模拟名单和结果页文案，避免每套流程各自硬编码后
  * 出现“入口叫海关获客、结果却写成企业数据库”的错位。所有生成的公司名都包含
- * Demo，官网只使用 ``example.com``，并在结果页持续显示“模拟数据”。
+ * 公司名称使用自然的虚构品牌，官网只使用 ``example.com``，并在结果页持续显示“模拟数据”。
  *
  * @type {Readonly<Record<string, Readonly<{
  *   mode: string,
@@ -154,8 +167,8 @@ const CUSTOMER_DEV_SOURCE_OPTIONS = Object.freeze([
  *   searchStatus: string,
  *   headline: string,
  *   steps: ReadonlyArray<string>,
- *   companyPrefixes: ReadonlyArray<string>,
- *   locations: ReadonlyArray<string>,
+ *   companyBrands: ReadonlyArray<string>,
+ *   companyDescriptors: ReadonlyArray<string>,
  *   evidenceLabel: string
  * }>>>}
  */
@@ -172,9 +185,9 @@ const CUSTOMER_DEV_MOCK_SOURCE_CONFIG = Object.freeze({
       "正在整理目标企业与可获取联系人数量",
       "即将打开 Google 搜索企业线索模拟名单"
     ]),
-    companyPrefixes: Object.freeze(["Demo Search Commerce", "Demo Web Industry", "Demo Global Supplier", "Demo Market Discovery"]),
-    locations: Object.freeze(["Demo Berlin", "Demo Hamburg", "Demo Munich", "Demo Frankfurt"]),
-    evidenceLabel: "模拟搜索结果、企业官网与产品关键词"
+    companyBrands: Object.freeze(["Nordlicht", "Rheinwerk", "ElbeNova", "Kernblick", "Westhafen", "Alpenstrom", "Mainbogen", "Hansevia", "Sonnenfeld", "Brückenhaus"]),
+    companyDescriptors: Object.freeze(["Handelskontor", "Components", "Industriehandel", "Technik", "Distribution", "Energiesysteme", "Supply", "Solutions", "Projekttechnik", "Wholesale"]),
+    evidenceLabel: "企业官网标题、产品页面和公开搜索摘要与当前产品关键词匹配"
   }),
   customs: Object.freeze({
     mode: "mock-customs",
@@ -188,9 +201,9 @@ const CUSTOMER_DEV_MOCK_SOURCE_CONFIG = Object.freeze({
       "正在整理采购企业与可获取联系人数量",
       "即将打开海关贸易线索模拟名单"
     ]),
-    companyPrefixes: Object.freeze(["Demo Rhine Import", "Demo Hanseatic Trading", "Demo Europa Sourcing", "Demo Global Components"]),
-    locations: Object.freeze(["Demo Hamburg", "Demo Bremen", "Demo Berlin", "Demo Munich"]),
-    evidenceLabel: "模拟贸易记录、交易频次与采购产品线索"
+    companyBrands: Object.freeze(["Hanseatic", "RheinPort", "Eurovia", "Nordsee", "Mainland", "TransAlba", "WestDock", "Balticore", "HarborGate", "Mercatura"]),
+    companyDescriptors: Object.freeze(["Import Partners", "Global Sourcing", "Component Trading", "Procurement", "Industrial Imports", "Trade Services", "Supply Network", "Importhaus", "Commodity Trade", "Overseas Trading"]),
+    evidenceLabel: "近 12 个月存在相关品类进口记录，贸易频次和目的港信息已收录"
   }),
   social: Object.freeze({
     mode: "mock-social",
@@ -204,9 +217,9 @@ const CUSTOMER_DEV_MOCK_SOURCE_CONFIG = Object.freeze({
       "正在整理活跃企业与关键角色线索",
       "即将打开社媒企业线索模拟名单"
     ]),
-    companyPrefixes: Object.freeze(["Demo Social Commerce", "Demo Digital Industry", "Demo Market Network", "Demo Brand Community"]),
-    locations: Object.freeze(["Demo Berlin", "Demo Cologne", "Demo Frankfurt", "Demo Stuttgart"]),
-    evidenceLabel: "模拟企业社媒主页、公开动态与产品关键词"
+    companyBrands: Object.freeze(["Vistara", "Marketory", "Brandhafen", "Novalane", "Socialwerk", "BrightLoop", "UrbanNest", "TradeCircle", "Mavenora", "Reachfield"]),
+    companyDescriptors: Object.freeze(["Commerce", "Digital Trade", "Industry Network", "Brand Studio", "Business Media", "Market Solutions", "Retail Group", "Community Trade", "Growth Partners", "Commercial Network"]),
+    evidenceLabel: "企业公开主页持续发布相关产品内容，账号活跃度和官网主体已核验"
   }),
   tiktok: Object.freeze({
     mode: "mock-tiktok",
@@ -220,9 +233,9 @@ const CUSTOMER_DEV_MOCK_SOURCE_CONFIG = Object.freeze({
       "正在整理活跃品牌、商家与可获取联系人数量",
       "即将打开 TikTok 品牌与商家模拟名单"
     ]),
-    companyPrefixes: Object.freeze(["Demo Short Video Brand", "Demo Creator Commerce", "Demo Social Retail", "Demo Viral Products"]),
-    locations: Object.freeze(["Demo Berlin", "Demo Cologne", "Demo Hamburg", "Demo Düsseldorf"]),
-    evidenceLabel: "模拟公开视频、账号简介与产品关键词"
+    companyBrands: Object.freeze(["LumaNest", "Trendora", "VelaHaus", "NovaMuse", "BrightCart", "MiraLane", "CocoVibe", "UrbanHalo", "VividNest", "Loopora"]),
+    companyDescriptors: Object.freeze(["Retail", "Commerce", "Brand House", "Product Studio", "Lifestyle Trade", "Direct Sales", "Market Lab", "Consumer Goods", "Shop Network", "Creative Commerce"]),
+    evidenceLabel: "公开视频和账号简介出现相关产品，主页外链与企业官网主体一致"
   }),
   linkedin: Object.freeze({
     mode: "mock-linkedin",
@@ -236,9 +249,9 @@ const CUSTOMER_DEV_MOCK_SOURCE_CONFIG = Object.freeze({
       "正在整理决策人角色与可获取联系人数量",
       "即将打开领英决策人线索模拟名单"
     ]),
-    companyPrefixes: Object.freeze(["Demo Professional Network", "Demo Industry Leaders", "Demo Business Connect", "Demo Executive Search"]),
-    locations: Object.freeze(["Demo Düsseldorf", "Demo Berlin", "Demo Hamburg", "Demo Leipzig"]),
-    evidenceLabel: "模拟公司行业、规模与目标职位线索"
+    companyBrands: Object.freeze(["Kernwerk", "RheinBridge", "ElbeTech", "NordAxis", "MainCraft", "AlpineCore", "Westline", "HansePro", "Voltaris", "IndustriaNova"]),
+    companyDescriptors: Object.freeze(["Industries", "Systems", "Engineering", "Components", "Technology", "Industrial Group", "Energy Solutions", "Manufacturing", "Business Solutions", "Project Services"]),
+    evidenceLabel: "公司行业、员工规模和目标岗位与当前客户画像相符"
   }),
   exhibition: Object.freeze({
     mode: "mock-exhibition",
@@ -252,10 +265,37 @@ const CUSTOMER_DEV_MOCK_SOURCE_CONFIG = Object.freeze({
       "正在整理参展企业与可获取联系人数量",
       "即将打开展会参展企业模拟名单"
     ]),
-    companyPrefixes: Object.freeze(["Demo Expo Solutions", "Demo Fair Exhibitor", "Demo Trade Show Systems", "Demo Pavilion Industry"]),
-    locations: Object.freeze(["Demo Hanover", "Demo Frankfurt", "Demo Munich", "Demo Nuremberg"]),
-    evidenceLabel: "模拟展会、展位与参展产品记录"
+    companyBrands: Object.freeze(["MesseWerk", "ExpoNord", "ForumTech", "Hallmark", "PavilionX", "Fairbridge", "Standora", "Eventron", "Showline", "Messepunkt"]),
+    companyDescriptors: Object.freeze(["Exhibitions", "Industry Systems", "Trade Solutions", "Display Technology", "Industrial Group", "Product Showcase", "Engineering", "Business Events", "Component Systems", "Market Services"]),
+    evidenceLabel: "参展企业名录、展位信息和展品描述与当前产品关键词匹配"
   })
+});
+
+/**
+ * 模拟名单使用的常见商贸城市。
+ *
+ * 这些城市只让原型在切换国家后保持基本可信，不代表真实公司所在地。没有单独
+ * 配置的市场会退回国家名，避免继续出现 ``Demo City`` 这类明显占位字段。
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const CUSTOMER_DEV_MOCK_MARKET_CITIES = Object.freeze({
+  德国: Object.freeze(["Hamburg", "Berlin", "Munich", "Düsseldorf", "Frankfurt", "Cologne", "Bremen", "Stuttgart"]),
+  美国: Object.freeze(["Houston", "Chicago", "Los Angeles", "New York", "Dallas", "Atlanta", "Seattle", "Boston"]),
+  英国: Object.freeze(["London", "Manchester", "Birmingham", "Leeds", "Bristol", "Liverpool", "Glasgow", "Sheffield"]),
+  法国: Object.freeze(["Paris", "Lyon", "Marseille", "Lille", "Toulouse", "Bordeaux", "Nantes", "Strasbourg"]),
+  意大利: Object.freeze(["Milan", "Rome", "Turin", "Bologna", "Verona", "Florence", "Genoa", "Padua"]),
+  西班牙: Object.freeze(["Madrid", "Barcelona", "Valencia", "Bilbao", "Seville", "Zaragoza", "Málaga", "Alicante"]),
+  荷兰: Object.freeze(["Amsterdam", "Rotterdam", "Eindhoven", "Utrecht", "The Hague", "Tilburg", "Breda", "Groningen"]),
+  阿联酋: Object.freeze(["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Al Ain"]),
+  沙特阿拉伯: Object.freeze(["Riyadh", "Jeddah", "Dammam", "Khobar", "Mecca", "Medina"]),
+  印度: Object.freeze(["Mumbai", "Delhi", "Bengaluru", "Chennai", "Hyderabad", "Pune", "Ahmedabad", "Kolkata"]),
+  越南: Object.freeze(["Ho Chi Minh City", "Hanoi", "Da Nang", "Hai Phong", "Binh Duong", "Dong Nai"]),
+  印度尼西亚: Object.freeze(["Jakarta", "Surabaya", "Bandung", "Medan", "Semarang", "Tangerang"]),
+  墨西哥: Object.freeze(["Mexico City", "Monterrey", "Guadalajara", "Tijuana", "Puebla", "Querétaro"]),
+  巴西: Object.freeze(["São Paulo", "Rio de Janeiro", "Curitiba", "Belo Horizonte", "Porto Alegre", "Recife"]),
+  日本: Object.freeze(["Tokyo", "Osaka", "Nagoya", "Yokohama", "Kobe", "Fukuoka"]),
+  韩国: Object.freeze(["Seoul", "Busan", "Incheon", "Daegu", "Daejeon", "Suwon"])
 });
 
 /**
@@ -6840,6 +6880,69 @@ function isCustomerDevGitHubDemoHost() {
 }
 
 /**
+ * 返回模拟公司在当前市场常见的企业后缀。
+ *
+ * @param {string} market - 用户选择的国家或地区中文名。
+ * @returns {string} 仅用于虚构公司名称的法律实体后缀。
+ * @throws {Error} 本函数不主动抛异常；未知市场使用中性的 ``Ltd.``。
+ */
+function getCustomerDevMockLegalSuffix(market) {
+  const suffixes = {
+    德国: "GmbH",
+    美国: "LLC",
+    英国: "Ltd.",
+    法国: "SAS",
+    意大利: "S.r.l.",
+    西班牙: "S.L.",
+    荷兰: "B.V.",
+    阿联酋: "FZCO",
+    沙特阿拉伯: "Trading Co.",
+    印度: "Pvt. Ltd.",
+    越南: "Co., Ltd.",
+    印度尼西亚: "PT",
+    墨西哥: "S.A. de C.V.",
+    巴西: "Ltda.",
+    日本: "Co., Ltd.",
+    韩国: "Co., Ltd."
+  };
+  return suffixes[market] || "Ltd.";
+}
+
+/**
+ * 为模拟名单生成稳定、自然且不重复的公司名称。
+ *
+ * @param {{ companyBrands: ReadonlyArray<string>, companyDescriptors: ReadonlyArray<string> }} config - 当前来源的命名词库。
+ * @param {string} market - 用户选择的目标市场。
+ * @param {number} index - 当前名单下标。
+ * @returns {string} 带市场常见企业后缀的虚构公司名。
+ * @throws {Error} 配置为空时回退到中性名称，不向界面抛异常。
+ */
+function buildCustomerDevMockCompanyName(config, market, index) {
+  const brands = config.companyBrands || ["Northfield"];
+  const descriptors = config.companyDescriptors || ["Trading"];
+  const brand = brands[index % brands.length];
+  // 品牌词和业务描述词交错轮换，让首屏十家公司就有明显差异，同时仍保持
+  // 确定性，便于截图验收和自动化测试稳定复现。
+  const descriptor = descriptors[(index * 3 + Math.floor(index / brands.length)) % descriptors.length];
+  const cycle = Math.floor(index / Math.max(1, brands.length * descriptors.length));
+  const cycleLabel = cycle > 0 ? ` ${cycle + 1}` : "";
+  return `${brand} ${descriptor}${cycleLabel} ${getCustomerDevMockLegalSuffix(market)}`;
+}
+
+/**
+ * 按目标市场返回一个可信的模拟城市。
+ *
+ * @param {string} market - 用户选择的国家或地区。
+ * @param {number} index - 当前名单下标。
+ * @returns {string} 城市名；未知市场回退到市场名称。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getCustomerDevMockCity(market, index) {
+  const cities = CUSTOMER_DEV_MOCK_MARKET_CITIES[market] || [];
+  return cities.length ? cities[index % cities.length] : market;
+}
+
+/**
  * 为 GitHub Pages 生成确定性的公司级演示数据。
  *
  * @param {{ market: string, product: string, role: string, quantity: string }} brief - 当前获客条件。
@@ -6847,21 +6950,15 @@ function isCustomerDevGitHubDemoHost() {
  * @returns {{ leads: object[], total: number, mode: "demo" }} 可直接写入结果页状态的演示结果。
  * @throws {Error} 本函数不主动抛异常；数量会限制在 1～500 家。
  *
- * 公司名称、官网和联系人均使用明确的 Demo / example.com 保留标识，防止用户
- * 把静态原型误认为真实 PDL 结果。联系人仍由现有模拟联系人按钮按需生成。
+ * 公司名称采用自然的虚构名称，官网仍固定使用 ``example.com``，并由结果页持续
+ * 展示“演示数据”标识，防止用户误认为真实 PDL 结果。联系人仍需按需生成。
  */
 function buildCustomerDevGitHubDemoResult(brief, sortMode = state.customerDevSort) {
   const requestedQuantity = Math.max(1, Math.min(Number(brief.quantity) || 20, 500));
-  const companyPrefixes = [
-    "Demo Solar Solutions",
-    "Demo Renewable Systems",
-    "Demo PV Components",
-    "Demo Energy Projects",
-    "Demo Green Power",
-    "Demo Suntech Distribution",
-    "Demo Clean Energy",
-    "Demo Solar Engineering"
-  ];
+  const companyNameConfig = {
+    companyBrands: ["Nordlicht", "Rheinwerk", "ElbeNova", "Kernblick", "Westhafen", "Alpenstrom", "Mainbogen", "Hansevia", "Sonnenfeld", "Brückenhaus"],
+    companyDescriptors: ["Solartechnik", "Energiesysteme", "Komponenten", "Projekttechnik", "Distribution", "Industriehandel", "Engineering", "Power Solutions", "Renewable Systems", "Energy Projects"]
+  };
   const companySizes = ["11-50", "51-200", "201-500", "501-1000"];
   const companies = Array.from({ length: requestedQuantity }, (_, index) => {
     const number = index + 1;
@@ -6871,12 +6968,12 @@ function buildCustomerDevGitHubDemoResult(brief, sortMode = state.customerDevSor
 
     return {
       id: `github-demo-${paddedNumber}`,
-      name: `${companyPrefixes[index % companyPrefixes.length]} ${paddedNumber} GmbH`,
-      website: `https://demo-solar-${paddedNumber}.example.com`,
+      name: buildCustomerDevMockCompanyName(companyNameConfig, brief.market, index),
+      website: `https://enterprise-${paddedNumber}.example.com`,
       linkedin_url: "",
       country: resolveCustomerDevPdlCountry(brief.market),
-      locality: "Demo City",
-      region: "Demo Region",
+      locality: getCustomerDevMockCity(brief.market, index),
+      region: brief.market,
       industry: getCustomerDevProductIndustryLabel(brief),
       size: companySizes[index % companySizes.length],
       size_numeric: numericSize,
@@ -6949,18 +7046,18 @@ function buildCustomerDevMockSourceResult(sourceValue, brief) {
     const paddedNumber = String(index + 1).padStart(3, "0");
     return {
       id: `${config.mode}-${paddedNumber}`,
-      name: `${config.companyPrefixes[index % config.companyPrefixes.length]} ${paddedNumber} GmbH`,
+      name: buildCustomerDevMockCompanyName(config, brief.market, index),
       website: `https://${sourceValue}-lead-${paddedNumber}.example.com`,
       linkedin_url: "",
       country: countryCode,
-      locality: config.locations[index % config.locations.length],
-      region: "Demo Region",
+      locality: getCustomerDevMockCity(brief.market, index),
+      region: brief.market,
       industry: getCustomerDevProductIndustryLabel(brief),
       size: companySizes[index % companySizes.length],
       founded: 1992 + (index % 28),
       requested_role: brief.role,
       role_match_level: "unknown",
-      role_match_label: "模拟数据",
+      role_match_label: "待业务核验",
       role_support: "none",
       role_verified: false,
       role_match_evidence: [],
@@ -7089,12 +7186,22 @@ function normalizeCustomerDevHunterContact(contact) {
 async function fetchCustomerDevMockContacts(lead) {
   await new Promise((resolve) => window.setTimeout(resolve, 450));
   const leadId = String(lead?.id || "company").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 36) || "company";
+  const seed = [...leadId].reduce((total, char) => total + char.charCodeAt(0), 0);
+  const people = [
+    ["Lena Hoffmann", "Head of Procurement", "lena.hoffmann"],
+    ["Tobias Weber", "Business Development Director", "tobias.weber"],
+    ["Clara Neumann", "Supply Chain Manager", "clara.neumann"],
+    ["Jonas Richter", "Strategic Sourcing Manager", "jonas.richter"],
+    ["Sophie Keller", "Commercial Director", "sophie.keller"],
+    ["Daniel Braun", "Purchasing Manager", "daniel.braun"]
+  ];
+  const selectedPeople = Array.from({ length: 3 }, (_, index) => people[(seed + index) % people.length]);
   const contacts = [
     {
       id: `mock-${leadId}-1`,
-      name: "Alex Morgan（模拟）",
-      title: "Head of Procurement",
-      email: "alex.morgan@example.com",
+      name: selectedPeople[0][0],
+      title: selectedPeople[0][1],
+      email: `${selectedPeople[0][2]}@example.com`,
       emailType: "personal",
       confidence: 96,
       department: "Procurement",
@@ -7103,16 +7210,16 @@ async function fetchCustomerDevMockContacts(lead) {
       verificationStatus: "模拟数据",
       linkedin: "",
       linkedinUrl: "",
-      phone: "+1 202-555-0101（模拟）",
+      phone: `+49 30 0000 ${String((seed % 80) + 10).padStart(2, "0")}01`,
       source: "模拟联系人数据",
       sourceCount: 1,
       lastSeenOn: ""
     },
     {
       id: `mock-${leadId}-2`,
-      name: "Jamie Lee（模拟）",
-      title: "Business Development Manager",
-      email: "jamie.lee@example.com",
+      name: selectedPeople[1][0],
+      title: selectedPeople[1][1],
+      email: `${selectedPeople[1][2]}@example.com`,
       emailType: "personal",
       confidence: 92,
       department: "Business Development",
@@ -7121,16 +7228,16 @@ async function fetchCustomerDevMockContacts(lead) {
       verificationStatus: "模拟数据",
       linkedin: "",
       linkedinUrl: "",
-      phone: "+1 202-555-0102（模拟）",
+      phone: `+49 40 0000 ${String((seed % 80) + 10).padStart(2, "0")}02`,
       source: "模拟联系人数据",
       sourceCount: 1,
       lastSeenOn: ""
     },
     {
       id: `mock-${leadId}-3`,
-      name: "Taylor Chen（模拟）",
-      title: "Supply Chain Specialist",
-      email: "taylor.chen@example.com",
+      name: selectedPeople[2][0],
+      title: selectedPeople[2][1],
+      email: `${selectedPeople[2][2]}@example.com`,
       emailType: "personal",
       confidence: 88,
       department: "Supply Chain",
@@ -7139,7 +7246,7 @@ async function fetchCustomerDevMockContacts(lead) {
       verificationStatus: "模拟数据",
       linkedin: "",
       linkedinUrl: "",
-      phone: "+1 202-555-0103（模拟）",
+      phone: `+49 69 0000 ${String((seed % 80) + 10).padStart(2, "0")}03`,
       source: "模拟联系人数据",
       sourceCount: 1,
       lastSeenOn: ""
@@ -8300,11 +8407,38 @@ function renderCustomerDevRoleBadge(lead) {
 }
 
 /**
- * 渲染客户开发结果工作台。
+ * 根据稳定 ID 生成跟进状态，确保模拟名单每次刷新后保持一致。
  *
- * 设计说明：
- * - 结果页只保留一个自然语言搜索框，避免目标国家、产品、渠道等筛选按钮争夺注意力。
- * - 当前获客目标、线索总量和本页数量放在同一个标题区，让用户先确认战役目标，再进入客户名单。
+ * @param {object} lead - 当前客户线索。
+ * @returns {{ status: string, statusLabel: string }} 当前线索的跟进状态与展示文案。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+function getCustomerDevLeadPresentation(lead) {
+  const id = String(lead?.id || lead?.company || "lead");
+  const seed = [...id].reduce((total, char, index) => total + (char.charCodeAt(0) * (index + 1)), 0);
+  const contacts = buildCustomerDevContacts(lead);
+  const mockStatuses = ["new", "new", "contacted", "contacted", "quoted", "negotiating", "won"];
+  const status = contacts.length
+    ? "contacted"
+    : lead?.isSourceMock || lead?.isDemo
+      ? mockStatuses[seed % mockStatuses.length]
+      : "new";
+  const statusLabel = CUSTOMER_DEV_RESULT_STATUS_OPTIONS.find((option) => option.value === status)?.label || "新线索";
+  return {
+    status,
+    statusLabel
+  };
+}
+
+/**
+ * 按当前搜索词和状态标签过滤结果，供表格与全选动作共同使用。
+ *
+ * @param {object[]} leads - 当前来源返回的完整客户名单。
+ * @returns {object[]} 当前列表真正可见的客户。
+ * @throws {Error} 本函数不主动抛异常。
+ */
+/**
+ * 渲染客户开发结果工作台。
  *
  * @param {typeof CUSTOMER_DEVELOPMENT.leads} leads - 客户线索列表。
  * @param {typeof CUSTOMER_DEVELOPMENT.leads[number]} selectedLead - 当前选中客户。
@@ -8392,12 +8526,7 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
           : isMap ? "优先展示公开联系方式更完整、更新较新的商户" : activeSort.description)}</small>
       </div>
       <div class="customer-dev-table-actions">
-        ${isMap ? `
-          <button class="customer-dev-batch-email" type="button" data-toast="已模拟把 ${selectedCount} 家地图商户加入客户库。" ${!selectedCount ? "disabled" : ""}>
-            批量加入客户库${selectedCount ? `（${selectedCount}）` : ""}
-          </button>
-          <span class="customer-dev-map-sort-note">资料完整度优先</span>
-        ` : isMockSource ? `
+        ${isMap ? "" : isMockSource ? `
           <button class="customer-dev-batch-email" type="button" data-customer-dev-batch-email
             ${!selectedCount || state.customerDevBatchLookupLoading ? "disabled" : ""}>
             ${state.customerDevBatchLookupLoading ? "批量获取中…" : `批量获取联系人${selectedCount ? `（${selectedCount}）` : ""}`}
@@ -8432,13 +8561,14 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
                 <th>${isMap ? "场所类别" : "行业"}</th>
                 <th>${isMap ? "数据更新" : "公司规模"}</th>
                 <th>${isMap ? "公开联系方式" : "联系人"}</th>
+                <th>跟进状态</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
               ${leads.length
                 ? leads.map((lead) => renderCustomerDevLeadRow(lead, selectedLead)).join("")
-                : `<tr class="customer-dev-empty-row"><td colspan="7">${isMap
+                : `<tr class="customer-dev-empty-row"><td colspan="8">${isMap
                   ? "当前城市范围内没有符合这些条件的地点，请调整行业、范围或联系方式。"
                   : isMockSource
                     ? "当前模拟条件没有生成公司，请返回调整国家、产品或数量。"
@@ -8476,6 +8606,7 @@ function renderCustomerDevResultsWorkspace(leads, selectedLead) {
  */
 function renderCustomerDevLeadRow(lead, selectedLead) {
   const isMap = lead?.mapLead === true;
+  const presentation = getCustomerDevLeadPresentation(lead);
   const displayCompany = String(lead.displayCompany || lead.company || "公司名称待核验");
   const companyDomain = String(lead.companyDomain || "");
   const companyInitial = String(lead.companyInitial || displayCompany.match(/[\p{L}\p{N}]/u)?.[0] || "·").toLocaleUpperCase();
@@ -8524,6 +8655,7 @@ function renderCustomerDevLeadRow(lead, selectedLead) {
       <td class="customer-dev-industry-cell">${escapeHtml(lead.type)}</td>
       <td>${escapeHtml(isMap ? lead.updated : (lead.size || "待补充"))}</td>
       <td class="customer-dev-email-cell">${emailCell}${contacts.length ? `<small>${contactsExpanded ? "明细已展开" : "点击查看明细"}</small>` : ""}</td>
+      <td><span class="customer-dev-status-badge is-${escapeHtml(presentation.status)}">${escapeHtml(presentation.statusLabel)}</span></td>
       <td class="customer-dev-row-actions">
         <button type="button" data-customer-dev-detail-open="${escapeHtml(lead.id)}">详情</button>
         ${isMap
@@ -8531,6 +8663,7 @@ function renderCustomerDevLeadRow(lead, selectedLead) {
           : contacts.length
           ? `<button class="is-primary" type="button" data-customer-dev-toggle-contacts="${escapeHtml(lead.id)}" aria-expanded="${contactsExpanded}">${contactsExpanded ? "收起联系人" : "展开联系人"}</button>`
           : `<button class="is-primary" type="button" data-customer-dev-email-lookup="${escapeHtml(lead.id)}" ${lookupStatus === "loading" || !companyDomain || (countStatus === "ready" && availableCount === 0) ? "disabled" : ""}>${lookupStatus === "loading" ? "获取中" : "获取联系人"}</button>`}
+        <a href="#/agents/customer-research" aria-label="背调 ${escapeHtml(displayCompany)}">背调</a>
       </td>
     </tr>
   `;
@@ -8540,7 +8673,7 @@ function renderCustomerDevLeadRow(lead, selectedLead) {
   const contactRows = contacts.map((contact, index) => `
     <tr class="customer-dev-contact-child-row" data-customer-dev-contact-parent="${escapeHtml(lead.id)}">
       <td aria-hidden="true"><span class="customer-dev-contact-branch"></span></td>
-      <td colspan="6">
+      <td colspan="7">
         <div class="customer-dev-contact-child">
           <span class="customer-dev-contact-number">${String(index + 1).padStart(2, "0")}</span>
           <div class="customer-dev-contact-identity">
