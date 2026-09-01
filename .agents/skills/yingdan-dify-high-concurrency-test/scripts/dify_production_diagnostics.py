@@ -41,7 +41,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 from zoneinfo import ZoneInfo
 
 
-LOGGER = logging.getLogger("yingdan-high-concurrency-test")
+LOGGER = logging.getLogger("yingdan-dify-high-concurrency-test")
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 USER_AGENT = "YD-Internal-Dify-Diagnostic/2.0"
 DEFAULT_API_BASE = "https://api.top-yd.com"

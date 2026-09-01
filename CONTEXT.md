@@ -6,6 +6,8 @@
 
 当前目录还包含一个「赢单询盘分析助手」Chrome 浏览器插件内测包，用于把网页里的客户询盘抓取到右侧分析面板，并通过 Coze 生成询盘分析和回复建议。它是独立于主原型页面的内测交付物，不是 GitHub Pages 静态原型的一部分。
 
+当前目录还包含独立的 `dify-log-browser-extension/`：这是 TokenMind 品牌的 Dify Cloud 日志只读查询 Side Panel。它只在用户已经登录并打开 `/app/{uuid}/logs` 时工作，复用浏览器登录态查询用户失败、应用失败或 marker 精确诊断，不复制 Cookie、不保存 API Key，也不运行或修改工作流。它和「赢单询盘分析助手」不共享代码、权限或发布包。
+
 当前目录还新增了 `dify-chatflows/`，用于记录用户在 Dify 创建、并准备应用于赢单业务的对话型应用和 Chatflow。它和 `coze-workflows/` 一样属于工作流资料库，不是主静态原型代码。
 
 当前目录还包含 `dify-plugins/yingdan-kass/`：这是使用 Dify Plugin CLI 和 Python 3.12 开发的固定账号 Tool Plugin MVP。它把赢单客户 KASS 的客户分层、客户档案、跟进记录、文件上传和带二次确认的删除能力提供给 Chatflow Agent 节点，不属于主静态原型代码。
@@ -87,6 +89,14 @@ index.html
 browser-extension/manifest.json
 ```
 
+Dify 日志查询插件入口是：
+
+```text
+dify-log-browser-extension/manifest.json
+```
+
+其内部测试包是 `dify-log-browser-extension-v0.1.0.zip`；Chrome 114+ 可直接加载 `dify-log-browser-extension/` 目录。
+
 内测分发包是：
 
 ```text
@@ -139,6 +149,15 @@ reverse-yingdan/
     inquiry-analyzer.js
     inquiry-analyzer.test.js
     icons/
+  dify-log-browser-extension/
+    manifest.json
+    background.js
+    query-engine.js
+    sidepanel.html
+    sidepanel.css
+    sidepanel.js
+    icons/
+    tests/
   coze-workflows/
   dify-chatflows/
   dify-plugins/
@@ -186,6 +205,8 @@ reverse-yingdan/
 - `browser-extension/inquiry-analyzer.test.js`：本地询盘提取 helper 的 Node 测试。
 - `browser-extension/icons/`：插件图标，当前来自 `/Users/garden/YD/logo/logo1.svg`，已处理透明底。
 - `yingdan-inquiry-extension-v0.2.0.zip`：当前内部测试用插件压缩包。
+- `dify-log-browser-extension/`：独立 TokenMind Dify 日志查询插件。只授权 `https://cloud.dify.ai/*`，使用 Side Panel、成功 GET 的 CSRF 关联和 `chrome.storage.session`；侧边栏提交固定结构条件，后台只调用当前 App 的 Console GET 白名单，结果在查询引擎内立即脱敏并分批显示。失败 Run 先聚合、点击分类再加载节点；成本查询以 Conversation ID 为必填范围、用户 ID 为可选严格校验，并跳过 Run 详情。完整职责和加载方法看目录内 `CONTEXT.md`。
+- `dify-log-browser-extension-v0.1.0.zip`：上述 Dify 日志查询插件的版本化内部测试包，根目录直接包含 `manifest.json`。
 - `package.json`：轻量仓库元信息和验证脚本；`npm run check:cloudflare` 做 Worker dry-run，`npm run deploy:cloudflare` 发布 Worker。
 - `AI板块统计.md`：统计客户Kass、销售准备等区域的 AI 能力现状和后续整理建议。
 - `赢单api.md`：赢单后端接口文档快照，用于查阅 auth、账号、邀请码、计费、积分等接口路径、请求参数和字段口径。它是接口参考资料，不是主静态原型代码；涉及线上真实行为、安全暴露或返回字段时，必须重新做 live 验证，不能只按文档下结论。
@@ -194,7 +215,7 @@ reverse-yingdan/
 - `customer-development-data-sources/pdl/pdl_local.py`：客户开发共用的 Python + DuckDB 本地数据服务。PDL `import` 接受 ZIP、CSV、PSV、JSON 或同格式分片目录；`serve` 默认只监听 `127.0.0.1:8788`，提供静态原型、PDL 公司搜索、Foursquare 地点搜索和 Hunter 按需联系人接口。Foursquare 部分同时读取 64 项 B2B 聚合目录与 1,274 项官方原始映射，并直接只读查询 `customer-development-data-sources/foursquare/data/places_os_raw/*.parquet`；按国家、城市行政字段、业务行业和公开联系方式筛选，优先返回公开资料更完整且更新较新的地点，单次最多 200 条，不生成客户角色、公司规模或采购意向，也不采用市中心半径或距离排序。Hunter Key 只来自服务端环境。原始文件、DuckDB、虚拟环境和滚动日志均被 `.gitignore` 排除。
 - `dify-plugins/kass-prototype-crm/`：KASS 原型 CRM Dify Tool Plugin。固定连接 `https://yd-prototype-dify-proxy.vercel.app/api/kass-crm`，无 Provider 凭证和 Authorization；只开放读取上下文、更新客户、新增跟进、更新跟进和删除跟进五个 Tool。字段、客户 ID、工作区 ID 和跟进 ID 均在 Plugin 内校验；发布包位于 `dist/kass-prototype-crm-0.1.1.difypkg`。
 - `dify-plugins/yingdan-kass/`：赢单客户 KASS 固定账号 Dify Tool Plugin。Provider 保存 `api_base_url`、`user_id` 和 `access_token`；`lib/client.py` 负责 Bearer 鉴权、字段白名单、账号归属校验和 HTTP 错误归一化；`tools/` 暴露 13 个 Agent Tool；删除必须先 `prepare_delete` 再用五分钟一次性令牌调用 `execute_delete`。2026-07-22 已用临时分层、客户和跟进记录完成线上 CRUD 与最终清理实测，确认分层更新使用 `PUT`、客户更新不发送 `customerCategory` 且合作次数使用非负整数。本地包输出在插件目录的 `dist/`，其中不包含真实凭证。
-- `.agents/skills/yingdan-high-concurrency-test/`：`赢单高并发测试` Skill。它从带 `subId` 的正式功能链接读取实时角色配置，对赢单后端执行带单请求预检的可配置并发 SSE 测试，可选执行较小规模的 Dify Service API 直连对照，并通过只读 Console API 按 `user` 与唯一 marker 关联会话、workflow run 和失败节点。Chrome 只用于缺少 Console 信息时的一次性登录态引导，压测、分页和日志对账均由脚本完成；POST 不自动重试，输出不包含 Prompt、回答、工作流输入输出或原始错误。密钥只从被本目录 `.gitignore` 排除且权限为 `600` 的 Skill 本地 `.env`、进程环境变量或隐藏输入读取；仓库中的 `.env` 不得填写或提交真实值。
+- `.agents/skills/yingdan-dify-high-concurrency-test/`：`赢单 Dify 高并发测试` Skill。它从带 `subId` 的正式功能链接读取实时角色配置，对赢单后端执行带单请求预检的可配置并发 SSE 测试，可选执行较小规模的 Dify Service API 直连对照，并通过只读 Console API 按 `user` 与唯一 marker 关联会话、workflow run 和失败节点。Chrome 只用于缺少 Console 信息时的一次性登录态引导，压测、分页和日志对账均由脚本完成；POST 不自动重试，输出不包含 Prompt、回答、工作流输入输出或原始错误。密钥只从被本目录 `.gitignore` 排除且权限为 `600` 的 Skill 本地 `.env`、进程环境变量或隐藏输入读取；仓库中的 `.env` 不得填写或提交真实值。
 - `hyperframes/chatflow-cost-animation/`：基于「全技能总控」真实 YML 制作的 39 秒单画布节点运行动画。`index.html` 是逐节点 GSAP 时间线，`index.motion.json` 约束节点与账本的先后顺序，`DESIGN.md` 记录暖纸张账本视觉，`snapshots-node-run/` 保存 8 个关键成本时刻的验收抽帧。当前先通过 HyperFrames Studio 预览确认，确认后再生成最终 MP4；动画不包含 Dify API Key。
 - `源代码/`：从当前云效组织通过 HTTPS 完整克隆的两个 Codeup 仓库，分别位于 `Codeup-Demo/` 与 `yd-ai-service/`。两个目录都保留自己的 `.git`、提交历史和远端分支，是独立 Git 仓库；远端 URL 不保存克隆账号或密码。不要在父项目中直接批量暂存这个目录，需要提交或拉取时进入对应子仓库单独操作。
 - `backups/`：历史备份，只用于查旧实现或回看改动前状态，不主动修改。
@@ -223,6 +244,13 @@ reverse-yingdan/
 - 优点：可以直接在客户询盘所在网页上打开右侧面板，贴近真实业务动作。
 - 缺点：当前内测版有内置 Coze 测试 Token，不能作为公开上架版本。
 - 缺点：`host_permissions` 覆盖 `http://*/*` 和 `https://*/*`，公开上架前需要重新评估最小权限、隐私政策和登录方案。
+
+Dify 日志查询插件同样使用 Chrome Manifest V3 + 原生 JavaScript，但权限和状态完全独立：
+
+- 优点：仅授权 Dify Cloud，Chrome 114+ 可直接加载，不需要后端、构建工具或手工凭据。
+- 优点：CSRF 只存在 `chrome.storage.session`，Cookie 由 Chrome 自动附带；查询路径和结果字段均为硬编码白名单。
+- 缺点：第一版不支持自托管 Dify；浏览器或插件重启后需要刷新一次日志页重新确认 CSRF。
+- 缺点：这是内部效率工具，不等同于经过隐私政策和商店审核的公开上架版本。
 
 ## 界面和原型设计规则
 
@@ -471,6 +499,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 改界面样式和动效：改 `src/styles.css`。
 - 改点击行为、抽屉、toast：改 `src/app.js`。
 - 改浏览器插件：优先改 `browser-extension/content-script.js` 的面板体验、`browser-extension/background.js` 的 Coze 调用和消息分发、`browser-extension/inquiry-analyzer.js` 的本地询盘判断、`browser-extension/manifest.json` 的权限和图标声明。改完要重新打包 `yingdan-inquiry-extension-v0.2.0.zip`。
+- 改 Dify 日志查询插件：只改 `dify-log-browser-extension/`。查询和脱敏改 `query-engine.js`，鉴权观察和只读桥改 `background.js`，界面改 `sidepanel.*`；先补对应 Node 失败测试，再运行全部扩展测试和 `package-extension.sh`。不得把它并入原有询盘分析插件。
 
 ## 哪些地方别碰
 
@@ -480,6 +509,7 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 - 不要把真实线上历史记录复制到 `HISTORY_ITEMS`。
 - 不要在原型里接真实删除、发送、保存、导出接口。
 - 不要把 `browser-extension/` 当作正式生产插件直接上架 Chrome Web Store；上架前必须先做权限收敛、隐私说明、登录/鉴权改造和 Token 移除。
+- 不要给 `dify-log-browser-extension/` 增加 `cookies`、`<all_urls>`、任意 URL 代理、Dify 写请求或原始响应展示；它也只能作为内部工具，公开上架前必须补隐私说明和商店审核资料。
 - 后台刷新数据、导出报表、生成邀请码、AI 人设保存、AI 模型保存、账号团队/企业切换都必须保持为原型反馈。
 - 不要在页面里写开发说明；说明写在 `CONTEXT.md` 或代码注释中。
 - `backups/` 只用于查历史，不主动改里面的旧 HTML。
@@ -567,8 +597,8 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 28. 进入 `hyperframes/chatflow-cost-animation/` 运行 `npm run check`，确认 Runtime、Layout、Motion 均为 0 问题且 509/509 项文字对比度通过；再打开 HyperFrames Studio 播放 39 秒单画布时间线，并抽查 `snapshots-node-run/contact-sheet.jpg` 中 10.5 秒的 Embedding、22.5 秒的实际 Agent 模型、26 / 29 秒的两个 Tavily 工具和 35.5 秒的最终四项汇总。用户确认预览后再渲染最终 MP4。
 29. KASS 改动先运行 `node --test tests/kass-crm-gateway.test.js`，再运行完整 `npm test`。使用假 fetch 验证网关令牌、客户归属、字段白名单和 GET / POST action；不得在自动测试中调用真实赢单账号。
 30. 进入 `dify-plugins/kass-prototype-crm/`，先运行 `../nano-banana-dynamic/.venv/bin/python -m unittest discover -s tests -v`，再用 Dify Plugin CLI 执行 `dify plugin package . -o dist/kass-prototype-crm-0.1.1.difypkg` 并检查压缩包。随后对 `dify-chatflows/客户Kass-客户管理-KASS-Agent/workflow.yml` 依次运行 `dify-workflow validate --strict`、`dify-workflow checklist` 和 `dify-workflow import -o /dev/null --validate-only`。浏览器打开 `#/customer-kass/A`，切换多个等级/客户，确认档案、跟进和待办完整；再打开旧 `#/customer-kass/B` 确认地址与界面均自动归一到 A。安装 Plugin、发布更新后的 KASS Chatflow 后，再配置其 App API Key 并验证 Plugin CRUD、SSE、多轮 `conversation_id` 与 Artifact。
-31. `赢单高并发测试` Skill 改动后，运行 `PYTHONDONTWRITEBYTECODE=1 python3 .agents/skills/yingdan-high-concurrency-test/scripts/dify_production_diagnostics.py self-test`，再运行 `python3 /Users/garden/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/yingdan-high-concurrency-test`。只有用户明确授权正式 URL 和并发数后，才可使用带 `--confirm-production` 的 `load` 或 `both`；离线验证不得调用真实账号或 Dify。
-32. PDL 本地模式先进入 `customer-development-data-sources/pdl/` 创建 `.venv` 并安装 `requirements.txt`，再运行 `python -m unittest tests/test_pdl_local.py -v`。拿到真实下载文件后运行 `pdl_local.py import --input <文件路径>`，随后运行 `pdl_local.py serve`；打开 `http://127.0.0.1:8788/index.html#/customer-development`，确认国家/行业查询返回真实公司字段、客户类型标签与证据分开显示、未导入时有明确错误、联系人区不生成邮箱。需要验收 Hunter 时，只把真实 Key 设置为当前服务进程的 `HUNTER_API_KEY` 后重启；选择一家公司并点击「用 Hunter 获取联系人」，确认最多返回 10 位、邮箱默认隐藏、显示邮箱不重复请求，同时检查 `/api/hunter/status` 不泄露 Key。2026-08-07 已用 PDL 实际提供的 2.1 GB GZIP 压缩 CSV 完成全量导入：35,829,088 行（含表头）生成 35,828,987 家去重公司；“德国 · 光伏组件”页面实测返回 68,844 条，浏览器控制台无错误。2026-08-08 对同一只读库验证客户类型排序：德国分销商 0.127 秒、美国制造商 1.106 秒、印度系统集成商 0.196 秒、德国品牌商不可判断对照 0.012 秒，均低于页面 2.4 秒搜索动画；前三组高置信结果具备行业和身份文本两类证据，德国分销商首屏 17/20、美国制造商与印度系统集成商首屏 20/20 同时命中产品行业，品牌商结果全部保持无法判断。2026-08-09 对当前映射重新验证“德国 · 光伏组件 · 不限”得到 17,762 条；推荐、完整度、规模三种全库排序分别耗时 0.037、0.034、0.032 秒，规模排序首家为 10001+ 员工的 Enercon，页面三种切换生效且浏览器控制台无错误。2026-08-10 已用模拟 Hunter 响应验证服务端字段归一化、联系人排序和缺 Key 错误，并在页面上完成一次真实单域名调用：返回 10 位联系人，耗时约 4.0 秒；邮箱默认隐藏，点击显示邮箱没有产生第二次 Hunter 请求。真实 Key 只存在于当前本机服务进程，未写入项目文件。
+31. `赢单 Dify 高并发测试` Skill 改动后，运行 `PYTHONDONTWRITEBYTECODE=1 python3 .agents/skills/yingdan-dify-high-concurrency-test/scripts/dify_production_diagnostics.py self-test`，再运行 `python3 /Users/garden/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/yingdan-dify-high-concurrency-test`。只有用户明确授权正式 URL 和并发数后，才可使用带 `--confirm-production` 的 `load` 或 `both`；离线验证不得调用真实账号或 Dify。
+32. 客户开发本地模式运行 `python -m unittest tests/test_pdl_local.py -v` 后启动 `pdl_local.py serve`，打开 `http://127.0.0.1:8788/index.html#/customer-development`。PDL 应返回真实公司字段且不猜联系人邮箱。地图获客只显示目标国家、目标城市、商户行业、目标数量和公开联系方式，不得出现市中心半径、距离排序或经纬度；商户行业选择器应显示 10 个 B2B 业务大类、64 个聚合行业，并能搜索“太阳能、机械、汽配、建材、物流”等中英文业务词。1,274 条 Foursquare 原始分类仅用于后台映射，界面不得出现“地标与户外、夜生活”或细分酒吧目录；餐饮原始分类统一聚合为“餐饮与连锁门店”。查询结果应标注 Foursquare 真实地点，优先显示资料完整且更新较新的商户，详情展示类别、地址、更新时间和公开渠道，并说明不具备客户角色、公司规模或采购意向。GitHub Pages 必须保持演示标识。Hunter 仍只能在用户点击后按域名查询，Key 只存在于服务端环境。2026-08-19 Foursquare OS Places 本地 28 个 Parquet、109,255,094 条地点已接入真实查询。
 
 浏览器插件验证方式：
 
@@ -579,15 +609,20 @@ URL 切换：点击侧边栏会自动用 `history.replaceState` 把 URL 同步�
 5. 浏览器检查：在当前 Chrome 扩展管理页点击重新加载插件，打开含客户询盘的网页，点击插件图标后应先出现右侧面板和「开始分析」按钮；只有用户点击「开始分析」后才调用 Coze。
 6. Markdown 检查：AI 返回的标题、列表、加粗、代码块、链接和 `| 表头 |` 表格应按安全 Markdown 渲染，不显示裸露的 `###`、`**` 或表格分隔线。
 
+Dify 日志查询插件验证方式：
+
+1. 运行 `node --test dify-log-browser-extension/tests/*.test.js`，测试必须全部离线通过。
+2. 对 `background.js`、`query-engine.js` 和 `sidepanel.js` 运行 `node --check`，并用 `python3 -m json.tool` 校验清单。
+3. 运行 `sh dify-log-browser-extension/package-extension.sh`，再用 `unzip -t dify-log-browser-extension-v0.1.0.zip` 验证；ZIP 根目录必须直接包含 `manifest.json`，不得包含 `tests/` 和 `CONTEXT.md`。
+4. Chrome 114+ 加载 `/Users/garden/YD/Prototype/dify-log-browser-extension`，在已登录的 Dify Cloud App 日志页确认 Token Mind 图标、当前 App ID、三种模式和北京时间选项。
+5. 只用短时间窗执行一次“应用失败”只读查询；若缺少 CSRF，只通过插件的“刷新日志页”取得，不复制 Cookie 或其他凭据。整个验证不得发送 Dify 写请求或测试消息。
+
 Excel 交付验证方式：
 
-1. 先用 LibreOffice headless 重存。
-2. 清理 `xl/tables/`。
-3. 清理空 `xl/drawings/`。
-4. 清理 `tableParts`。
-5. 清理 drawing/table relationships。
-6. 通过 `unzip -t` 验证。
-7. 通过 `openpyxl.load_workbook()` 验证。
-8. 扫描包内 table/drawing 残留。
+1. 直接保存生成或修改后的 `.xlsx`。
+2. 通过 `unzip -t` 验证 OOXML 包结构。
+3. 分别用 `openpyxl.load_workbook(data_only=False)` 和 `data_only=True` 重开验证。
+4. 检查代表性公式、引用、常见错误值和视觉可读性。
+5. 保留合法的 table、drawing、图表及 relationships；只有出现已证实的文件级兼容问题时才定向修复。
 
 任一步失败都不能交付 `.xlsx`。

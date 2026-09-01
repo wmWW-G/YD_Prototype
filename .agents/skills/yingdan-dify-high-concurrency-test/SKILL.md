@@ -1,9 +1,9 @@
 ---
-name: yingdan-high-concurrency-test
+name: yingdan-dify-high-concurrency-test
 description: Diagnose production Dify Chatflow latency and failures from a formal feature URL by running configurable concurrent POST requests against the winning-app backend, optionally running a direct Dify control batch, and correlating Dify Console logs for a specific user such as 39. Use when the user asks to load-test a top-yd.com Dify page, determine whether latency or 504 errors originate in the backend or Dify, find matching workflow runs or failed nodes, or repeat the production diagnostic with Chrome used only to bootstrap missing Console access.
 ---
 
-# 赢单高并发测试
+# 赢单 Dify 高并发测试
 
 Use the bundled Python script for deterministic production load tests and Dify log correlation. Chrome is only a one-time credential bootstrap: the operator manually copies the App ID and complete Console Cookie from F12 into the Skill-local `.env`. The script derives the CSRF header from that Cookie. After that, run role discovery, traffic generation, pagination, marker matching, user filtering, workflow lookup, and failed-node inspection with the Python script.
 
@@ -45,7 +45,7 @@ Use this only when the Console values are missing or expired. When the values we
 6. Put the values into:
 
 ```text
-/Users/garden/YD/Prototype/.agents/skills/yingdan-high-concurrency-test/.env
+/Users/garden/YD/Prototype/.agents/skills/yingdan-dify-high-concurrency-test/.env
 ```
 
 Use this shape:

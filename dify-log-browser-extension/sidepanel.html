@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TokenMind Dify 日志查询</title>
+    <link rel="stylesheet" href="sidepanel.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="brand-lockup">
+          <img class="brand-mark" src="icons/tokenmind-logo.svg" alt="TokenMind">
+          <div>
+            <p class="brand-name">TokenMind</p>
+            <h1>Dify 日志查询</h1>
+          </div>
+        </div>
+        <span class="readonly-badge" title="扩展只调用白名单 GET 接口">只读</span>
+      </header>
+
+      <section class="app-context" aria-labelledby="context-title">
+        <div class="context-topline">
+          <h2 id="context-title">当前 App</h2>
+          <span id="page-status" class="status-label" data-status="waiting">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="page-status-text">正在读取页面</span>
+          </span>
+        </div>
+        <div class="context-value-row">
+          <code id="app-id">等待识别…</code>
+          <button id="reload-context-button" class="context-refresh-button" type="button">
+            重新读取
+          </button>
+        </div>
+        <div id="page-guidance" class="guidance" role="status">
+          请先打开 Dify Cloud 中某个 App 的日志页面。
+        </div>
+        <div id="auth-guidance" class="auth-guidance" hidden>
+          <div>
+            <strong>需要重新读取登录状态</strong>
+            <p>刷新日志页即可，无需复制 Cookie。</p>
+          </div>
+          <button id="refresh-auth-button" class="button button-secondary" type="button">
+            刷新日志页
+          </button>
+        </div>
+      </section>
+
+      <section id="home-view" class="home-view" aria-labelledby="home-title">
+        <div class="view-intro">
+          <h2 id="home-title">你要查什么？</h2>
+          <p>选择一个场景，只填写这次查询需要的条件。</p>
+        </div>
+
+        <div class="scenario-list">
+          <button class="scenario-card" type="button" data-scenario="user-failed">
+            <span class="scenario-copy">
+              <strong>查指定用户的失败</strong>
+              <small>输入终端用户 ID，查看该用户在时间范围内的失败运行。</small>
+            </span>
+            <span class="scenario-meta">用户 ID</span>
+          </button>
+
+          <button class="scenario-card" type="button" data-scenario="app-failed">
+            <span class="scenario-copy">
+              <strong>查当前 App 的失败</strong>
+              <small>不限定用户，查看当前应用在时间范围内的全部失败运行。</small>
+            </span>
+            <span class="scenario-meta">无需用户 ID</span>
+          </button>
+
+          <button class="scenario-card" type="button" data-scenario="marker">
+            <span class="scenario-copy">
+              <strong>精确定位一次运行</strong>
+              <small>可以按对话中的特征文本查找，也可以直接粘贴 Run ID。</small>
+            </span>
+            <span class="scenario-meta">对话内容 / Run ID</span>
+          </button>
+
+          <button class="scenario-card" type="button" data-scenario="cost">
+            <span class="scenario-copy">
+              <strong>查询成本</strong>
+              <small>按 Conversation ID 汇总对话成本，用户 ID 可用于严格校验。</small>
+            </span>
+            <span class="scenario-meta">对话级 · 全部币种</span>
+          </button>
+        </div>
+
+        <p class="privacy-note">
+          只发送白名单 GET，不会运行、重试或修改 Dify 工作流。
+        </p>
+      </section>
+
+      <section id="scenario-view" class="scenario-view" hidden>
+        <button id="back-button" class="back-button" type="button">返回</button>
+
+        <div class="view-intro scenario-intro">
+          <h2 id="scenario-title">查询失败运行</h2>
+          <p id="scenario-description"></p>
+        </div>
+
+        <form id="query-form" class="query-form" novalidate>
+          <fieldset id="locator-mode-field" class="method-fieldset" hidden>
+            <legend>定位方式</legend>
+            <div class="method-grid">
+              <label class="method-choice">
+                <input type="radio" name="locator-mode" value="marker" checked>
+                <span>
+                  <strong>对话内容</strong>
+                  <small>用一句有辨识度的原话定位</small>
+                </span>
+              </label>
+              <label class="method-choice">
+                <input type="radio" name="locator-mode" value="run-id">
+                <span>
+                  <strong>Run ID</strong>
+                  <small>直接读取指定运行</small>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div id="user-field" class="field-group" hidden>
+            <label id="user-label" for="user-id">终端用户 ID（可选）</label>
+            <input id="user-id" name="userId" type="text" autocomplete="off" spellcheck="false" placeholder="有的话可填写完整用户 ID">
+            <p id="user-help" class="field-help">不填写时会在所选时间范围内查找；填写后可缩小范围。</p>
+          </div>
+
+          <div id="conversation-field" class="field-group" hidden>
+            <label for="conversation-id">Conversation ID</label>
+            <input id="conversation-id" name="conversationId" type="text" autocomplete="off" spellcheck="false" placeholder="粘贴完整 Conversation ID">
+            <p class="field-help">成本只汇总这个对话在所选时间范围内产生的 Run。</p>
+          </div>
+
+          <div id="marker-field" class="field-group" hidden>
+            <label id="locator-label" for="marker">对话关键词或特征文本</label>
+            <input id="marker" name="marker" type="text" autocomplete="off" spellcheck="false" placeholder="输入一句有辨识度的对话原文">
+            <p id="locator-help" class="field-help">匹配到多个 Run 时会全部列出，不会替你自动选择。</p>
+          </div>
+
+          <fieldset id="time-fieldset" class="time-fieldset">
+            <div class="field-heading">
+              <legend>时间范围</legend>
+              <span>北京时间</span>
+            </div>
+            <div class="preset-grid">
+              <label class="preset-choice">
+                <input type="radio" name="preset" value="today" checked>
+                <span>今天</span>
+              </label>
+              <label class="preset-choice">
+                <input type="radio" name="preset" value="recent-1h">
+                <span>最近 1 小时</span>
+              </label>
+              <label class="preset-choice">
+                <input type="radio" name="preset" value="recent-4h">
+                <span>最近 4 小时</span>
+              </label>
+              <label class="preset-choice">
+                <input type="radio" name="preset" value="custom">
+                <span>自定义</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div id="custom-time-fields" class="custom-time-grid" hidden>
+            <div class="field-group">
+              <label for="start-time">起始时间</label>
+              <input id="start-time" name="startTime" type="datetime-local" step="60">
+            </div>
+            <div class="field-group">
+              <label for="end-time">结束时间</label>
+              <input id="end-time" name="endTime" type="datetime-local" step="60">
+            </div>
+          </div>
+
+          <details id="advanced-section" class="advanced-section">
+            <summary>高级设置</summary>
+            <div class="field-group advanced-content">
+              <label for="max-pages">最大分页数</label>
+              <input id="max-pages" name="maxPages" type="number" min="1" max="100" step="1" value="30">
+              <p class="field-help">达到上限仍有后续数据时，结果会标记覆盖可能截断。</p>
+            </div>
+          </details>
+
+          <div id="form-error" class="inline-error" role="alert" hidden></div>
+
+          <div class="query-actions">
+            <button id="query-button" class="button button-primary" type="submit" disabled>
+              <span class="button-label">开始查询</span>
+            </button>
+            <button id="cancel-query-button" class="button button-cancel" type="button" hidden>
+              取消
+            </button>
+          </div>
+        </form>
+
+        <section id="progress-region" class="progress-card" aria-live="polite" hidden>
+          <strong id="progress-title">正在准备查询</strong>
+          <p id="progress-detail">正在确认当前 App 和登录状态…</p>
+          <progress id="query-progress" max="100" aria-label="查询进度"></progress>
+        </section>
+
+        <section id="coverage-region" class="result-section" aria-labelledby="coverage-title" hidden>
+          <div class="result-heading">
+            <h2 id="coverage-title">覆盖摘要</h2>
+            <span id="coverage-badge" class="coverage-badge">完整</span>
+          </div>
+          <p id="window-summary" class="window-summary"></p>
+          <div id="coverage-cards" class="coverage-grid"></div>
+          <div id="cost-summary" class="cost-summary" hidden></div>
+          <p id="coverage-note" class="coverage-note"></p>
+        </section>
+
+        <section id="results-region" class="result-section" aria-labelledby="results-title" hidden>
+          <div class="result-heading">
+            <h2 id="results-title">运行结果</h2>
+            <span id="run-count" class="run-count">0 条</span>
+          </div>
+
+          <div id="empty-state" class="empty-state" hidden>
+            <strong id="empty-state-title">在当前应用、时间窗、筛选条件和分页覆盖内未匹配</strong>
+            <p id="empty-state-copy">这不代表线上没有失败，可以扩大时间范围或分页覆盖后再查。</p>
+          </div>
+          <div id="error-summary" class="error-summary" hidden></div>
+          <div id="run-list" class="run-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="query-engine.js"></script>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

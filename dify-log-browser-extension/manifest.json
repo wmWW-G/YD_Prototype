@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "TokenMind Dify 日志查询",
+  "description": "在 Dify Cloud 日志页复用当前登录态，只读查询失败运行和精确诊断信息。",
+  "version": "0.1.0",
+  "minimum_chrome_version": "114",
+  "permissions": [
+    "activeTab",
+    "sidePanel",
+    "storage",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "https://cloud.dify.ai/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "打开 TokenMind Dify 日志查询",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

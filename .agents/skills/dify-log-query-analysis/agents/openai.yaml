@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dify 日志查询分析"
+  short_description: "默认使用 Chrome 查询 Dify 日志并完成脱敏根因分析"
+  default_prompt: "使用 $dify-log-query-analysis，默认通过 Chrome 当前登录态分别查询两个赢单 Dify 应用的日志，定位失败节点并输出分应用及合计的脱敏分析。"

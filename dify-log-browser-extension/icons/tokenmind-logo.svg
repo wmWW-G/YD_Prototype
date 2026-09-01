@@ -1,0 +1,294 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="444 395 223.5 223.5" role="img" aria-labelledby="title desc" version="1.1" id="tokenmind-single-logo"><title id="title">TokenMind Omni single emblem logo</title><desc id="desc">Left circular emblem only. Right-side English and Chinese wordmark removed. Transparent background.</desc><metadata>
+    source: /mnt/data/logo.svg
+    output: single left emblem only
+    background: transparent
+    crop: square, centered on emblem
+  </metadata><defs id="defs56">
+    <radialGradient id="canvasGlow" cx="46%" cy="50%" r="74%">
+      <stop offset="0" stop-color="#080501" stop-opacity="1" id="stop1"/>
+      <stop offset="0.54" stop-color="#020100" stop-opacity="1" id="stop2"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="1" id="stop3"/>
+    </radialGradient>
+    <linearGradient id="brandTextGold" x1="890" y1="360" x2="1810" y2="650" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9a641b" id="stop4"/>
+      <stop offset="0.17" stop-color="#fff4c0" id="stop5"/>
+      <stop offset="0.38" stop-color="#d89a35" id="stop6"/>
+      <stop offset="0.60" stop-color="#fff8d7" id="stop7"/>
+      <stop offset="0.82" stop-color="#be7e25" id="stop8"/>
+      <stop offset="1" stop-color="#f1d27a" id="stop9"/>
+    </linearGradient>
+    <filter id="brandTextGlow" x="-2.0031433" y="-0.15411685" width="5.0056632" height="1.3078195" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="blur" id="feGaussianBlur9"/>
+      <feFlood flood-color="#d89129" flood-opacity="0.40" result="gold" id="feFlood9"/>
+      <feComposite in="gold" in2="blur" operator="in" result="glow" id="feComposite9"/>
+      <feMerge id="feMerge10">
+        <feMergeNode in="glow" id="feMergeNode9"/>
+        <feMergeNode in="SourceGraphic" id="feMergeNode10"/>
+      </feMerge>
+    </filter>
+    <radialGradient id="wordmarkHalo" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#9f651b" stop-opacity="0.12" id="stop10"/>
+      <stop offset="0.55" stop-color="#5f3a0d" stop-opacity="0.05" id="stop11"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0" id="stop12"/>
+    </radialGradient>
+    <radialGradient id="backgroundGlow" cx="52.6%" cy="53.7%" r="55%">
+      <stop offset="0" stop-color="#090601" id="stop13"/>
+      <stop offset="0.58" stop-color="#020100" id="stop14"/>
+      <stop offset="1" stop-color="#000000" id="stop15"/>
+    </radialGradient>
+    <linearGradient id="ringGold" x1="165" y1="280" x2="1007" y2="1125" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9d6b1d" id="stop16"/>
+      <stop offset="0.13" stop-color="#fff6c8" id="stop17"/>
+      <stop offset="0.30" stop-color="#d79a34" id="stop18"/>
+      <stop offset="0.52" stop-color="#fff2b1" id="stop19"/>
+      <stop offset="0.73" stop-color="#c4882a" id="stop20"/>
+      <stop offset="0.90" stop-color="#fff8d4" id="stop21"/>
+      <stop offset="1" stop-color="#9a661b" id="stop22"/>
+    </linearGradient>
+    <linearGradient id="textGold" x1="470" y1="190" x2="700" y2="1205" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7e5318" id="stop23"/>
+      <stop offset="0.12" stop-color="#fff2b0" id="stop24"/>
+      <stop offset="0.36" stop-color="#bc7f24" id="stop25"/>
+      <stop offset="0.58" stop-color="#fff6c9" id="stop26"/>
+      <stop offset="0.82" stop-color="#b27720" id="stop27"/>
+      <stop offset="1" stop-color="#f5d989" id="stop28"/>
+    </linearGradient>
+    <radialGradient id="dotGold" cx="38%" cy="28%" r="72%">
+      <stop offset="0" stop-color="#fffceb" id="stop29"/>
+      <stop offset="0.30" stop-color="#ffe4a0" id="stop30"/>
+      <stop offset="0.68" stop-color="#d39229" id="stop31"/>
+      <stop offset="1" stop-color="#7d4d12" id="stop32"/>
+    </radialGradient>
+    <radialGradient id="starGold" cx="50%" cy="48%" r="58%">
+      <stop offset="0" stop-color="#ffffff" id="stop33"/>
+      <stop offset="0.20" stop-color="#fff8d6" id="stop34"/>
+      <stop offset="0.52" stop-color="#ffc85d" id="stop35"/>
+      <stop offset="1" stop-color="#9c5d13" id="stop36"/>
+    </radialGradient>
+    <linearGradient id="flareH" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#d18a22" stop-opacity="0" id="stop37"/>
+      <stop offset="0.48" stop-color="#f4b94c" stop-opacity="0.12" id="stop38"/>
+      <stop offset="0.5" stop-color="#fff3b0" stop-opacity="0.75" id="stop39"/>
+      <stop offset="0.52" stop-color="#f4b94c" stop-opacity="0.12" id="stop40"/>
+      <stop offset="1" stop-color="#d18a22" stop-opacity="0" id="stop41"/>
+    </linearGradient>
+    <linearGradient id="flareV" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d18a22" stop-opacity="0" id="stop42"/>
+      <stop offset="0.48" stop-color="#f4b94c" stop-opacity="0.12" id="stop43"/>
+      <stop offset="0.5" stop-color="#fff3b0" stop-opacity="0.75" id="stop44"/>
+      <stop offset="0.52" stop-color="#f4b94c" stop-opacity="0.12" id="stop45"/>
+      <stop offset="1" stop-color="#d18a22" stop-opacity="0" id="stop46"/>
+    </linearGradient>
+    <filter id="dotGlow" x="-0.015593992" y="-0.0060911969" width="1.031188" height="1.0121824" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.4" result="blur" id="feGaussianBlur46"/>
+      <feFlood flood-color="#d88923" flood-opacity="0.72" result="gold" id="feFlood46"/>
+      <feComposite in="gold" in2="blur" operator="in" result="glow" id="feComposite46"/>
+      <feMerge id="feMerge47">
+        <feMergeNode in="glow" id="feMergeNode46"/>
+        <feMergeNode in="SourceGraphic" id="feMergeNode47"/>
+      </feMerge>
+    </filter>
+    <filter id="ringGlow" x="-0.019938651" y="-0.019938651" width="1.0398773" height="1.0398773" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" id="feGaussianBlur47"/>
+      <feFlood flood-color="#b46d16" flood-opacity="0.42" result="gold" id="feFlood47"/>
+      <feComposite in="gold" in2="blur" operator="in" result="glow" id="feComposite47"/>
+      <feMerge id="feMerge49">
+        <feMergeNode in="glow" id="feMergeNode48"/>
+        <feMergeNode in="SourceGraphic" id="feMergeNode49"/>
+      </feMerge>
+    </filter>
+    <filter id="starGlow" x="-0.44" y="-0.44" width="1.88" height="1.88" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5.5" result="blur" id="feGaussianBlur49"/>
+      <feFlood flood-color="#f1a832" flood-opacity="0.85" result="gold" id="feFlood49"/>
+      <feComposite in="gold" in2="blur" operator="in" result="glow" id="feComposite49"/>
+      <feMerge id="feMerge51">
+        <feMergeNode in="glow" id="feMergeNode50"/>
+        <feMergeNode in="SourceGraphic" id="feMergeNode51"/>
+      </feMerge>
+    </filter>
+    <filter id="softBlur" x="-inf" y="-inf" width="inf" height="inf">
+      <feGaussianBlur stdDeviation="7" id="feGaussianBlur51"/>
+    </filter>
+    <filter id="textGlow" x="-0.029347078" y="-0.011960784" width="1.0586942" height="1.0239216" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.1" result="blur" id="feGaussianBlur52"/>
+      <feFlood flood-color="#d58e27" flood-opacity="0.38" result="gold" id="feFlood52"/>
+      <feComposite in="gold" in2="blur" operator="in" result="glow" id="feComposite52"/>
+      <feMerge id="feMerge53">
+        <feMergeNode in="glow" id="feMergeNode52"/>
+        <feMergeNode in="SourceGraphic" id="feMergeNode53"/>
+      </feMerge>
+    </filter>
+    <style id="style53">
+      .side-dots { fill: url(#dotGold); filter: url(#dotGlow); }
+      .title-letter { fill: url(#textGold); stroke: #a26d24; stroke-width: 7; paint-order: stroke fill; filter: url(#textGlow); }
+      .flare-soft { opacity: 0.72; filter: url(#softBlur); }
+    </style>
+    <g id="cardinalStar">
+      <!-- 移除了延伸的细线与光晕线元素 (line53, line54, line55, line56) -->
+      <g filter="url(#starGlow)" id="g56">
+        <path d="M 0 -15 L 3.5 -3.5 L 15 0 L 3.5 3.5 L 0 15 L -3.5 3.5 L -15 0 L -3.5 -3.5 Z" fill="url(#starGold)" id="path56"/>
+        <circle cx="0" cy="0" r="3.8" fill="#fff9d9" id="circle56"/>
+      </g>
+    </g>
+    <filter id="brandTextGlowCompact" x="-0.010235919" y="-0.22116831" width="1.0205155" height="1.4423562" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.45" result="blur" id="feGaussianBlur1"/>
+      <feFlood flood-color="#d89129" flood-opacity="0.38" result="gold" id="feFlood1"/>
+      <feComposite in="gold" in2="blur" operator="in" result="glow" id="feComposite1"/>
+      <feMerge id="feMerge2">
+        <feMergeNode in="glow" id="feMergeNode1"/>
+        <feMergeNode in="SourceGraphic" id="feMergeNode2"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g id="tokenmind-emblem" transform="translate(443.699 372.459) scale(0.191254)">
+    <!-- Faint ambient halos behind the emblem -->
+    <circle cx="585" cy="702" r="421.8" fill="none" stroke="#a76617" stroke-width="18" opacity="0.11" filter="url(#softBlur)" id="circle57"/>
+    <circle cx="585" cy="702" r="488.0" fill="none" stroke="#9e6116" stroke-width="4" opacity="0.05" filter="url(#softBlur)" id="circle58"/>
+    <!-- Exactly 56 vector dots on each side -->
+    <g id="left-dots" data-count="56" class="side-dots">
+      <circle id="left-dot-01" cx="97.000" cy="702.000" r="4.350"/>
+      <circle id="left-dot-02" cx="97.540" cy="679.044" r="2.450"/>
+      <circle id="left-dot-03" cx="99.160" cy="656.138" r="2.450"/>
+      <circle id="left-dot-04" cx="101.855" cy="633.334" r="2.450"/>
+      <circle id="left-dot-05" cx="105.620" cy="610.682" r="2.450"/>
+      <circle id="left-dot-06" cx="110.447" cy="588.232" r="2.650"/>
+      <circle id="left-dot-07" cx="116.324" cy="566.034" r="2.450"/>
+      <circle id="left-dot-08" cx="123.239" cy="544.137" r="2.450"/>
+      <circle id="left-dot-09" cx="131.176" cy="522.590" r="2.450"/>
+      <circle id="left-dot-10" cx="140.118" cy="501.440" r="2.450"/>
+      <circle id="left-dot-11" cx="150.046" cy="480.734" r="2.450"/>
+      <circle id="left-dot-12" cx="160.936" cy="460.518" r="2.450"/>
+      <circle id="left-dot-13" cx="172.765" cy="440.836" r="2.450"/>
+      <circle id="left-dot-14" cx="185.507" cy="421.733" r="2.450"/>
+      <circle id="left-dot-15" cx="199.134" cy="403.250" r="2.450"/>
+      <circle id="left-dot-16" cx="213.615" cy="385.429" r="2.450"/>
+      <circle id="left-dot-17" cx="228.918" cy="368.309" r="2.650"/>
+      <circle id="left-dot-18" cx="245.010" cy="351.928" r="2.450"/>
+      <circle id="left-dot-19" cx="261.854" cy="336.322" r="2.450"/>
+      <circle id="left-dot-20" cx="279.414" cy="321.525" r="2.450"/>
+      <circle id="left-dot-21" cx="297.651" cy="307.571" r="2.450"/>
+      <circle id="left-dot-22" cx="316.523" cy="294.490" r="2.450"/>
+      <circle id="left-dot-23" cx="335.991" cy="282.312" r="2.450"/>
+      <circle id="left-dot-24" cx="356.009" cy="271.062" r="2.450"/>
+      <circle id="left-dot-25" cx="376.535" cy="260.767" r="2.450"/>
+      <circle id="left-dot-26" cx="397.522" cy="251.449" r="2.450"/>
+      <circle id="left-dot-27" cx="418.924" cy="243.129" r="2.450"/>
+      <circle id="left-dot-28" cx="440.694" cy="235.824" r="4.150"/>
+      <circle id="left-dot-29" cx="457.874" cy="1173.151" r="4.150"/>
+      <circle id="left-dot-30" cx="436.031" cy="1166.707" r="2.450"/>
+      <circle id="left-dot-31" cx="414.513" cy="1159.251" r="2.450"/>
+      <circle id="left-dot-32" cx="393.365" cy="1150.799" r="2.450"/>
+      <circle id="left-dot-33" cx="372.636" cy="1141.369" r="2.450"/>
+      <circle id="left-dot-34" cx="352.368" cy="1130.983" r="2.450"/>
+      <circle id="left-dot-35" cx="332.608" cy="1119.663" r="2.450"/>
+      <circle id="left-dot-36" cx="313.397" cy="1107.433" r="2.450"/>
+      <circle id="left-dot-37" cx="294.777" cy="1094.320" r="2.450"/>
+      <circle id="left-dot-38" cx="276.790" cy="1080.352" r="2.450"/>
+      <circle id="left-dot-39" cx="259.474" cy="1065.561" r="2.650"/>
+      <circle id="left-dot-40" cx="242.866" cy="1049.978" r="2.450"/>
+      <circle id="left-dot-41" cx="227.004" cy="1033.637" r="2.450"/>
+      <circle id="left-dot-42" cx="211.922" cy="1016.574" r="2.450"/>
+      <circle id="left-dot-43" cx="197.652" cy="998.825" r="2.450"/>
+      <circle id="left-dot-44" cx="184.225" cy="980.431" r="2.450"/>
+      <circle id="left-dot-45" cx="171.672" cy="961.429" r="2.450"/>
+      <circle id="left-dot-46" cx="160.018" cy="941.863" r="2.450"/>
+      <circle id="left-dot-47" cx="149.290" cy="921.775" r="2.450"/>
+      <circle id="left-dot-48" cx="139.511" cy="901.208" r="2.450"/>
+      <circle id="left-dot-49" cx="130.702" cy="880.207" r="2.450"/>
+      <circle id="left-dot-50" cx="122.883" cy="858.818" r="2.650"/>
+      <circle id="left-dot-51" cx="116.070" cy="837.087" r="2.450"/>
+      <circle id="left-dot-52" cx="110.278" cy="815.062" r="2.450"/>
+      <circle id="left-dot-53" cx="105.520" cy="792.791" r="2.450"/>
+      <circle id="left-dot-54" cx="101.806" cy="770.323" r="2.450"/>
+      <circle id="left-dot-55" cx="99.145" cy="747.705" r="2.450"/>
+      <circle id="left-dot-56" cx="97.542" cy="724.988" r="2.450"/>
+    </g>
+    <g id="right-dots" data-count="56" class="side-dots">
+      <circle id="right-dot-01" cx="729.306" cy="235.824" r="4.150"/>
+      <circle id="right-dot-02" cx="751.046" cy="243.118" r="2.450"/>
+      <circle id="right-dot-03" cx="772.420" cy="251.425" r="2.450"/>
+      <circle id="right-dot-04" cx="793.380" cy="260.727" r="2.450"/>
+      <circle id="right-dot-05" cx="813.879" cy="271.003" r="2.450"/>
+      <circle id="right-dot-06" cx="833.874" cy="282.231" r="2.650"/>
+      <circle id="right-dot-07" cx="853.318" cy="294.386" r="2.450"/>
+      <circle id="right-dot-08" cx="872.171" cy="307.441" r="2.450"/>
+      <circle id="right-dot-09" cx="890.389" cy="321.367" r="2.450"/>
+      <circle id="right-dot-10" cx="907.933" cy="336.134" r="2.450"/>
+      <circle id="right-dot-11" cx="924.764" cy="351.708" r="2.450"/>
+      <circle id="right-dot-12" cx="940.845" cy="368.056" r="2.450"/>
+      <circle id="right-dot-13" cx="956.140" cy="385.141" r="2.450"/>
+      <circle id="right-dot-14" cx="970.615" cy="402.926" r="2.450"/>
+      <circle id="right-dot-15" cx="984.239" cy="421.372" r="2.450"/>
+      <circle id="right-dot-16" cx="996.981" cy="440.437" r="2.450"/>
+      <circle id="right-dot-17" cx="1008.814" cy="460.079" r="2.650"/>
+      <circle id="right-dot-18" cx="1019.711" cy="480.256" r="2.450"/>
+      <circle id="right-dot-19" cx="1029.648" cy="500.922" r="2.450"/>
+      <circle id="right-dot-20" cx="1038.603" cy="522.033" r="2.450"/>
+      <circle id="right-dot-21" cx="1046.557" cy="543.540" r="2.450"/>
+      <circle id="right-dot-22" cx="1053.491" cy="565.398" r="2.450"/>
+      <circle id="right-dot-23" cx="1059.391" cy="587.557" r="2.450"/>
+      <circle id="right-dot-24" cx="1064.244" cy="609.969" r="2.450"/>
+      <circle id="right-dot-25" cx="1068.038" cy="632.584" r="2.450"/>
+      <circle id="right-dot-26" cx="1070.765" cy="655.353" r="2.450"/>
+      <circle id="right-dot-27" cx="1072.420" cy="678.224" r="2.450"/>
+      <circle id="right-dot-28" cx="1072.999" cy="701.148" r="4.350"/>
+      <circle id="right-dot-29" cx="1072.458" cy="724.988" r="2.450"/>
+      <circle id="right-dot-30" cx="1070.855" cy="747.705" r="2.450"/>
+      <circle id="right-dot-31" cx="1068.194" cy="770.323" r="2.450"/>
+      <circle id="right-dot-32" cx="1064.480" cy="792.791" r="2.450"/>
+      <circle id="right-dot-33" cx="1059.722" cy="815.062" r="2.450"/>
+      <circle id="right-dot-34" cx="1053.930" cy="837.087" r="2.450"/>
+      <circle id="right-dot-35" cx="1047.117" cy="858.818" r="2.450"/>
+      <circle id="right-dot-36" cx="1039.298" cy="880.207" r="2.450"/>
+      <circle id="right-dot-37" cx="1030.489" cy="901.208" r="2.450"/>
+      <circle id="right-dot-38" cx="1020.710" cy="921.775" r="2.450"/>
+      <circle id="right-dot-39" cx="1009.982" cy="941.863" r="2.650"/>
+      <circle id="right-dot-40" cx="998.328" cy="961.429" r="2.450"/>
+      <circle id="right-dot-41" cx="985.775" cy="980.431" r="2.450"/>
+      <circle id="right-dot-42" cx="972.348" cy="998.825" r="2.450"/>
+      <circle id="right-dot-43" cx="958.078" cy="1016.574" r="2.450"/>
+      <circle id="right-dot-44" cx="942.996" cy="1033.637" r="2.450"/>
+      <circle id="right-dot-45" cx="927.134" cy="1049.978" r="2.450"/>
+      <circle id="right-dot-46" cx="910.526" cy="1065.561" r="2.450"/>
+      <circle id="right-dot-47" cx="893.210" cy="1080.352" r="2.450"/>
+      <circle id="right-dot-48" cx="875.223" cy="1094.320" r="2.450"/>
+      <circle id="right-dot-49" cx="856.603" cy="1107.433" r="2.450"/>
+      <circle id="right-dot-50" cx="837.392" cy="1119.663" r="2.650"/>
+      <circle id="right-dot-51" cx="817.632" cy="1130.983" r="2.450"/>
+      <circle id="right-dot-52" cx="797.364" cy="1141.369" r="2.450"/>
+      <circle id="right-dot-53" cx="776.635" cy="1150.799" r="2.450"/>
+      <circle id="right-dot-54" cx="755.487" cy="1159.251" r="2.450"/>
+      <circle id="right-dot-55" cx="733.969" cy="1166.707" r="2.450"/>
+      <circle id="right-dot-56" cx="712.126" cy="1173.151" r="4.150"/>
+    </g>
+    <!-- Inner gold circle -->
+    <g id="inner-ring" filter="url(#ringGlow)">
+      <circle cx="585" cy="702" r="421.8" fill="none" stroke="#a76518" stroke-opacity="0.48" stroke-width="9" id="circle59"/>
+      <circle cx="585" cy="702" r="421.8" fill="none" stroke="url(#ringGold)" stroke-width="4.4" id="circle60"/>
+      <circle cx="585" cy="702" r="420.0" fill="none" stroke="#fff4c4" stroke-opacity="0.66" stroke-width="1.05" id="circle61"/>
+      <circle cx="585" cy="702" r="423.8" fill="none" stroke="#6d4211" stroke-opacity="0.55" stroke-width="0.9" id="circle62"/>
+    </g>
+    <!-- Cardinal stars -->
+    <g id="cardinal-stars">
+      <use href="#cardinalStar" transform="translate(585.0 280.2)" id="use62"/>
+      <use href="#cardinalStar" transform="translate(1006.8 702.0)" id="use63"/>
+      <use href="#cardinalStar" transform="translate(585.0 1123.8)" id="use64"/>
+      <use href="#cardinalStar" transform="translate(163.2 702.0)" id="use65"/>
+    </g>
+    <!-- Converted to vector outlines so the lettering does not depend on installed fonts -->
+    <g id="top-title" transform="translate(585 214) scale(0.70) translate(-585 -214)">
+      <path id="top-T" d="M160 0V10H173Q255 10 255 82V704H173Q97 704 67.0 675.5Q37 647 32 572L30 539H20L26 714H587L593 539H583L581 572Q577 647 546.5 675.5Q516 704 440 704H356V82Q356 10 438 10H451V0Z" transform="translate(487.708 223.797) rotate(-11.500) scale(0.042000 -0.042000) translate(-306.500 -357.000)" class="title-letter"/>
+      <path id="top-O" d="M371 -10Q265 -10 195.0 36.0Q125 82 90.5 165.0Q56 248 56 359Q56 470 90.5 552.0Q125 634 195.5 679.5Q266 725 372 725Q473 725 542.5 679.5Q612 634 648.5 551.5Q685 469 685 358Q685 247 648.5 164.5Q612 82 542.0 36.0Q472 -10 371 -10ZM371 0Q478 0 526.0 85.0Q574 170 574 358Q574 546 526.0 630.5Q478 715 372 715Q265 715 216.0 630.5Q167 546 167 358Q167 170 215.5 85.0Q264 0 371 0Z" transform="translate(536.532 216.413) rotate(-5.700) scale(0.042000 -0.042000) translate(-370.500 -357.500)" class="title-letter"/>
+      <path id="top-K" d="M38 0V10H51Q133 10 133 82V636Q133 704 51 704H38V714H329V704H316Q234 704 234 632V296L489 585Q541 643 541 670Q541 703 447 703V714H668V703Q634 703 603.0 682.5Q572 662 524 608L370 435L590 123Q636 59 661.5 34.5Q687 10 710 10H712V0H701Q651 0 618.5 4.0Q586 8 565.0 18.0Q544 28 527.0 45.5Q510 63 491 90L303 359L234 280V82Q234 10 316 10H329V0Z" transform="translate(585.000 214.000) rotate(0.000) scale(0.042000 -0.042000) translate(-375.000 -357.000)" class="title-letter"/>
+      <path id="top-E" d="M38 0V10H51Q133 10 133 82V636Q133 704 51 704H38V714H541L547 539H537L535 572Q531 647 500.5 675.5Q470 704 394 704H234V379H485V369H234V10H419Q473 10 505.0 22.0Q537 34 551.5 63.0Q566 92 569 142L571 175H581L574 0Z" transform="translate(635.163 216.585) rotate(5.900) scale(0.042000 -0.042000) translate(-309.500 -357.000)" class="title-letter"/>
+      <path id="top-N" d="M38 0V10H67Q149 10 149 82V636Q149 704 67 704H38V714H233L614 143V632Q614 704 532 704H504V714H735V704H706Q624 704 624 632V0H594L159 652V82Q159 10 241 10H269V0Z" transform="translate(688.127 225.021) rotate(12.200) scale(0.042000 -0.042000) translate(-386.500 -357.000)" class="title-letter"/>
+    </g>
+    <g id="bottom-title" transform="translate(585 1186) scale(0.70) translate(-585 -1186)">
+      <path id="bottom-M" d="M38 0V10H77Q159 10 159 82V636Q159 704 77 704H38V714H241L496 112L717 714H900V704H887Q805 704 805 632V82Q805 10 887 10H900V0H634V10H637Q670 10 689.5 28.0Q709 46 709 82V662L466 0H442L169 649V82Q169 10 251 10H269V0Z" transform="translate(506.218 1183.092) rotate(9.300) scale(0.042000 -0.042000) translate(-469.000 -357.000)" class="title-letter"/>
+      <path id="bottom-I" d="M38 0V10H51Q133 10 133 82V636Q133 704 51 704H38V714H329V704H316Q234 704 234 632V82Q234 10 316 10H329V0Z" transform="translate(559.486 1188.832) rotate(3.000) scale(0.042000 -0.042000) translate(-183.500 -357.000)" class="title-letter"/>
+      <path id="bottom-N" d="M38 0V10H67Q149 10 149 82V636Q149 704 67 704H38V714H233L614 143V632Q614 704 532 704H504V714H735V704H706Q624 704 624 632V0H594L159 652V82Q159 10 241 10H269V0Z" transform="translate(619.006 1188.312) rotate(-4.000) scale(0.042000 -0.042000) translate(-386.500 -357.000)" class="title-letter"/>
+      <path id="bottom-D" d="M38 0V10H51Q133 10 133 82V636Q133 704 51 704H38V714H344Q499 714 584.5 621.0Q670 528 670 358Q670 249 633.5 168.5Q597 88 525.0 44.0Q453 0 344 0ZM321 10Q446 10 502.5 92.5Q559 175 559 358Q559 540 503.0 622.0Q447 704 322 704H234V10Z" transform="translate(676.348 1180.865) rotate(-10.800) scale(0.042000 -0.042000) translate(-354.000 -357.000)" class="title-letter"/>
+    </g>
+  </g>
+  </svg>
