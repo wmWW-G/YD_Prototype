@@ -1,0 +1,4897 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALI运营顾问 - 赢单原型</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --bg2: #f7f8fa;
+  --bg3: #f0f1f5;
+  --text: #1a1d2e;
+  --text2: #5a5f72;
+  --text3: #8b8fa5;
+  --border: #e8e9ee;
+  --accent: #f97316;
+  --accent-soft: #fff7ed;
+  --accent-hover: #ea580c;
+  --blue: #3b82f6;
+  --blue-bg: #eff6ff;
+  --green: #22c55e;
+  --green-bg: #f0fdf4;
+  --red: #ef4444;
+  --red-bg: #fef2f2;
+  --purple: #8b5cf6;
+  --purple-bg: #f5f3ff;
+  --amber: #f59e0b;
+  --amber-bg: #fffbeb;
+  --teal: #14b8a6;
+  --teal-bg: #f0fdfa;
+  --radius: 8px;
+  --radius-sm: 5px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --transition: 0.18s ease;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #eef0f4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+/* ===== Plugin Panel ===== */
+.plugin-panel {
+  width: 380px;
+  background: var(--bg);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 800px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ===== Top Bar ===== */
+.top-bar {
+  padding: 10px 14px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.top-bar .version { font-size: 11px; color: var(--text3); font-weight: 500; }
+
+.top-bar .actions { display: flex; gap: 4px; align-items: center; }
+
+.top-bar .act-btn {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  color: var(--text2);
+  transition: all var(--transition);
+  position: relative;
+}
+
+.top-bar .act-btn:hover { background: var(--bg2); color: var(--text); }
+
+.act-btn .dot {
+  width: 6px; height: 6px;
+  background: var(--red);
+  border-radius: 50%;
+  position: absolute;
+  top: 3px; right: 3px;
+}
+
+/* ===== Brand Header ===== */
+.brand-header {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.brand-logo {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, #f97316, #f59e0b);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.brand-info { flex:1; }
+
+.brand-name { font-size: 15px; font-weight: 700; color: var(--text); }
+
+.brand-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+.brand-badge {
+  font-size: 10px;
+  background: linear-gradient(135deg, #f97316, #f59e0b);
+  color: white;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ===== Promo Banner ===== */
+.promo-banner {
+  margin: 0 14px 10px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform var(--transition);
+}
+
+.promo-banner:hover { transform: scale(1.01); }
+
+.promo-text .promo-main { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
+
+.promo-text .promo-sub { font-size: 11px; opacity: 0.85; margin-top: 3px; }
+
+.promo-arrow { font-size: 20px; opacity: 0.7; }
+
+/* ===== Main Tab Bar (3 tabs) ===== */
+.tab-bar {
+  display: flex;
+  padding: 0 10px;
+  gap: 2px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text3);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition);
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: inherit;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.tab-btn .tab-ico {
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.tab-btn:hover { color: var(--text2); }
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ===== Content Area ===== */
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15,23,42,0.25) transparent;
+}
+
+.content-area::-webkit-scrollbar { width:4px; }
+.content-area::-webkit-scrollbar-thumb { background:rgba(15,23,42,0.2); border-radius:4px; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ===== Section Header ===== */
+.section-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  padding: 8px 12px 4px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-header::before {
+  content: '';
+  width: 3px; height: 12px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* ===== Function List ===== */
+.func-list { display: flex; flex-direction: column; gap: 3px; }
+
+.func-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+}
+
+.func-item:hover { background: var(--bg2); border-color: var(--border); }
+
+.func-item .func-icon {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.func-icon.c-orange { background: var(--accent-soft); color: var(--accent); }
+.func-icon.c-blue { background: var(--blue-bg); color: var(--blue); }
+.func-icon.c-green { background: var(--green-bg); color: var(--green); }
+.func-icon.c-purple { background: var(--purple-bg); color: var(--purple); }
+.func-icon.c-amber { background: var(--amber-bg); color: var(--amber); }
+.func-icon.c-teal { background: var(--teal-bg); color: var(--teal); }
+.func-icon.c-red { background: var(--red-bg); color: var(--red); }
+.func-icon.c-gray { background: var(--bg3); color: var(--text3); font-size: 10px; }
+
+.func-item .func-info { flex:1; min-width:0; }
+
+.func-item .func-title { font-size: 13px; font-weight: 500; color: var(--text); }
+
+/* 点击子项弹出AI时：子菜单高亮（深橙色） */
+.func-item.func-on { background: #fff4e6; border-color: #ffd8a8; }
+.func-item.func-on .func-title { color: #d9480f; font-weight: 700; }
+.func-item.func-on .func-desc { color: #ea580c; }
+details.sop-item > summary.func-on { color: #d9480f; font-weight: 700; background: #fff4e6; border-radius: 6px; }
+details.sop-wrap > summary.func-on .sop-sum-title { color: #d9480f; }
+
+.func-item .func-desc {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.func-item .func-arrow { font-size: 12px; color: var(--text3); flex-shrink: 0; }
+
+.func-item .func-badge {
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 100px;
+  font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.badge-ai { background: var(--purple-bg); color: var(--purple); }
+.badge-hot { background: var(--red-bg); color: var(--red); }
+.badge-new { background: var(--green-bg); color: var(--green); }
+.badge-free { background: var(--blue-bg); color: var(--blue); }
+
+/* ===== Module Grid ===== */
+.module-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.module-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: center;
+}
+
+.module-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(47, 108, 255, 0.08);
+}
+
+/* 模块卡片右上角：完成/未完成标签 */
+.mc-tag {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+  display: none;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 7px;
+  color: #fff;
+  line-height: 1.5;
+}
+.mc-tag.warn { display: inline-flex; background: #ef4444; }
+.mc-tag.ok { display: inline-flex; background: #22c55e; }
+
+.module-card .mc-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  margin: 0 auto 8px;
+}
+
+.mc-icon.c-orange { background: var(--accent-soft); color: var(--accent); }
+.mc-icon.c-blue { background: var(--blue-bg); color: var(--blue); }
+.mc-icon.c-green { background: var(--green-bg); color: var(--green); }
+.mc-icon.c-purple { background: var(--purple-bg); color: var(--purple); }
+.mc-icon.c-amber { background: var(--amber-bg); color: var(--amber); }
+.mc-icon.c-teal { background: var(--teal-bg); color: var(--teal); }
+.mc-icon.c-red { background: var(--red-bg); color: var(--red); }
+
+.module-card .mc-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.module-card .mc-desc {
+  font-size: 10.5px;
+  color: var(--text3);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* ===== Sub View ===== */
+.sub-view { display: none; }
+.sub-view.active { display: block; }
+
+.sub-view-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 0 10px;
+  background: var(--bg);
+}
+
+.back-btn {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.back-btn:hover { background: var(--bg2); color: var(--text); }
+
+.sub-view-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sv-action-btn {
+  margin-left: auto;
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.sv-action-btn:hover { background: var(--bg2); transform: scale(1.08); }
+
+/* 本周优先动作：未完成/完成状态圆点 */
+.pa-dot {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 15px;
+  height: 15px;
+  border-radius: 8px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--bg);
+}
+.pa-dot.warn { display: flex; background: #ef4444; }
+.pa-dot.ok { display: flex; width: 10px; height: 10px; min-width: 0; top: 1px; right: 1px; background: #22c55e; }
+
+/* ===== 本周优先动作弹窗 ===== */
+.pa-list { display: flex; flex-direction: column; gap: 8px; }
+.pa-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 9px 10px;
+  border-left: 3px solid var(--blue);
+}
+.pa-item.p0 { border-left-color: var(--red); }
+.pa-item.p1 { border-left-color: var(--amber); }
+.pa-item.m1 { border-left-color: #8b5cf6; }
+.pa-item.m2 { border-left-color: #0d9488; }
+.pa-item.m3 { border-left-color: #22c55e; }
+.pa-item.m4 { border-left-color: #e8590c; }
+
+/* 执行清单弹窗：本周/本月切换tab */
+.pa-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px 14px 0;
+}
+.pa-tab {
+  flex: 1;
+  padding: 6px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pa-tab.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.pa-empty {
+  text-align: center;
+  color: var(--text3);
+  font-size: 12px;
+  padding: 18px 0;
+}
+
+.pa-tag {
+  flex: none;
+  width: 26px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--blue-bg);
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+.pa-item.p0 .pa-tag { background: var(--red-bg); color: var(--red); }
+.pa-item.p1 .pa-tag { background: var(--amber-bg); color: var(--amber); }
+.pa-item.p2 .pa-tag { background: #e3ecff; color: var(--blue); }
+.pa-item.m1 .pa-tag { background: #efe6ff; color: #7048e8; }
+.pa-item.m2 .pa-tag { background: #e6f7ff; color: #0c8599; }
+.pa-item.m3 .pa-tag { background: #e6fcf5; color: #0ca678; }
+.pa-item.m4 .pa-tag { background: #fff3e0; color: #d9480f; }
+.pa-check {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #c9d2de;
+  background: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #fff;
+  margin-top: 1px;
+  padding: 0;
+  transition: all 0.15s;
+}
+.pa-check:hover { border-color: var(--blue); }
+.pa-check.done { background: #22c55e; border-color: #22c55e; }
+.pa-item.done .pa-name { text-decoration: line-through; color: var(--text2); }
+.pa-item.done .pa-desc { color: #7a8aa0; }
+.pa-info { flex: 1; min-width: 0; }
+.pa-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.pa-desc { font-size: 10.5px; color: var(--text2); margin-top: 2px; line-height: 1.5; }
+
+/* ===== Mini Cards ===== */
+.mini-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mini-card {
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.mini-card:hover { background: #eef0f4; }
+
+.mini-card .mc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.mini-card .mc-label { font-size: 11px; color: var(--text3); }
+
+.mini-card .mc-value { font-size: 22px; font-weight: 700; color: var(--text); margin-top: 2px; }
+
+.mini-card .mc-change { font-size: 10px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+
+.mc-change.up { color: var(--green); }
+.mc-change.down { color: var(--red); }
+
+/* ===== Deal Progress ===== */
+.deal-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 0 6px;
+}
+
+.deal-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  position: relative;
+}
+
+.deal-step .ds-dot {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--bg3);
+  color: var(--text3);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1;
+}
+
+.deal-step .ds-label { font-size: 10px; color: var(--text3); white-space: nowrap; }
+
+.deal-step.done .ds-dot { background: var(--green); color: white; }
+.deal-step.done .ds-label { color: var(--green); }
+.deal-step.current .ds-dot { background: var(--accent); color: white; box-shadow: 0 0 0 3px var(--accent-soft); }
+.deal-step.current .ds-label { color: var(--accent); font-weight: 600; }
+
+.deal-step::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: calc(50% + 14px);
+  width: calc(100% - 28px);
+  height: 2px;
+  background: var(--bg3);
+  z-index: 0;
+}
+
+.deal-step.done::after { background: var(--green); }
+.deal-step:last-child::after { display: none; }
+
+/* ===== Bottom Bar ===== */
+.bottom-bar {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--bg);
+  font-size: 12px;
+}
+
+.bottom-bar .account-icon {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f97316, #f59e0b);
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.bottom-bar .account-info { flex:1; line-height:1.3; }
+.bottom-bar .account-name { font-weight:500; color: var(--text); font-size:12px; }
+.bottom-bar .account-type { font-size:10px; color: var(--text3); }
+
+.bottom-bar .upgrade-btn {
+  padding: 5px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.bottom-bar .upgrade-btn:hover { background: var(--accent); color: white; }
+
+/* ===== SOP清单（开店SOP详情） ===== */
+.sop-stage {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.sop-stage-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--bg2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sop-stage-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.sop-stage-tag {
+  font-size: 10px;
+  color: var(--text3);
+  margin-left: auto;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+details.sop-item { border-top: 1px solid var(--border); }
+
+details.sop-item summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background var(--transition);
+  user-select: none;
+}
+
+details.sop-item summary::-webkit-details-marker { display: none; }
+
+details.sop-item summary::before {
+  content: '▸';
+  color: var(--text3);
+  transition: transform 0.18s;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+details.sop-item[open] summary::before { transform: rotate(90deg); }
+
+details.sop-item summary:hover { background: var(--bg2); }
+
+details.sop-item summary .sop-dur {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text3);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.sop-status {
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-left: 4px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sop-status.undone { background: var(--red-bg); color: var(--red); }
+
+.sop-status.done { background: var(--green-bg); color: var(--green); }
+
+.sop-body {
+  padding: 4px 14px 12px 36px;
+  font-size: 11.5px;
+  color: var(--text2);
+  line-height: 1.7;
+  border-top: 1px dashed var(--border);
+}
+
+.sop-body .sop-sub {
+  font-weight: 600;
+  color: var(--text);
+  margin: 8px 0 2px;
+}
+
+.sop-body .sop-sub:first-child { margin-top: 2px; }
+
+.sop-body ul { margin: 4px 0 0; padding-left: 14px; }
+
+.sop-body li { margin: 3px 0; }
+
+.sop-body .sop-tag-line {
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: #d9480f;
+  font-weight: 500;
+  margin: 6px 0;
+}
+
+.sop-tip {
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border, #fde68a);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #92400e;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+/* ===== SOP折叠容器（页内展开，不跳转） ===== */
+details.sop-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+details.sop-wrap summary.sop-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg2);
+  user-select: none;
+  transition: background var(--transition);
+}
+
+details.sop-wrap summary.sop-summary:hover { background: #eef0f4; }
+
+details.sop-wrap summary.sop-summary::-webkit-details-marker { display: none; }
+
+.sop-sum-icon {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  background: var(--blue-bg);
+  color: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.sop-sum-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.sop-sum-tip {
+  font-size: 11px;
+  color: var(--text3);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+details.sop-wrap summary.sop-summary::after {
+  content: '▾';
+  color: var(--text3);
+  font-size: 11px;
+  transition: transform 0.18s;
+  flex-shrink: 0;
+}
+
+details.sop-wrap[open] summary.sop-summary::after { transform: rotate(180deg); }
+
+details.sop-wrap .sop-stage { border-left: none; border-right: none; border-radius: 0; margin-bottom: 0; }
+
+details.sop-wrap > .sop-stage { border-top: 1px solid var(--border); }
+
+/* ===== SOP完成状态（绿色） ===== */
+details.sop-item.done > summary { color: var(--green); font-weight: 600; }
+details.sop-item.done > summary::before { color: var(--green); }
+details.sop-item.done > summary .sop-dur { color: var(--green); }
+details.sop-item.done > summary::after {
+  content: '✓ 已完成';
+  color: var(--green);
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* ===== 报表弹窗 ===== */
+.report-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 22, 35, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.report-card {
+  width: 340px;
+  max-width: 92vw;
+  background: var(--bg);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+
+.report-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #f97316, #f59e0b);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.report-close {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.report-close:hover { background: rgba(255,255,255,0.35); }
+
+.report-body { padding: 14px; }
+
+.report-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 36px 0;
+  font-size: 12.5px;
+  color: var(--text2);
+}
+
+.spinner {
+  width: 18px; height: 18px;
+  border: 2.5px solid var(--bg3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.report-meta {
+  font-size: 10.5px;
+  color: var(--text3);
+  margin-bottom: 8px;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+}
+
+.report-table td {
+  padding: 7px 10px;
+  font-size: 11.5px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.report-table tr.report-th td {
+  background: var(--bg2);
+  font-weight: 600;
+  color: var(--text2);
+  font-size: 11px;
+}
+
+.report-table td:last-child { text-align: center; }
+
+.report-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.report-actions .btn-mini {
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text2);
+}
+
+.report-actions .btn-mini.primary {
+  background: var(--green);
+  border-color: var(--green);
+  color: white;
+}
+
+.report-actions .btn-mini.primary:hover { background: #16a34a; }
+
+/* ===== Ali运营工具内联展开面板 ===== */
+.func-item .func-arrow { transition: transform 0.18s ease; }
+
+.func-item.open { background: var(--bg2); border-color: var(--border); }
+
+.func-item.open .func-arrow { transform: rotate(90deg); color: var(--accent); }
+
+.func-fold-panel {
+  margin: 2px 0 6px 56px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+  padding: 10px 12px;
+  animation: foldIn 0.2s ease;
+}
+
+@keyframes foldIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.func-fold-panel .ff-meta {
+  font-size: 10.5px;
+  color: var(--text3);
+  margin-bottom: 6px;
+}
+
+.func-fold-panel table.report-table { margin-bottom: 0; }
+
+.func-fold-panel .report-table td { padding: 5px 8px; font-size: 11px; }
+
+/* ===== Ali运营工具：工具分组标题 ===== */
+.tool-group-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 12px 12px 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tool-group-title::before {
+  content: '';
+  width: 3px; height: 14px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* ===== Ali运营工具：1级折叠模块 ===== */
+details.tool-fold {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+details.tool-fold > summary.tool-fold-sum {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg2);
+  user-select: none;
+  transition: background var(--transition);
+}
+
+details.tool-fold > summary.tool-fold-sum:hover { background: #eef0f4; }
+
+details.tool-fold > summary::-webkit-details-marker { display: none; }
+
+.tool-fold-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tool-fold-count {
+  font-size: 10px;
+  color: var(--text3);
+  background: var(--bg3);
+  padding: 2px 8px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+details.tool-fold > summary::after {
+  content: '▾';
+  margin-left: auto;
+  color: var(--text3);
+  font-size: 11px;
+  transition: transform 0.18s;
+  flex-shrink: 0;
+}
+
+details.tool-fold[open] > summary::after { transform: rotate(180deg); }
+
+details.tool-fold[open] > summary {
+  background: var(--accent-soft);
+}
+
+details.tool-fold[open] > summary .tool-fold-name { color: var(--accent); }
+
+.tool-fold-body {
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* ===== ALI运营顾问：模块序号 ===== */
+.mini-cards.tri { grid-template-columns: repeat(3, 1fr); }
+
+.mini-cards.quad { grid-template-columns: repeat(4, 1fr); }
+
+.mini-cards.quad .mini-card { padding: 10px 6px; text-align: center; }
+
+.mini-cards.quad .mc-label { font-size: 10px; }
+
+.mini-cards.quad .mc-value { font-size: 17px; }
+
+.mini-cards.quad .mc-change { font-size: 9px; }
+
+/* ===== BOSS看板：TOP5 访客国家（横向单行） ===== */
+.top5-country {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.c-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.c-r {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #eef0f4;
+  color: #7a8aa0;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.c-r.top {
+  background: var(--amber);
+  color: #fff;
+}
+.c-n {
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.c-v {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ===== BOSS看板：TOP5 询盘产品（全宽表格行） ===== */
+.top5-table-wrap {
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  margin-bottom: 10px;
+}
+.top5-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.top5-table th {
+  font-size: 10px;
+  color: #7a8aa0;
+  font-weight: 500;
+  text-align: left;
+  padding: 6px 2px;
+  border-bottom: 1px solid var(--border);
+}
+.top5-table td {
+  font-size: 11px;
+  color: var(--text);
+  padding: 6px 2px;
+  border-bottom: 1px dashed var(--border);
+  vertical-align: middle;
+}
+.top5-table tr:last-child td { border-bottom: none; }
+.top5-table th:nth-child(1), .top5-table td:nth-child(1) { width: 30px; text-align: center; }
+.top5-table th:nth-child(2), .top5-table td:nth-child(2) { width: 52px; color: #7a8aa0; font-family: Consolas, monospace; }
+.top5-table th:nth-child(3), .top5-table td:nth-child(3) { width: 40px; text-align: center; }
+.top5-table th:nth-child(5), .top5-table td:nth-child(5) { width: 44px; text-align: right; }
+.t5-img {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  align-items: center;
+  justify-content: center;
+}
+.t5-title {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+.t5-cnt {
+  display: inline-block;
+  min-width: 34px;
+  text-align: center;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(79, 140, 255, 0.12);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ===== 下载报表列表 ===== */
+.dl-list {
+  margin-bottom: 10px;
+}
+.dl-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dl-item:hover { background: #e8eef7; }
+.dl-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex: none;
+  background: #eef0f4;
+}
+.dl-info {
+  flex: 1;
+  min-width: 0;
+}
+.dl-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.dl-desc {
+  font-size: 10px;
+  color: #7a8aa0;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dl-arrow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  color: #7a8aa0;
+  transition: color 0.15s, transform 0.15s;
+}
+.dl-item:hover .dl-arrow { color: var(--accent); transform: translateY(2px); }
+
+/* ===== BOSS看板：健康度数据行 ===== */
+.health-list {
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 4px 12px;
+  margin-bottom: 10px;
+}
+
+.health-item {
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.health-item:last-child { border-bottom: none; }
+
+.hi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hi-label {
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.hi-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hi-value.warn { color: var(--amber); }
+.hi-value.bad { color: var(--red); }
+.hi-value.good { color: var(--green); }
+
+.hi-bar {
+  margin-top: 6px;
+  height: 5px;
+  background: var(--bg3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hi-bar .fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.hi-note {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 3px;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.hi-note .trend-up { color: var(--green); }
+.hi-note .trend-down { color: var(--red); }
+.hi-note .trend-flat { color: var(--amber); }
+
+/* ===== 模块底部：下一步快捷入口 ===== */
+.next-module {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text3);
+  user-select: none;
+}
+
+.next-module .nm-arrow { font-size: 14px; }
+
+/* ===== BOSS看板：时间周期切换 ===== */
+.dash-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 2px;
+  width: fit-content;
+  margin: 0 auto 12px;
+}
+
+.dash-tabs-inline {
+  margin: 0;
+  margin-left: auto;
+}
+
+.dash-tab {
+  padding: 6px 22px;
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+
+.dash-tabs-inline .dash-tab {
+  padding: 4px 12px;
+  font-size: 11px;
+}
+
+.dash-tab:hover { color: var(--text2); }
+
+.dash-tab.active {
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+/* ===== BOSS看板：业务数据表 ===== */
+.biz-wrap {
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+}
+
+.biz-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.biz-table th,
+.biz-table td {
+  padding: 6px 3px;
+  text-align: center;
+  font-size: 11px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.biz-table th {
+  background: var(--bg3);
+  font-weight: 600;
+  color: var(--text2);
+  font-size: 10.5px;
+}
+
+.biz-table td:first-child {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.biz-table td:last-child {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.biz-table tr:last-child td { border-bottom: none; }
+
+/* ===== BOSS看板：询盘分层卡 ===== */
+.level-card {
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 12px 12px 10px;
+  margin-bottom: 10px;
+}
+
+.level-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.level-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.level-total {
+  font-size: 10.5px;
+  color: var(--text3);
+}
+
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+
+.level-item {
+  text-align: center;
+  padding: 0 4px;
+}
+
+.level-item + .level-item {
+  border-left: 1px solid var(--border);
+}
+
+.level-item .lv-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.level-item .lv-name {
+  font-size: 10px;
+  color: var(--text3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.level-item .lv-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 2px 0 0;
+}
+
+.level-item .lv-change {
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lv-bar {
+  height: 3px;
+  background: var(--bg3);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+.lv-bar .fill {
+  height: 100%;
+  border-radius: 2px;
+}
+
+/* ===== BOSS看板：核心指标大卡 ===== */
+.mini-card.key {
+  border-top: 2px solid var(--accent);
+  padding: 10px 12px;
+}
+
+.mini-card.key .mc-value {
+  font-size: 20px;
+  margin-top: 2px;
+}
+
+.mini-card.key .mc-label {
+  font-size: 11px;
+}
+
+/* ===== 数据推送按钮与弹窗 ===== */
+.push-btn {
+  width: 30px; height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.push-btn:hover { background: var(--accent); color: white; }
+
+.push-btn.on {
+  background: var(--green);
+  border-color: var(--green);
+  color: white;
+}
+
+.push-form .pf-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  margin: 12px 0 6px;
+}
+
+.push-form .pf-label:first-child { margin-top: 0; }
+
+.pf-add-row { display: flex; gap: 6px; }
+
+.pf-add-row input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  outline: none;
+  color: var(--text);
+  background: var(--bg);
+  font-family: inherit;
+}
+
+.pf-add-row input:focus { border-color: var(--accent); }
+
+.pf-add-btn {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pf-add-btn:hover { background: var(--accent-hover); }
+
+.pf-emails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  min-height: 20px;
+}
+
+.pf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text);
+}
+
+.pf-chip .pf-x {
+  cursor: pointer;
+  color: var(--text3);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.pf-chip .pf-x:hover { color: var(--red); }
+
+.pf-select-row { display: flex; gap: 8px; }
+
+.pf-select-row select {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+}
+
+.pf-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.pf-checks label {
+  font-size: 12px;
+  color: var(--text2);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+/* 公司号推送开关 */
+.pf-comp {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pf-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.pf-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.pf-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--bg3);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.pf-slider::before {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  left: 3px; top: 3px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.pf-switch input:checked + .pf-slider { background: var(--green); }
+
+.pf-switch input:checked + .pf-slider::before { transform: translateX(16px); }
+
+.pf-comp-text { flex: 1; min-width: 0; }
+
+.pf-comp-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pf-comp-desc {
+  font-size: 10.5px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.pf-comp-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: var(--green-bg);
+  color: var(--green);
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.pf-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ===== 左侧AI分析抽屉 ===== */
+.ai-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 22, 35, 0.4);
+  z-index: 996;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+
+.ai-mask.show { opacity: 1; pointer-events: auto; }
+
+.ai-drawer {
+  position: fixed;
+  left: 0; top: 0;
+  width: 430px;
+  max-width: 88vw;
+  background: var(--bg);
+  z-index: 997;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px 0 0 12px;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+}
+
+.ai-drawer.open { transform: translateX(0); }
+
+.ai-drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #f97316, #f59e0b);
+  color: white;
+  flex-shrink: 0;
+}
+
+.ai-drawer-head .ai-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.ai-drawer-head .ai-title {
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-drawer-head .ai-close {
+  background: rgba(255,255,255,0.25);
+  border: none;
+  color: white;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.ai-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  scrollbar-width: thin;
+}
+
+.ai-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 0;
+  color: var(--text3);
+  font-size: 12px;
+}
+
+.ai-loading .spinner { width: 22px; height: 22px; border-width: 3px; }
+
+.ai-content { display: none; }
+
+.ai-content .ai-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.ai-content .ai-sub {
+  font-size: 11px;
+  color: var(--text3);
+  margin-bottom: 12px;
+}
+
+.ai-point {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.ai-point:last-of-type { border-bottom: none; }
+
+.ai-point .pt-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ai-point .pt-text { flex: 1; }
+
+.ai-point .pt-text .em { color: var(--accent); font-weight: 600; }
+
+.ai-table-wrap { margin-top: 6px; }
+
+.ai-table-wrap table.report-table { margin-bottom: 0; }
+
+.ai-drawer-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ai-drawer-foot .btn-mini {
+  padding: 8px 14px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text2);
+}
+
+.ai-drawer-foot .btn-mini.primary {
+  flex: 1;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.ai-drawer-foot .btn-mini.primary:hover { background: var(--accent-hover); }
+
+/* ===== AI抽屉：底部对话模式 ===== */
+.ai-chat {
+  display: none;
+  margin-top: 12px;
+  border-top: 1px dashed var(--border);
+  padding-top: 10px;
+}
+
+.ai-chat.open { display: block; }
+
+.ai-chat-msgs {
+  max-height: 200px;
+  overflow-y: auto;
+  padding-bottom: 6px;
+}
+
+.ai-chat .chat-msg { display: flex; gap: 8px; margin-bottom: 10px; }
+
+.ai-chat .chat-msg.ai .chat-avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f97316, #f59e0b);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.ai-chat .chat-msg.user { flex-direction: row-reverse; }
+
+.ai-chat .chat-msg.user .chat-avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--bg3);
+  color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.ai-chat .chat-msg .chat-bubble {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text);
+  max-width: 82%;
+}
+
+.ai-chat .chat-msg.user .chat-bubble {
+  background: var(--accent-soft);
+  border-color: #fed7aa;
+  color: #d9480f;
+}
+
+.ai-chat .chat-bubble .em { color: var(--accent); font-weight: 600; }
+
+.ai-chat-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ai-chat-quick button {
+  font-size: 10.5px;
+  padding: 5px 10px;
+  border-radius: 100px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+
+.ai-chat-quick button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+.ai-chat-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ai-chat-input-row input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 9px 14px;
+  font-size: 12px;
+  outline: none;
+  color: var(--text);
+  background: var(--bg);
+  font-family: inherit;
+}
+
+.ai-chat-input-row input:focus { border-color: var(--accent); }
+
+.ai-chat-input-row .send-btn {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition);
+}
+
+.ai-chat-input-row .send-btn:hover { background: var(--accent-hover); }
+
+.ai-drawer-foot .mode-analysis { display: flex; gap: 8px; width: 100%; }
+
+.ai-drawer-foot .mode-chat { width: 100%; }
+
+.module-card { position: relative; }
+
+.mc-num {
+  position: absolute;
+  top: 6px; left: 6px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--bg3);
+  color: var(--text3);
+  font-size: 10px;
+  font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1;
+}
+
+
+.sv-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 6px;
+  box-sizing: border-box;
+}
+</style>
+<style>
+body { padding:20px; }
+.plugin-panel { max-height:calc(100dvh - 40px); }
+@media (max-width: 420px) { body { padding:0; align-items:flex-start; } .plugin-panel { width:100%; max-height:100dvh; border-radius:0; min-height:100dvh; } }
+@media (max-width: 1100px) { .ai-drawer { left:max(0px, calc((100vw - 430px)/2)) !important; width:min(430px, 100vw); max-height:100dvh; } }
+</style>
+</head>
+<body>
+<div class="plugin-panel">
+<div class="tab-bar" id="mainTabBar"><button class="tab-btn active" data-tab="consult"><span class="tab-ico">💡</span>ALI运营顾问</button></div>
+<div class="content-area" id="contentArea">
+    <div class="tab-content active" id="tab-consult">
+
+      <!-- 模块入口首页 -->
+      <div class="sub-view active" id="consult-home">
+        <div class="module-grid">
+          <div class="module-card" onclick="openModule('m-dash')">
+            <span class="mc-num">1</span>
+            <div class="mc-icon c-orange">&#x25A3;</div>
+            <div class="mc-name">数据看板</div>
+            <div class="mc-desc">BOSS视角 · 全店核心指标</div>
+          </div>
+          <div class="module-card" onclick="openModule('m-plan')">
+            <span class="mc-num">2</span>
+            <div class="mc-icon c-blue">&#x1F4CB;</div>
+            <div class="mc-name">运营规划</div>
+            <div class="mc-desc">新店规划 · 老店规划</div>
+          </div>
+          <div class="module-card" onclick="openModule('m-position')">
+            <span class="mc-num">3</span><span class="mc-tag" id="mcTag-position"></span>
+            <div class="mc-icon c-teal">&#x1F30D;</div>
+            <div class="mc-name">营销定位</div>
+            <div class="mc-desc">市场 & 客户定位</div>
+          </div>
+          <div class="module-card" onclick="openModule('m-infra')">
+            <span class="mc-num">4</span><span class="mc-tag" id="mcTag-infra"></span>
+            <div class="mc-icon c-green">&#x2699;</div>
+            <div class="mc-name">运营基建</div>
+            <div class="mc-desc">选品 · 词库 · 发品</div>
+          </div>
+          <div class="module-card" onclick="openModule('m-promo')">
+            <span class="mc-num">5</span><span class="mc-tag" id="mcTag-promo"></span>
+            <div class="mc-icon c-purple">&#x1F4A1;</div>
+            <div class="mc-name">运营推广</div>
+            <div class="mc-desc">广告策略 · 诊断优化</div>
+          </div>
+          <div class="module-card" onclick="openModule('m-top')">
+            <span class="mc-num">6</span><span class="mc-tag" id="mcTag-top"></span>
+            <div class="mc-icon c-amber">&#x2B50;</div>
+            <div class="mc-name">优爆品提升</div>
+            <div class="mc-desc">优爆品 + 核心品跟进</div>
+          </div>
+          <div class="module-card" onclick="openModule('m-analysis')">
+            <span class="mc-num">7</span><span class="mc-tag" id="mcTag-analysis"></span>
+            <div class="mc-icon c-red">&#x1F4CA;</div>
+            <div class="mc-name">数据分析&优化</div>
+            <div class="mc-desc">店铺 · 产品 · 广告诊断</div>
+          </div>
+          <div class="module-card" onclick="openModule('m-biz')">
+            <span class="mc-num">8</span><span class="mc-tag" id="mcTag-biz"></span>
+            <div class="mc-icon c-blue">&#x1F4E5;</div>
+            <div class="mc-name">商机转化</div>
+            <div class="mc-desc">RFQ · 询盘 · 背调</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 模块1：数据看板（BOSS） -->
+      <div class="sub-view" id="m-dash">
+        <div class="sub-view-header">
+          <button class="back-btn" onclick="backConsult()">&#x2039;</button>
+          <span class="sub-view-title"><span class="sv-num">1</span>数据看板（BOSS）</span>
+          <div class="dash-tabs dash-tabs-inline">
+            <button class="dash-tab" onclick="switchDash('day', this)">日</button>
+            <button class="dash-tab" onclick="switchDash('week', this)">周</button>
+            <button class="dash-tab active" onclick="switchDash('month', this)">月</button>
+          </div>
+          <button class="push-btn" id="pushBtn" onclick="openPushModal()" title="数据推送设置">⚙️</button>
+        </div>
+        <div class="mini-cards">
+          <div class="mini-card" onclick="alert('展开花费详情')">
+          <div class="mc-head">
+            <span class="mc-label" id="spendL">本月花费</span>
+            <span class="mc-change up" id="spendC"></span>
+          </div>
+          <div class="mc-value" id="spendV">$3,842</div>
+        </div>
+          <div class="mini-card" onclick="alert('展开商机成本详情')">
+            <div class="mc-head">
+              <span class="mc-label">商机成本</span>
+              <span class="mc-change down" style="color:var(--green)" id="costC"></span>
+            </div>
+            <div class="mc-value" id="costV">$8.4</div>
+          </div>
+        </div>
+        <div class="mini-cards">
+          <div class="mini-card key" onclick="alert('展开询盘详情')">
+          <div class="mc-head">
+            <span class="mc-label" id="inqL">本月询盘</span>
+            <span class="mc-change up" id="inqC"></span>
+          </div>
+          <div class="mc-value" id="inqV">456</div>
+        </div>
+          <div class="mini-card key" onclick="alert('展开TM详情')">
+          <div class="mc-head">
+            <span class="mc-label" id="tmL">本月TM</span>
+            <span class="mc-change up" id="tmC"></span>
+          </div>
+          <div class="mc-value" id="tmV">892</div>
+        </div>
+          <div class="mini-card key" onclick="alert('展开订单详情')">
+          <div class="mc-head">
+            <span class="mc-label">订单笔数</span>
+            <span class="mc-change up" id="ordC"></span>
+          </div>
+          <div class="mc-value" id="ordV">52</div>
+        </div>
+          <div class="mini-card key" onclick="alert('展开GMV详情')">
+          <div class="mc-head">
+            <span class="mc-label" id="gmvL">本月GMV</span>
+            <span class="mc-change down" id="gmvC"></span>
+          </div>
+          <div class="mc-value" id="gmvV">$127,500</div>
+        </div>
+        </div>
+        <div class="level-card" onclick="alert('展开询盘分层详情')" style="cursor:pointer">
+          <div class="level-head">
+            <span class="level-title">询盘分层</span>
+            <span class="level-total">合计 456 条</span>
+          </div>
+          <div class="level-grid">
+            <div class="level-item">
+              <div class="lv-top"><span class="lv-name">L1+询盘</span><span class="lv-change up" id="lv1c"></span></div>
+              <div class="lv-value" id="lv1">128</div>
+              <div class="lv-bar"><div class="fill" id="lv1b" style="width:28%;background:var(--blue)"></div>
+            </div>
+            </div>
+            <div class="level-item">
+              <div class="lv-top"><span class="lv-name">L2询盘</span><span class="lv-change up" id="lv2c"></span></div>
+              <div class="lv-value" id="lv2">96</div>
+              <div class="lv-bar"><div class="fill" id="lv2b" style="width:21%;background:var(--green)"></div>
+            </div>
+            </div>
+            <div class="level-item">
+              <div class="lv-top"><span class="lv-name">L3询盘</span><span class="lv-change down" id="lv3c"></span></div>
+              <div class="lv-value" id="lv3">74</div>
+              <div class="lv-bar"><div class="fill" id="lv3b" style="width:16%;background:var(--amber)"></div>
+            </div>
+            </div>
+            <div class="level-item">
+              <div class="lv-top"><span class="lv-name">L4询盘</span><span class="lv-change up" id="lv4c"></span></div>
+              <div class="lv-value" id="lv4">158</div>
+              <div class="lv-bar"><div class="fill" id="lv4b" style="width:35%;background:var(--accent)"></div>
+            </div>
+            </div>
+          </div>
+        </div>
+        <div class="section-header">业务数据</div>
+        <div class="biz-wrap">
+          <table class="biz-table">
+            <thead><tr><th>业务员</th><th>产品</th><th>询盘数</th><th>回复率</th><th>成交</th><th>金额</th></tr></thead>
+            <tbody id="bizBody">
+            <tr><td>张经理</td><td>120</td><td>145</td><td>100%</td><td>8</td><td>$4.2W</td></tr>
+            <tr><td>李业务</td><td>85</td><td>98</td><td>98%</td><td>5</td><td>$2.8W</td></tr>
+            <tr><td>王专员</td><td>150</td><td>85</td><td>100%</td><td>4</td><td>$1.5W</td></tr>
+            <tr><td>赵助理</td><td>45</td><td>42</td><td>95%</td><td>2</td><td>$0.8W</td></tr>
+          </tbody>
+          </table>
+        </div>
+        <div class="section-header">TOP5 访客国家</div>
+        <div class="top5-country" id="countryList">
+          <div class="c-item"><span class="c-r top">1</span><span class="c-n">美国</span><span class="c-v">32%</span></div>
+          <div class="c-item"><span class="c-r">2</span><span class="c-n">德国</span><span class="c-v">18%</span></div>
+          <div class="c-item"><span class="c-r">3</span><span class="c-n">英国</span><span class="c-v">12%</span></div>
+          <div class="c-item"><span class="c-r">4</span><span class="c-n">加拿大</span><span class="c-v">9%</span></div>
+          <div class="c-item"><span class="c-r">5</span><span class="c-n">澳大利亚</span><span class="c-v">7%</span></div>
+        </div>
+        <div class="section-header">TOP5 询盘产品</div>
+        <div class="top5-table-wrap">
+          <table class="top5-table">
+            <thead><tr><th>序号</th><th>ID</th><th>产品图</th><th>标题</th><th>询盘数</th></tr></thead>
+            <tbody id="inqProdList">
+              <tr><td>1</td><td>6193</td><td><span class="t5-img" style="background:linear-gradient(135deg,#4f8cff,#7aa8ff)">P</span></td><td><span class="t5-title">Pouch Batteries 锂电池组</span></td><td><span class="t5-cnt">48</span></td></tr>
+              <tr><td>2</td><td>2831</td><td><span class="t5-img" style="background:linear-gradient(135deg,#f5a623,#f7c873)">2</span></td><td><span class="t5-title">21700 Battery Pack</span></td><td><span class="t5-cnt">36</span></td></tr>
+              <tr><td>3</td><td>4417</td><td><span class="t5-img" style="background:linear-gradient(135deg,#12b886,#7ed6a5)">T</span></td><td><span class="t5-title">姜黄提取物 Turmeric Extract</span></td><td><span class="t5-cnt">29</span></td></tr>
+              <tr><td>4</td><td>5102</td><td><span class="t5-img" style="background:linear-gradient(135deg,#7048e8,#a78bfa)">轨</span></td><td><span class="t5-title">轨道灯 Track Light</span></td><td><span class="t5-cnt">21</span></td></tr>
+              <tr><td>5</td><td>6688</td><td><span class="t5-img" style="background:linear-gradient(135deg,#e8590c,#ffa94d)">D</span></td><td><span class="t5-title">干粉罐 Dry Powder Can</span></td><td><span class="t5-cnt">17</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="section-header">店铺健康度</div>
+        <div class="health-list">
+          <div class="health-item" onclick="alert('展开星级详情')" style="cursor:pointer">
+            <div class="hi-top">
+              <span class="hi-label">店铺星级</span>
+              <span class="hi-value warn">3 星 &#9733;&#9733;&#9733;&#9734;&#9734;</span>
+            </div>
+            <div class="hi-bar"><div class="fill" style="width:75%;background:var(--amber)"></div></div>
+            <div class="hi-note"><span>距4星差12分</span><span class="trend-flat">需提升</span></div>
+          </div>
+          <div class="health-item" onclick="alert('展开优品详情')" style="cursor:pointer">
+            <div class="hi-top">
+              <span class="hi-label">优品数</span>
+              <span class="hi-value good" id="upcV">38</span>
+            </div>
+            <div class="hi-note"><span>全店优品 38 款</span><span class="trend-up">正常</span></div>
+          </div>
+          <div class="health-item" onclick="alert('展开真爆品详情')" style="cursor:pointer">
+            <div class="hi-top">
+              <span class="hi-label">真爆品数</span>
+              <span class="hi-value good" id="truV">24</span>
+            </div>
+            <div class="hi-note"><span>真爆品 24 款 · 询盘312</span><span class="trend-up">正常</span></div>
+          </div>
+          <div class="health-item" onclick="alert('展开假爆品详情')" style="cursor:pointer">
+            <div class="hi-top">
+              <span class="hi-label">假爆品数</span>
+              <span class="hi-value bad" id="falV">6</span>
+            </div>
+            <div class="hi-bar"><div class="fill" style="width:25%;background:var(--red)"></div></div>
+            <div class="hi-note"><span>虚假爆品 6 款</span><span class="trend-down">需清洗</span></div>
+          </div>
+          <div class="health-item" onclick="alert('展开橱窗优品详情')" style="cursor:pointer">
+            <div class="hi-top">
+              <span class="hi-label">橱窗优品占</span>
+              <span class="hi-value warn" id="winV">68%</span>
+            </div>
+            <div class="hi-bar"><div class="fill" id="winBar" style="width:68%;background:var(--amber)"></div></div>
+            <div class="hi-note"><span>橱窗 26/38</span><span class="trend-flat">需提升</span></div>
+          </div>
+          <div class="health-item" onclick="alert('展开曝光详情')" style="cursor:pointer">
+            <div class="hi-top">
+              <span class="hi-label">曝光</span>
+              <span class="hi-value" id="expV">186,500</span>
+            </div>
+            <div class="hi-note"><span>本月曝光</span><span class="trend-up" id="expT">&#x25B2; 28.4%</span></div>
+          </div>
+          <div class="health-item" onclick="alert('展开点击率详情')" style="cursor:pointer">
+            <div class="hi-top">
+              <span class="hi-label">点击率</span>
+              <span class="hi-value bad" id="ctrV">2.0%</span>
+            </div>
+            <div class="hi-bar"><div class="fill" id="ctrBar" style="width:40%;background:var(--red)"></div></div>
+            <div class="hi-note"><span>行业均值 2.5%</span><span class="trend-down" id="ctrT">&#x25BC; 0.3pp</span></div>
+          </div>
+          <div class="health-item" onclick="alert('展开询盘率详情')" style="cursor:pointer">
+            <div class="hi-top">
+              <span class="hi-label">询盘率</span>
+              <span class="hi-value good" id="irV">47.2%</span>
+            </div>
+            <div class="hi-bar"><div class="fill" style="width:78%;background:var(--green)"></div></div>
+            <div class="hi-note"><span>询盘456/点击966</span><span class="trend-up">&#x25B2; 1.2pp</span></div>
+          </div>
+          <div class="health-item" onclick="alert('展开成交率详情')" style="cursor:pointer">
+            <div class="hi-top">
+              <span class="hi-label">成交率</span>
+              <span class="hi-value warn" id="cvrV">0.35%</span>
+            </div>
+            <div class="hi-bar"><div class="fill" id="cvrBar" style="width:52%;background:var(--amber)"></div></div>
+            <div class="hi-note"><span>询盘456 → 订单52</span><span class="trend-down" id="cvrT">&#x25BC; 0.05pp</span></div>
+          </div>
+          <div class="health-item" onclick="alert('展开RFQ查看率详情')" style="cursor:pointer">
+            <div class="hi-top">
+              <span class="hi-label">RFQ查看率</span>
+              <span class="hi-value good" id="rfqV">78%</span>
+            </div>
+            <div class="hi-bar"><div class="fill" style="width:78%;background:var(--green)"></div></div>
+            <div class="hi-note"><span>报价后查看率</span><span class="trend-up">&#x25B2; 3%</span></div>
+          </div>
+        </div>
+        <div class="section-header">本周待办</div>
+        <div class="func-list">
+          <div class="func-item">
+            <div class="func-icon c-red">&#x2757;</div>
+            <div class="func-info">
+              <div class="func-title">Pouch Battery 移入橱窗</div>
+              <div class="func-desc">询盘28 · 完整度仅42%</div>
+            </div>
+            <span class="func-badge badge-hot">P0</span>
+          </div>
+          <div class="func-item">
+            <div class="func-icon c-amber">&#x1F514;</div>
+            <div class="func-info">
+              <div class="func-title">9月采购节报名截止</div>
+              <div class="func-desc">距截止还有 5 天</div>
+            </div>
+            <span class="func-badge badge-hot">紧急</span>
+          </div>
+          <div class="func-item">
+            <div class="func-icon c-blue">&#x1F4A1;</div>
+            <div class="func-info">
+              <div class="func-title">P4P流量清洗</div>
+              <div class="func-desc">24个0询盘关键词待剔除</div>
+            </div>
+            <span class="func-badge badge-new">优化</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 模块2：运营规划 -->
+      <div class="sub-view" id="m-plan">
+        <div class="sub-view-header">
+          <button class="back-btn" onclick="backConsult()">&#x2039;</button>
+          <span class="sub-view-title"><span class="sv-num">2</span>运营规划</span>
+        </div>
+        <div class="section-header">新店运营规划</div>
+        <div class="func-list">
+          <details class="sop-wrap">
+            <summary class="sop-summary">
+              <span class="sop-sum-icon">&#x1F4CB;</span>
+              <span class="sop-sum-title">新店运营规划SOP清单</span>
+              <span class="sop-sum-tip">运营规划 → 定位规划 → 基础建设 → 流量获取 → 打优爆品进榜单 → 诊断优化</span>
+              <span class="func-badge badge-hot">规划</span>
+            </summary>
+        <!-- 阶段1：运营规划 -->
+        <div class="sop-stage">
+          <div class="sop-stage-header">
+            <span class="sop-stage-num">1</span>运营规划
+            <span class="sop-stage-tag">运营SOP导图 · 动员会</span>
+          </div>
+          <details class="sop-item" open>
+            <summary>运营规划 <span class="sop-dur">运营SOP导图 · 动员会</span></summary>
+            <div class="sop-body">
+              学习完后回到公司由负责人主持落地启动会，明确各职责人及落地时间，重新梳理运营SOP导图，做好可以打印SOP导图张贴到公司的墙上。
+            </div>
+          </details>
+        </div>
+
+        <!-- 阶段2：定位规划 -->
+        <div class="sop-stage">
+          <div class="sop-stage-header">
+            <span class="sop-stage-num">2</span>定位规划
+            <span class="sop-stage-tag">定方向 + 装修</span>
+          </div>
+          <details class="sop-item">
+            <summary>市场定位 <span class="sop-dur">定方向 1天</span></summary>
+            <div class="sop-body">
+              <div class="sop-sub">市场定位 —— 定类目 定国家</div>
+              <div class="sop-sub">客群定位 —— 定客户类型 提炼痛点</div>
+            </div>
+          </details>
+          <details class="sop-item">
+            <summary>公司定位 <span class="sop-dur">HOME页+详情装修文案 2天</span></summary>
+            <div class="sop-body">
+              <div class="sop-sub">公司优势 why choose us?</div>
+              <div class="sop-sub">PC/无线端装修文案</div>
+              <ul><li>素材准备 + 图片 + 视频</li></ul>
+              <div class="sop-sub">详情描述文案及模板设计</div>
+              <ul><li>优先做</li></ul>
+            </div>
+          </details>
+          <details class="sop-item">
+            <summary>产品定位 <span class="sop-dur">选品 1-2天</span></summary>
+            <div class="sop-body">
+              <div class="sop-sub">产品分类</div>
+              <ul><li>产品分类 - 后台分组</li></ul>
+              <div class="sop-sub">选品（1-2天）</div>
+              <ul><li>选品（通过5大模块）</li></ul>
+            </div>
+          </details>
+        </div>
+
+        <!-- 阶段3：基础建设 -->
+        <div class="sop-stage">
+          <div class="sop-stage-header">
+            <span class="sop-stage-num">3</span>基础建设
+            <span class="sop-stage-tag">词库 + 发品</span>
+          </div>
+          <details class="sop-item">
+            <summary>关键词库 <span class="sop-dur">词全 5-7天</span></summary>
+            <div class="sop-body">
+              <div class="sop-sub">《主词表》</div>
+              <div class="sop-sub">《关键词词库》建立及整理</div>
+            </div>
+          </details>
+          <details class="sop-item">
+            <summary>产品发布 <span class="sop-dur">模板确认1天 + 发品15天</span></summary>
+            <div class="sop-body">
+              <div class="sop-sub">产品发布模板确认（1天）</div>
+              <ul><li>发布第1款产品确认整体布局（反复确认）</li></ul>
+              <div class="sop-sub">发品布词（品全）（15天）</div>
+              <ul><li>快速发品覆盖关键词（不要重复发品，多发行业定向征品）</li></ul>
+            </div>
+          </details>
+        </div>
+
+        <!-- 阶段4：流量获取 -->
+        <div class="sop-stage">
+          <div class="sop-stage-header">
+            <span class="sop-stage-num">4</span>流量获取
+            <span class="sop-stage-tag">P4P加推 1个月</span>
+          </div>
+          <details class="sop-item" open>
+            <summary>推广策略 <span class="sop-dur">50-100个品后开始</span></summary>
+            <div class="sop-body">
+              <div class="sop-sub">新店铺/整店铺效果不好</div>
+              <ul><li>全站推-日预算 / AI智投（所有品）</li></ul>
+              <div class="sop-sub">1-2个月后，针对转化高的产品单独创建计划</div>
+              <div class="sop-tag-line">选品：普通品 / 潜力优品 / 新品阶段 —— 全站推-日预算 / AI智投（按产品分类）</div>
+              <div class="sop-tag-line">选爆品：优品 —— 全站推-日预算 / AI智投</div>
+              <div class="sop-tag-line">打爆品：优爆品阶段 —— 全站推-推商品（按产品分类）+ 关键词推广（快速修改标签）</div>
+              <div class="sop-tip">&#x1F4A1; 快速选出公司的流量款、转化高的产品</div>
+            </div>
+          </details>
+          <details class="sop-item">
+            <summary>广告诊断优化 <span class="sop-dur">五维诊断</span></summary>
+            <div class="sop-body">
+              <div class="sop-sub">广告计划数据</div>
+              <ul><li>分计划花费/曝光/点击/ROI 周度复盘，识别高花费低询盘计划</li></ul>
+              <div class="sop-sub">产品数据</div>
+              <ul><li>单品广告效果诊断，识别高点击零商机产品（拖后腿产品）</li></ul>
+              <div class="sop-sub">国家数据</div>
+              <ul><li>分国家投放效果对比，美/英/加/德溢价20%，低效国家暂停</li></ul>
+              <div class="sop-sub">关键词精准度</div>
+              <ul><li>0询盘关键词清洗，词-产品匹配度检测，调整出价</li></ul>
+              <div class="sop-sub">询盘质量</div>
+              <ul><li>广告来源询盘的等级分布（L1-L4）与转化质量评估</li></ul>
+            </div>
+          </details>
+          <details class="sop-item">
+            <summary>问鼎/顶展/聚量诊断 <span class="sop-dur">三渠道诊断</span></summary>
+            <div class="sop-body">
+              <ul>
+                <li>问鼎诊断：品牌搜索量 / 截流效果 / ROI</li>
+                <li>顶展诊断：词排名 / 点击 / 转化</li>
+                <li>聚量诊断：聚量投放效果 / 花费 / ROI</li>
+                <li>每周监控品广效果，低ROI词及时调整</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+
+        <!-- 阶段5：打优爆品进榜单 -->
+        <div class="sop-stage">
+          <div class="sop-stage-header">
+            <span class="sop-stage-num">5</span>打优爆品进榜单
+            <span class="sop-stage-tag">资源绑定 + 榜单</span>
+          </div>
+          <details class="sop-item">
+            <summary>优爆品提升 <span class="sop-dur">六层产品结构</span></summary>
+            <div class="sop-body">
+              <div class="sop-sub">真爆品</div>
+              <ul><li>询盘高、转化好，资源全绑定（品广/橱窗/认证）的主推产品</li></ul>
+              <div class="sop-sub">潜力爆品</div>
+              <ul><li>有爆品潜质，重点扶持培育，顶展问鼎优先绑定</li></ul>
+              <div class="sop-sub">优品</div>
+              <ul><li>平台优品标签产品，保持12项运营动作完整度</li></ul>
+              <div class="sop-sub">48H成为优品</div>
+              <ul><li>48小时内优化达标优品标准的产品，快速迭代</li></ul>
+              <div class="sop-sub">潜力优品+普通品</div>
+              <ul><li>待提升产品池，按数据表现逐步晋级</li></ul>
+              <div class="sop-sub">假爆品</div>
+              <ul><li>虚标爆品，需清洗降级，避免资源浪费</li></ul>
+            </div>
+          </details>
+          <details class="sop-item">
+            <summary>核心品资源跟进 <span class="sop-dur">橱窗/认证/榜单</span></summary>
+            <div class="sop-body">
+              <div class="sop-sub">核心品资源</div>
+              <ul>
+                <li>优爆款移入橱窗</li>
+                <li>设置主营认证产品 + 绑定认证证书</li>
+                <li>订单优先绑定核心产品链接</li>
+              </ul>
+              <div class="sop-sub">进榜单统计</div>
+              <ul>
+                <li>Most popular / Hot selling / Best reviewed 榜单：统计产品ID及排名</li>
+                <li>国家询盘榜单：统计不同国家排名</li>
+              </ul>
+            </div>
+          </details>
+          <details class="sop-item">
+            <summary>单品历史数据 <span class="sop-dur">跟踪单品历史数据统计</span></summary>
+            <div class="sop-body">
+              <div class="sop-sub">关键词流量来源</div>
+              <ul><li>单品关键词流量来源统计，识别主要引流词与增长词</li></ul>
+              <div class="sop-sub">国家来源</div>
+              <ul><li>单品分国家流量来源统计，识别核心市场与机会市场</li></ul>
+              <div class="sop-sub">单品历史数据统计</div>
+              <ul>
+                <li>曝光 / 点击 / 访客 / 询盘 / 订单 全链路历史趋势</li>
+                <li>A. 根据产品曝光（确保所有的词TK）、点击、访客、反馈、订单转化进行优化</li>
+                <li>B. 每周2和每月3号：对数据不好的产品进行优化</li>
+                <li>C. 新产品优化：新产品加入广告3天后对有问题的产品进行优化</li>
+                <li>D. 90天以上产品数据不好的不优化，可以考虑重新发布产品</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+
+        <!-- 阶段6：诊断优化 -->
+        <div class="sop-stage">
+          <div class="sop-stage-header">
+            <span class="sop-stage-num">6</span>诊断优化
+            <span class="sop-stage-tag">四维诊断</span>
+          </div>
+          <details class="sop-item">
+            <summary>店铺诊断 <span class="sop-dur">核心指标</span></summary>
+            <div class="sop-body">
+              一键导出报表，快速诊断核心指标：星等级 / 优爆品 / 橱窗利用率 / 店铺转化
+            </div>
+          </details>
+          <details class="sop-item">
+            <summary>产品诊断 <span class="sop-dur">分层 + 低效品</span></summary>
+            <div class="sop-body">
+              <div class="sop-sub">产品分层：优爆品 / 普通品 / 低效品</div>
+              <ul>
+                <li>识别90天零效果产品，优化或重新发布</li>
+                <li>新品加入广告3天后对有问题的产品进行优化</li>
+              </ul>
+            </div>
+          </details>
+          <details class="sop-item">
+            <summary>广告诊断 <span class="sop-dur">水位诊断</span></summary>
+            <div class="sop-body">
+              <ul>
+                <li>识别高点击零商机产品（拖后腿产品）</li>
+                <li>剔除0询盘关键词，按计划/地域调整出价</li>
+                <li>每周2和每月3号：对数据不好的产品进行优化</li>
+              </ul>
+            </div>
+          </details>
+          <details class="sop-item">
+            <summary>品广诊断 <span class="sop-dur">顶展 + 问鼎</span></summary>
+            <div class="sop-body">
+              <ul>
+                <li>顶展词点击/转化/ROI一览，识别低效词与机会词</li>
+                <li>问鼎品牌搜索量变化与竞品截流效果评估</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+
+          </details>
+
+        </div>
+        <div class="section-header">老店运营规划</div>
+        <div class="func-list">
+          <details class="sop-wrap">
+            <summary class="sop-summary">
+              <span class="sop-sum-icon">&#x1F3E2;</span>
+              <span class="sop-sum-title">老店运营诊断规划SOP清单</span>
+              <span class="sop-sum-tip">店铺诊断 → 运营规划</span>
+              <span class="func-badge badge-hot">规划</span>
+            </summary>
+
+            <!-- 阶段0：店铺诊断 -->
+            <div class="sop-stage">
+              <div class="sop-stage-header">
+                <span class="sop-stage-num">诊</span>店铺诊断
+                <span class="sop-stage-tag">诊断 + 整改</span>
+              </div>
+              <details class="sop-item" open>
+                <summary>店铺诊断与落地规划 <span class="sop-dur">七维诊断 + 落地</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">星等级</div>
+                  <ul><li>当前3星距4星差12分，逐项突破星级短板指标</li></ul>
+                  <div class="sop-sub">子类目诊断</div>
+                  <ul><li>子类目曝光/点击/询盘对比，识别优势类目与弱势类目</li></ul>
+                  <div class="sop-sub">优爆品诊断</div>
+                  <ul><li>真爆品24 / 潜力爆品 / 假爆品6识别，12项运营动作完整度</li></ul>
+                  <div class="sop-sub">橱窗诊断</div>
+                  <ul><li>橱窗利用率68%，优品橱窗占比检查，优先放优爆品</li></ul>
+                  <div class="sop-sub">产品诊断</div>
+                  <ul><li>产品分层（优爆品/普通品/低效品），90天零效果品识别</li></ul>
+                  <div class="sop-sub">广告诊断</div>
+                  <ul><li>P4P水位诊断，0询盘词清洗，地域出价优化</li></ul>
+                  <div class="sop-sub">员工诊断</div>
+                  <ul><li>业务员询盘/回复率/成交/金额对比，跟进质量评估</li></ul>
+                  <div class="sop-sub">落地规划</div>
+                  <ul>
+                    <li>根据诊断问题输出落地整改优化执行计划</li>
+                    <li>明确整改动作、负责人与完成时间，纳入周度跟进</li>
+                  </ul>
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>产品优化 <span class="sop-dur">高曝光低点击 / 高点击低转化</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">高曝光低点击</div>
+                  <ul>
+                    <li>诊断：曝光高但点击率低的产品（如ID 0568，点击率&lt;1.5%）</li>
+                    <li>优化：重构主图（首图卖点/场景），标题7项合规扫描+关键词植入</li>
+                  </ul>
+                  <div class="sop-sub">高点击低转化</div>
+                  <ul>
+                    <li>诊断：点击高但询盘/转化低的产品，问题在详情页/价格/认证</li>
+                    <li>优化：详情页5段式升级（卖点→参数→认证→工厂→合作），价格策略调整，补充认证资质</li>
+                  </ul>
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>核心品资源跟进 <span class="sop-dur">橱窗/认证/榜单</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">核心品资源</div>
+                  <ul>
+                    <li>优爆款移入橱窗</li>
+                    <li>设置主营认证产品 + 绑定认证证书</li>
+                    <li>订单优先绑定核心产品链接</li>
+                  </ul>
+                  <div class="sop-sub">进榜单统计</div>
+                  <ul>
+                    <li>Most popular / Hot selling / Best reviewed 榜单：统计产品ID及排名</li>
+                    <li>国家询盘榜单：统计不同国家排名</li>
+                  </ul>
+                </div>
+              </details>
+            </div>
+
+            <!-- 阶段1：店铺定位 -->
+            <div class="sop-stage">
+              <div class="sop-stage-header">
+                <span class="sop-stage-num">1</span>店铺定位
+                <span class="sop-stage-tag">定方向 + 装修</span>
+              </div>
+              <details class="sop-item">
+                <summary>市场定位SOP <span class="sop-dur">定方向</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">市场定位 —— 定类目 定国家</div>
+                  <div class="sop-sub">客群定位 —— 定客户类型 提炼痛点</div>
+                  <div class="sop-sub">公司优势 why choose us?</div>
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>公司定位SOP <span class="sop-dur">HOME页+详情装修文案 2天</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">PC/无线端装修文案</div>
+                  <ul><li>素材准备 + 图片 + 视频</li></ul>
+                  <div class="sop-sub">详情描述文案及模板设计</div>
+                  <ul><li>优先做</li></ul>
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>产品定位SOP <span class="sop-dur">产品分类 + 选品</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">产品分类</div>
+                  <ul><li>产品分类 - 后台分组</li></ul>
+                  <div class="sop-sub">选品</div>
+                  <ul><li>选品（通过5大模块）</li></ul>
+                </div>
+              </details>
+                          </div>
+
+            <!-- 阶段2：基础建设 -->
+            <div class="sop-stage">
+              <div class="sop-stage-header">
+                <span class="sop-stage-num">2</span>基础建设
+                <span class="sop-stage-tag">词库 + 发品</span>
+              </div>
+<details class="sop-item">
+                <summary>关键词库 <span class="sop-dur">词全 5天</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">根据产品分组整理《主词表》</div>
+                  <div class="sop-sub">《关键词词库》建立及整理</div>
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>产品发布 <span class="sop-dur">模板确认1天 + 发品15天</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">产品发布模板确认（1天）</div>
+                  <ul><li>发布第1款产品确认整体布局</li></ul>
+                  <div class="sop-sub">发品布词（品全）（15天）</div>
+                  <ul><li>快速发品覆盖关键词（不要重复发品，多发行业定向征品）</li></ul>
+                </div>
+              </details>
+            </div>
+
+            <!-- 阶段3：流量获取 -->
+            <div class="sop-stage">
+              <div class="sop-stage-header">
+                <span class="sop-stage-num">3</span>流量获取
+                <span class="sop-stage-tag">P4P加推 1个月</span>
+              </div>
+              <details class="sop-item" open>
+                <summary>推广策略 <span class="sop-dur">满足100个品后开始</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">新店铺/整店铺效果不好</div>
+                  <ul><li>全站推-日预算 / AI智投（所有品）</li></ul>
+                  <div class="sop-sub">1个月后，针对转化高的产品单独创建计划</div>
+                  <div class="sop-tag-line">选品：普通品 / 潜力优品 / 新品阶段 —— 全站推-日预算 / AI智投（按产品分类）</div>
+                  <div class="sop-tag-line">选爆品：优品 —— 全站推-日预算 / AI智投</div>
+                  <div class="sop-tag-line">打爆品：优爆品阶段 —— 全站推-推商品（按产品分类）+ 关键词推广（快速修改标签）</div>
+                  <div class="sop-tip">&#x1F4A1; 快速选出公司的流量款、转化高的产品</div>
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>广告诊断优化 <span class="sop-dur">五维诊断</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">广告计划数据</div>
+                  <ul><li>分计划花费/曝光/点击/ROI 周度复盘，识别高花费低询盘计划</li></ul>
+                  <div class="sop-sub">产品数据</div>
+                  <ul><li>单品广告效果诊断，识别高点击零商机产品（拖后腿产品）</li></ul>
+                  <div class="sop-sub">国家数据</div>
+                  <ul><li>分国家投放效果对比，美/英/加/德溢价20%，低效国家暂停</li></ul>
+                  <div class="sop-sub">关键词精准度</div>
+                  <ul><li>0询盘关键词清洗，词-产品匹配度检测，调整出价</li></ul>
+                  <div class="sop-sub">询盘质量</div>
+                  <ul><li>广告来源询盘的等级分布（L1-L4）与转化质量评估</li></ul>
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>问鼎/顶展/聚量诊断 <span class="sop-dur">三渠道诊断</span></summary>
+                <div class="sop-body">
+                  <ul>
+                    <li>问鼎诊断：品牌搜索量 / 截流效果 / ROI</li>
+                    <li>顶展诊断：词排名 / 点击 / 转化</li>
+                    <li>聚量诊断：聚量投放效果 / 花费 / ROI</li>
+                    <li>每周监控品广效果，低ROI词及时调整</li>
+                  </ul>
+                </div>
+              </details>
+            </div>
+
+            <!-- 阶段4：打优爆品进榜单 -->
+            <div class="sop-stage">
+              <div class="sop-stage-header">
+                <span class="sop-stage-num">4</span>打优爆品进榜单
+                <span class="sop-stage-tag">六层结构 + 榜单</span>
+              </div>
+              <details class="sop-item">
+                <summary>优爆品提升 <span class="sop-dur">六层产品结构</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">真爆品</div>
+                  <ul><li>询盘高转化好，资源全绑定主推（24款·询盘312）</li></ul>
+                  <div class="sop-sub">潜力爆品</div>
+                  <ul><li>顶展问鼎优先绑定培育</li></ul>
+                  <div class="sop-sub">优品</div>
+                  <ul><li>保持12项运营动作完整度（38款）</li></ul>
+                  <div class="sop-sub">48H成为优品</div>
+                  <ul><li>48小时优化达标快速迭代</li></ul>
+                  <div class="sop-sub">潜力优品+普通品</div>
+                  <ul><li>待提升池按数据晋级</li></ul>
+                  <div class="sop-sub">假爆品</div>
+                  <ul><li>虚标爆品清洗降级（6款）</li></ul>
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>核心品资源跟进 <span class="sop-dur">橱窗/认证/榜单</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">核心品资源</div>
+                  <ul>
+                    <li>优爆款移入橱窗</li>
+                    <li>设置主营认证产品 + 绑定认证证书</li>
+                    <li>订单优先绑定核心产品链接</li>
+                  </ul>
+                  <div class="sop-sub">进榜单统计</div>
+                  <ul>
+                    <li>Most popular / Hot selling / Best reviewed 榜单：统计产品ID及排名</li>
+                    <li>国家询盘榜单：统计不同国家排名</li>
+                  </ul>
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>单品历史数据 <span class="sop-dur">跟踪单品历史数据统计</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">关键词流量来源</div>
+                  <ul><li>单品关键词流量来源统计，识别主要引流词与增长词</li></ul>
+                  <div class="sop-sub">国家来源</div>
+                  <ul><li>单品分国家流量来源统计，识别核心市场与机会市场</li></ul>
+                  <div class="sop-sub">单品历史数据统计</div>
+                  <ul>
+                    <li>曝光 / 点击 / 访客 / 询盘 / 订单 全链路历史趋势</li>
+                    <li>A. 根据产品曝光（确保所有的词TK）、点击、访客、反馈、订单转化进行优化</li>
+                    <li>B. 每周2和每月3号：对数据不好的产品进行优化</li>
+                    <li>C. 新产品优化：新产品加入广告3天后对有问题的产品进行优化</li>
+                    <li>D. 90天以上产品数据不好的不优化，可以考虑重新发布产品</li>
+                  </ul>
+                </div>
+              </details>
+            </div>
+
+            <!-- 阶段5：诊断优化 -->
+            <div class="sop-stage">
+              <div class="sop-stage-header">
+                <span class="sop-stage-num">5</span>诊断优化
+                <span class="sop-stage-tag">四维诊断</span>
+              </div>
+              <details class="sop-item">
+                <summary>店铺诊断 <span class="sop-dur">核心指标</span></summary>
+                <div class="sop-body">
+                  一键导出报表，快速诊断核心指标：星等级 / 优爆品 / 橱窗利用率 / 店铺转化
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>产品诊断 <span class="sop-dur">分层 + 低效品</span></summary>
+                <div class="sop-body">
+                  <div class="sop-sub">产品分层：优爆品 / 普通品 / 低效品</div>
+                  <ul>
+                    <li>识别90天零效果产品，优化或重新发布</li>
+                    <li>新品加入广告3天后对有问题的产品进行优化</li>
+                  </ul>
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>广告诊断 <span class="sop-dur">水位诊断</span></summary>
+                <div class="sop-body">
+                  <ul>
+                    <li>识别高点击零商机产品（拖后腿产品）</li>
+                    <li>剔除0询盘关键词，按计划/地域调整出价</li>
+                    <li>每周2和每月3号：对数据不好的产品进行优化</li>
+                  </ul>
+                </div>
+              </details>
+              <details class="sop-item">
+                <summary>品广诊断 <span class="sop-dur">顶展 + 问鼎</span></summary>
+                <div class="sop-body">
+                  <ul>
+                    <li>顶展词点击/转化/ROI一览，识别低效词与机会词</li>
+                    <li>问鼎品牌搜索量变化与竞品截流效果评估</li>
+                  </ul>
+                </div>
+              </details>
+            </div>
+
+          </details>
+        </div>
+        <div class="section-header">活动作战规划</div>
+        <div class="func-list">
+          <div class="func-item" onclick="openAiDrawerByName('3月新贸节作战计划', this)">
+            <div class="func-icon c-green">&#x1F4A5;</div>
+            <div class="func-info">
+              <div class="func-title">3月新贸节作战计划</div>
+              <div class="func-desc">大促报名 · 预算筹备 · 爆品备战</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName('9月采购节作战计划', this)">
+            <div class="func-icon c-red">&#x1F389;</div>
+            <div class="func-info">
+              <div class="func-title">9月采购节作战计划</div>
+              <div class="func-desc">距报名截止 5 天 · 全员行动表</div>
+            </div>
+            <span class="func-badge badge-hot">紧急</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 模块3：营销定位 -->
+      <div class="sub-view" id="m-position">
+        <div class="sub-view-header">
+          <button class="back-btn" onclick="backConsult()">&#x2039;</button>
+          <span class="sub-view-title"><span class="sv-num">3</span>营销定位</span>
+          <button class="sv-action-btn" title="本周优先动作" onclick="openPriorityActions('position')">&#x1F4CC;<span class="pa-dot" id="paDot-position"></span></button>
+        </div>
+        <div class="section-header">市场 & 客户定位</div>
+        <div class="func-list">
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-teal">&#x1F30D;</div>
+            <div class="func-info">
+              <div class="func-title">市场&客群定位</div>
+              <div class="func-desc">目标市场分析 · 客群及痛点分析</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-blue">&#x1F3E2;</div>
+            <div class="func-info">
+              <div class="func-title">公司定位</div>
+              <div class="func-desc">why choose us? · 公司实力 · 定制能力 · 品控能力</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-purple">&#x1F4E6;</div>
+            <div class="func-info">
+              <div class="func-title">产品定位</div>
+              <div class="func-desc">产品分类 · 子类目确定 · 商品类型</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+        </div>
+        <div class="section-header">店铺定位</div>
+        <div class="func-list">
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-orange">&#x1F3E0;</div>
+            <div class="func-info">
+              <div class="func-title">店铺装修文案</div>
+              <div class="func-desc">一键输出店铺装修文案</div>
+            </div>
+            <span class="func-badge badge-ai">AI</span>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-blue">&#x1F5BC;</div>
+            <div class="func-info">
+              <div class="func-title">详情页装修文案</div>
+              <div class="func-desc">一键输出详情页装修文案</div>
+            </div>
+            <span class="func-badge badge-ai">AI</span>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+        </div>
+        <div class="section-header">已下载报表</div>
+        <div class="dl-list">
+          <div class="dl-item">
+            <span class="dl-icon">📊</span>
+            <div class="dl-info">
+              <div class="dl-name">医疗设备结构件研判报告</div>
+              <div class="dl-desc">953 KB · 08-26 11:03 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">🔋</span>
+            <div class="dl-info">
+              <div class="dl-name">CNC Snus-Can 研判报告</div>
+              <div class="dl-desc">1.1 MB · 08-26 09:52 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">💄</span>
+            <div class="dl-info">
+              <div class="dl-name">香水包装与化妆笔研判报告</div>
+              <div class="dl-desc">779 KB · 08-07 11:58 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">🎧</span>
+            <div class="dl-info">
+              <div class="dl-name">TWS 完整研判报告</div>
+              <div class="dl-desc">3.1 MB · 08-03 09:02 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">📄</span>
+            <div class="dl-info">
+              <div class="dl-name">询盘明细分析报告</div>
+              <div class="dl-desc">2.2 MB · 07-07 09:08 · pdf</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">📦</span>
+            <div class="dl-info">
+              <div class="dl-name">近90天产品分层报表</div>
+              <div class="dl-desc">9.4 MB · 07-05 11:21 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 模块4：运营基建 -->
+      <div class="sub-view" id="m-infra">
+        <div class="sub-view-header">
+          <button class="back-btn" onclick="backConsult()">&#x2039;</button>
+          <span class="sub-view-title"><span class="sv-num">4</span>运营基建</span>
+          <button class="sv-action-btn" title="本周优先动作" onclick="openPriorityActions('infra')">&#x1F4CC;<span class="pa-dot" id="paDot-infra"></span></button>
+        </div>
+        <div class="section-header">选品 & 词库</div>
+        <div class="func-list">
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-blue">&#x1F50D;</div>
+            <div class="func-info">
+              <div class="func-title">一键选品</div>
+              <div class="func-desc">国际站多榜单 · Google趋势品 · Tiktok趋势品</div>
+            </div>
+            <span class="func-badge badge-ai">AI</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-purple">&#x26CF;</div>
+            <div class="func-info">
+              <div class="func-title">一键整理关键词</div>
+              <div class="func-desc">多维度收集词库 · 关键词整理</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+        </div>
+        <div class="section-header">发品工具</div>
+        <div class="func-list">
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-green">&#x270F;</div>
+            <div class="func-info">
+              <div class="func-title">批量标题</div>
+              <div class="func-desc">批量标题生成（中英）· 商品卖点生成（中英）· 6张主图卖点</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-teal">&#x21E7;</div>
+            <div class="func-info">
+              <div class="func-title">批量发品</div>
+              <div class="func-desc">Excel导入 · 一次50款</div>
+            </div>
+            <span class="func-badge badge-new">新</span>
+          </div>
+        </div>
+        <div class="section-header">已下载报表</div>
+        <div class="dl-list">
+          <div class="dl-item">
+            <span class="dl-icon">🗝</span>
+            <div class="dl-info">
+              <div class="dl-name">全球词库-饮料罐关键词分析</div>
+              <div class="dl-desc">88 KB · 08-15 10:26 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">🔑</span>
+            <div class="dl-info">
+              <div class="dl-name">关键词报表 TKAD</div>
+              <div class="dl-desc">88 KB · 07-24 13:38 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">🔥</span>
+            <div class="dl-info">
+              <div class="dl-name">热门产品深度分析报告</div>
+              <div class="dl-desc">22 KB · 07-28 15:31 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 模块5：运营推广 -->
+      <div class="sub-view" id="m-promo">
+        <div class="sub-view-header">
+          <button class="back-btn" onclick="backConsult()">&#x2039;</button>
+          <span class="sub-view-title"><span class="sv-num">5</span>运营推广</span>
+          <button class="sv-action-btn" title="本周优先动作" onclick="openPriorityActions('promo')">&#x1F4CC;<span class="pa-dot" id="paDot-promo"></span></button>
+        </div>
+        <div class="section-header">广告策略</div>
+        <div class="func-list">
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-blue">&#x1F4A1;</div>
+            <div class="func-info">
+              <div class="func-title">广告策略</div>
+              <div class="func-desc">全站推分层打法 · 选品/选爆品/打爆品</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+        </div>
+        <div class="section-header">诊断优化</div>
+        <div class="func-list">
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-orange">&#x1F4C8;</div>
+            <div class="func-info">
+              <div class="func-title">广告诊断优化</div>
+              <div class="func-desc">水位诊断 · 拖后腿产品识别</div>
+            </div>
+            <span class="func-badge badge-ai">AI</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-purple">&#x1F3AF;</div>
+            <div class="func-info">
+              <div class="func-title">品广诊断优化</div>
+              <div class="func-desc">顶展+问鼎效果分析</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+        </div>
+        <div class="section-header">已下载报表</div>
+        <div class="dl-list">
+          <div class="dl-item">
+            <span class="dl-icon">📈</span>
+            <div class="dl-info">
+              <div class="dl-name">P4P广告数据分析智能体（备份）</div>
+              <div class="dl-desc">5.0 MB · 08-05 06:15 · zip</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">🎯</span>
+            <div class="dl-info">
+              <div class="dl-name">P4P分析智能体</div>
+              <div class="dl-desc">5.0 MB · 08-05 01:00 · zip</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 模块6：优爆品提升 -->
+      <div class="sub-view" id="m-top">
+        <div class="sub-view-header">
+          <button class="back-btn" onclick="backConsult()">&#x2039;</button>
+          <span class="sub-view-title"><span class="sv-num">6</span>优爆品提升</span>
+          <button class="sv-action-btn" title="本周优先动作" onclick="openPriorityActions('top')">&#x1F4CC;<span class="pa-dot" id="paDot-top"></span></button>
+        </div>
+        <div class="section-header">优爆品提升 + 核心品跟进</div>
+        <div class="func-list">
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-amber">&#x2B50;</div>
+            <div class="func-info">
+              <div class="func-title">优爆品提升</div>
+              <div class="func-desc">12项运营动作诊断 · 24款优爆品</div>
+            </div>
+            <span class="func-badge badge-hot">行动</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-blue">&#x1F4CC;</div>
+            <div class="func-info">
+              <div class="func-title">核心品跟进</div>
+              <div class="func-desc">逐品追踪 · 每周更新登记表</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-purple">&#x1F4C5;</div>
+            <div class="func-info">
+              <div class="func-title">单品历史数据</div>
+              <div class="func-desc">跟踪单品历史数据统计</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+        </div>
+        <div class="section-header">已下载报表</div>
+        <div class="dl-list">
+          <div class="dl-item">
+            <span class="dl-icon">⭐</span>
+            <div class="dl-info">
+              <div class="dl-name">近90天产品分层报表</div>
+              <div class="dl-desc">9.4 MB · 07-05 11:21 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">🏆</span>
+            <div class="dl-info">
+              <div class="dl-name">三店横向竞争深度分析报告</div>
+              <div class="dl-desc">15 KB · 07-08 14:50 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 模块7：数据分析&优化 -->
+      <div class="sub-view" id="m-analysis">
+        <div class="sub-view-header">
+          <button class="back-btn" onclick="backConsult()">&#x2039;</button>
+          <span class="sub-view-title"><span class="sv-num">7</span>数据分析 & 优化</span>
+          <button class="sv-action-btn" title="本周优先动作" onclick="openPriorityActions('analysis')">&#x1F4CC;<span class="pa-dot" id="paDot-analysis"></span></button>
+        </div>
+        <div class="func-list">
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-blue">&#x1F3EA;</div>
+            <div class="func-info">
+              <div class="func-title">店铺诊断</div>
+              <div class="func-desc">星级·流量·转化·商品力一站式</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-green">&#x1F4E6;</div>
+            <div class="func-info">
+              <div class="func-title">产品诊断</div>
+              <div class="func-desc">四维数据 · 批量20款/次</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-orange">&#x1F4CA;</div>
+            <div class="func-info">
+              <div class="func-title">广告诊断</div>
+              <div class="func-desc">全账户ROI · 关键词清洗</div>
+            </div>
+            <span class="func-badge badge-hot">24词待洗</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-purple">&#x1F3AF;</div>
+            <div class="func-info">
+              <div class="func-title">品广诊断</div>
+              <div class="func-desc">顶展·问鼎效果 · 词排名/转化/ROI</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+        </div>
+        <div class="section-header">本周优先动作</div>
+        <div class="func-list">
+          <div class="func-item" style="border-left:3px solid var(--red);">
+            <div class="func-icon c-red">P0</div>
+            <div class="func-info">
+              <div class="func-title">产品诊断执行</div>
+              <div class="func-desc">12款低效品优化或重发 · ID 0568重构主图</div>
+            </div>
+            <span class="func-badge badge-hot">紧急</span>
+          </div>
+          <div class="func-item" style="border-left:3px solid var(--amber);">
+            <div class="func-icon c-amber">P1</div>
+            <div class="func-info">
+              <div class="func-title">广告诊断执行</div>
+              <div class="func-desc">24个0询盘词清洗 · 拖后腿产品调价</div>
+            </div>
+            <span class="func-badge badge-hot">进行中</span>
+          </div>
+        </div>
+        <div class="section-header">已下载报表</div>
+        <div class="dl-list">
+          <div class="dl-item">
+            <span class="dl-icon">📊</span>
+            <div class="dl-info">
+              <div class="dl-name">询盘明细分析报告</div>
+              <div class="dl-desc">2.2 MB · 07-07 09:08 · pdf</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">🔍</span>
+            <div class="dl-info">
+              <div class="dl-name">深圳福喜实业 竞品分析报告</div>
+              <div class="dl-desc">14 KB · 08-12 10:41 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">📱</span>
+            <div class="dl-info">
+              <div class="dl-name">中高端定制手表市场行情调研</div>
+              <div class="dl-desc">18 KB · 08-12 14:11 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 模块8：商机转化 -->
+      <div class="sub-view" id="m-biz">
+        <div class="sub-view-header">
+          <button class="back-btn" onclick="backConsult()">&#x2039;</button>
+          <span class="sub-view-title"><span class="sv-num">8</span>商机转化</span>
+          <button class="sv-action-btn" title="本周优先动作" onclick="openPriorityActions('biz')">&#x1F4CC;<span class="pa-dot" id="paDot-biz"></span></button>
+        </div>
+        <div class="section-header">RFQ</div>
+        <div class="func-list">
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-red">&#x1F48E;</div>
+            <div class="func-info">
+              <div class="func-title">优质RFQ信息采集</div>
+              <div class="func-desc">优质RFQ自动筛选采集</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-blue">&#x1F4CB;</div>
+            <div class="func-info">
+              <div class="func-title">RFQ报价跟进表</div>
+              <div class="func-desc">本周新增38条 · 已报价24条</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+        </div>
+        <div class="section-header">客户 & 分析</div>
+        <div class="func-list">
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-gray">&#x25CF;</div>
+            <div class="func-info">
+              <div class="func-title">询盘明细采集分析</div>
+              <div class="func-desc">询盘明细批量采集与质量分析</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-gray">&#x25CF;</div>
+            <div class="func-info">
+              <div class="func-title">客户列表采集分析</div>
+              <div class="func-desc">客户列表数据采集与画像分析</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="openAiDrawerByName(this.querySelector('.func-title').innerText.trim(), this)">
+            <div class="func-icon c-green">&#x1F4E5;</div>
+            <div class="func-info">
+              <div class="func-title">询盘登录表</div>
+              <div class="func-desc">统一录入 · 分配 · 跟进追踪</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="goYingdan('customer-research')">
+            <div class="func-icon c-purple">&#x1F50D;</div>
+            <div class="func-info">
+              <div class="func-title">客户背调（进入成交顾问模块）</div>
+              <div class="func-desc">6阶段SOP · 47份报告</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+          <div class="func-item" onclick="goYingdan('inquiry-reply')">
+            <div class="func-icon c-teal">&#x1F4AC;</div>
+            <div class="func-info">
+              <div class="func-title">询盘分析（进入成交顾问模块）</div>
+              <div class="func-desc">质量评估 · 业务员跟进分析</div>
+            </div>
+            <span class="func-arrow">&#x203A;</span>
+          </div>
+        </div>
+        <div class="section-header">已下载报表</div>
+        <div class="dl-list">
+          <div class="dl-item">
+            <span class="dl-icon">🤝</span>
+            <div class="dl-info">
+              <div class="dl-name">密闭马口铁罐市场分析报告</div>
+              <div class="dl-desc">44 KB · 07-07 00:08 · docx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">📄</span>
+            <div class="dl-info">
+              <div class="dl-name">TWS耳机 市场与客群分析</div>
+              <div class="dl-desc">21 KB · 07-28 10:57 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+          <div class="dl-item">
+            <span class="dl-icon">💼</span>
+            <div class="dl-info">
+              <div class="dl-name">Airless 真空瓶研判报告</div>
+              <div class="dl-desc">468 KB · 07-08 16:04 · xlsx</div>
+            </div>
+            <span class="dl-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tab-consult -->
+</div></div>
+<script>
+// ===== Main Tab switching =====
+document.querySelectorAll('#mainTabBar .tab-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('#mainTabBar .tab-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    const tabId = this.dataset.tab;
+    document.querySelectorAll('#contentArea .tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+    document.getElementById('contentArea').scrollTop = 0;
+  });
+});
+
+
+
+
+// ===== Ali运营工具 1级模块手风琴 =====
+document.querySelectorAll('#tab-tool details.tool-fold').forEach(function (fold) {
+  fold.addEventListener('toggle', function () {
+    if (this.open) {
+      document.querySelectorAll('#tab-tool details.tool-fold[open]').forEach(function (other) {
+        if (other !== this) other.open = false;
+      }, this);
+    }
+  });
+});
+
+// ===== ALI运营顾问 module drill-down =====
+function openModule(id) {
+  document.getElementById('consult-home').classList.remove('active');
+  document.getElementById(id).classList.add('active');
+  document.getElementById('contentArea').scrollTop = 0;
+}
+
+function backConsult() {
+  document.querySelectorAll('#tab-consult .sub-view').forEach(v => v.classList.remove('active'));
+  document.getElementById('consult-home').classList.add('active');
+  document.getElementById('contentArea').scrollTop = 0;
+}
+
+// 跳转到指定一级Tab（如进入成交顾问模块）
+function goMainTab(tabId) {
+  const btn = document.querySelector('#mainTabBar .tab-btn[data-tab="' + tabId + '"]');
+  if (btn) btn.click();
+}
+
+// ===== 模块底部：下一步模块快捷键 =====
+const MODULE_NEXT = {
+  'm-dash': ['m-plan', '运营规划'],
+  'm-plan': ['m-position', '营销定位'],
+  'm-position': ['m-infra', '运营基建'],
+  'm-infra': ['m-promo', '运营推广'],
+  'm-promo': ['m-top', '优爆品提升'],
+  'm-top': ['m-analysis', '数据分析&优化'],
+  'm-analysis': ['m-biz', '商机转化'],
+  'm-biz': ['m-dash', '数据看板']
+};
+const MODULE_NUMS = { 'm-dash': '①', 'm-plan': '②', 'm-position': '③', 'm-infra': '④', 'm-promo': '⑤', 'm-top': '⑥', 'm-analysis': '⑦', 'm-biz': '⑧' };
+document.querySelectorAll('#tab-consult .sub-view[id^="m-"]').forEach(function (view) {
+  const next = MODULE_NEXT[view.id];
+  if (!next) return;
+  const bar = document.createElement('div');
+  bar.className = 'next-module';
+  bar.innerHTML = '<span>下一步：' + MODULE_NUMS[next[0]] + ' ' + next[1] + '</span><span class="nm-arrow">→</span>';
+  view.appendChild(bar);
+});
+
+// ===== Ali运营工具：功能点击 → 弹窗加载下载报表 =====
+const REPORT_DATA = {
+  // 店铺&产品-报表
+  '店铺-核心指标报表': [['指标','数值','环比'],['曝光量','48,320','+15.6%'],['点击量','966','+9.2%'],['询盘数','456','+12.3%'],['GMV','$127,500','-5.2%']],
+  '店铺-AI诊断分析报告': [['诊断项','评分','结论'],['流量健康度','B+','付费占比偏高'],['转化效率','C','点击率2.0%'],['商品力','B','优爆品24款'],['综合评分','B+','整体待提升']],
+  '店铺-子类目数据报表': [['子类目','曝光','询盘'],['锂电池','21,340','203'],['PCB组件','12,580','118'],['充电设备','9,210','87']],
+  '店铺-日周月年报表': [['周期','曝光','询盘'],['本周','48,320','98'],['本月','186,500','456'],['本季','524,000','1,102']],
+  '店铺-国家流量转化表': [['国家','流量占比','询盘'],['美国','32%','142'],['德国','18%','81'],['英国','12%','55']],
+  '产品-分层数据报表': [['分层','产品数','询盘'],['优爆品','24','312'],['普通品','38','118'],['低效品','12','6']],
+  '产品-参谋分析报表': [['指标','TOP1产品','全店均值'],['询盘','42','19'],['点击率','4.1%','2.0%'],['转化率','0.8%','0.35%']],
+  '产品-历史数据报表': [['时间','曝光','询盘'],['近30天','48,320','456'],['上季度','52,100','489']],
+  '产品-流量来源报表': [['来源','占比','趋势'],['搜索','62%','+5%'],['推荐','18%','+2%'],['广告','20%','-3%']],
+  '粉丝通视频报表': [['指标','数值','趋势'],['视频数','18','+3'],['播放量','8,400','+22%'],['互动率','4.8%','+0.6%']],
+  // 国际站广告报表
+  '全站推&AI智投报表': [['指标','数值','状态'],['花费','$1,280','预算内'],['曝光','18,500','+12%'],['询盘','86','+8%'],['ROI','2.8','正常']],
+  '顶展&问鼎&聚量报表': [['类型','花费','询盘'],['顶展','$860','42'],['问鼎','$540','28'],['聚量','$220','9']],
+  'P4P标准广告报表': [['计划','花费','ROI'],['核心品计划','$1,200','4.1'],['新品测试计划','$680','1.8'],['清词计划','$320','0.9']],
+  '顶展报表一键导出': [['导出项','数量','状态'],['顶展词报表','5','已生成'],['消耗报表','5','已生成']],
+  '品广词匹配产品检测': [['推广词','匹配产品','状态'],['lithium battery','8','良好'],['battery pack','5','需优化']],
+  '问鼎顶展词购买分析': [['关键词','搜索量','建议'],['battery pack','8,200','值得购买'],['18650 battery','5,400','观察']],
+  // 大数据选品分析（行业大数据 + 同行数据AI采集）
+  '类目买家偏好分析': [['偏好维度','TOP偏好','趋势'],['容量','48V/100Ah','上升'],['认证','UL/CE','稳定'],['定制','OEM/ODM','上升']],
+  '类目TOP50产品榜': [['排名','产品','询盘'],['1','18650 Pack 12V','320'],['2','21700 Cell','280'],['3','Lifepo4 100Ah','240']],
+  '国家榜单产品分析': [['国家','TOP产品','热度'],['美国','21700 Cell','高'],['德国','Lifepo4','中高']],
+  '国家榜涨幅词分析': [['国家','涨幅词','涨幅'],['美国','portable power','+45%'],['德国','lifepo4 12v','+38%']],
+  '国际站-榜单采集': [['榜单','数量','状态'],['类目榜','50','已采集'],['国家榜','32','已采集']],
+  '行业定向征品采集': [['征品','需求方','状态'],['BMS 定制','3家','已采集'],['便携电源','2家','已采集']],
+  'TopRanking榜检测': [['榜单','在榜产品','排名'],['Most popular','6193','12'],['Hot selling','6193','8']],
+  '标杆店铺推荐': [['店铺','星级','优势'],['竞品A','5星','品牌词覆盖'],['竞品B','4星','短视频引流']],
+  '页面产品数据采集': [['采集项','数量','状态'],['页面产品','30','已完成'],['价格区间','$5-50','已完成']],
+  '店铺产品数据采集': [['采集项','数量','状态'],['店铺产品','120','已完成'],['询盘TOP品','12','待分析']],
+  '单品页面数据采集': [['采集项','数值','状态'],['单品详情','完整','已完成'],['卖点标签','6','已完成']],
+  '图搜产品数据采集': [['采集项','数量','状态'],['图搜同款','25','已完成'],['价格对比','18','已完成']],
+  '市场分析': [['维度','结论','建议'],['竞争度','中高','差异化切入'],['价格带','$8-20','定位中端']],
+  // 关键词收集中心
+  '批量导词&覆盖检测': [['指标','数量','状态'],['导出词','520','已完成'],['覆盖产品','68','覆盖率82%']],
+  '自动组合标题': [['指标','数值','状态'],['生成标题','50','已完成'],['合规检查','7项','全部通过']],
+  '店铺找词-反查词': [['反查维度','词数','状态'],['店铺排名词','186','已完成']],
+  '类目找词-反查词': [['反查维度','词数','状态'],['类目排名词','240','已完成']],
+  '产品找词-反查词': [['反查维度','词数','状态'],['产品排名词','168','已完成']],
+  '词拓展词-反查词': [['反查维度','词数','状态'],['拓展词','320','已完成']],
+  '国家涨幅词批量采集': [['国家','词数','涨幅'],['美国','86','+45%'],['德国','64','+38%']],
+  'TopRanking榜单词表': [['词表','词数','状态'],['TOP榜词','120','已生成']],
+  '子类目买家偏好词表': [['子类目','词数','状态'],['锂电池','86','已生成'],['充电器','54','已生成']],
+  '关键词多国批量翻译': [['语言','词数','状态'],['西语','520','已完成'],['法语','520','已完成'],['德语','520','已完成']],
+  // 商机AI采集中心
+  '询盘明细一键采集': [['采集项','数量','状态'],['询盘明细','98','已完成'],['跟进状态','同步','已完成']],
+  '公海客户信息采集': [['采集项','数量','状态'],['公海客户','150','已完成'],['意向度','B级为主','待跟进']],
+  '客户列表信息采集': [['采集项','数量','状态'],['客户列表','86','已完成']],
+  '访客详情明细采集': [['采集项','数量','状态'],['访客画像','320','已完成'],['访问产品','聚焦电池类','已完成']],
+  'RFQ订阅推送设置': [['订阅词','国家','状态'],['battery pack','全球','已开启'],['lifepo4','欧美','已开启']],
+  'RFQ优质信息采集': [['采集项','数量','状态'],['优质RFQ','24','已完成'],['高星级买家','8','已推送']],
+};
+
+// ===== Ali运营工具：2级功能点击 → 弹窗加载并下载报表 =====
+function loadToolReport(el) {
+  const name = el.querySelector('.func-title').textContent.trim();
+  const rows = REPORT_DATA[name] || [['曝光量','48,320','—'],['点击量','966','—'],['询盘数','456','—']];
+
+  const modal = document.createElement('div');
+  modal.className = 'report-modal';
+  modal.innerHTML =
+    '<div class="report-card">' +
+      '<div class="report-head"><span>📊 ' + name + ' · 报表</span><button class="report-close">✕</button></div>' +
+      '<div class="report-body">' +
+        '<div class="report-loading"><span class="spinner"></span>报表生成中...</div>' +
+        '<div class="report-content" style="display:none">' +
+          '<div class="report-meta">' + name + ' · ' + new Date().toLocaleString('zh-CN') + ' · 数据来源：阿里国际站</div>' +
+          '<table class="report-table">' +
+            rows.map(function (r, i) {
+              return '<tr class="' + (i === 0 ? 'report-th' : '') + '">' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>';
+            }).join('') +
+          '</table>' +
+          '<div class="report-actions">' +
+            '<button class="btn-mini primary">⬇ 下载报表</button>' +
+            '<button class="btn-mini">关闭</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+
+  modal.querySelector('.report-close').addEventListener('click', function () { modal.remove(); });
+  // 模拟报表生成加载
+  setTimeout(function () {
+    modal.querySelector('.report-loading').style.display = 'none';
+    modal.querySelector('.report-content').style.display = 'block';
+  }, 1200);
+  // 下载（演示）
+  modal.querySelector('.btn-mini.primary').addEventListener('click', function () {
+    this.textContent = '✓ 已下载';
+    this.style.background = 'var(--green)';
+    this.style.borderColor = 'var(--green)';
+  });
+  // 关闭
+  modal.querySelector('.btn-mini:not(.primary)').addEventListener('click', function () { modal.remove(); });
+}
+
+// ===== 数据看板：每天/每周/每月切换 =====
+const DASH_DATA = {
+  day: {
+    spend: ['$320', '&#x25BC; 8.2%', 'down', ''],
+    cost: ['$10.0', '&#x25B2; 2.1%', 'up', ''],
+    inq: ['32', '&#x25B2; 5.6%', 'up'],
+    tm: ['58', '&#x25B2; 3.2%', 'up'],
+    ord: ['5', '&#x25BC; 1.0%', 'down'],
+    gmv: ['$9,800', '&#x25B2; 4.5%', 'up'],
+    lv: [['9', '&#x25B2; 6%', 'up', '28%'], ['7', '&#x25B2; 2%', 'up', '22%'], ['5', '&#x25BC; 3%', 'down', '16%'], ['11', '&#x25B2; 9%', 'up', '34%']],
+    biz: [
+      ['张经理', '6', '12', '100%', '1', '$0.6W'],
+      ['李业务', '4', '8', '98%', '0', '$0.3W'],
+      ['王专员', '8', '7', '100%', '1', '$0.2W'],
+      ['赵助理', '2', '3', '95%', '0', '$0.1W']
+    ],
+    health: { exp: '6,903', ctr: '2.1%', cvr: '0.33%', ctrBar: '42%', cvrBar: '50%', expT: '&#x25B2; 3.2%', ctrT: '&#x25BC; 0.1pp', cvrT: '&#x25BC; 0.02pp', win: '70%', winBar: '72%', inqRate: '46.8%', rfqRate: '75%' },
+    top5: {
+      c: [['美国','28%'],['德国','19%'],['英国','15%'],['加拿大','11%'],['荷兰','9%']],
+      p: [['6193','P','Pouch Batteries 锂电池组','5'],['2831','2','21700 Battery Pack','4'],['4417','T','姜黄提取物 Turmeric Extract','3'],['5102','轨','轨道灯 Track Light','2'],['6688','D','干粉罐 Dry Powder Can','2']]
+    }
+  },
+  week: {
+    spend: ['$1,850', '&#x25B2; 15.4%', 'up', ''],
+    cost: ['$7.6', '&#x25BC; 4.1%', 'down', 'style="color:var(--green)"'],
+    inq: ['245', '&#x25B2; 9.8%', 'up'],
+    tm: ['421', '&#x25B2; 6.5%', 'up'],
+    ord: ['28', '&#x25B2; 3.7%', 'up'],
+    gmv: ['$72,400', '&#x25B2; 8.9%', 'up'],
+    lv: [['68', '&#x25B2; 11%', 'up', '28%'], ['52', '&#x25B2; 6%', 'up', '21%'], ['41', '&#x25BC; 2%', 'down', '17%'], ['84', '&#x25B2; 14%', 'up', '34%']],
+    biz: [
+      ['张经理', '42', '58', '100%', '3', '$1.5W'],
+      ['李业务', '30', '42', '98%', '2', '$1.0W'],
+      ['王专员', '52', '36', '100%', '2', '$0.6W'],
+      ['赵助理', '18', '19', '95%', '1', '$0.3W']
+    ],
+    health: { exp: '48,320', ctr: '2.0%', cvr: '0.35%', ctrBar: '40%', cvrBar: '52%', expT: '&#x25B2; 15.6%', ctrT: '&#x25BC; 0.3pp', cvrT: '&#x25BC; 0.05pp', win: '68%', winBar: '70%', inqRate: '47.5%', rfqRate: '77%' },
+    top5: {
+      c: [['美国','30%'],['德国','17%'],['英国','14%'],['加拿大','10%'],['俄罗斯','8%']],
+      p: [['6193','P','Pouch Batteries 锂电池组','27'],['2831','2','21700 Battery Pack','19'],['4417','T','姜黄提取物 Turmeric Extract','12'],['5102','轨','轨道灯 Track Light','9'],['6688','D','干粉罐 Dry Powder Can','7']]
+    }
+  },
+  month: {
+    spend: ['$3,842', '&#x25B2; 22.1%', 'up', ''],
+    cost: ['$8.4', '&#x25BC; 12.5%', 'down', 'style="color:var(--green)"'],
+    inq: ['456', '&#x25B2; 12.3%', 'up'],
+    tm: ['892', '&#x25B2; 8.7%', 'up'],
+    ord: ['52', '&#x25B2; 6.1%', 'up'],
+    gmv: ['$127,500', '&#x25BC; 5.2%', 'down'],
+    lv: [['128', '&#x25B2; 15.2%', 'up', '28%'], ['96', '&#x25B2; 9.8%', 'up', '21%'], ['74', '&#x25BC; 3.4%', 'down', '16%'], ['158', '&#x25B2; 18.6%', 'up', '35%']],
+    biz: [
+      ['张经理', '120', '145', '100%', '8', '$4.2W'],
+      ['李业务', '85', '98', '98%', '5', '$2.8W'],
+      ['王专员', '150', '85', '100%', '4', '$1.5W'],
+      ['赵助理', '45', '42', '95%', '2', '$0.8W']
+    ],
+    health: { exp: '186,500', ctr: '2.0%', cvr: '0.35%', ctrBar: '40%', cvrBar: '52%', expT: '&#x25B2; 28.4%', ctrT: '&#x25BC; 0.3pp', cvrT: '&#x25BC; 0.05pp', win: '68%', winBar: '68%', inqRate: '47.2%', rfqRate: '78%' },
+    top5: {
+      c: [['美国','32%'],['德国','18%'],['英国','12%'],['加拿大','9%'],['澳大利亚','7%']],
+      p: [['6193','P','Pouch Batteries 锂电池组','48'],['2831','2','21700 Battery Pack','36'],['4417','T','姜黄提取物 Turmeric Extract','29'],['5102','轨','轨道灯 Track Light','21'],['6688','D','干粉罐 Dry Powder Can','17']]
+    }
+  }
+};
+
+function switchDash(p, btn) {
+  document.querySelectorAll('.dash-tab').forEach(function (t) { t.classList.remove('active'); });
+  btn.classList.add('active');
+  const d = DASH_DATA[p];
+  // 周期标签：日→今日 / 周→本周 / 月→本月
+  const periodLabel = { day: '今日', week: '本周', month: '本月' }[p];
+  setVal('spendL', periodLabel + '花费');
+  setVal('inqL', periodLabel + '询盘');
+  setVal('tmL', periodLabel + 'TM');
+  setVal('gmvL', periodLabel + 'GMV');
+  setVal('spendV', d.spend[0]); setChg('spendC', d.spend[1], d.spend[2], d.spend[3]);
+  setVal('costV', d.cost[0]); setChg('costC', d.cost[1], d.cost[2], d.cost[3]);
+  setVal('inqV', d.inq[0]); setChg('inqC', d.inq[1], d.inq[2], '');
+  setVal('tmV', d.tm[0]); setChg('tmC', d.tm[1], d.tm[2], '');
+  setVal('ordV', d.ord[0]); setChg('ordC', d.ord[1], d.ord[2], '');
+  setVal('gmvV', d.gmv[0]); setChg('gmvC', d.gmv[1], d.gmv[2], '');
+  for (let i = 1; i <= 4; i++) {
+    const lv = d.lv[i - 1];
+    setVal('lv' + i, lv[0]);
+    const lc = document.getElementById('lv' + i + 'c');
+    if (lc) { lc.className = 'lv-change ' + lv[2]; lc.innerHTML = lv[1]; }
+    const lb = document.getElementById('lv' + i + 'b');
+    if (lb) lb.style.width = lv[3];
+  }
+  const tbody = document.getElementById('bizBody');
+  if (tbody) {
+    tbody.innerHTML = d.biz.map(function (r) {
+      return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td><td>' + r[3] + '</td><td>' + r[4] + '</td><td>' + r[5] + '</td></tr>';
+    }).join('');
+  }
+  const h = d.health;
+  setVal('expV', h.exp);
+  setVal('ctrV', h.ctr);
+  setVal('cvrV', h.cvr);
+  setVal('winV', h.win);
+  setVal('irV', h.inqRate);
+  setVal('rfqV', h.rfqRate);
+  const cb = document.getElementById('ctrBar'); if (cb) cb.style.width = h.ctrBar;
+  const vb = document.getElementById('cvrBar'); if (vb) vb.style.width = h.cvrBar;
+  const wb = document.getElementById('winBar'); if (wb) wb.style.width = h.winBar;
+  setHtml('expT', h.expT);
+  setHtml('ctrT', h.ctrT);
+  setHtml('cvrT', h.cvrT);
+  // TOP5 访客国家（横向单行）
+  const t5c = d.top5 && d.top5.c, t5p = d.top5 && d.top5.p;
+  const cl = document.getElementById('countryList');
+  if (cl && t5c) {
+    cl.innerHTML = t5c.map(function (r, i) {
+      return '<div class="c-item"><span class="c-r' + (i === 0 ? ' top' : '') + '">' + (i + 1) + '</span><span class="c-n">' + r[0] + '</span><span class="c-v">' + r[1] + '</span></div>';
+    }).join('');
+  }
+  // TOP5 询盘产品（全宽表格：序号/ID/产品图/标题/询盘数）
+  const pl = document.getElementById('inqProdList');
+  if (pl && t5p) {
+    const colors = ['linear-gradient(135deg,#4f8cff,#7aa8ff)', 'linear-gradient(135deg,#f5a623,#f7c873)', 'linear-gradient(135deg,#12b886,#7ed6a5)', 'linear-gradient(135deg,#7048e8,#a78bfa)', 'linear-gradient(135deg,#e8590c,#ffa94d)'];
+    pl.innerHTML = t5p.map(function (r, i) {
+      return '<tr><td>' + (i + 1) + '</td><td>' + r[0] + '</td><td><span class="t5-img" style="background:' + colors[i] + '">' + r[1] + '</span></td><td><span class="t5-title">' + r[2] + '</span></td><td><span class="t5-cnt">' + r[3] + '</span></td></tr>';
+    }).join('');
+  }
+}
+
+function setVal(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+function setHtml(id, v) { const el = document.getElementById(id); if (el) el.innerHTML = v; }
+function setChg(id, txt, cls, extra) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.className = 'mc-change ' + cls;
+    el.innerHTML = txt;
+    if (extra) el.setAttribute('style', extra.replace('style=', '').replace(/"/g, ''));
+    else el.removeAttribute('style');
+  }
+}
+
+// ===== 数据看板：数据推送（邮箱订阅 + 定时发送） =====
+let pushEmails = [];
+let pushConfig = { freq: '每天', time: '09:00', reports: ['核心指标', '询盘分层', '店铺健康度', '本周待办'], comp: true };
+
+// ===== 各模块执行清单（week=本周 · month=本月，内容由新店运营规划自动分发） =====
+const PA_ACTIONS = {
+  position: {
+    week: [
+      { lv: 'P0', name: '市场&客群定位确认', desc: '美国32%·德国18%·英国12%客群确认 · 分销商画像 · Lifepo4热点验证' },
+      { lv: 'P1', name: '公司定位页完善', desc: 'Why Choose Us · 工厂直供 · 48h打样素材补齐' },
+      { lv: 'P2', name: '产品定位选品执行', desc: '产品分类梳理 · 5大模块选品清单输出' }
+    ],
+    month: [
+      { lv: 'M1', name: '市场定位SOP', desc: '定类目·定国家 · 客群定位（定客户类型·提炼痛点）· Lifepo4热点验证' },
+      { lv: 'M2', name: '公司定位SOP（2天）', desc: 'HOME页+详情装修文案 · PC/无线端文案（素材+图片+视频）· why choose us' },
+      { lv: 'M3', name: '产品定位SOP', desc: '产品分类（后台分组）· 5大模块选品清单输出' },
+      { lv: 'M4', name: '同行分析 · 3个月运营规划', desc: '同行/标杆店铺推荐分析 · 输出3个月运营方向' }
+    ]
+  },
+  infra: {
+    week: [
+      { lv: 'P0', name: '关键词库建立', desc: '主词表+词库表整理（HOODIES/T-SHIRT 分类）' },
+      { lv: 'P1', name: '批量发品', desc: 'Excel 导入一次50款 · 优先发无TK词' },
+      { lv: 'P2', name: '详情模板确认', desc: '每类1条详情模板验收' }
+    ],
+    month: [
+      { lv: 'M1', name: '关键词SOP（5-7天）', desc: '《主词表》《关键词词库》建立及整理 · 词全' },
+      { lv: 'M2', name: '产品发布SOP（1天）', desc: '发布模板确认 · 发布第1款确认整体布局（反复确认）' },
+      { lv: 'M3', name: '发品布词（15天）', desc: '快速发品覆盖关键词 · 不重复发品 · 多发行业定向征品' },
+      { lv: 'M4', name: '素材与详情模板', desc: '产品素材分类 · 每类详情模板1条确认' }
+    ]
+  },
+  promo: {
+    week: [],
+    month: [
+      { lv: 'M1', name: 'P4P全站推广（50-100品后启动）', desc: '整店效果不好—全站推·日预算/AI智投（所有品）' },
+      { lv: 'M2', name: '分层投放-选品', desc: '普通品/潜力优品/新品 → 全站推·日预算/AI智投（按产品分类）' },
+      { lv: 'M3', name: '分层投放-选爆品', desc: '优品 → 全站推·日预算/AI智投' },
+      { lv: 'M4', name: '打爆品+流量款筛选', desc: '优爆品 → 全站推·推商品+关键词推广（快速改标签）· 快速选出公司流量款、转化高的产品' }
+    ]
+  },
+  top: {
+    week: [],
+    month: [
+      { lv: 'M1', name: '优爆品资源绑定', desc: '顶展/问鼎优先绑定优爆品（品广加权）' },
+      { lv: 'M2', name: '营销加权-运营', desc: '定向征品·优爆品挑战赛·布产品网/关键词网·官方活动绑主推·橱窗·主营认证·绑认证证书·爆款折扣·星等级3星+' },
+      { lv: 'M3', name: '爆款蓄水', desc: '10+好评 · 10+成交买家 · 订单绑主推链接' },
+      { lv: 'M4', name: 'TOP RANKING 榜单', desc: 'Most popular/Hot selling/Best reviewed 统计ID及排名 · 国家询盘榜' }
+    ]
+  },
+  analysis: {
+    week: [
+      { lv: 'P0', name: '产品诊断执行', desc: '12款低效品优化或重发 · ID 0568 重构主图' },
+      { lv: 'P1', name: '广告诊断执行', desc: '24个0询盘词清洗 · 拖后腿产品调价' }
+    ],
+    month: [
+      { lv: 'M1', name: '店铺优化SOP', desc: '按曝光（确保所有词TK）/点击/访客/反馈/订单转化优化 · 给产品贴正确标签' },
+      { lv: 'M2', name: '每周2和每月3号复盘', desc: '数据不好产品优化 · 四维诊断（广告计划/产品/国家/关键词）' },
+      { lv: 'M3', name: '新品与旧品策略', desc: '新品加广告3天后优化 · 90天以上数据差考虑重新发布' }
+    ]
+  },
+  biz: {
+    week: [
+      { lv: 'P0', name: 'RFQ报价跟进', desc: '本周新增38条 · 已报价24条 · 剩余报价跟进' },
+      { lv: 'P1', name: '询盘明细采集分析', desc: '询盘明细批量采集 · 质量分析' },
+      { lv: 'P2', name: '客户背调更新', desc: '6阶段SOP · 47份报告更新' }
+    ],
+    month: [
+      { lv: 'M1', name: '每日站内营销+EDM', desc: '每天20封站内营销 · EDM营销' },
+      { lv: 'M2', name: '多渠道带爆品', desc: '直播/短视频带爆品 · RFQ优先报主推品 · 业务员开发信附链接' },
+      { lv: 'M3', name: '好评与订单沉淀', desc: '好评100%回复（覆盖关键词/推荐核心品）· 订单优先绑核心产品' },
+      { lv: 'M4', name: '国家询盘榜单跟进', desc: '统计不同国家榜单排名 · 高意向国家重点跟进' }
+    ]
+  }
+};
+
+// 各模块本周优先动作完成状态圆点（红点=未完成数，绿点=全部完成）
+const PA_KEYS = ['position', 'infra', 'promo', 'top', 'analysis', 'biz'];
+
+// localStorage 安全封装：沙箱环境不可用时降级为内存状态，避免中断弹窗
+let paMemStore = {};
+function paStorage(key, val) {
+  try {
+    if (val === undefined) {
+      const raw = localStorage.getItem('yd-operations:' + key);
+      return raw ? JSON.parse(raw) : [];
+    }
+    localStorage.setItem('yd-operations:' + key, JSON.stringify(val));
+    return val;
+  } catch (e) {
+    if (val === undefined) return paMemStore[key] || [];
+    paMemStore[key] = val;
+    return val;
+  }
+}
+
+function updatePaDots() {
+  PA_KEYS.forEach(function (key) {
+    const dot = document.getElementById('paDot-' + key);
+    if (!dot) return;
+    const wk = PA_ACTIONS[key] && PA_ACTIONS[key].week || [];
+    const mo = PA_ACTIONS[key] && PA_ACTIONS[key].month || [];
+    const doneWk = paStorage('paDone_' + key + '_week');
+    const doneMo = paStorage('paDone_' + key + '_month');
+    const total = wk.length + mo.length;
+    // 主界面卡片右上角：完成/未完成文字标签（本周+本月全部完成 = 完成）
+    const tag = document.getElementById('mcTag-' + key);
+    let wkRemain = 0, moRemain = 0;
+    wk.forEach(function (a, i) { if (!doneWk[i]) wkRemain++; });
+    mo.forEach(function (a, i) { if (!doneMo[i]) moRemain++; });
+    if (tag) {
+      if (!total || (wkRemain + moRemain) === 0) {
+        tag.className = 'mc-tag ok'; tag.textContent = '完成';
+      } else {
+        tag.className = 'mc-tag warn'; tag.textContent = '未完成';
+      }
+    }
+    const remain = wkRemain + moRemain;
+    if (remain === 0) {
+      dot.className = 'pa-dot ok';
+      dot.textContent = '';
+    } else {
+      dot.className = 'pa-dot warn';
+      dot.textContent = remain;
+    }
+  });
+}
+
+// 页面加载默认同步到"月"（须在 PA_KEYS/PA_ACTIONS 初始化后执行，避免 TDZ）
+(function () {
+  const mt = document.querySelector('.dash-tab.active');
+  if (mt) switchDash('month', mt);
+  if (typeof updatePaDots === 'function') updatePaDots();
+})();
+
+// 迁移历史勾选键（旧"本周优先动作"paDone_key → paDone_key_week）
+(function () {
+  PA_KEYS.forEach(function (key) {
+    try {
+      const old = localStorage.getItem('paDone_' + key);
+      if (old && !localStorage.getItem('paDone_' + key + '_week')) {
+        localStorage.setItem('paDone_' + key + '_week', old);
+      }
+    } catch (e) {}
+  });
+})();
+
+let curPaKey = null;
+let curPaPeriod = 'week';
+
+function paPeriodDone(key, period) {
+  return paStorage('paDone_' + key + '_' + period);
+}
+
+function openPriorityActions(key) {
+  curPaKey = key;
+  const mo = PA_ACTIONS[key] && PA_ACTIONS[key].month || [];
+  // 本周为空时自动切到本月，避免空列表
+  const wk = PA_ACTIONS[key] && PA_ACTIONS[key].week || [];
+  if (curPaPeriod === 'week' && !wk.length && mo.length) curPaPeriod = 'month';
+  const tabW = document.getElementById('paTabWeek');
+  const tabM = document.getElementById('paTabMonth');
+  if (tabW) tabW.className = 'pa-tab' + (curPaPeriod === 'week' ? ' on' : '');
+  if (tabM) tabM.className = 'pa-tab' + (curPaPeriod === 'month' ? ' on' : '');
+  renderPaList();
+  document.getElementById('paModal').style.display = 'flex';
+  updatePaDots();
+}
+
+function switchPaPeriod(p) {
+  curPaPeriod = p;
+  const tabW = document.getElementById('paTabWeek');
+  const tabM = document.getElementById('paTabMonth');
+  if (tabW) tabW.className = 'pa-tab' + (p === 'week' ? ' on' : '');
+  if (tabM) tabM.className = 'pa-tab' + (p === 'month' ? ' on' : '');
+  renderPaList();
+}
+
+function renderPaList() {
+  const key = curPaKey;
+  if (!key) return;
+  const acts = (PA_ACTIONS[key] && PA_ACTIONS[key][curPaPeriod]) || [];
+  const done = paPeriodDone(key, curPaPeriod);
+  const list = document.getElementById('paList');
+  const ttl = document.getElementById('paModalTitle');
+  const names = { position: '营销定位', infra: '运营基建', promo: '运营推广', top: '优爆品提升', analysis: '数据分析&优化', biz: '商机转化' };
+  if (ttl) ttl.textContent = '📌 ' + (names[key] || key) + ' · ' + (curPaPeriod === 'week' ? '本周' : '本月') + '执行清单';
+  if (!acts.length) {
+    list.innerHTML = '<div class="pa-empty">暂无待执行事项</div>';
+    return;
+  }
+  list.innerHTML = acts.map(function (a, i) {
+    const d = !!done[i];
+    return '<div class="pa-item ' + a.lv.toLowerCase() + (d ? ' done' : '') + '">' +
+      '<button class="pa-check' + (d ? ' done' : '') + '" title="标记' + (d ? '未完成' : '完成') + '" onclick="togglePa(\'' + key + '\',' + i + ',\'' + curPaPeriod + '\')">' + (d ? '&#x2713;' : '') + '</button>' +
+      '<span class="pa-tag">' + a.lv + '</span>' +
+      '<div class="pa-info"><div class="pa-name">' + a.name + '</div><div class="pa-desc">' + a.desc + '</div></div></div>';
+  }).join('');
+}
+
+function togglePa(key, i, period) {
+  const p = period || curPaPeriod;
+  const arr = paPeriodDone(key, p);
+  arr[i] = !arr[i];
+  paStorage('paDone_' + key + '_' + p, arr);
+  renderPaList();
+  updatePaDots();
+}
+function closePriorityActions() {
+  document.getElementById('paModal').style.display = 'none';
+}
+
+function openPushModal() {
+  const modal = document.createElement('div');
+  modal.className = 'report-modal';
+  modal.id = 'pushModal';
+  modal.innerHTML =
+    '<div class="report-card">' +
+      '<div class="report-head"><span>📧 数据推送设置</span><button class="report-close">✕</button></div>' +
+      '<div class="report-body push-form">' +
+        '<div class="pf-label">接收邮箱</div>' +
+        '<div class="pf-add-row">' +
+          '<input type="email" id="pushEmailInput" placeholder="输入邮箱地址，如 boss@company.com">' +
+          '<button class="pf-add-btn" onclick="addPushEmail()">添加</button>' +
+        '</div>' +
+        '<div class="pf-emails" id="pushEmailList"></div>' +
+        '<div class="pf-label">定时发送</div>' +
+        '<div class="pf-select-row">' +
+          '<select id="pushFreq">' +
+            '<option>每天</option><option>每周一</option><option>每周二</option><option>每月1日</option>' +
+          '</select>' +
+          '<select id="pushTime">' +
+            '<option>09:00</option><option>12:00</option><option>15:00</option><option>18:00</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="pf-label">报表内容</div>' +
+        '<div class="pf-checks">' +
+          '<label><input type="checkbox" class="pf-check" value="核心指标" checked> 核心指标</label>' +
+          '<label><input type="checkbox" class="pf-check" value="询盘分层" checked> 询盘分层</label>' +
+          '<label><input type="checkbox" class="pf-check" value="店铺健康度" checked> 店铺健康度</label>' +
+          '<label><input type="checkbox" class="pf-check" value="本周待办" checked> 本周待办</label>' +
+        '</div>' +
+        '<div class="pf-label">公司号推送</div>' +
+        '<div class="pf-comp">' +
+          '<label class="pf-switch">' +
+            '<input type="checkbox" id="pushComp" checked onchange="updateCompBadge()">' +
+            '<span class="pf-slider"></span>' +
+          '</label>' +
+          '<div class="pf-comp-text">' +
+            '<div class="pf-comp-title">关注公司号推送</div>' +
+            '<div class="pf-comp-desc">报表数据同步推送至已关注的公司号</div>' +
+          '</div>' +
+          '<span class="pf-comp-badge" id="compBadge">已关注</span>' +
+        '</div>' +
+        '<div class="pf-actions">' +
+          '<button class="btn-mini" onclick="document.getElementById(\'pushModal\').remove()">取消</button>' +
+          '<button class="btn-mini primary" onclick="savePush()">保存设置</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  // 回填已保存配置
+  pushEmails.forEach(function (em) { renderEmailChip(em); });
+  document.getElementById('pushFreq').value = pushConfig.freq;
+  document.getElementById('pushTime').value = pushConfig.time;
+  document.querySelectorAll('.pf-check').forEach(function (cb) {
+    cb.checked = pushConfig.reports.indexOf(cb.value) !== -1;
+  });
+  // 公司号推送回填
+  document.getElementById('pushComp').checked = pushConfig.comp;
+  updateCompBadge();
+  // 回车添加
+  document.getElementById('pushEmailInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') addPushEmail();
+  });
+  // 关闭按钮
+  modal.querySelector('.report-close').addEventListener('click', function () { modal.remove(); });
+}
+
+function renderEmailChip(email) {
+  const list = document.getElementById('pushEmailList');
+  const chip = document.createElement('span');
+  chip.className = 'pf-chip';
+  chip.innerHTML = '<span>' + email + '</span><span class="pf-x" onclick="removePushEmail(this, \'' + email + '\')">✕</span>';
+  list.appendChild(chip);
+}
+
+function addPushEmail() {
+  const input = document.getElementById('pushEmailInput');
+  const email = input.value.trim();
+  if (!email) return;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { input.focus(); return; }
+  if (pushEmails.indexOf(email) !== -1) { input.value = ''; return; }
+  pushEmails.push(email);
+  renderEmailChip(email);
+  input.value = '';
+}
+
+function removePushEmail(el, email) {
+  pushEmails = pushEmails.filter(function (e) { return e !== email; });
+  el.parentElement.remove();
+}
+
+function updateCompBadge() {
+  const badge = document.getElementById('compBadge');
+  if (!badge) return;
+  const on = document.getElementById('pushComp').checked;
+  badge.textContent = on ? '已关注' : '未关注';
+  badge.style.background = on ? 'var(--green-bg)' : 'var(--bg3)';
+  badge.style.color = on ? 'var(--green)' : 'var(--text3)';
+}
+
+function savePush() {
+  if (pushEmails.length === 0) { alert('请先添加接收邮箱'); return; }
+  pushConfig.freq = document.getElementById('pushFreq').value;
+  pushConfig.time = document.getElementById('pushTime').value;
+  pushConfig.comp = document.getElementById('pushComp').checked;
+  pushConfig.reports = [];
+  document.querySelectorAll('.pf-check').forEach(function (cb) {
+    if (cb.checked) pushConfig.reports.push(cb.value);
+  });
+  document.getElementById('pushModal').remove();
+  const btn = document.getElementById('pushBtn');
+  btn.classList.add('on');
+  btn.textContent = '✓';
+  btn.title = '推送已开启：' + pushConfig.freq + ' ' + pushConfig.time + ' 发送至 ' + pushEmails.join('、');
+}
+
+// ===== 左侧AI分析抽屉（点击SOP功能项触发） =====
+const AI_ANALYSIS = {
+  '市场定位': {
+    sub: '定类目 · 定国家 · 定客户',
+    points: [
+      '目标市场：建议聚焦 <b>美国 32%</b> / <b>德国 18%</b> / <b>英国 12%</b> 三大市场，集中投放资源',
+      '类目定级：锂电池组处于<span class="em">高增长期</span>，近30天询盘 +12.3%，建议定为主推类目',
+      '客群定位：主力买家为<span class="em">电子分销商</span>，月采购 $5K-20K，关注 UL/CE 认证'
+    ],
+    rows: [['国家','流量占比','询盘数','转化率'],['美国','32%','142','0.42%'],['德国','18%','81','0.38%'],['英国','12%','55','0.35%']]
+  },
+  '公司定位': {
+    sub: 'why choose us · 公司实力 · 定制能力 · 品控能力',
+    points: [
+      'why choose us?：<span class="em">金品诚企 · 工厂直供 · 48h快速打样</span>——买家为什么选你',
+      '公司实力：工厂规模/产线/设备/团队/年产能，<span class="em">高清产线实拍 + 视频</span>素材',
+      '定制能力：支持 OEM/ODM · 定制起订量 · 打样周期 · 定制流程（48h打样）',
+      '品控能力：质检流程 · 全检/抽检 · 认证资质（UL/CE/FDA 等）· 不良率控制承诺',
+      'PC/无线端装修：主视觉突出工厂实力 + 认证资质 + 核心产品矩阵；详情页5段式模板（卖点→参数→认证→工厂→合作）'
+    ],
+    rows: [['卖点维度','内容','状态'],['Why Choose Us','金品诚企·工厂直供·48h打样','待出'],['公司实力','产线实拍+年产能','待出'],['定制能力','OEM/ODM·起订量·流程','待出'],['品控能力','质检流程+认证','待出']]
+  },
+  '产品定位': {
+    sub: '产品分类 · 子类目确定 · 商品类型',
+    points: [
+      '产品分类：按<span class="em">类目分组</span>管理后台，便于橱窗/广告按组投放',
+      '子类目确定：锁定主攻<span class="em">子类目</span>（曝光/点击/询盘对比，优先优势子类目）',
+      '商品类型：确认<span class="em">定制/现货/品牌授权/新品</span>商品类型组合，匹配买家需求场景',
+      '建议首发 12 款：3款引流款 + 6款利润款 + 3款形象款'
+    ],
+    rows: [['定位维度','动作','作用'],['产品分类','类目分组','便于按组投放'],['子类目','优势类目锁定','吃透流量'],['商品类型','定制/现货组合','匹配买家']]
+  },
+  '运营规划': {
+    sub: '运营SOP导图 · 动员会',
+    points: [
+      '学习完成后由<span class="em">负责人主持落地启动会</span>，明确各职责人及落地时间',
+      '重新梳理运营SOP导图，打印张贴到公司墙上，全员对齐'
+    ],
+    rows: [['角色','职责','时间'],['负责人','主持启动会','第1天'],['运营','执行SOP','全程']]
+  },
+  '关键词库': {
+    sub: '主词表 + 关键词词库',
+    points: [
+      '建立《主词表》：核心大词 50+，覆盖类目主流搜索词',
+      '建立《关键词词库》：5-7天完成，目标 <span class="em">500+ 词</span>，按热度/竞争度四象限分类'
+    ],
+    rows: [['词库','数量','状态'],['主词表','86','待建'],['关键词词库','500+','整理中']]
+  },
+  '产品发布': {
+    sub: '模板确认 + 发品布词',
+    points: [
+      '模板确认（1天）：发布第1款产品确认整体布局，<span class="em">反复确认</span>后批量复制',
+      '发品布词（15天）：快速发品覆盖关键词，<span class="em">不重复发品</span>，多发行业定向征品'
+    ],
+    rows: [['阶段','周期','要点'],['模板确认','1天','首款定版'],['发品布词','15天','覆盖关键词']]
+  },
+  '推广策略': {
+    sub: 'P4P加推 · 分层打法',
+    points: [
+      '新店效果不好：<span class="em">全站推-日预算 / AI智投</span>（所有品）',
+      '1-2个月后针对转化高的产品单独创建计划',
+      '打爆品：全站推-推商品（按产品分类）+ 关键词推广（快速修改标签）'
+    ],
+    rows: [['阶段','推广方式','预算'],['选品期','全站推/AI智投','$30-50/天'],['爆品期','推商品+关键词','$80-120/天']]
+  },
+  '广告数据': {
+    sub: '周度广告复盘',
+    points: [
+      '核心指标：花费 / 曝光 / 点击 / 询盘 / ROI，<span class="em">每周2复盘</span>',
+      '识别高花费低询盘计划，剔除 <span class="em">0询盘关键词</span>',
+      '美/英/加/德核心国家定向溢价 20%'
+    ],
+    rows: [['指标','数值','趋势'],['花费','$3,842','+22%'],['询盘','456','+12.3%'],['ROI','3.2','健康']]
+  },
+  '问鼎/顶展/聚量诊断': {
+    sub: '三渠道诊断：问鼎/顶展/聚量',
+    points: [
+      '<span class="em">问鼎诊断</span>：品牌搜索量 / 竞品截流效果 / ROI',
+      '<span class="em">顶展诊断</span>：词排名 / 点击 / 转化 周度监控',
+      '<span class="em">聚量诊断</span>：聚量投放效果 / 花费 / ROI',
+      '低ROI词及时调整，品广<span class="em">优先绑定优爆品</span>'
+    ],
+    rows: [['渠道','花费','询盘'],['顶展','$860','42'],['问鼎','$540','28'],['聚量','$220','9']]
+  },
+  '优爆品提升': {
+    sub: '品广加权 + 营销加权',
+    points: [
+      '品广加权：顶展和问鼎<span class="em">优先绑定优爆品</span>',
+      '运营12项：定向征品/挑战赛/布网/好评/橱窗/认证/折扣/星级等',
+      '业务8项：EDM营销/开发信/直播/RFQ/好评回复等'
+    ],
+    rows: [['维度','动作数','状态'],['品广加权','1','待执行'],['营销加权-运营','12','待执行'],['营销加权-业务','8','待执行']]
+  },
+  '核心品资源跟进': {
+    sub: '橱窗 · 认证 · 榜单',
+    points: [
+      '核心品资源：移入橱窗 / 主营认证产品 / 绑定认证证书 / 订单绑定主推',
+      '进榜单统计：<span class="em">Most popular / Hot selling / Best reviewed</span> 及国家询盘榜单'
+    ],
+    rows: [['资源','状态'],['橱窗','待执行'],['主营认证','待执行'],['榜单统计','每周更新']]
+  },
+  '单品历史数据': {
+    sub: '跟踪单品历史数据统计',
+    points: [
+      '<span class="em">关键词流量来源</span>：识别主要引流词与增长词',
+      '<span class="em">国家来源</span>：识别核心市场与机会市场',
+      '单品历史数据统计：曝光 / 点击 / 访客 / 询盘 / 订单 全链路历史趋势',
+      'A. 按曝光（确保所有词TK）/点击/访客/反馈/订单转化逐品优化',
+      'B. <span class="em">每周2和每月3号</span>：优化数据不好的产品',
+      'C. 新品加广告3天后对有问题的产品优化',
+      'D. 90天以上数据不好的，考虑重新发布'
+    ],
+    rows: [['规则','周期','动作'],['常规优化','每周2','逐品诊断'],['新品优化','3天','问题修复'],['长尾品','90天','重发决策']]
+  },
+  '店铺诊断': {
+    sub: '核心指标诊断',
+    points: [
+      '一键导出报表，快速诊断：<span class="em">星等级 / 优爆品 / 橱窗利用率 / 店铺转化</span>',
+      '店铺星级 3星，距4星差12分；点击率 2.0% 低于行业均值'
+    ],
+    rows: [['指标','数值','状态'],['星等级','3星','预警'],['优爆品','24款','正常'],['橱窗利用率','68%','需提升']]
+  },
+  '产品诊断': {
+    sub: '分层 + 低效品',
+    points: [
+      '产品分层：优爆品 24 / 普通品 38 / 低效品 12',
+      '识别90天零效果产品，优化或重新发布',
+      '新品加广告3天后对有问题的产品优化'
+    ],
+    rows: [['分层','产品数','询盘'],['优爆品','24','312'],['普通品','38','118'],['低效品','12','6']]
+  },
+  '广告诊断': {
+    sub: '水位诊断',
+    points: [
+      '识别<span class="em">高点击零商机</span>产品（拖后腿产品）',
+      '剔除0询盘关键词，按计划/地域调整出价',
+      '每周2和每月3号：对数据不好的产品进行优化'
+    ],
+    rows: [['诊断项','数量','建议'],['0询盘词','24','剔除'],['拖后腿产品','4','调价'],['高潜产品','6','加价']]
+  },
+  '品广诊断': {
+    sub: '顶展 + 问鼎 效果',
+    points: [
+      '顶展词点击/转化/ROI一览，识别低效词与机会词',
+      '问鼎品牌搜索量变化与竞品截流效果评估'
+    ],
+    rows: [['类型','ROI','建议'],['顶展','2.1','保留'],['问鼎','1.8','观察']]
+  },
+  '产品优化': {
+    sub: '高曝光低点击 / 高点击低转化',
+    points: [
+      '<span class="em">高曝光低点击</span>：ID 0568 等产品曝光高但点击率&lt;1.5%，首图/标题吸引力不足',
+      '优化：重构主图（首图卖点/场景图），标题7项合规扫描+关键词植入',
+      '<span class="em">高点击低转化</span>：点击高但询盘/转化低，问题在详情页/价格/认证',
+      '优化：详情页5段式升级（卖点→参数→认证→工厂→合作），价格策略调整，补充认证资质（CoA/FDA）'
+    ],
+    rows: [['问题类型','判定','优化动作'],['高曝光低点击','CTR&lt;1.5%','重构主图+标题'],['高点击低转化','询盘率低','详情页+价格+认证']]
+  },
+  '店铺诊断与落地规划': {
+    sub: '七维诊断 + 落地规划',
+    points: [
+      '<span class="em">星等级</span>：3星距4星差12分，逐项突破星级短板',
+      '<span class="em">子类目诊断</span>：子类目曝光/点击/询盘对比，锂电池类目占优',
+      '<span class="em">优爆品诊断</span>：真爆品24/假爆品6，Pouch Battery完整度仅42%',
+      '<span class="em">橱窗诊断</span>：橱窗利用率68%，优品橱窗占比需提升',
+      '<span class="em">产品诊断</span>：低效品12款待优化；<span class="em">广告诊断</span>：24个0询盘词待清洗',
+      '<span class="em">员工诊断</span>：张经理成交8笔最高，赵助理回复率95%需提升',
+      '落地规划：点击率→重构主图+标题（进行中）；橱窗→优爆品移入（待执行）；转化率→详情页+优惠券'
+    ],
+    rows: [['诊断维度','现状','整改'],['星等级','3星','补分'],['橱窗利用率','68%','移入优品'],['假爆品','6款','清洗'],['0询盘词','24个','剔除']]
+  },
+  '营销推广SOP': {
+    sub: 'P4P加推 · 1个月',
+    points: [
+      '满足 <span class="em">100个品</span> 开始推广，全站推/AI智投分层',
+      '1个月后针对转化高的产品单独创建计划'
+    ],
+    rows: [['指标','数值'],['P4P花费','$3,842'],['ROI','3.2']]
+  },
+  '推广优化': {
+    sub: '店铺优化SOP',
+    points: [
+      'A/B/C/D 四条优化规则：曝光/点击/访客/反馈/订单转化',
+      '每周2和每月3号节奏复盘'
+    ],
+    rows: [['曝光量','48,320'],['点击率','2.0%'],['成交率','0.35%']]
+  },
+  'TOP RANKING榜单': {
+    sub: '三榜监测',
+    points: [
+      '统计 Most popular / Hot selling / Best reviewed 榜单产品ID及排名',
+      '追踪榜单排名变化，优爆品目标冲榜'
+    ],
+    rows: [['榜单','产品ID','排名'],['Most popular','6193','12'],['Hot selling','6193','8']]
+  },
+  '3月新贸节作战计划': {
+    sub: '大促备战 · 全链路作战',
+    points: [
+      '报名节点：新贸节报名已启动，需在<span class="em">窗口期截止前</span>完成报名审批与活动方案确认',
+      '预算筹备：大促期间 P4P 预算建议<span class="em">翻倍</span>，核心关键词出价上浮 30-50%，锁定流量高峰',
+      '爆品备战：锁定 20 款备战品，完成 12 项运营动作（橱窗/认证/优惠券/折扣/EDM），备战品完整度目标 90%+',
+      '团队分工：按全员行动表分解任务 —— 运营组（发品/推广）/ 业务组（营销/EDM）/ 老板（审批/产能核实）'
+    ],
+    rows: [['阶段','时间','关键动作'],['报名审批','截止前','报名+活动确认'],['预热蓄水','提前30天','爆品备战+EDM'],['大促爆发','3月','预算翻倍+冲榜'],['复盘','结束后','数据复盘+留存']]
+  },
+  '9月采购节作战计划': {
+    sub: '采购节冲刺 · 距报名截止5天',
+    points: [
+      '报名截止：<span class="em">距截止仅剩 5 天</span>，需立即完成报名审批、预算确认与产能核实',
+      '预算策略：8月实施 P4P 预算<span class="em">翻倍</span>（关键词出价上浮 30-50%），抢占采购节流量',
+      '爆品备战：24 款优爆品完成 12 项运营动作，Pouch Battery（询盘28）优先移入橱窗，目标 14 天破 50 询盘',
+      '全员行动表：7/30 前完成报名审批、预算确认、产能核实；业务员每日 20 封站内营销 + EDM'
+    ],
+    rows: [['动作','负责人','时间'],['报名审批','老板','5天内'],['预算翻倍','运营','8月'],['优爆品备战','运营','持续'],['全员营销','业务','每日']]
+  },
+  '国家榜单': {
+    sub: '分国家询盘榜单',
+    points: [
+      '统计进入不同国家的榜单排名，识别高潜力国家市场'
+    ],
+    rows: [['国家','产品ID','排名'],['美国','6193','3'],['德国','6193','7']]
+  },
+  '市场&客群定位': {
+    sub: '目标市场分析 · 客群及痛点分析',
+    points: [
+      '<span class="em">目标市场分析</span>：美国 32% / 德国 18% / 英国 12% 三大询盘来源国——定类目·定国家，核心国家 P4P 定向溢价 20%',
+      '<span class="em">客群画像</span>：主力买家为电子分销商（45%）/ 批发商 / 品牌商，月采购 $5K-20K，关注 UL/CE 认证与交期',
+      '<span class="em">痛点分析</span>：分销商怕压货（需低MOQ+混批）· 品牌商怕质量不稳（需认证+品控承诺）· 零售商怕断货（需稳定交期）',
+      '<span class="em">决策链</span>：采购经理→技术确认→老板审批，需备好认证与技术资料'
+    ],
+    rows: [['维度','分析','结论'],['目标市场','美/德/英询盘32/18/12%','定向溢价20%'],['客群画像','分销商45%·$5-20K','备认证与交期'],['痛点','压货/质量/断货','低MOQ+品控承诺']]
+  },
+  '目标市场分析': {
+    sub: '分国家市场机会',
+    points: [
+      '三大询盘来源国：<span class="em">美国 32%</span> / <span class="em">德国 18%</span> / <span class="em">英国 12%</span>',
+      '美/英/加/德核心国家建议 P4P 定向溢价 20%，阿联酋等低效国家暂停投放',
+      '德国/英国客单价高于美国，适合推中高端产品线'
+    ],
+    rows: [['国家','流量占比','询盘数'],['美国','32%','142'],['德国','18%','81'],['英国','12%','55']]
+  },
+  '买家画像': {
+    sub: 'B端买家特征',
+    points: [
+      '主力买家：<span class="em">电子分销商</span>，月采购 $5K-20K，占询盘 45%',
+      '关注点：UL/CE 认证、交期稳定性、阶梯价、48h打样',
+      '决策链：采购经理→技术确认→老板审批，需备好认证与技术资料'
+    ],
+    rows: [['买家类型','占比','月采购'],['分销商','45%','$5K-20K'],['终端工厂','30%','$2K-10K'],['贸易商','25%','$10K-50K']]
+  },
+  '品类机会洞察': {
+    sub: '本周热点品类',
+    points: [
+      '本周热点：<span class="em">Lifepo4 / BMS / Portable Power</span> 搜索涨幅靠前',
+      'Lifepo4 12V 100Ah 询盘 +35%，处于高增长期，建议尽快上新',
+      '结合供应链优势，锁定 2-3 个机会品类优先布局'
+    ],
+    rows: [['品类','热度','趋势'],['Lifepo4','高','+35%'],['BMS','中高','+22%'],['Portable Power','中','+18%']]
+  },
+  '一键选品': {
+    sub: 'AI全域选品',
+    points: [
+      '多信号源融合：<span class="em">国际站多榜单 + 50款趋势品榜单 + Google趋势品 + Tiktok趋势品</span> 等',
+      '国际站多榜单：类目TOP50/国家榜单/TopRanking榜 多维交叉',
+      '跨平台趋势：Google Trends 搜索热度 + TikTok 话题热度捕捉新兴品',
+      '交叉选品报告已产出 20 个 P0 PID，建议优先执行橱窗勾选 + P4P 推广',
+      '选品一票否决制：专利/售后/物流风险品直接剔除'
+    ],
+    rows: [['选品源','产出','状态'],['国际站多榜单','TOP50','可查看'],['Google趋势品','热度榜','可查看'],['Tiktok趋势品','话题榜','可查看'],['P0产品','20款','待执行']]
+  },
+  '一键整理关键词': {
+    sub: '多维度收集词库 · 关键词整理',
+    points: [
+      '<span class="em">多维度收集词库</span>：热搜词/蓝海词/竞品词/长尾词多维采集，目标 500+ 词',
+      '<span class="em">关键词整理</span>：按搜索热度/竞争度/相关性四象限分类整理，生成海军蓝风格 Excel',
+      '词库可一键导入直通车，覆盖《主词表》与《关键词词库》'
+    ],
+    rows: [['词库','数量','用途'],['核心词','86','标题'],['长尾词','240','发品'],['场景词','120','P4P']]
+  },
+  '批量标题': {
+    sub: 'AI标题引擎 · 中英双语',
+    points: [
+      '<span class="em">批量标题生成（中英）</span>：中英文标题批量生成，执行 7 项合规扫描（品牌词后置、多语言清洗）',
+      '<span class="em">商品卖点生成（中英）</span>：中英卖点自动萃取（五维卖点），支持批量 50 款',
+      '<span class="em">6张主图卖点</span>：主图卖点文案生成，配合场景/卖点图使用',
+      '配合 A/B 测试对比曝光/点击/转化数据'
+    ],
+    rows: [['能力','支持','状态'],['批量标题（中英）','50款','已完成'],['卖点生成（中英）','50款','已完成'],['6张主图卖点','6图/品','可生成']]
+  },
+  '批量发品': {
+    sub: '模板化批量发布',
+    points: [
+      'Excel 导入产品信息 → 自动生成标题/属性 → <span class="em">批量发布 50 款</span>',
+      '支持 1688/淘宝链接一键搬家，自动翻译适配类目',
+      '发布后自动检查审核状态与失败原因'
+    ],
+    rows: [['指标','数值','状态'],['批量发布','50款','支持'],['一键搬家','链接式','支持'],['审核通过率','96%','正常']]
+  },
+  '广告策略': {
+    sub: '全站推分层打法',
+    points: [
+      '新店铺/整店铺效果不好：<span class="em">全站推-日预算 / AI智投（所有品）</span>',
+      '1-2个月后，针对转化高的产品<span class="em">单独创建计划</span>',
+      '<span class="em">选品</span>：普通品/潜力优品/新品阶段 —— 全站推-日预算/AI智投（按产品分类）',
+      '<span class="em">选爆品</span>：优品 —— 全站推-日预算/AI智投',
+      '<span class="em">打爆品</span>：优爆品阶段 —— 全站推-推商品（按产品分类）+ 关键词推广（快速修改标签）'
+    ],
+    rows: [['阶段','推广方式','预算'],['选品期','全站推/AI智投','$30-50/天'],['选爆品','全站推/AI智投','$60-100/天'],['打爆品','推商品+关键词','$80-120/天']]
+  },
+  '广告诊断优化': {
+    sub: '五维诊断：计划/产品/国家/关键词/询盘',
+    points: [
+      '<span class="em">广告计划数据</span>：分计划花费/曝光/点击/ROI 周度复盘，识别高花费低询盘计划',
+      '<span class="em">产品数据</span>：4 款拖后腿产品需调价，6 款高潜产品加价',
+      '<span class="em">国家数据</span>：美/英/加/德溢价20%，阿联酋等暂停投放',
+      '<span class="em">关键词精准度</span>：24 个0询盘词清洗，词-产品匹配度检测',
+      '<span class="em">询盘质量</span>：广告来源询盘 L1-L4 等级分布与转化评估'
+    ],
+    rows: [['维度','数量','动作'],['拖后腿产品','4','调价'],['0询盘词','24','剔除'],['高潜产品','6','加价']]
+  },
+  '品广诊断优化': {
+    sub: '顶展 + 问鼎效果',
+    points: [
+      '顶展在投 5 词，2 词 ROI<1.5 需优化',
+      '问鼎覆盖 8 个品牌词，月品牌搜索量 320',
+      '建议低效词更换或调价，机会词加大投放'
+    ],
+    rows: [['类型','数量','状态'],['顶展词','5','2词待优化'],['问鼎词','8','正常'],['品牌搜索','320/月','+12%']]
+  },
+  '优爆品提升': {
+    sub: '产品分层 + 12项运营动作诊断',
+    points: [
+      '<span class="em">真爆品 24 款</span>：询盘312，资源全绑定，主推核心',
+      '<span class="em">潜力爆品</span>：顶展问鼎优先绑定培育；<span class="em">优品 38 款</span>：保持12项完整度',
+      '<span class="em">48H成为优品</span>：48小时优化达标；<span class="em">潜力优品+普通品</span>：按数据晋级',
+      '<span class="em">假爆品 6 款</span>：虚标爆品清洗降级',
+      '12项运营动作逐品诊断：Pouch Battery 完整度仅42%，需补橱窗/顶展/优惠券/EDM'
+    ],
+    rows: [['分层','数量','策略'],['真爆品','24','全资源绑定'],['优品','38','保持完整度'],['假爆品','6','清洗降级']]
+  },
+  '产品分层': {
+    sub: '六层产品结构',
+    points: [
+      '<span class="em">真爆品 24 款</span>：询盘312，资源全绑定，主推核心',
+      '<span class="em">潜力爆品</span>：有爆品潜质，顶展问鼎优先绑定培育',
+      '<span class="em">优品 38 款</span>：保持12项运营动作完整度',
+      '<span class="em">48H成为优品</span>：48小时内优化达标，快速迭代',
+      '<span class="em">潜力优品+普通品</span>：待提升产品池，按数据晋级',
+      '<span class="em">假爆品 6 款</span>：虚标爆品需清洗降级'
+    ],
+    rows: [['分层','数量','策略'],['真爆品','24','全资源绑定'],['潜力爆品','—','重点培育'],['优品','38','保持完整度'],['假爆品','6','清洗降级']]
+  },
+  '核心品跟进': {
+    sub: '登记表追踪',
+    points: [
+      '逐品追踪运营动作落地进度，<span class="em">每周更新核心产品登记表</span>',
+      '本周 P0：Pouch Battery 移入橱窗（完整度42%→75%）',
+      'P1：21700 Cell 申请顶展词（67%→92%）'
+    ],
+    rows: [['优先级','动作','目标'],['P0','移入橱窗','75%'],['P1','申请顶展','92%'],['P2','补优惠券','100%']]
+  },
+  '店铺诊断': {
+    sub: '全店健康度扫描',
+    points: [
+      '综合评分 B+：星级3星（距4星差12分）、点击率2.0%预警',
+      '付费流量占比 38% 偏高，需优化自然流量',
+      '询盘转化率 0.35% 低于行业均值，重点优化详情页'
+    ],
+    rows: [['维度','评分','状态'],['星级','3星','预警'],['流量结构','B','付费偏高'],['转化漏斗','C','待提升']]
+  },
+  '产品诊断': {
+    sub: '单品四维数据',
+    points: [
+      '曝光→点击→询盘→成交四维诊断，支持批量 20 款/次',
+      '识别 90 天零效果产品 12 款，建议优化/合并/下架',
+      'ID 0568 等低点击率产品需重构主图'
+    ],
+    rows: [['分层','产品数','询盘'],['优爆品','24','312'],['普通品','38','118'],['低效品','12','6']]
+  },
+  '广告诊断': {
+    sub: '全账户效果分析',
+    points: [
+      '月花费 $4,200，综合 ROI 3.2，<span class="em">24 个 0询盘词待清洗</span>',
+      '识别高花费低效计划与机会词',
+      '竞品广告监控：东莞健晨兴等重点竞品动态'
+    ],
+    rows: [['指标','数值','状态'],['月花费','$4,200','预算内'],['ROI','3.2','正常'],['待清洗词','24','待执行']]
+  },
+  '老店运营诊断规划': {
+    sub: '第1步 店铺诊断 → 第2步 老店运营规划',
+    points: [
+      '<span class="em">【第1步 · 店铺诊断（七维 + 落地）】</span>',
+      '星等级：当前3星，距4星差12分——逐项突破星级短板指标',
+      '子类目诊断：子类目曝光/点击/询盘对比，识别优势类目与弱势类目',
+      '优爆品诊断：真爆品24 / 潜力爆品 / 假爆品6 识别，12项运营动作完整度',
+      '橱窗诊断：橱窗利用率68%，优品橱窗占比检查，优先放优爆品',
+      '产品诊断：产品分层（优爆品/普通品/低效品），90天零效果品识别',
+      '广告诊断：P4P水位诊断，0询盘词清洗，地域出价优化',
+      '员工诊断：业务员询盘/回复率/成交/金额对比，跟进质量评估',
+      '落地规划：根据诊断问题输出落地整改优化执行计划，明确整改动作、负责人与完成时间，纳入周度跟进',
+      '<span class="em">【第2步 · 老店运营规划】</span>',
+      '店铺定位：定方向+装修——市场定位（定类目定国家）· 客群定位 · 公司优势 why choose us? · HOME页+详情装修（2天）· 产品定位（分类+选品5大模块）',
+      '基础建设：关键词库（词全 5天，《主词表》《关键词词库》）· 产品发布（模板确认1天 + 发品布词15天，不重复发品、多发行业定向征品）',
+      '流量获取（P4P加推 1个月，满足100个品后开始）：整店效果不好—全站推·日预算/AI智投（所有品）；1个月后转化高的产品单独建计划；选品—全站推按分类；选爆品—全站推+AI智投；打爆品—全站推·推商品+关键词推广；快速选出公司流量款、转化高的产品',
+      '打优爆品进榜单（六层结构）：优爆品资源绑定（顶展/问鼎）· 营销加权 · TOP RANKING榜单（Most popular/Hot selling/Best reviewed）· 国家询盘榜',
+      '诊断优化（四维诊断）：广告计划/产品/国家/关键词四维复盘 · 每周2和每月3号优化 · 拖后腿产品调价 · 0询盘词清洗'
+    ],
+    rows: [['步骤','项目','要点'],['第1步','店铺诊断','星等级/子类目/优爆品/橱窗/产品/广告/员工+落地'],['第2步','运营规划','店铺定位→基础建设→流量获取→爆品榜单→诊断优化']]
+  },
+  '店铺装修文案': {
+    sub: '一键输出店铺装修文案',
+    points: [
+      '<span class="em">【店铺装修文案 · 一键输出】</span>',
+      '店铺定位语：一句话讲清"卖什么品类 + 有什么实力 + 差异化优势"（工厂直供/48h打样）',
+      '主视觉 Banner 文案：核心类目 + 大促/新客利益点 · PC/无线端各 1 套',
+      '公司介绍页：Why Choose Us（工厂实力/产线/设备/团队）· 认证资质陈列（UL/CE/FDA 等）',
+      '分类导航页文案：按场景/系列/卖点分组，帮助买家快速定位',
+      '店铺公告/首页主推位文案：爆款 + 服务承诺（48h打样 · 支持定制）'
+    ],
+    rows: [['装修区块','文案要点','状态'],['店铺定位语','品类+实力+差异化','一键生成'],['Banner文案','主推类目+利益点','一键生成'],['公司页','Why Choose Us+认证','一键生成'],['分类导航','场景/系列分组','一键生成']]
+  },
+  '详情页装修文案': {
+    sub: '一键输出详情页装修文案',
+    points: [
+      '<span class="em">【详情页装修文案 · 一键输出】</span>',
+      '首屏卖点区：规格-参数-核心卖点一句话（对应搜索词）',
+      '场景图 + 细节图文案：尺寸/材质/工艺标注，痛点 → 方案',
+      '工厂实力区：车间/产线/设备实拍 + 检测流程',
+      '认证与承诺：证书展示 · 交期（48h打样）· 包装物流 · FAQ · 合作流程',
+      '关联推荐区：同系列/互补品推荐文案，提升客单价'
+    ],
+    rows: [['详情区块','文案要点','状态'],['首屏卖点','规格+核心卖点','一键生成'],['场景细节','尺寸材质工艺','一键生成'],['工厂实力','产线实拍+检测','一键生成'],['认证承诺','证书+交期+FAQ','一键生成']]
+  },
+  '运营规划清单': {
+    sub: 'TOP店落地计划：基础建设(15天-1个月) → 流量获取 → 爆品打造 → 推广优化 → 进榜单',
+    points: [
+      '<span class="em">【基础建设 · 15天-1个月】</span>',
+      '动员会：负责人主持落地启动会，明确各职责人及落地时间，重新梳理运营SOP导图，打印张贴公司墙上',
+      '市场定位SOP（1天）：市场定位—定类目 定国家；客群定位—定客户类型 提炼痛点；公司定位—why choose us?',
+      '公司定位SOP（2天）：HOME页+详情装修文案 · PC/无线端装修文案（素材+图片+视频）· 详情描述文案及模板设计（优先做）',
+      '产品定位SOP：产品分类（后台分组）· 选品1-2天（通过5大模块）',
+      '关键词SOP（5-7天）：关键词库（词全）—《主词表》《关键词词库》建立及整理',
+      '产品发布SOP（1天）：产品发布模板确认，发布第1款确认整体布局（反复确认）',
+      '发品布词（15天）：快速发品覆盖关键词（不重复发品，多发行业定向征品）',
+      '<span class="em">【流量获取 · 满50-100个品开始推广，1个月】</span>',
+      '营销推广SOP：新店/全店效果不好—全站推·日预算/AI智投（所有品）；1-2个月后针对转化高的产品单独创建计划',
+      '选品分层投放：普通品/潜力优品/新品—全站推·日预算/AI智投（按产品分类）；优品—全站推·日预算/AI智投；优爆品—全站推·推商品（按产品分类）+ 关键词推广（快速修改标签）',
+      '快速选出公司流量款、转化高的产品',
+      '<span class="em">【爆品打造】</span>',
+      '优爆品资源绑定：品广加权—顶展和问鼎优先绑定优爆品',
+      '营销加权-运营：发布定向征品 · 优爆品挑战赛 · 布产品网/关键词网 · 官方活动绑定主推 · 订单绑定主推链接 · 积累10+好评 · 10+成交买家 · 优爆款设橱窗 · 主营认证产品 · 绑定产品认证证书 · 爆款折扣促销 · 店铺星等级3星以上',
+      '营销加权-业务：每天20封站内营销+EDM营销 · 直播/短视频带爆品 · RFQ优先报主推品 · 业务员开发信附链接 · 好评100%回复（覆盖关键词/推荐核心品）· 关联订单优先绑核心产品',
+      '<span class="em">【推广优化】</span>',
+      '店铺优化SOP：目的—产品和人群精准匹配、给产品贴正确标签；按曝光（确保所有词TK）/点击/访客/反馈/订单转化优化',
+      '每周2和每月3号：对数据不好的产品进行优化；新产品加入广告3天后优化；90天以上数据差的不优化，考虑重新发布',
+      '<span class="em">【进榜单】</span>',
+      'TOP RANKING：Most popular / Hot selling / Best reviewed 榜单—统计进入各榜单的产品ID及排名',
+      '国家榜单-询盘榜单：统计进入不同国家的榜单排名'
+    ],
+    rows: [['阶段','落地项目','周期/节奏'],['基础建设','动员会·市场/公司/产品定位·词库·发品','15天-1个月'],['流量获取','P4P全站推/AI智投·分层投放','50-100品起·1个月'],['爆品打造','资源绑定+营销加权（运营/业务）','持续'],['推广优化','四维诊断+每周2/每月3号','周复盘'],['进榜单','TOP RANKING+国家询盘榜','持续跟踪']]
+  },
+  '新店铺落地执行表': {
+    sub: '第1个月：基建 → 拉数据 → 复盘（西凯西·东莞）',
+    points: [
+      '<span class="em">【基建】</span>（7.15已完成）',
+      '店铺定位：同行分析/客户定位/产品定位/公司定位/3个月运营规划（鸡公老师）',
+      '美工装修（详情+首页文案设计确认）· 产品分类梳理（后台分组）· 店铺管理（公司信息完整度）',
+      '关键词库（主词表+词库表，HOODIES/T-SHIRT分类完成）· 产品素材（分类主图）· 详情模板（每类1条确认）',
+      '全力发品（优先发无TK词，目标关键词覆盖完）· 老链接优化（CTR<1%/询盘率<2%的优化，转化好的不动）',
+      '<span class="em">【拉数据】</span>',
+      '广告：每周看3次（屏蔽词/国家）优化1次 · 智能创意10个 · 优先绑定主推产品 · 每2周导报表（顶展CTR<5%/问鼎CTR<2%优化）',
+      '核心产品：询盘多的积累数据 · 订单优先绑核心品 · 登记核心品跟进表 · 业务询盘分析登记',
+      '店铺数据：每周2/每月3号导【店铺核心指标/产品分层/广告/月报表】分析，及时优化',
+      '<span class="em">【第1阶段复盘】</span>',
+      '星等级/优爆品数/子类目复盘（类目流量及转化）',
+      '产品分析：每周2导出 · 曝光500+看CTR（参考行业均值，转化低粉色）· 点击20+看询盘率5%',
+      '产品分层提升：普通+潜力→优品（广告跑数据/AI助手/定向征品）· 优品→潜力爆品（优中选优）· 爆品（询盘>10重点推广，自然流量好的不推）· 月底制定下月优爆品目标',
+      '广告报表四维：计划（钱/CTR/L1+占比/商机转化率）· 产品（曝光300看CTR，无商机剔除）· 国家（点击20看转化，无转化屏蔽）· 关键词（不精准词屏蔽）'
+    ],
+    rows: [['阶段','项目','节奏'],['基建','定位/装修/词库/发品','7.15起'],['拉数据','广告/核心品/店铺数据','每周2/每月3'],['复盘','产品/分层/广告报表','每周2导出']]
+  },
+  '落地规划': {
+    sub: '运营经营计划 + 业务经营计划',
+    points: [
+      '<span class="em">【运营经营计划】</span>',
+      'SOP落地：新店5阶段（定位→基建→流量→爆品→诊断）+ 老店六维诊断整改',
+      '产品：Pouch Battery 移入橱窗（P0）· ID 0568 重构主图 · 低效品12款优化',
+      '广告：24个0询盘词清洗（P1）· 21700 Cell 申请顶展 · 核心国家溢价20%',
+      '大促：9月采购节报名审批 + 8月P4P预算翻倍',
+      '<span class="em">【业务经营计划】</span>',
+      '客户跟进：Jean Haagar PI确认 · Fernando Diaz PCM细节 · Christian 封闭式推进',
+      '询盘回复：每日跟进，回复率78%→目标85%，响应≤2h',
+      '营销触达：爆款每日EDM + 20封站内营销 · 优质RFQ报价',
+      '客户挽回：益佳鑫老客户流失（19.5%）挽回机制启动'
+    ],
+    rows: [['分类','计划','状态'],['运营经营','SOP/产品/广告/大促','进行中'],['业务经营','客户/询盘/营销/挽回','进行中']]
+  },
+  '成交顾问': {
+    sub: '客户背调顾问 · 询盘分析回复',
+    points: [
+      '<span class="em">客户背调顾问</span>：六阶段背调（公司核实→业务匹配→采购能力→决策链→信用评估→风险提示），47份报告',
+      '<span class="em">询盘分析回复</span>：询盘质量分级（A级22%）+ 业务员跟进分析（响应2.3h/回复率78%）',
+      '谈判话术：异议处理 · 压价应对 · 逼单技巧（六维交付）',
+      '重点客户：Jean Haagar PI已发待确认 · Fernando Diaz 等PCM细节'
+    ],
+    rows: [['能力','覆盖','状态'],['客户背调','47份','已积累'],['询盘分析','456条','已覆盖'],['谈判话术','6维','可调用']]
+  },
+  '优质RFQ信息采集': {
+    sub: 'RFQ自动筛选采集',
+    points: [
+      '自动筛选<span class="em">优质RFQ</span>：本周采集 24 条优质RFQ，高星级买家 8 个已推送',
+      '极端过滤规则：国家 / 买家星级 / 报价人数上限三重筛选',
+      '优质 RFQ 直达业务员，避免无效报价浪费时间'
+    ],
+    rows: [['采集项','数量','状态'],['优质RFQ','24','已采集'],['高星级买家','8','已推送'],['待报价','5','待跟进']]
+  },
+  'RFQ报价跟进表': {
+    sub: '报价全流程管理',
+    points: [
+      '本周新增 RFQ 38 条，已报价 24 条，<span class="em">8 条待跟进</span>，已成交 3 条',
+      'RFQ智能体极端过滤：国家/买家星级/报价人数上限',
+      '重点 RFQ：Custom PCB Assembly（5星买家，1000pcs）跟进中'
+    ],
+    rows: [['状态','数量','占比'],['新增','38','—'],['已报价','24','63%'],['待跟进','8','21%'],['已成交','3','8%']]
+  },
+  '询盘明细采集分析': {
+    sub: '询盘明细批量采集与质量分析',
+    points: [
+      '询盘明细<span class="em">一键批量采集</span>：本月采集 456 条询盘明细',
+      '质量分级：A级22% / B级38% / C/D级40%，重点跟进A级',
+      '按产品/国家/来源渠道多维度分析询盘构成'
+    ],
+    rows: [['维度','数量','状态'],['询盘明细','456','已采集'],['A级询盘','100','重点跟进'],['已同步','456','已完成']]
+  },
+  '客户列表采集分析': {
+    sub: '客户列表数据采集与画像分析',
+    points: [
+      '客户列表<span class="em">批量采集</span>：采集客户 86 家（分销商45%/终端工厂30%/贸易商25%）',
+      '客户画像：电子分销商为主，月采购 $5K-20K',
+      '结合询盘来源识别高潜客户，进入成交顾问跟进'
+    ],
+    rows: [['客户类型','占比','数量'],['分销商','45%','39'],['终端工厂','30%','26'],['贸易商','25%','21']]
+  },
+  '询盘登录表': {
+    sub: '统一录入与跟进',
+    points: [
+      '全店询盘统一录入、分配、跟进状态追踪',
+      '本月 456 条询盘，业务员平均响应 2.3h，回复率 78%',
+      '重点客户：Jean Haagar（法国）PI已发待确认，Fernando Diaz（美国）等PCM细节'
+    ],
+    rows: [['客户','国家','状态'],['Jean Haagar','法国','跟进中'],['Fernando Diaz','美国','待确认'],['Christian R.','美国','需关注']]
+  },
+  '客户背调': {
+    sub: '六阶段背调SOP',
+    points: [
+      '六阶段流程：公司核实→业务匹配→采购能力→决策链→信用评估→风险提示',
+      '已积累 <span class="em">47 份背调报告</span>，含 LinkedIn 验证 + 海关数据',
+      '背调通过率 68%，有效降低恶意询盘与比价风险'
+    ],
+    rows: [['维度','覆盖','状态'],['公司核实','100%','已覆盖'],['采购能力','86%','已覆盖'],['信用评估','72%','已覆盖']]
+  },
+  '询盘分析': {
+    sub: '询盘质量评估',
+    points: [
+      '按国家/产品/渠道分析询盘质量分级：A级占比 22%（目标30%）',
+      '业务员跟进分析：响应速度/回复率/转化率多维对比',
+      '支持每周询盘分析会主持材料一键生成'
+    ],
+    rows: [['等级','占比','处理'],['A级','22%','重点跟进'],['B级','38%','常规'],['C/D级','40%','批量维护']]
+  }
+};
+
+function positionAiDrawer() {
+  const panel = document.querySelector('.plugin-panel');
+  const drawer = document.getElementById('aiDrawer');
+  if (!panel || !drawer) return;
+  const pr = panel.getBoundingClientRect();
+  const dw = drawer.offsetWidth;
+  // 抽屉右缘与面板左缘贴合连接：重叠 4px 覆盖面板圆角与阴影，视觉无缝
+  drawer.style.left = (pr.left - dw + 4) + 'px';
+  drawer.style.top = pr.top + 'px';
+  drawer.style.height = pr.height + 'px';
+}
+
+let currentAiSummary = null;
+
+function openAiDrawer(summaryEl) {
+  let name = summaryEl.childNodes[0].textContent.trim();
+  // 新店SOP"阶段1 运营规划"点击 → 展示运营规划清单（AI对话弹窗）
+  if (name === '运营规划') name = '运营规划清单';
+  openAiDrawerByName(name, summaryEl);
+}
+
+// 点击子项弹出AI时高亮该子菜单（深橙色）
+function markFuncActive(el) {
+  document.querySelectorAll('.func-item.func-on, details.sop-item > summary.func-on, details.sop-wrap > summary.func-on').forEach(function (x) {
+    x.classList.remove('func-on');
+  });
+  if (!el) return;
+  if (el.classList && el.classList.contains('func-item')) { el.classList.add('func-on'); return; }
+  if (el.tagName === 'SUMMARY') { el.classList.add('func-on'); return; }
+  if (el.closest) {
+    const it = el.closest('.func-item');
+    if (it) { it.classList.add('func-on'); return; }
+    const sm = el.closest('summary');
+    if (sm) { sm.classList.add('func-on'); }
+  }
+}
+
+function openAiDrawerByName(name, sourceEl) {
+  positionAiDrawer();
+  markFuncActive(sourceEl);
+  currentAiSummary = sourceEl || null;
+  // 每次打开：重置对话模式，绑定当前功能（每个抽屉独立对话）
+  aiChatName = name;
+  aiChatReady = false;
+  document.getElementById('aiChatMsgs').innerHTML = '';
+  document.getElementById('aiChat').classList.remove('open');
+  const data = AI_ANALYSIS[name] || {
+    sub: 'AI 智能分析',
+    points: ['已加载「' + name + '」数据报表，AI 正在提炼关键结论与执行建议'],
+    rows: [['曝光量','48,320'],['询盘数','456'],['转化率','0.35%']]
+  };
+
+  document.getElementById('aiMask').classList.add('show');
+  document.getElementById('aiDrawer').classList.add('open');
+  document.getElementById('aiTitle').textContent = '🤖 AI分析 · ' + name;
+  document.getElementById('aiContent').innerHTML = '';
+  document.querySelector('.ai-loading').style.display = 'flex';
+  document.getElementById('aiContent').style.display = 'none';
+  const btn = document.getElementById('aiDownloadBtn');
+  btn.textContent = '⬇ 下载分析报表';
+  btn.style.background = '';
+
+  // 模拟AI分析加载
+  setTimeout(function () {
+    document.querySelector('.ai-loading').style.display = 'none';
+    const content = document.getElementById('aiContent');
+    content.style.display = 'block';
+    content.innerHTML =
+      '<div class="ai-name">' + name + '</div>' +
+      '<div class="ai-sub">' + data.sub + ' · AI自动分析 · ' + new Date().toLocaleString('zh-CN') + '</div>' +
+      data.points.map(function (p, i) {
+        return '<div class="ai-point"><span class="pt-dot">' + (i + 1) + '</span><span class="pt-text">' + p + '</span></div>';
+      }).join('') +
+      '<div class="ai-table-wrap"><table class="report-table">' +
+        data.rows.map(function (r, i) {
+          return '<tr class="' + (i === 0 ? 'report-th' : '') + '">' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>';
+        }).join('') +
+        '</table></div>';
+    // 运营规划清单 / 老店运营诊断规划：弹出即展开AI对话，可直接追问
+    if (name === '运营规划清单' || name === '老店运营诊断规划') {
+      document.getElementById('aiChat').classList.add('open');
+      if (!aiChatReady) initAiChat();
+    }
+  }, 1200);
+
+  document.getElementById('aiDownloadBtn').onclick = function () {
+    this.textContent = '✓ 已下载';
+    this.style.background = 'var(--green)';
+    this.style.borderColor = 'var(--green)';
+    // 下载完成 → 标记当前功能为"完成"
+    if (currentAiSummary) {
+      const st = currentAiSummary.querySelector('.sop-status');
+      if (st) { setSopStatus(st, true); }
+    }
+  };
+}
+
+// 设置SOP功能状态：true=完成(绿) false=未完成(红)
+function setSopStatus(el, done) {
+  el.classList.toggle('done', done);
+  el.classList.toggle('undone', !done);
+  el.textContent = done ? '完成' : '未完成';
+}
+
+// SOP功能项状态标注初始化（默认未完成）
+document.querySelectorAll('details.sop-item > summary').forEach(function (s) {
+  const st = document.createElement('span');
+  st.className = 'sop-status undone';
+  st.textContent = '未完成';
+  st.title = '点击切换完成状态';
+  st.addEventListener('click', function (e) {
+    e.stopPropagation();
+    setSopStatus(this, !this.classList.contains('done'));
+  });
+  s.appendChild(st);
+});
+
+function closeAiDrawer() {
+  document.getElementById('aiDrawer').classList.remove('open');
+  document.getElementById('aiMask').classList.remove('show');
+  document.querySelectorAll('.func-item.func-on, details.sop-item > summary.func-on, details.sop-wrap > summary.func-on').forEach(function (x) {
+    x.classList.remove('func-on');
+  });
+}
+
+// ===== AI抽屉：对话模式 =====
+let aiChatName = '';
+let aiChatReady = false;
+
+const AI_QUICK_QS = [
+  '怎么定类目？',
+  '目标国家怎么选？',
+  '客群怎么定位？',
+  '公司优势怎么写？'
+];
+
+const AI_REPLIES = [
+  { keys: ['类目', '定类目'], reply: '定类目建议：1) 看行业热度——锂电池组近30天询盘 +12.3%，处于<span class="em">高增长期</span>；2) 看竞争度——TOP50榜单中本类目占 12 席，机会中等；3) 结合供应链优势锁定 2-3 个主类目，首发 12 款产品。' },
+  { keys: ['国家', '市场'], reply: '目标国家建议：<span class="em">美国 32%</span>、<span class="em">德国 18%</span>、<span class="em">英国 12%</span> 为三大询盘来源国。美/英/加/德核心国家建议 P4P 定向溢价 20%，阿联酋等低效国家可暂停投放。' },
+  { keys: ['客群', '客户', '画像'], reply: '客群定位：主力买家为<span class="em">电子分销商</span>，月采购 $5K-20K，关注 UL/CE 认证与交期。建议：详情页突出认证 + 产能 + 48h打样能力，针对分销商设计阶梯价。' },
+  { keys: ['公司', '优势', 'why'], reply: '公司定位（why choose us）：金品诚企3星 · 24款优爆品 · 工厂直供 · 48h快速打样 · 100%好评回复。建议将 3 大核心优势前置到 HOME 页首屏与详情页第 1 屏。' },
+  { keys: ['SOP', '进度', '清单'], reply: '当前「' + aiChatName + '」运营规划清单按 5 大步推进：<span class="em">基础建设(15天-1个月) → 流量获取(50-100品起推) → 爆品打造 → 推广优化(每周2/每月3号) → 进榜单</span>。建议负责人主持落地启动会，明确各职责人及落地时间。' },
+  { keys: ['基础', '词库', '关键词', '发品'], reply: '基础建设要点：<span class="em">动员会</span>先行（明确职责人与时间）；<span class="em">市场/公司/产品定位</span>定方向（1-2天）；<span class="em">关键词SOP 5-7天</span>建《主词表》+《关键词词库》词全；<span class="em">产品发布SOP 1天</span>确认首款整体布局；<span class="em">发品布词15天</span>快速覆盖关键词——不重复发品、多发行业定向征品。' },
+  { keys: ['P4P', '推广', '流量', '智投'], reply: '流量获取节奏：满 <span class="em">50-100个品</span> 开始推广（全站推·日预算/AI智投，1个月）；1-2个月后针对<span class="em">转化高的产品单独创建计划</span>；分层投放：普通/潜力/新品→全站推按分类，优品→全站推+AI智投，优爆品→全站推·推商品+关键词推广，快速筛出公司流量款。' },
+  { keys: ['爆品', '资源', '加权', '橱窗'], reply: '爆品打造三步：1) <span class="em">资源绑定</span>——顶展/问鼎优先绑优爆品；2) <span class="em">营销加权-运营</span>——定向征品·挑战赛·产品/关键词网·橱窗·主营认证·绑认证证书·爆款折扣·星等级3星+；3) <span class="em">营销加权-业务</span>——每天20封站内营销+EDM·直播短视频带品·RFQ报主推·好评100%回复·订单优先绑核心品。' },
+  { keys: ['榜单', 'TOP', '排名'], reply: '进榜单跟踪：<span class="em">TOP RANKING</span>——Most popular / Hot selling / Best reviewed 榜单统计产品ID及排名；<span class="em">国家榜单-询盘榜单</span>——统计不同国家榜单排名，为广告定向与优爆品调整提供依据。' },
+  { keys: ['诊断', '店铺诊断'], reply: '店铺诊断第1步按七维+落地推进：<span class="em">星等级</span>（当前3星距4星差12分，逐项突破短板）· <span class="em">子类目</span>（曝光/点击/询盘对比识别强弱类目）· <span class="em">优爆品</span>（真爆品24/假爆品6识别+12项动作完整度）· <span class="em">橱窗</span>（利用率68%优先放优爆品）· <span class="em">产品</span>（分层+90天零效果品）· <span class="em">广告</span>（P4P水位+0询盘词清洗+地域优化）· <span class="em">员工</span>（询盘/回复率/成交/金额对比）→ 输出落地整改计划（含负责人+完成时间，周度跟进）。' },
+  { keys: ['星级', '星等级', '4星'], reply: '星等级突破：当前 <span class="em">3星，距4星差12分</span>。建议按星级评分项逐项补分——提升星等级核心分项：橱窗绑优爆品、主营认证、爆款订单转化与好评积累，月度复盘差距项。' },
+  { keys: ['橱窗'], reply: '橱窗优化：当前利用率 <span class="em">68%</span>。优先把 <span class="em">真爆品/潜力爆品移入橱窗</span>，检查优品橱窗占比，保持橱窗位持续绑定优爆品以拉自然流量加权。' },
+  { keys: ['员工', '业务员', '跟进'], reply: '员工诊断：对比业务员<span class="em">询盘量/回复率/成交数/成交金额</span>，识别跟进短板。建议：响应≤2h、回复率目标85%、未成交询盘复盘，Top业务员话术沉淀为模板推广全员。' },
+  { keys: ['报表', '下载', '导出'], reply: '可以点击底部 <span class="em">⬇ 下载分析报表</span> 按钮导出当前分析结果（Excel/PDF），或切换到 📊 分析模式查看完整数据表格。' }
+];
+
+function initAiChat() {
+  aiChatReady = true;
+  const quick = document.getElementById('aiChatQuick');
+  const qs = aiChatName === '老店运营诊断规划'
+    ? ['店铺诊断先做什么？', '星等级怎么提升？', '橱窗怎么优化？', '诊断后怎么落地？']
+    : aiChatName === '运营规划清单'
+      ? ['基础建设做什么？', 'P4P怎么推？', '爆品怎么打造？', '进榜单怎么跟踪？']
+      : AI_QUICK_QS;
+  quick.innerHTML = qs.map(function (q) {
+    return '<button onclick="sendQuickChat(\'' + q + '\')">' + q + '</button>';
+  }).join('');
+  appendAiMsg('ai', '你好，我是 AI 运营顾问！我正在分析「<span class="em">' + aiChatName + '</span>」的数据报表。有什么运营问题可以直接问我，或点击上方快捷问题。');
+}
+
+function appendAiMsg(role, html) {
+  const box = document.getElementById('aiChatMsgs');
+  const msg = document.createElement('div');
+  msg.className = 'chat-msg ' + role;
+  const avatar = role === 'ai' ? '🤖' : '我';
+  msg.innerHTML = '<div class="chat-avatar">' + avatar + '</div><div class="chat-bubble"></div>';
+  // 用户输入只作为文本展示；内置报告保留原始排版。
+  const bubble = msg.querySelector('.chat-bubble');
+  if (role === 'user') bubble.textContent = html; else bubble.innerHTML = html;
+  box.appendChild(msg);
+  box.scrollTop = box.scrollHeight;
+}
+
+function sendQuickChat(q) {
+  document.getElementById('aiChatInput').value = q;
+  sendAiChat();
+}
+
+function sendAiChat() {
+  const input = document.getElementById('aiChatInput');
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  // 输入即在分析下方展开对话模式
+  document.getElementById('aiChat').classList.add('open');
+  if (!aiChatReady) initAiChat();
+  appendAiMsg('user', q);
+  // AI思考中
+  appendAiMsg('ai', '<span class="em">AI 思考中...</span>');
+  setTimeout(function () {
+    // 移除思考中
+    const msgs = document.getElementById('aiChatMsgs');
+    const last = msgs.lastElementChild;
+    if (last && last.textContent.indexOf('思考中') !== -1) last.remove();
+    // 关键词匹配回复
+    let reply = '';
+    for (let i = 0; i < AI_REPLIES.length; i++) {
+      const r = AI_REPLIES[i];
+      let hit = false;
+      for (let k = 0; k < r.keys.length; k++) {
+        if (q.indexOf(r.keys[k]) !== -1) { hit = true; break; }
+      }
+      if (hit) { reply = r.reply; break; }
+    }
+    // 兜底：基于当前功能的分析要点
+    if (!reply) {
+      const pts = AI_ANALYSIS[aiChatName] ? AI_ANALYSIS[aiChatName].points[0] : '';
+      reply = '关于「' + aiChatName + '」：' + pts + ' 如需更细的分析，可切换到 📊 分析模式查看完整报表，或点击 ⬇ 下载。';
+    }
+    appendAiMsg('ai', reply);
+  }, 900);
+}
+
+// 绑定SOP功能项：点击 → 左侧AI分析抽屉
+document.querySelectorAll('details.sop-item > summary').forEach(function (s) {
+  s.addEventListener('click', function () { openAiDrawer(this); });
+});
+
+// 新店/老店SOP清单标题条：不再下拉阶段内容，点击 → 直接弹出AI对话并给出运营诊断/规划表
+document.querySelectorAll('details.sop-wrap > summary').forEach(function (s) {
+  const t = s.textContent;
+  if (t.indexOf('新店') !== -1) {
+    s.addEventListener('click', function (e) { e.preventDefault(); openAiDrawerByName('运营规划清单', this); });
+  } else if (t.indexOf('老店') !== -1) {
+    s.addEventListener('click', function (e) { e.preventDefault(); openAiDrawerByName('老店运营诊断规划', this); });
+  }
+});
+
+// 窗口缩放时保持抽屉与面板拼接
+window.addEventListener('resize', function () {
+  if (document.getElementById('aiDrawer').classList.contains('open')) positionAiDrawer();
+});
+
+</script>
+
+<!-- 左侧AI分析抽屉 -->
+<div class="ai-mask" id="aiMask" onclick="closeAiDrawer()"></div>
+<div class="ai-drawer" id="aiDrawer">
+  <div class="ai-drawer-head">
+    <span class="ai-avatar">🤖</span>
+    <span class="ai-title" id="aiTitle">AI 运营顾问</span>
+    <button class="ai-close" onclick="closeAiDrawer()">✕</button>
+  </div>
+  <div class="ai-drawer-body">
+    <div class="ai-loading"><span class="spinner"></span>AI 正在分析报表...</div>
+    <div class="ai-content" id="aiContent"></div>
+    <div class="ai-chat" id="aiChat">
+      <div class="ai-chat-msgs" id="aiChatMsgs"></div>
+      <div class="ai-chat-quick" id="aiChatQuick"></div>
+    </div>
+  </div>
+  <div class="ai-drawer-foot">
+    <div class="mode-analysis" id="modeAnalysis">
+      <button class="btn-mini" onclick="closeAiDrawer()">关闭</button>
+      <button class="btn-mini primary" id="aiDownloadBtn">⬇ 下载分析报表</button>
+    </div>
+    <div class="mode-chat" id="modeChat">
+      <div class="ai-chat-input-row">
+        <input type="text" id="aiChatInput" placeholder="💬 向AI提问：怎么定类目？" onkeydown="if(event.key==='Enter')sendAiChat()">
+        <button class="send-btn" onclick="sendAiChat()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 本周优先动作弹窗 -->
+<div class="report-modal" id="paModal" style="display:none" onclick="if(event.target===this)closePriorityActions()">
+  <div class="report-card">
+    <div class="report-head"><span id="paModalTitle">📌 执行清单</span><button class="report-close" onclick="closePriorityActions()">✕</button></div>
+    <div class="pa-tabs" id="paTabs">
+      <button class="pa-tab on" id="paTabWeek" onclick="switchPaPeriod('week')">本周</button>
+      <button class="pa-tab" id="paTabMonth" onclick="switchPaPeriod('month')">本月</button>
+    </div>
+    <div class="report-body">
+      <div class="pa-list" id="paList"></div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+/** 跨模块导航仅传递固定业务标识；参数为字符串，无返回值，无主动异常。 */
+function goYingdan(feature) {
+  if (!['customer-research','inquiry-reply'].includes(feature)) return;
+  if (window.parent !== window) window.parent.postMessage({type:'yd-operations-navigate', feature:feature}, window.location.origin);
+  else window.location.href = '../../index.html#/agents/' + feature;
+}
+console.info('[yingdan-operations] 运营顾问原型已加载');
+</script>
+
+</body>
+</html>

@@ -1948,6 +1948,26 @@ function renderApp() {
     state.accountSpaceSwitcherOpen = false;
   }
 
+  // 两个参考原型共用赢单导航；运营顾问以独立文档保留原样式，避免全局 CSS 污染。
+  if (["operations-advisor", "image-main", "image-set", "image-listing", "image-poster", "image-retouch", "image-outfit"].includes(state.activeMain)) {
+    const isOperations = state.activeMain === "operations-advisor";
+    app.innerHTML = `
+      <div class="layout creative-layout">
+        ${renderSidebar()}
+        <main class="main creative-main">
+          ${isOperations ? `<header class="creative-topbar"><strong>ALI运营顾问</strong><a href="prototypes/operations-advisor/index.html" target="_blank" rel="noopener">独立打开</a></header>
+            <iframe class="operations-frame" title="ALI运营顾问八个模块" src="prototypes/operations-advisor/index.html"></iframe>` : `<div id="image-studio-root"></div>`}
+        </main>
+      </div>
+      ${renderPopupLayer()}
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>`;
+    bindEvents();
+    syncHashFromState();
+    if (!isOperations) window.YD_IMAGE_STUDIO.mount(document.querySelector("#image-studio-root"), state.activeMain);
+    console.info("[reverse-yingdan] 创意工作台已渲染", { activeMain: state.activeMain });
+    return;
+  }
+
   if (state.activeMain.startsWith("admin-")) {
     app.innerHTML = renderAdminApp();
     bindEvents();
@@ -17460,6 +17480,16 @@ function showToast(message) {
  */
 const ROUTES = [
   { hash: "/ask", main: "ask" },
+  { hash: "/operations-advisor", main: "operations-advisor" },
+  { hash: "/image-studio/main", main: "image-main" },
+  { hash: "/image-studio/set", main: "image-set" },
+  { hash: "/image-studio/listing", main: "image-listing" },
+  { hash: "/image-studio/poster", main: "image-poster" },
+  // 总入口默认进入主图；旧批量入口仍可打开，兼容原先默认的套图任务。
+  { hash: "/image-studio", main: "image-main" },
+  { hash: "/image-studio/generate", main: "image-set" },
+  { hash: "/image-studio/retouch", main: "image-retouch" },
+  { hash: "/image-studio/outfit", main: "image-outfit" },
   { hash: "/admin/home", main: "admin-home" },
   { hash: "/admin/knowledge-base", main: "admin-knowledge" },
   { hash: "/admin/user", main: "admin-user" },
@@ -17901,3 +17931,16 @@ function installAutoRefreshWorker() {
 
 window.reverseYingdanToggleHistorySearch = toggleHistorySearch;
 init();
+
+/**
+ * 运营顾问跨模块入口：仅接受当前 iframe、同源、固定业务标识。
+ * @param {MessageEvent} event 子文档导航消息；不含客户信息。
+ * @returns {void} 无返回值。无主动异常。
+ */
+window.addEventListener('message', function handleOperationsNavigation(event) {
+  const frame = document.querySelector('.operations-frame');
+  if (!frame || event.source !== frame.contentWindow || event.origin !== window.location.origin) return;
+  if (event.data?.type !== 'yd-operations-navigate') return;
+  if (!['customer-research', 'inquiry-reply'].includes(event.data.feature)) return;
+  window.location.hash = '/agents/' + event.data.feature;
+});
