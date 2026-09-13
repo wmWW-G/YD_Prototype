@@ -1,0 +1,48 @@
+{
+  "date": "2026-09-11",
+  "app_name": "来搜运营顾问｜chatflow多轮问答",
+  "app_mode": "advanced-chat",
+  "data_source": "demo",
+  "report_id": "yd-operations-45a3fd85-59ab-4665-9e7a-6d01fd6d55cb",
+  "workflow": {
+    "time": "2026-09-11T07:13:16.010Z",
+    "message": "[operations-workflow] completed",
+    "reportId": "yd-operations-45a3fd85-59ab-4665-9e7a-6d01fd6d55cb",
+    "runId": "8cbaec01-e014-4ffa-a2fd-d9a00e64e2b3"
+  },
+  "chat_turns": [
+    {
+      "time": "2026-09-11T07:14:10.179Z",
+      "message": "[operations-chat] completed",
+      "reportId": "yd-operations-45a3fd85-59ab-4665-9e7a-6d01fd6d55cb",
+      "runId": "b61f6353-6baa-4c1b-bc3a-d8f9bc5315f1",
+      "conversationId": "0ec90cf8-36b8-44f3-be19-061bc6687b17",
+      "messageId": "ae7e4fb1-f273-4359-be7d-d5b229358b10"
+    },
+    {
+      "time": "2026-09-11T07:14:50.300Z",
+      "message": "[operations-chat] completed",
+      "reportId": "yd-operations-45a3fd85-59ab-4665-9e7a-6d01fd6d55cb",
+      "runId": "67435e2a-9e35-4307-9031-8f0c765fb614",
+      "conversationId": "0ec90cf8-36b8-44f3-be19-061bc6687b17",
+      "messageId": "4af7547e-e8cb-4910-b7ea-b91dc555acf4"
+    }
+  ],
+  "assertions": {
+    "same_conversation": true,
+    "different_chat_run_ids": true,
+    "report_context_used": true,
+    "previous_turn_marker_recalled": true,
+    "desktop_no_overlap_or_overflow": true,
+    "mobile_no_overlap_or_overflow": true
+  },
+  "automated_tests": {
+    "total": 173,
+    "passed": 173,
+    "failed": 0,
+    "offline_function_handoffs": 32
+  },
+  "live_coverage": "优爆品提升，1 次首次诊断 + 2 轮 Chatflow；未逐一真实执行所有功能。",
+  "credential_storage": "macOS Keychain; server memory only; independent Workflow and Chatflow entries",
+  "console_note": "浏览器仍捕获此前已存在的 MutationObserver.observe 异常；本次真实报告及两轮追问正常。"
+}

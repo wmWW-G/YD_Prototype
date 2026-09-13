@@ -1,0 +1,326 @@
+{
+  "reference": "https://raw.githubusercontent.com/langgenius/dify/1.12.0/api/core/workflow/nodes/code/code_node.py",
+  "limits": "permissive values to isolate nested-array behavior; not a Cloud version claim",
+  "checks": [
+    {
+      "function": "数据看板",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "数据看板",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "日经营概览",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "日经营概览",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "周经营概览",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "周经营概览",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "月经营概览",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "月经营概览",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "运营规划清单",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "运营规划清单",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "老店运营诊断规划",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "老店运营诊断规划",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "3月新贸节作战计划",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "3月新贸节作战计划",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "9月采购节作战计划",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "9月采购节作战计划",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "市场&客群定位",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "市场&客群定位",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "公司定位",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "公司定位",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "产品定位",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "产品定位",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "店铺装修文案",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "店铺装修文案",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "详情页装修文案",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "详情页装修文案",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "一键选品",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "一键选品",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "一键整理关键词",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "一键整理关键词",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "批量标题",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "批量标题",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "批量发品",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "批量发品",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "广告策略",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "广告策略",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "广告诊断优化",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "广告诊断优化",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "品广诊断优化",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "品广诊断优化",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "优爆品提升",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "优爆品提升",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "核心品跟进",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "核心品跟进",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "单品历史数据",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "单品历史数据",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "店铺诊断",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "店铺诊断",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "产品诊断",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "产品诊断",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "广告诊断",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "广告诊断",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "品广诊断",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "品广诊断",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "优质RFQ信息采集",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "优质RFQ信息采集",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "RFQ报价跟进表",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "RFQ报价跟进表",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "询盘明细采集分析",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "询盘明细采集分析",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "客户列表采集分析",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "客户列表采集分析",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    },
+    {
+      "function": "询盘登录表",
+      "branch": "normal",
+      "runtime_validation": "pass"
+    },
+    {
+      "function": "询盘登录表",
+      "branch": "repaired",
+      "runtime_validation": "AttributeError: 'list' object has no attribute 'items'"
+    }
+  ]
+}

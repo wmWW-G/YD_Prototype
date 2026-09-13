@@ -626,3 +626,148 @@ Excel 交付验证方式：
 5. 保留合法的 table、drawing、图表及 relationships；只有出现已证实的文件级兼容问题时才定向修复。
 
 任一步失败都不能交付 `.xlsx`。
+
+## Dify 在用应用同步约定（2026-09-09）
+
+用户确认当前在用两项：`f68ca6a0-5b51-47ef-8d29-effb5b974ad0`（不需要知识库的总库）与 `c50fba61-a7e8-4175-b25b-2e46c8dad5b1`（全技能总控）。后续“更新工作流/拉最新 DSL/这两个工作流”默认指这两项，用户说的 dify workflow 目录沿用 `dify-chatflows/`。具体链接、文件映射和同步记录见 `dify-chatflows/README.md` 的“当前在用工作流与同步约定”。本次已从 Dify 页面导出当前已保存版本并验证落盘，未发布或试跑。
+
+2026-09-09 用户在生产画布修改并确认发布后，已重新导出当前保存版本覆盖本地 DSL（32 节点、39 连线）。标题条件为 title-combo OR title-sellpoint；标题分支实际保留模型选择，DeepSeek 关闭思考、Gemini 为 Low；其他功能 DeepSeek 为开启思考且 low。以本次线上导出为准，之前固定 DeepSeek 的本地方案已被替换。详情见 dify-chatflows/README.md。未单独比对发布版本、未试跑或实测耗时。
+
+## 2026-09-11：AI作图与 ALI运营顾问原型
+
+本次参考任务「盘点项目中的 Dify Flow」（01a08a73-d2c3-7420-b3c1-98c9a64e03dc）对应 `/Users/garden/YD/批图匠`。读取当前代码并打开参考页面后，在赢单现有原生 HTML/CSS/JavaScript 原型内新增两个一级业务入口，没有引入前后端服务或接通真实图片模型。
+
+- `#/image-studio`（兼容 `#/image-studio/generate`）：批量生图。`#/image-studio/retouch`：批量AI修图。`#/image-studio/outfit`：批量模特换装。三个入口在侧栏「AI作图」分组下，窄屏另有作图页内导航。
+- 作图实现位于 `src/image-studio.js`、`src/image-studio.css`，本地图片在 `assets/image-studio/`；从批图匠参考资产复制，模板含高信息量套图、极简套图、B2B详情图。`window.YD_IMAGE_STUDIO.mount` 由 `src/app.js` 调用。支持主图/套图/详情图/海报、模板抽屉、本地素材与Logo、逐张方案、单张修改、确认后模拟生成、大图切换及当前会话历史。
+- 作图状态按入口保留在模块内存中：`phase` 为 `empty/results/planning/review/generating`，`plans` 保存逐张方案，`results` 保存本地示例图片，`history` 保存本次页面会话完成的任务；刷新后重置。生成前确认方案时锁定表单，避免设置与已确认方案不一致。跨入口的异步任务使用其开始时的模式，不串写其它入口。
+- 图片通过 FileReader 读入当前浏览器，PNG/JPEG/WebP 每张不超过 10 MB；不上传文件，不调用模型，不扣费。结果标记为「演示结果」，导出仅给出原型反馈。清晰度、模型等参数用于演示选择过程，不代表实际处理后的图片属性。
+- `#/operations-advisor`：在赢单导航内以 iframe 承载 `prototypes/operations-advisor/index.html`，也可独立打开该文档。来源是 `/Users/garden/YD/l-sou/来搜运营顾问plugin-panel-分享版(1).html`，交互含义参照同目录《来搜ALI运营顾问-业务与交互说明.md》。仅提取运营顾问八个模块，移除原插件其他业务页签、推广、品牌与账号外壳。
+- 运营顾问原始样式表和八模块 HTML 均保留；允许差异为初始激活状态、两处跨业务入口改为赢单既有背调/询盘分析路由、宿主布局及小屏抽屉位置。初次移植保留静态分析和模拟追问；本 worktree 后续已按用户授权接入首次诊断 Workflow，当前真实调用与待修复项见下方“运营顾问首次诊断接入”。`paDone_` 状态加 `yd-operations:` 前缀隔离本地存储；用户聊天输入改为 `textContent` 防止 HTML 注入，内置报告排版不变。
+- 子页面通过 `yd-operations-navigate` 消息传递固定业务标识，宿主验证发送 iframe、同源和功能白名单后跳转。不会传递客户数据或执行询盘发送。
+- 路由与宿主在 `src/app.js`，导航在 `src/data.js`，样式和脚本在 `index.html` 引用。浏览器控制台的 `[yingdan-image-studio]` / `[yingdan-operations]` 日志记录加载、方案就绪、演示完成和图片读取异常，不记录用户素材内容。
+
+### 本次视觉与交互验证
+
+使用 Product Design 的参考复刻与设计核验流程。遵循项目“不主动创建额外文档”约定，把核验记录放在本节；截图留在已忽略的 `outputs/product-design-20260911/`，不作为主工程提交。
+
+- 本地预览：`python3 -m http.server 8891 --bind 127.0.0.1 --directory /Users/garden/YD/Prototype`。桌面视口 1280×900，小屏 390×844。最终按 DPR 2 统一采集，桌面整屏 2560×1800；运营模块内容为 356×510.78125 CSS px，截图为 712×1020 px。
+- 来源截图：`studio-reference-desktop-final.png`、`operations-home-reference-2x.png`。实现截图：`studio-implementation-desktop-final.png`、`operations-home-implementation-2x-final.png`。并排比较证据：`studio-final-comparison.png`、`operations-final-comparison.png`。作图示例作品用于比对，参考页“正在生成4/6”为既有模拟状态；赢单明确显示示例作品。
+- 字体、字重和文字层级：运营顾问复用原值；作图沿用赢单字体并保留参考界面的表单/结果层级。布局与间距：运营八宫格内部尺寸一致；作图保留左右工作区，外部导航适配赢单。颜色：运营原样式完全相同，作图使用相近橙色与米白底。资产：复用真实参考素材，未生成替代占位图，已检查已展示图片无加载失败。文案：运营模块原文一致，作图说明按原型范围调整。
+- 发现并修复的 P2：手机窄导航栏中的品牌文字截断及“新增客户”挤出；隐藏该文字、保留品牌图标，并提供手机作图导航。修复后 `studio-mobile-final.png` 已重新采集，DOM 宽度 390、页面滚动宽度 390。运营手机报告证据为 `operations-mobile-report.png`，关闭、下载、追问入口可见。
+- 浏览器实测：运营八模块进入/返回；看板日/周/月花费切换；新店方案报告与追问；营销定位周/月清单切换、勾选并恢复；广告诊断报告与下载按钮状态。作图模板切换、本地文件导入、三个作图入口、逐张方案、单张修改、确认生成、预览翻页、历史查看与图片数量计算均已检查；详情图10版共80张，主图/海报每版1张。用户输入 `<b>测试文本</b>` 只作为文字显示，未产生 HTML 子节点。
+- `node --check src/app.js`、`node --check src/image-studio.js`、提取的运营脚本语法检查和 `git diff --check` 通过。`npm test` 为 158/158，通过；作图与独立运营页面未见 error 级控制台错误。赢单内嵌运营页的八个入口与报告已实测；该内嵌页有一条 Codex 浏览器自身 `browser-page-preload.js` 的 MutationObserver 异常，经调试栈和脚本来源核验，与项目脚本无关，未阻断模块操作。没有真实接口或发布验收。
+- final result: passed。作图为参考适配，运营内部视觉保真；剩余的固定报告、模拟下载和不可点击“下一步”属于来源原型既有行为。
+
+### 首次诊断 Workflow 凭据与独立 API 测试（2026-09-11）
+
+- 用户授权保存并测试首次诊断 Workflow。凭据保存在本机 macOS 钥匙串，service 为 `com.yingdan.prototype.operations-advisor.workflow`，account 为 `first-diagnosis`；读取时只捕获到调用进程内存，不在终端打印。仓库、浏览器和测试记录均不包含明文 Key。当前没有写入 Vercel/Upstash；本 worktree 后续已接入原型页面，见下方“运营顾问首次诊断接入”。
+- 通过 `https://api.dify.ai/v1/info` 与 `/parameters` 实测确认应用名为 `来搜运营顾问｜workflow首次诊断`、mode 为 `workflow`，四个必填输入是 `module`、`function_name`、`report_id`、`business_context`。本机 Python urllib 默认请求收到 HTTP 403 / 1010，改用 curl 后两个接口均返回 HTTP 200；不能把前者判断为 Key 无效。
+- 虚构商品诊断测试 run `563bbf3c-d3a1-40b3-a15b-26f29a5094bb`：输入校验、查询改写、知识检索节点、数据分析与优化顾问及汇合节点完成，但 `validate_report` 返回 `Unknown error`，随后 `generation_error` 失败，错误为 `ERROR:root:diagnosis_generation failed after retry`。Workflow 最终为 `failed`、outputs 为空，耗时约 54 秒；未得到可交给 Chatflow 的报告。已读取本地失败处理代码中的 `logging.error`，但当前证据不足以确认线上校验节点的根因。安全记录：`output/operations-advisor/workflow-test-codex-synthetic-752a5bc9ebf1.json`。
+- 无效功能入口测试 run `49eede6b-eced-4655-9f86-c9485f488d9d`：正确进入输入错误分支，返回 `invalid_status=invalid_input`、`invalid_report`、`invalid_chat_inputs`、`invalid_error`，Token 用量为 0，确认该分支的重命名已在线生效；正常、修复和生成失败输出分支仍未通过返回值验收。安全记录：`output/operations-advisor/workflow-test-codex-invalid-1834a2488d65.json`。
+
+### 运营顾问分析抽屉裁切修复（2026-09-11）
+
+- 用户标注的问题在本 worktree 中已复现：关闭的抽屉仍可见。`translateX(-100%)` 只减去抽屉自身宽度，居中或贴边定位后仍会残留在 iframe 内；旧的 1100px 媒体查询也未覆盖所有左侧空间不足的宽度。
+- 只修改 `prototypes/operations-advisor/index.html`：关闭状态加入 `visibility:hidden` 与 `pointer-events:none`；打开后恢复可见和交互。`positionAiDrawer()` 按 iframe 的实际可见尺寸判断贴左侧或居中，并限制上下位置；正文增加 `min-height:0` 以独立滚动，保留标题和底部操作区。
+- 独立预览使用 `python3 -m http.server 8895 --bind 127.0.0.1 --directory /Users/garden/.codex/worktrees/33b5/Prototype`，入口为 `http://127.0.0.1:8895/#/operations-advisor`。8891 仍指向主目录 `/Users/garden/YD/Prototype`，本轮未修改其文件或重启其服务。内置浏览器已切至 8895；普通刷新曾保留旧 iframe 缓存，强制刷新后确认新样式生效。
+- 视觉验证以同一 worktree 修复前后的 1094×934 首页为对比，截图均为 1 倍像素密度，已放在同一比较输入中检查。标题字体、字号、颜色、图标和业务文案保持一致，预期差异只有关闭抽屉消失；打开状态保留原报告排版，空间不足时改为居中。整个弹窗在截图中清晰可见，无需额外裁剪。
+- 当前浏览器实测通过：1094×934、1400×900、1728×934、390×844 下打开完整弹窗；390×600 下输入虚构追问、得到原有模拟回复、滚动正文及点击右上角关闭，关闭后无残留；最终恢复默认视口并保留打开的报告供用户检查。内联脚本 `node --check` 和 `git diff --check` 通过；控制台保留了一条修改前已经出现的 `MutationObserver.observe` 异常，未通过产品代码隐藏该异常。
+- 证据目录：`output/operations-advisor/drawer-fix/`。`before-1094.jpg` 与 `after-home-1094.jpg` 为同状态对比，`open-1094.jpg`、`open-1400.jpg`、`open-1728.jpg`、`open-390.jpg` 为打开状态，`chat-390x600.jpg` 与 `closed-390x600.jpg` 为矮屏交互证据。final result: passed。
+
+### 用户纠正：两个面板互不覆盖（2026-09-11，当前布局规则）
+
+- 用户明确要求运营面板和 AI 顾问都完整显示，不接受首轮修复中的居中覆盖方案。此节替代上一节的浮层定位规则。
+- `prototypes/operations-advisor/index.html` 已移除 AI 遮罩和固定定位。打开时给 `body` 添加 `ai-open`，两个面板在正常 Flex 布局中整体居中，AI 在左、运营入口在右，间距 16px；运营面板保留 380px 宽度，AI 面板最多 430px 并使用剩余宽度。iframe 宽度不超过 760px 时改为上下排列，通过页面滚动查看，两个面板不会重叠。
+- 关闭时 AI 面板 `display:none`，移除 `ai-open`，运营面板恢复原先居中布局。`positionAiDrawer()` 现在只同步高度，不再设置坐标；正文保留独立滚动和固定在面板底部的操作区。右侧运营入口可以在报告打开时继续点击，切换左侧报告；后续首次诊断接入替换了固定报告、模拟追问和模拟下载，布局规则不变。
+- 当前验收：1094×934、1400×900、1020×768、390×844 四种视口的实时 DOM 矩形均确认无重叠、无横向溢出；1094 视口中 iframe 宽 834px，AI 面板宽 398px，运营面板宽 380px，均完整处于边界内。实测从右侧切换到「核心品跟进」、窄屏滚动到报告底部和关闭后恢复均通过；最终恢复默认视口并打开并排报告。内联脚本语法检查、`git diff --check` 通过。
+- 证据目录：`output/operations-advisor/paired-layout/`。`before-overlay-1094.jpg` 与 `after-paired-1094.jpg` 是相同视口和报告的对比，字体、字号、原报告内容和配色延续，预期变化是取消遮罩、并排占位和 AI 面板四角圆角。`geometry.json` 保存四种尺寸的边界检查；`paired-*.jpg`、`mobile-report-bottom.jpg` 保存当前界面。final result: passed。
+
+
+### 运营顾问首次诊断接入（2026-09-11，当前运行事实）
+
+- 用户要求“把 Workflow 接进来”。沿用原生 HTML/JavaScript 前端与现有 Node.js API；当前业务资料明确标记为原型演示数据，仅读取本 iframe 的当前运营模块，不读取宿主账号或浏览器存储。未接真实店铺采集，目录名称不作为已获取的报表明细。
+- 本 worktree 启动命令为 `npm run dev:operations`，预览 `http://127.0.0.1:8895/#/operations-advisor`。`operations-dev-server.cjs` 替代本 worktree 原来的 Python 静态服务，提供静态页面与 `/api/operations-diagnosis`；其它工作区的 8891、8893 服务未修改。仅绑定 127.0.0.1，校验 Host/Origin，静态白名单不公开 .env、API 源码、日志、仓库内部目录及根目录外链接。
+- Key 启动时由上述 macOS 钥匙串读取到服务端内存；也支持服务端环境变量 `DIFY_OPERATIONS_WORKFLOW_API_KEY`。`GET /api/operations-diagnosis` 仅返回 configured 和 data_source。没有在 HTML、JS、localStorage 或测试样例写入真实凭据；安全运维日志为 `output/operations-advisor/local-server.log`。
+- `api/operations-diagnosis.js` 处理同源 JSON POST 和 SSE，`lib/operations-workflow.js` 调用 Dify `/v1/workflows/run`。`lib/operations-entry-map.json`、`lib/operations-report-schema.json` 同步 l-sou 已有入口和报告契约；原型 SOP 别名在 `resolveEntry` 映射到 8 板块的 32 个规范入口。后续部署需要显式配置 `OPERATIONS_ALLOWED_ORIGINS`，本次没有部署或写远端配置。
+- 支持正常 `status/report/chat_inputs/error`、`repaired_*`、`invalid_*`、`failed_*` 四类互斥输出。只有成功状态、报告结构/身份、行动证据引用、追问上下文均一致时才向页面交付报告；失败不回退静态内容。Dify 的原始模型片段、内部思考、节点输入输出不转发至浏览器。读取超时上限 240 秒，关闭或切换功能时取消请求，并尽力停止上游任务。
+- `prototypes/operations-advisor/workflow-client.js` 提交演示资料并消费 progress/done/error；报告通过安全 DOM 显示，表格支持局部横向滚动，成功后可下载 Markdown 文件。去掉原静态 AI_ANALYSIS 和关键词回复；未提供 Chatflow Key，追问输入/发送保持禁用。下载不再自动把 SOP 标成已执行。AI 与运营面板继续并排，窄屏上下排列；返回模块首页会关闭/取消诊断。
+- 浏览器真实调用：应用 `来搜运营顾问｜workflow首次诊断`，App ID `b7303dd0-9852-412d-a3b0-db05422f9e83`，北京时间 2026-09-11 12:03:58–12:04:21，请求“优爆品提升”。run `bac54bd1-eb39-4221-ab1b-1b26ce9bd79d`，Dify 耗时 21.61 秒、12798 tokens、11 步；模型 `advisor_6` 与 merge 成功，`validate_report` 异常，`generation_error` 失败，未产生成功报告。
+- 复用当前 Chrome 登录态做只读 Console GET 精确核验上述 run 与 node-executions：读取 1 个 run 和全部 11 个节点，无会话/列表分页，无截断；不做用户维度查询，候选会话数不适用。原始 error 在浏览器内分类，未输出/保存鉴权或客户内容。`validate_report` 具体错误分类为 `list_used_as_dictionary_items`；之前 SSE 仅显示 Unknown error。官方 Dify 1.12.0 的 CodeNode 输出检查方法也可复现：对象中的二维 rows 被当作字典递归处理并调用 items。该版本是复现参考，不代表已确认当前 Cloud 版本。
+- 待用户在 Dify 手工替换的代码已准备于 `output/operations-advisor/workflow-integration/`：`dify-code-validate-report.py` 同时用于 `validate_report`（校验报告结构、证据引用与交接容量）和 `validate_repaired`（修复后的校验节点）；只在传输副本将 rows 编码为 JSON 文本，原始 diagnosis_context 保留二维数组；本站在边界恢复表格并重新校验。`dify-code-generation-error.py` 用于 `generation_error`，移除会写入 stderr 的 logging.error；校验代码同样移除 warning/error 级日志，业务失败通过结构化返回值表达。输入/输出变量名和输出类型配置均无需改动，保留用户已做的输出节点重命名。没有改动/发布 Dify 线上流程，也没有改 l-sou 原文件。
+- 验证：`npm test` 共 165 项通过，含新增 7 项运营接入检查（真实 HTTP 往返用注入响应，不发付费请求）。本地使用官方纯输出检查方法复现原问题，替换代码通过，JSON 非法/失败路径返回结构化结果且 stderr 为空；这是离线验证，不等于线上修复已生效。
+- 浏览器验收：真实失败提示和重试按钮可见，下载禁用；隔离 8896 测试服务使用明确标记“接入测试样例 · 非 Dify 生成”的结果核验成功报告、二维表格、右侧切换、HTML 字符转义及下载。两次实际 Markdown 文件已在本机 Downloads 验证包含演示标记与表格；工具的 download 事件等待未捕获，但文件实际落盘。隔离服务/测试标签页验收后关闭。1094×934 下 iframe 宽 834px，两个面板完整并排；390×844 下 iframe 宽 326px，上下排列且无横向溢出；临时视口覆盖已撤销。证据目录同上，`live-node-diagnosis.json`、`live-error-category.json`、`code-fix-offline-check.json`、`download-check.json`、`mobile-geometry.json` 和截图区分真实结果与测试样例。
+- 接入首轮状态：本地页面与代理接入完成，线上曾等待三个代码节点替换和发布；后续真实成功验收见下一节。此前 165 项自动检查及成功样例截图仅代表本地验证。
+
+
+### 用户发布修复后的真实成功验收（2026-09-11）
+
+- 用户确认已替换代码并发布。2026-09-11 北京时间 13:26:56 从现有页面点击“重新生成”，使用相同“优爆品提升”演示资料；13:27:30 页面收到真实报告，本地代理完成结构、身份、表格与追问上下文一致性校验。
+- Service API GET 再次确认 run `01e6f974-f5be-4dd7-9848-2cd714c3d76e` 为 `succeeded`，正常分支 `status=ok`，workflow_id `85d7a7ef-a98d-4f77-b366-ab4081cc5a5f`，耗时 31.33 秒、12 步、13699 tokens。report_id 为 `yd-operations-8f6a687c-e713-4bce-aa26-7dd39e38a4ea`；rows 在 Dify 输出中为字符串，在本站还原为 4 行 × 9 列，并确认原始追问上下文中的二维表格完全一致。此次已不再出现先前的代码节点输出异常。
+- 浏览器真实显示诊断正文、资料缺口、要点/行动/依据和表格，下载按钮启用。两个面板保持完整并排；报告仍正确标记演示资料，`data_status=insufficient` 表示缺少真实商品数据，不表示执行失败。当前只验收“优爆品提升”正常分支，未遍历全部 32 入口/修复分支；Chatflow 多轮追问仍未接入。
+- 原本地服务随前一执行会话退出而停止；本次已在当前 worktree 用 detached Node 子进程重启（只监听 127.0.0.1:8895，钥匙串凭据仍仅在内存），不改其它端口服务。常规人工启动仍用 `npm run dev:operations`。
+- 本次证据：`output/operations-advisor/workflow-integration/published-fix-live-success.json` 记录脱敏运行状态与表格统计，`published-fix-live-success.jpg` 是真实报告界面。没有再修改或发布线上流程，没有把测试样例充当此次结果。
+
+### 结构化报告恢复原 HTML 版式（2026-09-11）
+
+- 用户指出前次成功页的展示与原稿不一致。前次只证明 Workflow 能执行成功：`workflow-client.js` 错将 `content_markdown` 作为主界面，并添加结论卡、资料缺口、行动与依据折叠区。当前全部移除，严格恢复原 `ai-name → ai-sub → ai-point(.pt-dot/.pt-text) → ai-table-wrap > table.report-table` 顺序；表头沿用 `tr.report-th > td`，字号、虚线、颜色和间距沿用原 HTML。模型文本通过 `textContent` 填充；要点的短标题冒号前缀可用原 `.em` 样式强调，不解析任意 HTML 或 Markdown。
+- `lib/operations-report-templates.json` 从原文件最后实际生效的 `AI_ANALYSIS` 提取 28 个 AI 报告入口的表头、要点容量和表格摘要行数，不复制样例经营数字。`lib/operations-workflow.js` 在既有 `business_context` 内附加摘要展示要求（不改 Dify 输入变量），并校验返回表头、列数、要点数量、字数及行数。比如优爆品提升固定为“分层 / 数量 / 策略”，不接受先前九列表格。数据看板的日/周/月界面继续使用原独立交互，没有替换成 AI 报告。
+- `name/sub/points/rows` 用于原有报告窗口；`conclusion/content_markdown/evidence/actions/missing_data/follow_up_questions` 保留在完整报告和下载文件内。下载增加原有摘要表格、行动与依据，按钮文案恢复“下载分析报表”。保持“演示数据”标识；未知数据写未提供，不能填回原稿样例数字。追问尚未接入，输入/发送继续禁用。
+- 原已验收的并排布局不变：1094px 宿主下两个面板完整显示；390px 宿主下 iframe 326px，两个面板均为 302px 宽，x=12，运营面板 y=12，报告面板 y=555.5，页面无横向溢出。报告正文单独滚动，标题和底部按钮保留。
+- 真实验收：从当前页面点击优爆品提升，run `095786dc-ca0b-460b-ab41-9128d961a8b4` 返回 `succeeded`、正常分支 `ok`，耗时 39.19 秒、12 步。输出为 5 条短要点、4 行 × 3 列表格；副标题 37 字，要点分别为 27/36/29/30/32 字。结构校验、原稿表头校验和 Chatflow 交接一致性检查通过。此次未修改或发布线上 Dify 流程，只做一次真实生成；其余入口仅校验配置来源，未逐项调用收费模型。
+- 下载验收：文件实际落入本机 Downloads，包含原表头、所有要点、表格、完整分析与依据。自动检查 `npm test` 为 166 项通过，新增回归覆盖错误表头、自由扩列、过长字段和空摘要的拒绝；28 份模板的表头均逐字匹配原 HTML。
+- 设计对照记录（按项目规则写入本文件，不另建 QA 文档）：源文件为 `/Users/garden/YD/l-sou/来搜运营顾问plugin-panel-分享版(1).html`；同一份真实演示报告分别交给原文件渲染器和当前客户端。原文件只在临时浏览器页内替换测试数据、统一时间和外框宽高/位置，未写回源文件；两份全图 `structured-ui/ref-natural.png`、`structured-ui/target-natural.png` 均为 1094×934 CSS px / 图像像素，来源 DPR=1、实现 DPR=2 的截图已按 CSS 尺寸归一，报告区域统一为 398×527.5。聚焦对照 `structured-ui/comparison-report.png` 左原稿、右当前实现；正文排版、字体、配色、表格和原有图标一致。允许差异为此前授权的圆角/并排外框、演示标识，以及尚未接入的追问禁用状态。原稿中的经营样例不作为本次真实输入事实。
+- 设计修复历史：P1 长文/结论卡/折叠区偏离原稿、P2 表头与表格样式偏离，均已恢复并重新截图。必检五项：字体字号/行高与原稿一致；间距和组件顺序一致；沿用原颜色令牌；无新增替代图像；固定按钮/表头文案一致、经营内容来自此次结构化报告。移动端 `mobile-top.png`、`mobile-footer.png`、`mobile-table.png` 核验上下布局、操作可达和表格滚动。浏览器重载时出现一次无 URL 的注入脚本 MutationObserver 异常（栈含 Electron sandbox），报告生成/渲染/下载过程中未新增此错误；未宣称整宿主控制台无错误。final result: passed。
+- 本轮证据目录：`output/operations-advisor/structured-ui/`，含 `before.jpg`、上述对照图、`live-success.json`、仅含本次虚构资料的 `demo-report.json`、`browser-checks.json`、`download-check.json`、`automated-checks.log`。临时原稿服务器已关闭，浏览器尺寸已恢复，当前 8895 页面保留真实报告；未调整其它工作区、端口或提交 Git。
+
+### 运营顾问 Chatflow 多轮追问接入（2026-09-11，替代此前追问禁用状态）
+
+- 用户提供已发布的 Chatflow Key 并授权接入测试。Service API `/info`、`/parameters` 确认应用为 `来搜运营顾问｜chatflow多轮问答`，mode 为 `advanced-chat`；线上输入是 module（必填，八板块、48 字符）、business_context（可选，48000 字符）、diagnosis_context（可选，64000 字符），与 Workflow 交接字段一致。
+- 凭据独立保存在 macOS 钥匙串：service `com.yingdan.prototype.operations-advisor.chatflow`、account `report-followup`，启动时仅捕获到后端进程内存；环境变量为 `DIFY_OPERATIONS_CHATFLOW_API_KEY`。首次诊断凭据和配置方式不变，没有把明文 Key 写入源码、文档、日志或浏览器。
+- 新增 `lib/operations-chat.js` 与 `api/operations-chat.js`。后者复用 `api/operations-diagnosis.js` 的同源检查、SSE 心跳、断连取消和脱敏日志，通过 `kind=chat` 切换请求校验与执行器。`operations-dev-server.cjs` 在 8895 同时提供诊断和追问接口；追问请求体上限 400000 字节，容纳报告与中文背景，首次诊断仍为 200000 字节。`vercel.json` 补充追问超时配置，但本次未部署。
+- 追问 POST 字段为 `report_id/chat_inputs/query/conversation_id/data_source`，query 为 1–4000 字符，data_source 当前只能为 demo。后端复用 `normalizeOutputs` 校验当前报告和交接封装，再固定三个 inputs 调用 `/v1/chat-messages`；使用 streaming，auto_generate_name=false，不上传文件。报告与上下文的 SHA-256 摘要在服务端生成 Dify user，绑定该报告会话归属，不接受前端自定义 user。首次 conversation_id 为空，后续沿用上轮返回值；新的报告使用新的 user 和会话，避免跨功能串上下文。
+- 公开 SSE 为 progress/session/answer_delta/answer_replace/done/error；成功 result 包含 answer、conversation_id、message_id、workflow_run_id、report_id。只消费正式 message 文本，并复用 `lib/dify-api-client.js` 的隐藏 think 内容过滤器；不转发节点输入输出、查询改写内容及原始上游错误。必须收到 message_end、非空回答和会话/消息标识才算完整；中断或失败不以半条答案代替成功。240 秒超时，取消时尽力调用同一任务的 `/chat-messages/{task_id}/stop`。
+- `workflow-client.js` 只在当前成功报告且追问服务已配置时启用原输入框。原稿 `.ai-chat/.ai-chat-msgs/.chat-msg/.chat-bubble` 在报告下方展示安全文本气泡；保留 name/sub/points/rows 的报告区和两面板布局。发送中按钮变为停止，失败恢复问题文本；关闭/切换/重新生成报告清空当前会话并使旧回调失效。状态仅放在页面内存，刷新不会恢复会话；下载仍为首次结构化报告，暂不包含追问记录。
+- 真实浏览器验收使用“优爆品提升”演示资料：首次诊断 run `8cbaec01-e014-4ffa-a2fd-d9a00e64e2b3`，report_id `yd-operations-45a3fd85-59ab-4665-9e7a-6d01fd6d55cb`。Chatflow 首问 run `b61f6353-6baa-4c1b-bc3a-d8f9bc5315f1`、续问 run `67435e2a-9e35-4307-9031-8f0c765fb614` 均成功，conversation_id 均为 `0ec90cf8-36b8-44f3-be19-061bc6687b17`。首问引用该报告的缺口，第二轮准确回忆上一轮“海鸥42”测试代号并继续给出台账字段，证明报告交接和多轮记忆实际工作。
+- `npm test` 为 173/173 通过；新增 7 项检查覆盖全部 32 function 的离线交接、报告错配、会话隔离、流式过滤、审核替换、失败、取消和 HTTP 往返。真实模型只验收该功能两轮，没有声称全部功能或全部线上错误分支通过。已有 Workflow 修复分支 rows 差异、business_context 内部数据契约等诊断问题，本次未改动或发布。
+- UI 验收：默认 1094×934，iframe 834px，报告 x=20/w=398 与运营面板 x=434/w=380，无重叠或横向溢出；390×844 下 iframe 326px，两面板均宽 302px，上下排列，能够滚动到真实回复、输入和发送按钮。原有报告仍为 4×3 表格。浏览器保留此前已出现的 MutationObserver.observe 异常，未阻断此次真实流程；不宣称控制台零错误。临时尺寸覆盖已撤销，页面保留两轮真实回复。
+- 验收证据在 `output/operations-advisor/chatflow-integration/`：`live-verification.json`、`live-replies.json`、桌面/窄屏截图与几何检查；开发日志继续写 `output/operations-advisor/local-server.log`，只记录报告/运行/会话/消息 ID 及错误分类。用户要求的 `output/operations-advisor/运营顾问Workflow字段说明.md` 已同步第 7 节和第 8.3 节的追问字段及当前状态。没有改动线上 DSL、其它工作区服务或提交 Git。
+
+### 字段冻结规则与 V1 字段标注页草图（2026-09-11）
+
+- 用户要求将字段冻结/升级机制写进项目规则，并制作基于原版运营顾问界面的独立单 HTML 字段交付页；先提供 ASCII 确认理解。本轮只写入 `AGENTS.md` 规则及本节事实，并在答复中提供 V1 ASCII，不提前制作 HTML、改动运行页面或发布 Dify。
+- `AGENTS.md` 新增 Workflow / Chatflow 字段冻结与升级规则：读取既有契约、候选/冻结区分、字段变更显式审查、禁止静默改基线消除错误、接口与实现独立版本、发布前检查及可回退记录。允许用户明确要求的独立字段交付页展示开发说明，正式产品页面仍保持原有边界。
+- 当前字段盘点为 `output/operations-advisor/运营顾问Workflow字段说明.md`，现有机器定义为 `lib/operations-report-schema.json`、`lib/operations-entry-map.json`、`lib/operations-report-templates.json`；后端边界分别在 `lib/operations-workflow.js` 和 `lib/operations-chat.js`。这些是核对依据，尚不是经双方确认的完整冻结契约；尚无正式冻结基线、专用 DSL 契约差异检查或发布 CI。不得把报告中的 `schema_version=1.0` 与正式冻结状态混同。
+- V1 是字段标注页的第一版候选展示：只取 `/Users/garden/YD/l-sou/来搜运营顾问plugin-panel-分享版(1).html` 的八板块运营顾问内容，保留原稿内部样式和报告结构，不带赢单宿主导航及原文件其它业务外壳。布局拟为左侧原 AI 报告、中间原运营入口、右侧新增字段说明，均占正常布局空间，窄屏顺序排列，不互相覆盖。
+- 交互拟为各 Workflow 入口增加独立字段按钮；查看字段不触发真实调用。切换入口同步字段页，点击报告标题/副标题/要点/表格标记定位对应字段，反向点击说明定位界面；字段说明涵盖页面请求、代理补齐、Dify 输入、各结束分支、归一化报告、下载消费及 Chatflow 交接，提供类型、必填、来源、示例、约束、消费位置和当前/待统一状态。
+- 展示范围需逐项核对：32 个规范 function 都列入字段目录；原 HTML 已映射的 28 个 AI 报告模板标注各自表头和容量，数据看板及日/周/月四个规范入口标为当前独立看板/未接首次诊断交互。下载是消费现有报告，不再调用 Workflow；追问按实际 Chatflow 字段独立说明，暂不加入此前讨论的 Workflow-as-Tool 或对话改报告方案。尚未定义的 business_context 内部业务字段及逐对象结果结构必须标注待定义，不由标注页发明并宣称已实现。
+
+### V1 单 HTML 字段对照页（2026-09-11，按用户草图调整）
+
+- 用户最新草图明确将字段说明放到最左侧。本节替代上节拟定的左右顺序：**左侧字段卡片 → 中间原稿报告 → 右侧原运营入口**。产物为 `output/operations-advisor/运营顾问-v1字段说明.html`，内含全部 CSS、JavaScript、原稿样例及契约快照，可独立打开；临时本地预览为 `http://127.0.0.1:8897/`。8895 原应用及真实 Workflow/Chatflow 接入代码未改。
+- 取材于 `/Users/garden/YD/l-sou/来搜运营顾问plugin-panel-分享版(1).html` 的原样式、运营顾问八板块 DOM、28 个报告样例及日/周/月看板静态值；不包含宿主导航和其它业务页面。桌面三栏各自占位并滚动，880px 及以下依次上下排列；连线只连接可见字段与实际报告位置，移动端隐藏连线。
+- 32 个规范功能可切换；28 个原稿 AI 入口增加独立“字段”按钮，另四个看板入口标为未接首次诊断。左侧分为界面映射、调用入参、完整输出、分支/追问；字段可展开完整示例，点击可双向定位。正常布局、加载、关闭、修复及失败状态均为本地示例；追问只展示字段交接，不调用 Dify。JSON 示例及 Blob 下载均使用本页虚构数据，无外部依赖、网络 API 或凭据。页面控制台记录初始化与功能选择，便于定位本地交互问题。
+- 字段数勘误：当前本地 Schema 及导出的 9 个相关模型 Schema 均为 11 个业务字段，补入 4 个身份字段后为 15 个；此前文档中的 12 / 16 是计数错误，已更正 `运营顾问Workflow字段说明.md`，没有修改任何业务字段。V1 仍是候选说明页，不是正式冻结基线；此前规则未因此变成 CI 拦截。
+- 原稿与容量存在五处冲突：运营规划清单 22 条、老店运营诊断规划 15 条、店铺装修文案 6 条、详情页装修文案 6 条、单品历史数据 7 条，当前各模板上限均为 5 条；前两项还有超长要点。字段页保持原稿并显示差异，不暗改模板或 Workflow；这些功能不生成成功响应 JSON 样例，原稿值仅放入文档元数据。全部 28 个原稿表头与本地模板一致。
+- 浏览器验证逐项切换全部 32 个功能，核对标题、原稿表头和所属模块；另验证字段按钮、双向定位、完整报告 15 字段、错误/关闭/重新查看、修复分支 rows、冲突提示、日看板数值切换及本地追问。1094×934、900×768、390×844 均无横向溢出和三栏重叠；手机宽度为 358px，三个区块可依次滚动访问。临时视口已撤销，单 HTML 预览保留。页面未记录 error/warn，内联脚本语法和依赖/凭据模式检查通过。未运行真实 Dify 调用，未重跑与本独立说明页无关的整套后端测试。
+- 设计验收：`output/operations-advisor/field-guide-qa/reference-desktop.png` 与 `guide-desktop.png` 在 1094×934、相同报告样例、相同面板宽度下对照；参考只规范化外层位置和高度。原报告字体、强调、要点间距、表头/表格及右侧八宫格保持一致；新增字段列、连线、候选/示例标识、状态选择和并排圆角为本次明确变化。已修复字段卡片过高、关闭误显示加载、包装要点带来的末条分隔线差异及按钮继承样式偏差。最终设计结果：passed。QA 写入已有 CONTEXT，不另建项目根目录说明文档。
+- 证据目录同时保存 `static-checks.json`、`browser-checks.json`、`mobile-fields.png`、`mobile-report.png`。下载按钮处理和本地提示已触发，但当前内置浏览器未捕获 download 事件，在 Downloads 未找到对应文件，不能声称下载落盘已验收；独立 HTML 主产物本身已实际落盘。未提交 Git、部署或改动远端 Dify。
+
+### 独立字段冻结与升级机制文档（2026-09-11）
+
+- 用户要求机制单独成文。新增 `output/operations-advisor/运营顾问字段冻结与升级机制.md`，作为产品、开发和 AI 维护 Workflow / Chatflow 的共同操作文档；`AGENTS.md` 加入必读链接，已有字段说明加入维护入口。
+- 文档覆盖首次冻结范围及确认、版本包归档、契约与实现版本区分、变更分类、测试应用验证、调用方迁移、旧报告/会话兼容、发布与回退、维护记录模板、交给 AI 的任务模板和当前待办。明确当前严格 Schema 下新增可选字段也不能默认兼容；`contracts/operations-advisor/1.0/` 仅为未来归档位置建议，尚未创建。
+- 文档版本 1.0 不等于接口已冻结。本轮仅新增文档并更新引用，未改动报告 `schema_version`、任何业务字段、后端代码、HTML 或远端 Dify；正式基线、确认记录、专用差异检查和自动发布拦截仍待建立。
+
+### 字段字典与维护机制同步（2026-09-11）
+
+- 用户要求字段文档也纳入维护，并能看到各字段的具体定义。继续维护现有 `output/operations-advisor/运营顾问Workflow字段说明.md`，不创建另一份重复字典；标题明确覆盖 Workflow / Chatflow，文档版本为 1.1，接口仍为候选且报告 `schema_version="1.0"` 未改变。
+- 字段文档补充直接定位目录、字段字典维护责任、完整路径阅读规则、15 个报告字段及 3 个证据/9 个行动子字段的示例、一份完整虚构 JSON，以及 Dify Chatflow 可选字段与本地交接必填要求的区别。保留全部 32 个功能、28 份表头、四个结束分支、代理和内部节点说明；未定义业务字段继续标为待办。
+- 机制文档同步到 1.1，明确字段字典是必交付材料，随契约保存版本快照，并与 Schema、DSL、调用代码、UI 映射和样例一起核对。AGENTS.md 同时直接链接机制与字段字典，防止以后只维护流程却遗漏具体字段。
+- 本次为文档说明补全，没有增删或改名任何业务字段，没有修改机器定义、调用代码、HTML、Dify 发布版或建立正式冻结基线；原 HTML 字段路径与 Schema 未因此变化。
+- 文档验证：完整虚构报告通过现有 `normalizeOutputs` 的正常/修复分支检查及 `buildChatRequest` 交接检查；报告 15 个顶层字段、3 个证据子字段、9 个行动子字段符合现有定义；32 个功能及 28 份表头/容量匹配本地机器文件。文档内部锚点、文件链接与 Markdown 代码块检查通过，`git diff --check` 通过；无真实 API 调用，未将此验证宣称为自动冻结工具。
+
+### 运营顾问本地 Git 保存（2026-09-13）
+
+- 用户要求先将当前工作保存到分支。原 worktree 为 detached HEAD，已新建 `codex/operations-advisor`；保存当前导航及其页面依赖、Workflow / Chatflow 接入、Schema / 映射、测试、字段字典、冻结升级机制、单 HTML 字段对照及脱敏 JSON 验证记录。没有切换或覆盖其它工作区的分支。
+- 提交前重跑 `npm test`：173/173 通过；暂存区空白检查通过，新增文本的凭据模式扫描未发现真实 Key。仅清理说明页行尾空白、保留 Markdown 强制换行，并同步说明页文件哈希；业务字段与候选状态不变。
+- 运行日志、浏览器截图和临时参考服务器脚本保留在本机，不纳入此次提交。仅本地 Git 保存，不包含推送、部署、Dify 发布或正式字段冻结。

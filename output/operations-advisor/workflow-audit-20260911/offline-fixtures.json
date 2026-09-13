@@ -1,0 +1,3301 @@
+[
+  {
+    "inputs": {
+      "module": "数据看板",
+      "function_name": "数据看板",
+      "report_id": "offline-audit-0",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "数据看板",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据看板",
+        "function_name": "数据看板",
+        "report_id": "offline-audit-0"
+      },
+      "chat_inputs": {
+        "module": "数据看板",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-0\", \"module\": \"数据看板\", \"function_name\": \"数据看板\", \"report\": {\"name\": \"数据看板\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据看板\", \"function_name\": \"数据看板\", \"report_id\": \"offline-audit-0\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "数据看板",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "指标",
+            "数值",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据看板",
+        "function_name": "数据看板",
+        "report_id": "offline-audit-0"
+      },
+      "chat_inputs": {
+        "module": "数据看板",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-0\", \"module\": \"数据看板\", \"function_name\": \"数据看板\", \"report\": {\"name\": \"数据看板\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据看板\", \"function_name\": \"数据看板\", \"report_id\": \"offline-audit-0\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "数据看板",
+      "function_name": "日经营概览",
+      "report_id": "offline-audit-1",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "日经营概览",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据看板",
+        "function_name": "日经营概览",
+        "report_id": "offline-audit-1"
+      },
+      "chat_inputs": {
+        "module": "数据看板",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-1\", \"module\": \"数据看板\", \"function_name\": \"日经营概览\", \"report\": {\"name\": \"日经营概览\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据看板\", \"function_name\": \"日经营概览\", \"report_id\": \"offline-audit-1\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "日经营概览",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "指标",
+            "数值",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据看板",
+        "function_name": "日经营概览",
+        "report_id": "offline-audit-1"
+      },
+      "chat_inputs": {
+        "module": "数据看板",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-1\", \"module\": \"数据看板\", \"function_name\": \"日经营概览\", \"report\": {\"name\": \"日经营概览\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据看板\", \"function_name\": \"日经营概览\", \"report_id\": \"offline-audit-1\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "数据看板",
+      "function_name": "周经营概览",
+      "report_id": "offline-audit-2",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "周经营概览",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据看板",
+        "function_name": "周经营概览",
+        "report_id": "offline-audit-2"
+      },
+      "chat_inputs": {
+        "module": "数据看板",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-2\", \"module\": \"数据看板\", \"function_name\": \"周经营概览\", \"report\": {\"name\": \"周经营概览\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据看板\", \"function_name\": \"周经营概览\", \"report_id\": \"offline-audit-2\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "周经营概览",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "指标",
+            "数值",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据看板",
+        "function_name": "周经营概览",
+        "report_id": "offline-audit-2"
+      },
+      "chat_inputs": {
+        "module": "数据看板",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-2\", \"module\": \"数据看板\", \"function_name\": \"周经营概览\", \"report\": {\"name\": \"周经营概览\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据看板\", \"function_name\": \"周经营概览\", \"report_id\": \"offline-audit-2\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "数据看板",
+      "function_name": "月经营概览",
+      "report_id": "offline-audit-3",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "月经营概览",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据看板",
+        "function_name": "月经营概览",
+        "report_id": "offline-audit-3"
+      },
+      "chat_inputs": {
+        "module": "数据看板",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-3\", \"module\": \"数据看板\", \"function_name\": \"月经营概览\", \"report\": {\"name\": \"月经营概览\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据看板\", \"function_name\": \"月经营概览\", \"report_id\": \"offline-audit-3\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "月经营概览",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "指标",
+            "数值",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据看板",
+        "function_name": "月经营概览",
+        "report_id": "offline-audit-3"
+      },
+      "chat_inputs": {
+        "module": "数据看板",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-3\", \"module\": \"数据看板\", \"function_name\": \"月经营概览\", \"report\": {\"name\": \"月经营概览\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据看板\", \"function_name\": \"月经营概览\", \"report_id\": \"offline-audit-3\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "运营规划",
+      "function_name": "运营规划清单",
+      "report_id": "offline-audit-4",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "运营规划清单",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"阶段\", \"落地项目\", \"周期/节奏\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营规划",
+        "function_name": "运营规划清单",
+        "report_id": "offline-audit-4"
+      },
+      "chat_inputs": {
+        "module": "运营规划",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-4\", \"module\": \"运营规划\", \"function_name\": \"运营规划清单\", \"report\": {\"name\": \"运营规划清单\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"阶段\", \"落地项目\", \"周期/节奏\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营规划\", \"function_name\": \"运营规划清单\", \"report_id\": \"offline-audit-4\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "运营规划清单",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "阶段",
+            "落地项目",
+            "周期/节奏"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营规划",
+        "function_name": "运营规划清单",
+        "report_id": "offline-audit-4"
+      },
+      "chat_inputs": {
+        "module": "运营规划",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-4\", \"module\": \"运营规划\", \"function_name\": \"运营规划清单\", \"report\": {\"name\": \"运营规划清单\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"阶段\", \"落地项目\", \"周期/节奏\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营规划\", \"function_name\": \"运营规划清单\", \"report_id\": \"offline-audit-4\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "运营规划",
+      "function_name": "老店运营诊断规划",
+      "report_id": "offline-audit-5",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "老店运营诊断规划",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"步骤\", \"项目\", \"要点\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营规划",
+        "function_name": "老店运营诊断规划",
+        "report_id": "offline-audit-5"
+      },
+      "chat_inputs": {
+        "module": "运营规划",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-5\", \"module\": \"运营规划\", \"function_name\": \"老店运营诊断规划\", \"report\": {\"name\": \"老店运营诊断规划\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"步骤\", \"项目\", \"要点\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营规划\", \"function_name\": \"老店运营诊断规划\", \"report_id\": \"offline-audit-5\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "老店运营诊断规划",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "步骤",
+            "项目",
+            "要点"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营规划",
+        "function_name": "老店运营诊断规划",
+        "report_id": "offline-audit-5"
+      },
+      "chat_inputs": {
+        "module": "运营规划",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-5\", \"module\": \"运营规划\", \"function_name\": \"老店运营诊断规划\", \"report\": {\"name\": \"老店运营诊断规划\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"步骤\", \"项目\", \"要点\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营规划\", \"function_name\": \"老店运营诊断规划\", \"report_id\": \"offline-audit-5\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "运营规划",
+      "function_name": "3月新贸节作战计划",
+      "report_id": "offline-audit-6",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "3月新贸节作战计划",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"阶段\", \"时间\", \"关键动作\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营规划",
+        "function_name": "3月新贸节作战计划",
+        "report_id": "offline-audit-6"
+      },
+      "chat_inputs": {
+        "module": "运营规划",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-6\", \"module\": \"运营规划\", \"function_name\": \"3月新贸节作战计划\", \"report\": {\"name\": \"3月新贸节作战计划\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"阶段\", \"时间\", \"关键动作\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营规划\", \"function_name\": \"3月新贸节作战计划\", \"report_id\": \"offline-audit-6\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "3月新贸节作战计划",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "阶段",
+            "时间",
+            "关键动作"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营规划",
+        "function_name": "3月新贸节作战计划",
+        "report_id": "offline-audit-6"
+      },
+      "chat_inputs": {
+        "module": "运营规划",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-6\", \"module\": \"运营规划\", \"function_name\": \"3月新贸节作战计划\", \"report\": {\"name\": \"3月新贸节作战计划\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"阶段\", \"时间\", \"关键动作\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营规划\", \"function_name\": \"3月新贸节作战计划\", \"report_id\": \"offline-audit-6\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "运营规划",
+      "function_name": "9月采购节作战计划",
+      "report_id": "offline-audit-7",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "9月采购节作战计划",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"动作\", \"负责人\", \"时间\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营规划",
+        "function_name": "9月采购节作战计划",
+        "report_id": "offline-audit-7"
+      },
+      "chat_inputs": {
+        "module": "运营规划",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-7\", \"module\": \"运营规划\", \"function_name\": \"9月采购节作战计划\", \"report\": {\"name\": \"9月采购节作战计划\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"动作\", \"负责人\", \"时间\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营规划\", \"function_name\": \"9月采购节作战计划\", \"report_id\": \"offline-audit-7\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "9月采购节作战计划",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "动作",
+            "负责人",
+            "时间"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营规划",
+        "function_name": "9月采购节作战计划",
+        "report_id": "offline-audit-7"
+      },
+      "chat_inputs": {
+        "module": "运营规划",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-7\", \"module\": \"运营规划\", \"function_name\": \"9月采购节作战计划\", \"report\": {\"name\": \"9月采购节作战计划\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"动作\", \"负责人\", \"时间\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营规划\", \"function_name\": \"9月采购节作战计划\", \"report_id\": \"offline-audit-7\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "营销定位",
+      "function_name": "市场&客群定位",
+      "report_id": "offline-audit-8",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "市场&客群定位",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"维度\", \"分析\", \"结论\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "营销定位",
+        "function_name": "市场&客群定位",
+        "report_id": "offline-audit-8"
+      },
+      "chat_inputs": {
+        "module": "营销定位",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-8\", \"module\": \"营销定位\", \"function_name\": \"市场&客群定位\", \"report\": {\"name\": \"市场&客群定位\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"维度\", \"分析\", \"结论\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"营销定位\", \"function_name\": \"市场&客群定位\", \"report_id\": \"offline-audit-8\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "市场&客群定位",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "维度",
+            "分析",
+            "结论"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "营销定位",
+        "function_name": "市场&客群定位",
+        "report_id": "offline-audit-8"
+      },
+      "chat_inputs": {
+        "module": "营销定位",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-8\", \"module\": \"营销定位\", \"function_name\": \"市场&客群定位\", \"report\": {\"name\": \"市场&客群定位\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"维度\", \"分析\", \"结论\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"营销定位\", \"function_name\": \"市场&客群定位\", \"report_id\": \"offline-audit-8\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "营销定位",
+      "function_name": "公司定位",
+      "report_id": "offline-audit-9",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "公司定位",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"卖点维度\", \"内容\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "营销定位",
+        "function_name": "公司定位",
+        "report_id": "offline-audit-9"
+      },
+      "chat_inputs": {
+        "module": "营销定位",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-9\", \"module\": \"营销定位\", \"function_name\": \"公司定位\", \"report\": {\"name\": \"公司定位\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"卖点维度\", \"内容\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"营销定位\", \"function_name\": \"公司定位\", \"report_id\": \"offline-audit-9\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "公司定位",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "卖点维度",
+            "内容",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "营销定位",
+        "function_name": "公司定位",
+        "report_id": "offline-audit-9"
+      },
+      "chat_inputs": {
+        "module": "营销定位",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-9\", \"module\": \"营销定位\", \"function_name\": \"公司定位\", \"report\": {\"name\": \"公司定位\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"卖点维度\", \"内容\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"营销定位\", \"function_name\": \"公司定位\", \"report_id\": \"offline-audit-9\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "营销定位",
+      "function_name": "产品定位",
+      "report_id": "offline-audit-10",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "产品定位",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"定位维度\", \"动作\", \"作用\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "营销定位",
+        "function_name": "产品定位",
+        "report_id": "offline-audit-10"
+      },
+      "chat_inputs": {
+        "module": "营销定位",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-10\", \"module\": \"营销定位\", \"function_name\": \"产品定位\", \"report\": {\"name\": \"产品定位\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"定位维度\", \"动作\", \"作用\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"营销定位\", \"function_name\": \"产品定位\", \"report_id\": \"offline-audit-10\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "产品定位",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "定位维度",
+            "动作",
+            "作用"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "营销定位",
+        "function_name": "产品定位",
+        "report_id": "offline-audit-10"
+      },
+      "chat_inputs": {
+        "module": "营销定位",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-10\", \"module\": \"营销定位\", \"function_name\": \"产品定位\", \"report\": {\"name\": \"产品定位\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"定位维度\", \"动作\", \"作用\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"营销定位\", \"function_name\": \"产品定位\", \"report_id\": \"offline-audit-10\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "营销定位",
+      "function_name": "店铺装修文案",
+      "report_id": "offline-audit-11",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "店铺装修文案",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"装修区块\", \"文案要点\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "营销定位",
+        "function_name": "店铺装修文案",
+        "report_id": "offline-audit-11"
+      },
+      "chat_inputs": {
+        "module": "营销定位",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-11\", \"module\": \"营销定位\", \"function_name\": \"店铺装修文案\", \"report\": {\"name\": \"店铺装修文案\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"装修区块\", \"文案要点\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"营销定位\", \"function_name\": \"店铺装修文案\", \"report_id\": \"offline-audit-11\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "店铺装修文案",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "装修区块",
+            "文案要点",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "营销定位",
+        "function_name": "店铺装修文案",
+        "report_id": "offline-audit-11"
+      },
+      "chat_inputs": {
+        "module": "营销定位",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-11\", \"module\": \"营销定位\", \"function_name\": \"店铺装修文案\", \"report\": {\"name\": \"店铺装修文案\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"装修区块\", \"文案要点\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"营销定位\", \"function_name\": \"店铺装修文案\", \"report_id\": \"offline-audit-11\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "营销定位",
+      "function_name": "详情页装修文案",
+      "report_id": "offline-audit-12",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "详情页装修文案",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"详情区块\", \"文案要点\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "营销定位",
+        "function_name": "详情页装修文案",
+        "report_id": "offline-audit-12"
+      },
+      "chat_inputs": {
+        "module": "营销定位",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-12\", \"module\": \"营销定位\", \"function_name\": \"详情页装修文案\", \"report\": {\"name\": \"详情页装修文案\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"详情区块\", \"文案要点\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"营销定位\", \"function_name\": \"详情页装修文案\", \"report_id\": \"offline-audit-12\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "详情页装修文案",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "详情区块",
+            "文案要点",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "营销定位",
+        "function_name": "详情页装修文案",
+        "report_id": "offline-audit-12"
+      },
+      "chat_inputs": {
+        "module": "营销定位",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-12\", \"module\": \"营销定位\", \"function_name\": \"详情页装修文案\", \"report\": {\"name\": \"详情页装修文案\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"详情区块\", \"文案要点\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"营销定位\", \"function_name\": \"详情页装修文案\", \"report_id\": \"offline-audit-12\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "运营基建",
+      "function_name": "一键选品",
+      "report_id": "offline-audit-13",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "一键选品",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"选品源\", \"产出\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营基建",
+        "function_name": "一键选品",
+        "report_id": "offline-audit-13"
+      },
+      "chat_inputs": {
+        "module": "运营基建",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-13\", \"module\": \"运营基建\", \"function_name\": \"一键选品\", \"report\": {\"name\": \"一键选品\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"选品源\", \"产出\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营基建\", \"function_name\": \"一键选品\", \"report_id\": \"offline-audit-13\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "一键选品",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "选品源",
+            "产出",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营基建",
+        "function_name": "一键选品",
+        "report_id": "offline-audit-13"
+      },
+      "chat_inputs": {
+        "module": "运营基建",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-13\", \"module\": \"运营基建\", \"function_name\": \"一键选品\", \"report\": {\"name\": \"一键选品\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"选品源\", \"产出\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营基建\", \"function_name\": \"一键选品\", \"report_id\": \"offline-audit-13\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "运营基建",
+      "function_name": "一键整理关键词",
+      "report_id": "offline-audit-14",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "一键整理关键词",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"词库\", \"数量\", \"用途\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营基建",
+        "function_name": "一键整理关键词",
+        "report_id": "offline-audit-14"
+      },
+      "chat_inputs": {
+        "module": "运营基建",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-14\", \"module\": \"运营基建\", \"function_name\": \"一键整理关键词\", \"report\": {\"name\": \"一键整理关键词\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"词库\", \"数量\", \"用途\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营基建\", \"function_name\": \"一键整理关键词\", \"report_id\": \"offline-audit-14\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "一键整理关键词",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "词库",
+            "数量",
+            "用途"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营基建",
+        "function_name": "一键整理关键词",
+        "report_id": "offline-audit-14"
+      },
+      "chat_inputs": {
+        "module": "运营基建",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-14\", \"module\": \"运营基建\", \"function_name\": \"一键整理关键词\", \"report\": {\"name\": \"一键整理关键词\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"词库\", \"数量\", \"用途\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营基建\", \"function_name\": \"一键整理关键词\", \"report_id\": \"offline-audit-14\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "运营基建",
+      "function_name": "批量标题",
+      "report_id": "offline-audit-15",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "批量标题",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"能力\", \"支持\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营基建",
+        "function_name": "批量标题",
+        "report_id": "offline-audit-15"
+      },
+      "chat_inputs": {
+        "module": "运营基建",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-15\", \"module\": \"运营基建\", \"function_name\": \"批量标题\", \"report\": {\"name\": \"批量标题\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"能力\", \"支持\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营基建\", \"function_name\": \"批量标题\", \"report_id\": \"offline-audit-15\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "批量标题",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "能力",
+            "支持",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营基建",
+        "function_name": "批量标题",
+        "report_id": "offline-audit-15"
+      },
+      "chat_inputs": {
+        "module": "运营基建",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-15\", \"module\": \"运营基建\", \"function_name\": \"批量标题\", \"report\": {\"name\": \"批量标题\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"能力\", \"支持\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营基建\", \"function_name\": \"批量标题\", \"report_id\": \"offline-audit-15\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "运营基建",
+      "function_name": "批量发品",
+      "report_id": "offline-audit-16",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "批量发品",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营基建",
+        "function_name": "批量发品",
+        "report_id": "offline-audit-16"
+      },
+      "chat_inputs": {
+        "module": "运营基建",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-16\", \"module\": \"运营基建\", \"function_name\": \"批量发品\", \"report\": {\"name\": \"批量发品\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营基建\", \"function_name\": \"批量发品\", \"report_id\": \"offline-audit-16\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "批量发品",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "指标",
+            "数值",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营基建",
+        "function_name": "批量发品",
+        "report_id": "offline-audit-16"
+      },
+      "chat_inputs": {
+        "module": "运营基建",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-16\", \"module\": \"运营基建\", \"function_name\": \"批量发品\", \"report\": {\"name\": \"批量发品\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营基建\", \"function_name\": \"批量发品\", \"report_id\": \"offline-audit-16\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "运营推广",
+      "function_name": "广告策略",
+      "report_id": "offline-audit-17",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "广告策略",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"阶段\", \"推广方式\", \"预算\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营推广",
+        "function_name": "广告策略",
+        "report_id": "offline-audit-17"
+      },
+      "chat_inputs": {
+        "module": "运营推广",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-17\", \"module\": \"运营推广\", \"function_name\": \"广告策略\", \"report\": {\"name\": \"广告策略\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"阶段\", \"推广方式\", \"预算\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营推广\", \"function_name\": \"广告策略\", \"report_id\": \"offline-audit-17\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "广告策略",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "阶段",
+            "推广方式",
+            "预算"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营推广",
+        "function_name": "广告策略",
+        "report_id": "offline-audit-17"
+      },
+      "chat_inputs": {
+        "module": "运营推广",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-17\", \"module\": \"运营推广\", \"function_name\": \"广告策略\", \"report\": {\"name\": \"广告策略\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"阶段\", \"推广方式\", \"预算\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营推广\", \"function_name\": \"广告策略\", \"report_id\": \"offline-audit-17\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "运营推广",
+      "function_name": "广告诊断优化",
+      "report_id": "offline-audit-18",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "广告诊断优化",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"维度\", \"数量\", \"动作\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营推广",
+        "function_name": "广告诊断优化",
+        "report_id": "offline-audit-18"
+      },
+      "chat_inputs": {
+        "module": "运营推广",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-18\", \"module\": \"运营推广\", \"function_name\": \"广告诊断优化\", \"report\": {\"name\": \"广告诊断优化\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"维度\", \"数量\", \"动作\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营推广\", \"function_name\": \"广告诊断优化\", \"report_id\": \"offline-audit-18\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "广告诊断优化",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "维度",
+            "数量",
+            "动作"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营推广",
+        "function_name": "广告诊断优化",
+        "report_id": "offline-audit-18"
+      },
+      "chat_inputs": {
+        "module": "运营推广",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-18\", \"module\": \"运营推广\", \"function_name\": \"广告诊断优化\", \"report\": {\"name\": \"广告诊断优化\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"维度\", \"数量\", \"动作\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营推广\", \"function_name\": \"广告诊断优化\", \"report_id\": \"offline-audit-18\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "运营推广",
+      "function_name": "品广诊断优化",
+      "report_id": "offline-audit-19",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "品广诊断优化",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"类型\", \"数量\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营推广",
+        "function_name": "品广诊断优化",
+        "report_id": "offline-audit-19"
+      },
+      "chat_inputs": {
+        "module": "运营推广",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-19\", \"module\": \"运营推广\", \"function_name\": \"品广诊断优化\", \"report\": {\"name\": \"品广诊断优化\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"类型\", \"数量\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营推广\", \"function_name\": \"品广诊断优化\", \"report_id\": \"offline-audit-19\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "品广诊断优化",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "类型",
+            "数量",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "运营推广",
+        "function_name": "品广诊断优化",
+        "report_id": "offline-audit-19"
+      },
+      "chat_inputs": {
+        "module": "运营推广",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-19\", \"module\": \"运营推广\", \"function_name\": \"品广诊断优化\", \"report\": {\"name\": \"品广诊断优化\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"类型\", \"数量\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"运营推广\", \"function_name\": \"品广诊断优化\", \"report_id\": \"offline-audit-19\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "优爆品提升",
+      "function_name": "优爆品提升",
+      "report_id": "offline-audit-20",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "优爆品提升",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "优爆品提升",
+        "report_id": "offline-audit-20"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-20\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report\": {\"name\": \"优爆品提升\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report_id\": \"offline-audit-20\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "优爆品提升",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "分层",
+            "数量",
+            "策略"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "优爆品提升",
+        "report_id": "offline-audit-20"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-20\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report\": {\"name\": \"优爆品提升\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report_id\": \"offline-audit-20\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "优爆品提升",
+      "function_name": "核心品跟进",
+      "report_id": "offline-audit-21",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "核心品跟进",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"优先级\", \"动作\", \"目标\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "核心品跟进",
+        "report_id": "offline-audit-21"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-21\", \"module\": \"优爆品提升\", \"function_name\": \"核心品跟进\", \"report\": {\"name\": \"核心品跟进\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"优先级\", \"动作\", \"目标\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"核心品跟进\", \"report_id\": \"offline-audit-21\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "核心品跟进",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "优先级",
+            "动作",
+            "目标"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "核心品跟进",
+        "report_id": "offline-audit-21"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-21\", \"module\": \"优爆品提升\", \"function_name\": \"核心品跟进\", \"report\": {\"name\": \"核心品跟进\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"优先级\", \"动作\", \"目标\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"核心品跟进\", \"report_id\": \"offline-audit-21\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "优爆品提升",
+      "function_name": "单品历史数据",
+      "report_id": "offline-audit-22",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "单品历史数据",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"规则\", \"周期\", \"动作\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "单品历史数据",
+        "report_id": "offline-audit-22"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-22\", \"module\": \"优爆品提升\", \"function_name\": \"单品历史数据\", \"report\": {\"name\": \"单品历史数据\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"规则\", \"周期\", \"动作\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"单品历史数据\", \"report_id\": \"offline-audit-22\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "单品历史数据",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "规则",
+            "周期",
+            "动作"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "单品历史数据",
+        "report_id": "offline-audit-22"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-22\", \"module\": \"优爆品提升\", \"function_name\": \"单品历史数据\", \"report\": {\"name\": \"单品历史数据\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"规则\", \"周期\", \"动作\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"单品历史数据\", \"report_id\": \"offline-audit-22\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "数据分析与优化",
+      "function_name": "店铺诊断",
+      "report_id": "offline-audit-23",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "店铺诊断",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"维度\", \"评分\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据分析与优化",
+        "function_name": "店铺诊断",
+        "report_id": "offline-audit-23"
+      },
+      "chat_inputs": {
+        "module": "数据分析与优化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-23\", \"module\": \"数据分析与优化\", \"function_name\": \"店铺诊断\", \"report\": {\"name\": \"店铺诊断\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"维度\", \"评分\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据分析与优化\", \"function_name\": \"店铺诊断\", \"report_id\": \"offline-audit-23\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "店铺诊断",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "维度",
+            "评分",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据分析与优化",
+        "function_name": "店铺诊断",
+        "report_id": "offline-audit-23"
+      },
+      "chat_inputs": {
+        "module": "数据分析与优化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-23\", \"module\": \"数据分析与优化\", \"function_name\": \"店铺诊断\", \"report\": {\"name\": \"店铺诊断\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"维度\", \"评分\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据分析与优化\", \"function_name\": \"店铺诊断\", \"report_id\": \"offline-audit-23\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "数据分析与优化",
+      "function_name": "产品诊断",
+      "report_id": "offline-audit-24",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "产品诊断",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"分层\", \"产品数\", \"询盘\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据分析与优化",
+        "function_name": "产品诊断",
+        "report_id": "offline-audit-24"
+      },
+      "chat_inputs": {
+        "module": "数据分析与优化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-24\", \"module\": \"数据分析与优化\", \"function_name\": \"产品诊断\", \"report\": {\"name\": \"产品诊断\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"分层\", \"产品数\", \"询盘\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据分析与优化\", \"function_name\": \"产品诊断\", \"report_id\": \"offline-audit-24\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "产品诊断",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "分层",
+            "产品数",
+            "询盘"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据分析与优化",
+        "function_name": "产品诊断",
+        "report_id": "offline-audit-24"
+      },
+      "chat_inputs": {
+        "module": "数据分析与优化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-24\", \"module\": \"数据分析与优化\", \"function_name\": \"产品诊断\", \"report\": {\"name\": \"产品诊断\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"分层\", \"产品数\", \"询盘\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据分析与优化\", \"function_name\": \"产品诊断\", \"report_id\": \"offline-audit-24\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "数据分析与优化",
+      "function_name": "广告诊断",
+      "report_id": "offline-audit-25",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "广告诊断",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据分析与优化",
+        "function_name": "广告诊断",
+        "report_id": "offline-audit-25"
+      },
+      "chat_inputs": {
+        "module": "数据分析与优化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-25\", \"module\": \"数据分析与优化\", \"function_name\": \"广告诊断\", \"report\": {\"name\": \"广告诊断\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据分析与优化\", \"function_name\": \"广告诊断\", \"report_id\": \"offline-audit-25\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "广告诊断",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "指标",
+            "数值",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据分析与优化",
+        "function_name": "广告诊断",
+        "report_id": "offline-audit-25"
+      },
+      "chat_inputs": {
+        "module": "数据分析与优化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-25\", \"module\": \"数据分析与优化\", \"function_name\": \"广告诊断\", \"report\": {\"name\": \"广告诊断\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"指标\", \"数值\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据分析与优化\", \"function_name\": \"广告诊断\", \"report_id\": \"offline-audit-25\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "数据分析与优化",
+      "function_name": "品广诊断",
+      "report_id": "offline-audit-26",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "品广诊断",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"类型\", \"ROI\", \"建议\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据分析与优化",
+        "function_name": "品广诊断",
+        "report_id": "offline-audit-26"
+      },
+      "chat_inputs": {
+        "module": "数据分析与优化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-26\", \"module\": \"数据分析与优化\", \"function_name\": \"品广诊断\", \"report\": {\"name\": \"品广诊断\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"类型\", \"ROI\", \"建议\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据分析与优化\", \"function_name\": \"品广诊断\", \"report_id\": \"offline-audit-26\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "品广诊断",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "类型",
+            "ROI",
+            "建议"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "数据分析与优化",
+        "function_name": "品广诊断",
+        "report_id": "offline-audit-26"
+      },
+      "chat_inputs": {
+        "module": "数据分析与优化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-26\", \"module\": \"数据分析与优化\", \"function_name\": \"品广诊断\", \"report\": {\"name\": \"品广诊断\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"类型\", \"ROI\", \"建议\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"数据分析与优化\", \"function_name\": \"品广诊断\", \"report_id\": \"offline-audit-26\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "商机转化",
+      "function_name": "优质RFQ信息采集",
+      "report_id": "offline-audit-27",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "优质RFQ信息采集",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"采集项\", \"数量\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "商机转化",
+        "function_name": "优质RFQ信息采集",
+        "report_id": "offline-audit-27"
+      },
+      "chat_inputs": {
+        "module": "商机转化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-27\", \"module\": \"商机转化\", \"function_name\": \"优质RFQ信息采集\", \"report\": {\"name\": \"优质RFQ信息采集\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"采集项\", \"数量\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"商机转化\", \"function_name\": \"优质RFQ信息采集\", \"report_id\": \"offline-audit-27\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "优质RFQ信息采集",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "采集项",
+            "数量",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "商机转化",
+        "function_name": "优质RFQ信息采集",
+        "report_id": "offline-audit-27"
+      },
+      "chat_inputs": {
+        "module": "商机转化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-27\", \"module\": \"商机转化\", \"function_name\": \"优质RFQ信息采集\", \"report\": {\"name\": \"优质RFQ信息采集\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"采集项\", \"数量\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"商机转化\", \"function_name\": \"优质RFQ信息采集\", \"report_id\": \"offline-audit-27\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "商机转化",
+      "function_name": "RFQ报价跟进表",
+      "report_id": "offline-audit-28",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "RFQ报价跟进表",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"状态\", \"数量\", \"占比\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "商机转化",
+        "function_name": "RFQ报价跟进表",
+        "report_id": "offline-audit-28"
+      },
+      "chat_inputs": {
+        "module": "商机转化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-28\", \"module\": \"商机转化\", \"function_name\": \"RFQ报价跟进表\", \"report\": {\"name\": \"RFQ报价跟进表\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"状态\", \"数量\", \"占比\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"商机转化\", \"function_name\": \"RFQ报价跟进表\", \"report_id\": \"offline-audit-28\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "RFQ报价跟进表",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "状态",
+            "数量",
+            "占比"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "商机转化",
+        "function_name": "RFQ报价跟进表",
+        "report_id": "offline-audit-28"
+      },
+      "chat_inputs": {
+        "module": "商机转化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-28\", \"module\": \"商机转化\", \"function_name\": \"RFQ报价跟进表\", \"report\": {\"name\": \"RFQ报价跟进表\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"状态\", \"数量\", \"占比\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"商机转化\", \"function_name\": \"RFQ报价跟进表\", \"report_id\": \"offline-audit-28\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "商机转化",
+      "function_name": "询盘明细采集分析",
+      "report_id": "offline-audit-29",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "询盘明细采集分析",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"维度\", \"数量\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "商机转化",
+        "function_name": "询盘明细采集分析",
+        "report_id": "offline-audit-29"
+      },
+      "chat_inputs": {
+        "module": "商机转化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-29\", \"module\": \"商机转化\", \"function_name\": \"询盘明细采集分析\", \"report\": {\"name\": \"询盘明细采集分析\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"维度\", \"数量\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"商机转化\", \"function_name\": \"询盘明细采集分析\", \"report_id\": \"offline-audit-29\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "询盘明细采集分析",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "维度",
+            "数量",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "商机转化",
+        "function_name": "询盘明细采集分析",
+        "report_id": "offline-audit-29"
+      },
+      "chat_inputs": {
+        "module": "商机转化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-29\", \"module\": \"商机转化\", \"function_name\": \"询盘明细采集分析\", \"report\": {\"name\": \"询盘明细采集分析\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"维度\", \"数量\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"商机转化\", \"function_name\": \"询盘明细采集分析\", \"report_id\": \"offline-audit-29\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "商机转化",
+      "function_name": "客户列表采集分析",
+      "report_id": "offline-audit-30",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "客户列表采集分析",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"客户类型\", \"占比\", \"数量\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "商机转化",
+        "function_name": "客户列表采集分析",
+        "report_id": "offline-audit-30"
+      },
+      "chat_inputs": {
+        "module": "商机转化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-30\", \"module\": \"商机转化\", \"function_name\": \"客户列表采集分析\", \"report\": {\"name\": \"客户列表采集分析\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"客户类型\", \"占比\", \"数量\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"商机转化\", \"function_name\": \"客户列表采集分析\", \"report_id\": \"offline-audit-30\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "客户列表采集分析",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "客户类型",
+            "占比",
+            "数量"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "商机转化",
+        "function_name": "客户列表采集分析",
+        "report_id": "offline-audit-30"
+      },
+      "chat_inputs": {
+        "module": "商机转化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-30\", \"module\": \"商机转化\", \"function_name\": \"客户列表采集分析\", \"report\": {\"name\": \"客户列表采集分析\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"客户类型\", \"占比\", \"数量\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"商机转化\", \"function_name\": \"客户列表采集分析\", \"report_id\": \"offline-audit-30\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "inputs": {
+      "module": "商机转化",
+      "function_name": "询盘登录表",
+      "report_id": "offline-audit-31",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "询盘登录表",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"客户\", \"国家\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "商机转化",
+        "function_name": "询盘登录表",
+        "report_id": "offline-audit-31"
+      },
+      "chat_inputs": {
+        "module": "商机转化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-31\", \"module\": \"商机转化\", \"function_name\": \"询盘登录表\", \"report\": {\"name\": \"询盘登录表\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"客户\", \"国家\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"商机转化\", \"function_name\": \"询盘登录表\", \"report_id\": \"offline-audit-31\"}}"
+      },
+      "error": ""
+    },
+    "repaired": {
+      "status": "ok",
+      "report": {
+        "name": "询盘登录表",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": [
+          [
+            "客户",
+            "国家",
+            "状态"
+          ],
+          [
+            "未提供",
+            "未提供",
+            "未提供"
+          ]
+        ],
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "商机转化",
+        "function_name": "询盘登录表",
+        "report_id": "offline-audit-31"
+      },
+      "chat_inputs": {
+        "module": "商机转化",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-31\", \"module\": \"商机转化\", \"function_name\": \"询盘登录表\", \"report\": {\"name\": \"询盘登录表\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"客户\", \"国家\", \"状态\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"商机转化\", \"function_name\": \"询盘登录表\", \"report_id\": \"offline-audit-31\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "case": "ui_wrong_headers",
+    "inputs": {
+      "module": "优爆品提升",
+      "function_name": "优爆品提升",
+      "report_id": "offline-audit-20",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "优爆品提升",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"商品\", \"平台状态\", \"内部决策\", \"短板\"], [\"未提供\", \"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "优爆品提升",
+        "report_id": "offline-audit-20"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-20\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report\": {\"name\": \"优爆品提升\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"商品\", \"平台状态\", \"内部决策\", \"短板\"], [\"未提供\", \"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report_id\": \"offline-audit-20\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "case": "ui_empty_summary",
+    "inputs": {
+      "module": "优爆品提升",
+      "function_name": "优爆品提升",
+      "report_id": "offline-audit-20",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "优爆品提升",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [],
+        "rows": "[]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "优爆品提升",
+        "report_id": "offline-audit-20"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-20\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report\": {\"name\": \"优爆品提升\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [], \"rows\": [], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report_id\": \"offline-audit-20\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "case": "ui_long_sub",
+    "inputs": {
+      "module": "优爆品提升",
+      "function_name": "优爆品提升",
+      "report_id": "offline-audit-20",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "优爆品提升",
+        "sub": "长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "优爆品提升",
+        "report_id": "offline-audit-20"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-20\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report\": {\"name\": \"优爆品提升\", \"sub\": \"长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report_id\": \"offline-audit-20\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "case": "ui_long_point",
+    "inputs": {
+      "module": "优爆品提升",
+      "function_name": "优爆品提升",
+      "report_id": "offline-audit-20",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "优爆品提升",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长"
+        ],
+        "rows": "[[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "优爆品提升",
+        "report_id": "offline-audit-20"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-20\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report\": {\"name\": \"优爆品提升\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长长\"], \"rows\": [[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report_id\": \"offline-audit-20\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "case": "internal_think_tag",
+    "inputs": {
+      "module": "优爆品提升",
+      "function_name": "优爆品提升",
+      "report_id": "offline-audit-20",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "优爆品提升",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "<think>内部文本</think>",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "优爆品提升",
+        "report_id": "offline-audit-20"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-20\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report\": {\"name\": \"优爆品提升\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"<think>内部文本</think>\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report_id\": \"offline-audit-20\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "case": "array_501",
+    "inputs": {
+      "module": "优爆品提升",
+      "function_name": "优爆品提升",
+      "report_id": "offline-audit-20",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "优爆品提升",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少明细，暂不能确定原因。",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料",
+          "缺资料"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "优爆品提升",
+        "report_id": "offline-audit-20"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-20\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report\": {\"name\": \"优爆品提升\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少明细，暂不能确定原因。\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\", \"缺资料\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report_id\": \"offline-audit-20\"}}"
+      },
+      "error": ""
+    }
+  },
+  {
+    "case": "nul_in_text",
+    "inputs": {
+      "module": "优爆品提升",
+      "function_name": "优爆品提升",
+      "report_id": "offline-audit-20",
+      "business_context": "虚构检查资料：当前未提供商品明细。"
+    },
+    "normal": {
+      "status": "ok",
+      "report": {
+        "name": "优爆品提升",
+        "sub": "虚构检查；周期未提供",
+        "data_status": "insufficient",
+        "conclusion": "缺少\u0000明细",
+        "points": [
+          "待核：需要业务明细。"
+        ],
+        "rows": "[[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]]",
+        "content_markdown": "缺少经营明细。本样例只用于离线契约测试。",
+        "evidence": [],
+        "actions": [],
+        "missing_data": [
+          "业务明细"
+        ],
+        "follow_up_questions": [],
+        "schema_version": "1.0",
+        "module": "优爆品提升",
+        "function_name": "优爆品提升",
+        "report_id": "offline-audit-20"
+      },
+      "chat_inputs": {
+        "module": "优爆品提升",
+        "business_context": "虚构检查资料：当前未提供商品明细。",
+        "diagnosis_context": "{\"schema_version\": \"1.0\", \"report_id\": \"offline-audit-20\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report\": {\"name\": \"优爆品提升\", \"sub\": \"虚构检查；周期未提供\", \"data_status\": \"insufficient\", \"conclusion\": \"缺少\\u0000明细\", \"points\": [\"待核：需要业务明细。\"], \"rows\": [[\"分层\", \"数量\", \"策略\"], [\"未提供\", \"未提供\", \"未提供\"]], \"content_markdown\": \"缺少经营明细。本样例只用于离线契约测试。\", \"evidence\": [], \"actions\": [], \"missing_data\": [\"业务明细\"], \"follow_up_questions\": [], \"schema_version\": \"1.0\", \"module\": \"优爆品提升\", \"function_name\": \"优爆品提升\", \"report_id\": \"offline-audit-20\"}}"
+      },
+      "error": ""
+    }
+  }
+]

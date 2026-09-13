@@ -1,5 +1,11 @@
 {
   "functions": {
+    "api/operations-chat.js": {
+      "maxDuration": 300
+    },
+    "api/operations-diagnosis.js": {
+      "maxDuration": 300
+    },
     "api/kass-crm.js": {
       "maxDuration": 60
     },

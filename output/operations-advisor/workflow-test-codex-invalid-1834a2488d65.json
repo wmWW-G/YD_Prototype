@@ -1,0 +1,38 @@
+{
+  "tested_at": "2026-09-11T03:22:08.034513+00:00",
+  "synthetic": true,
+  "test": "invalid function name rejection",
+  "http_status": "200",
+  "wall_seconds": 1.84,
+  "input": {
+    "inputs": {
+      "module": "数据分析与优化",
+      "function_name": "不存在的测试入口",
+      "report_id": "codex-invalid-1834a2488d65",
+      "business_context": "虚构测试：仅校验无效入口的错误返回，不生成报告。"
+    },
+    "response_mode": "blocking",
+    "user": "codex-operations-advisor-test"
+  },
+  "result": {
+    "task_id": "e71f1722-c6ec-48eb-9049-b25f02c07684",
+    "workflow_run_id": "49eede6b-eced-4655-9f86-c9485f488d9d",
+    "data": {
+      "id": "49eede6b-eced-4655-9f86-c9485f488d9d",
+      "workflow_id": "9f89992d-c08c-45b2-ba07-2702582ca82a",
+      "status": "succeeded",
+      "outputs": {
+        "invalid_status": "invalid_input",
+        "invalid_report": {},
+        "invalid_chat_inputs": {},
+        "invalid_error": "板块或功能名称无效，或报告ID/业务资料为空或超长，请检查输入。"
+      },
+      "error": null,
+      "elapsed_time": 0.476424,
+      "total_tokens": 0,
+      "total_steps": 4,
+      "created_at": 1789096929,
+      "finished_at": 1789096929
+    }
+  }
+}

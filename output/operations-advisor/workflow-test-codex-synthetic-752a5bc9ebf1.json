@@ -1,0 +1,206 @@
+{
+  "tested_at": "2026-09-11T03:20:12.825395+00:00",
+  "app_name": "来搜运营顾问｜workflow首次诊断",
+  "synthetic": true,
+  "input": {
+    "inputs": {
+      "module": "数据分析与优化",
+      "function_name": "产品诊断",
+      "report_id": "codex-synthetic-752a5bc9ebf1",
+      "business_context": "以下全部是虚构接入测试数据，不是真实商家事实。测试店铺 TEST-SHOP，商品 TEST-001，不锈钢保温杯，目标市场美国。统计范围为该商品自然搜索渠道，当前完整7天与前一完整7天，按北京时间，口径一致。上期曝光2000、点击60、访客50、询盘5；本期曝光1000、点击20、访客18、询盘2。没有广告花费、订单、同行基准、关键词、详情页质量和询盘跟进数据。请只根据已给资料做产品诊断；指出可确认的变化、待验证原因、数据缺口与可执行的核查动作，不编造未提供的数据。"
+    },
+    "response_mode": "streaming",
+    "user": "codex-operations-advisor-test"
+  },
+  "key_storage": {
+    "type": "macOS Keychain",
+    "service": "com.yingdan.prototype.operations-advisor.workflow",
+    "account": "first-diagnosis"
+  },
+  "events": [
+    {
+      "event": "node_started",
+      "node_id": "start_node",
+      "title": "点击功能：接收诊断请求",
+      "node_type": "start"
+    },
+    {
+      "event": "node_finished",
+      "node_id": "start_node",
+      "title": "点击功能：接收诊断请求",
+      "node_type": "start",
+      "status": "succeeded",
+      "elapsed_time": 9.3e-05,
+      "error": null
+    },
+    {
+      "event": "node_started",
+      "node_id": "prepare",
+      "title": "校验入口、报告身份与业务资料",
+      "node_type": "code"
+    },
+    {
+      "event": "node_finished",
+      "node_id": "prepare",
+      "title": "校验入口、报告身份与业务资料",
+      "node_type": "code",
+      "status": "succeeded",
+      "elapsed_time": 0.713544,
+      "error": null
+    },
+    {
+      "event": "node_started",
+      "node_id": "gate",
+      "title": "请求输入是否有效",
+      "node_type": "if-else"
+    },
+    {
+      "event": "node_finished",
+      "node_id": "gate",
+      "title": "请求输入是否有效",
+      "node_type": "if-else",
+      "status": "succeeded",
+      "elapsed_time": 0.000124,
+      "error": null
+    },
+    {
+      "event": "node_started",
+      "node_id": "query_rewrite",
+      "title": "结合问题与检索主题改写查询",
+      "node_type": "llm"
+    },
+    {
+      "event": "node_finished",
+      "node_id": "query_rewrite",
+      "title": "结合问题与检索主题改写查询",
+      "node_type": "llm",
+      "status": "succeeded",
+      "elapsed_time": 4.716081,
+      "error": null
+    },
+    {
+      "event": "node_started",
+      "node_id": "query_guard",
+      "title": "检查查询并提供回退",
+      "node_type": "code"
+    },
+    {
+      "event": "node_finished",
+      "node_id": "query_guard",
+      "title": "检查查询并提供回退",
+      "node_type": "code",
+      "status": "succeeded",
+      "elapsed_time": 0.094435,
+      "error": null
+    },
+    {
+      "event": "node_started",
+      "node_id": "knowledge",
+      "title": "经营方法论检索｜待绑定知识库",
+      "node_type": "knowledge-retrieval"
+    },
+    {
+      "event": "node_finished",
+      "node_id": "knowledge",
+      "title": "经营方法论检索｜待绑定知识库",
+      "node_type": "knowledge-retrieval",
+      "status": "succeeded",
+      "elapsed_time": 3.906077,
+      "error": null
+    },
+    {
+      "event": "node_started",
+      "node_id": "route",
+      "title": "按所选板块进入顾问",
+      "node_type": "if-else"
+    },
+    {
+      "event": "node_finished",
+      "node_id": "route",
+      "title": "按所选板块进入顾问",
+      "node_type": "if-else",
+      "status": "succeeded",
+      "elapsed_time": 0.000216,
+      "error": null
+    },
+    {
+      "event": "node_started",
+      "node_id": "advisor_7",
+      "title": "数据分析与优化顾问",
+      "node_type": "llm"
+    },
+    {
+      "event": "node_finished",
+      "node_id": "advisor_7",
+      "title": "数据分析与优化顾问",
+      "node_type": "llm",
+      "status": "succeeded",
+      "elapsed_time": 43.521454,
+      "error": null
+    },
+    {
+      "event": "node_started",
+      "node_id": "merge",
+      "title": "汇合唯一顾问结果",
+      "node_type": "variable-aggregator"
+    },
+    {
+      "event": "node_finished",
+      "node_id": "merge",
+      "title": "汇合唯一顾问结果",
+      "node_type": "variable-aggregator",
+      "status": "succeeded",
+      "elapsed_time": 7.8e-05,
+      "error": null
+    },
+    {
+      "event": "node_started",
+      "node_id": "validate_report",
+      "title": "校验报告结构、证据引用与交接容量",
+      "node_type": "code"
+    },
+    {
+      "event": "node_finished",
+      "node_id": "validate_report",
+      "title": "校验报告结构、证据引用与交接容量",
+      "node_type": "code",
+      "status": "exception",
+      "elapsed_time": 0.0943,
+      "error": "Unknown error"
+    },
+    {
+      "event": "node_started",
+      "node_id": "generation_error",
+      "title": "生成统一失败结果",
+      "node_type": "code"
+    },
+    {
+      "event": "node_finished",
+      "node_id": "generation_error",
+      "title": "生成统一失败结果",
+      "node_type": "code",
+      "status": "failed",
+      "elapsed_time": 0.054872,
+      "error": "ERROR:root:diagnosis_generation failed after retry\n"
+    }
+  ],
+  "http_status_lines": [
+    "HTTP/1.1 200 Connection established",
+    "HTTP/2 200"
+  ],
+  "workflow_run_id": "563bbf3c-d3a1-40b3-a15b-26f29a5094bb",
+  "result": {
+    "id": "563bbf3c-d3a1-40b3-a15b-26f29a5094bb",
+    "workflow_id": "9f89992d-c08c-45b2-ba07-2702582ca82a",
+    "status": "failed",
+    "outputs": {},
+    "error": "ERROR:root:diagnosis_generation failed after retry\n",
+    "elapsed_time": 53.967173,
+    "total_tokens": 19982,
+    "total_steps": 11,
+    "exceptions_count": 2
+  },
+  "curl_exit_code": 0,
+  "transport_error": "",
+  "wall_seconds": 56.36
+}

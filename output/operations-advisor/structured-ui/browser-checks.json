@@ -1,0 +1,51 @@
+{
+  "reportDomCheck": {
+    "cellsAreText": true,
+    "children": [
+      "ai-name",
+      "ai-sub",
+      "ai-point",
+      "ai-point",
+      "ai-point",
+      "ai-point",
+      "ai-point",
+      "ai-table-wrap"
+    ],
+    "headers": [
+      "分层",
+      "数量",
+      "策略"
+    ],
+    "points": 5,
+    "unexpected": 0
+  },
+  "mobileGeometry": {
+    "bodyWidth": 326,
+    "footerVisible": true,
+    "panels": [
+      {
+        "height": 527.5,
+        "selector": ".plugin-panel",
+        "width": 302,
+        "x": 12,
+        "y": 12
+      },
+      {
+        "height": 527.5,
+        "selector": "#aiDrawer",
+        "width": 302,
+        "x": 12,
+        "y": 555.5
+      }
+    ],
+    "reportHasMarkup": false,
+    "viewport": {
+      "height": 780,
+      "width": 326
+    }
+  },
+  "console": {
+    "report_client_errors": 0,
+    "other_error": "Reload-time MutationObserver error in anonymous injected bundle (Electron sandbox stack), not in report source; not reproduced during report rendering."
+  }
+}

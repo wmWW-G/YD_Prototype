@@ -1,0 +1,10 @@
+{
+  "baseline": "list_used_as_dictionary_items",
+  "transport_fixed": "passed",
+  "original_chat_report_preserved": true,
+  "invalid_json_returns_structured_error": true,
+  "failure_node_returns_structured_error": true,
+  "stderr_empty": true,
+  "validation_source": "langgenius/dify 1.12.0 CodeNode pure output validation methods",
+  "live_dify_after_fix": "not_published_or_tested"
+}

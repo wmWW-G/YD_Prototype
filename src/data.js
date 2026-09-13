@@ -19,6 +19,18 @@ window.NAV_GROUPS = [
   { id: "ask", label: "问一下", icon: "assets/icons/01_ask.svg", type: "single" },
   { id: "sales-prep", label: "销售准备", icon: "assets/icons/03_market_research.svg", type: "single" },
   { id: "customer-development", label: "客户开发", icon: "assets/icons/04_new_client_letter.svg", type: "single" },
+  { id: "operations-advisor", label: "ALI运营顾问", icon: "assets/icons/03_market_research.svg", type: "single" },
+  {
+    id: "image-studio",
+    label: "AI作图",
+    icon: "assets/icons/16_yd_artifact.svg",
+    type: "group",
+    children: [
+      { id: "image-generate", label: "批量生图", icon: "assets/icons/16_yd_artifact.svg" },
+      { id: "image-retouch", label: "批量AI修图", icon: "assets/icons/15_combined_title.svg" },
+      { id: "image-outfit", label: "批量模特换装", icon: "assets/icons/13_visitor_reception.svg" }
+    ]
+  },
   {
     id: "deal-advisor",
     label: "成交顾问",

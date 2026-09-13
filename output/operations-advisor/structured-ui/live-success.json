@@ -1,0 +1,27 @@
+{
+  "workflow_run_id": "095786dc-ca0b-460b-ab41-9128d961a8b4",
+  "report_id": "yd-operations-80113a2d-2bcb-415f-b34a-585cc95e0867",
+  "status": "succeeded",
+  "elapsed_time": 39.185932,
+  "total_steps": 12,
+  "total_tokens": 14441,
+  "branch": "normal",
+  "headers": [
+    "分层",
+    "数量",
+    "策略"
+  ],
+  "points": 5,
+  "row_count": 4,
+  "sub_length": 37,
+  "point_lengths": [
+    27,
+    36,
+    29,
+    30,
+    32
+  ],
+  "data_status": "insufficient",
+  "structured_report": true,
+  "api_run_checked_at": "2026-09-11T05:44:23.535Z"
+}

@@ -1,0 +1,110 @@
+{
+  "created_at": 1789099441,
+  "elapsed_time": 21.608365,
+  "error_category": "generation_failed_after_retry",
+  "id": "bac54bd1-eb39-4221-ab1b-1b26ce9bd79d",
+  "nodes": [
+    {
+      "elapsed_time": 0.000093,
+      "error_category": null,
+      "id": "8b2311ba-033c-4f9a-a643-1509a032f84b",
+      "node_id": "start_node",
+      "node_type": "start",
+      "status": "succeeded",
+      "title": "点击功能：接收诊断请求"
+    },
+    {
+      "elapsed_time": 0.098411,
+      "error_category": null,
+      "id": "1b0019fc-347c-484f-82b0-5b5d4b30f2cf",
+      "node_id": "prepare",
+      "node_type": "code",
+      "status": "succeeded",
+      "title": "校验入口、报告身份与业务资料"
+    },
+    {
+      "elapsed_time": 0.000119,
+      "error_category": null,
+      "id": "5972967c-dc2c-40b0-92ad-6cf6dfb0d472",
+      "node_id": "gate",
+      "node_type": "if-else",
+      "status": "succeeded",
+      "title": "请求输入是否有效"
+    },
+    {
+      "elapsed_time": 4.296248,
+      "error_category": null,
+      "id": "57085977-a610-4b21-b1d3-7c8c2192a886",
+      "node_id": "query_rewrite",
+      "node_type": "llm",
+      "status": "succeeded",
+      "title": "结合问题与检索主题改写查询"
+    },
+    {
+      "elapsed_time": 0.055581,
+      "error_category": null,
+      "id": "f718a31b-bd23-4305-aa8d-342a6bc057a6",
+      "node_id": "query_guard",
+      "node_type": "code",
+      "status": "succeeded",
+      "title": "检查查询并提供回退"
+    },
+    {
+      "elapsed_time": 4.423663,
+      "error_category": null,
+      "id": "500a6eb1-3a31-4049-9e05-63a29be663ca",
+      "node_id": "knowledge",
+      "node_type": "knowledge-retrieval",
+      "status": "succeeded",
+      "title": "经营方法论检索｜待绑定知识库"
+    },
+    {
+      "elapsed_time": 0.000197,
+      "error_category": null,
+      "id": "200037fd-f4df-4e5f-a8a8-9b4071a399b8",
+      "node_id": "route",
+      "node_type": "if-else",
+      "status": "succeeded",
+      "title": "按所选板块进入顾问"
+    },
+    {
+      "elapsed_time": 11.957959,
+      "error_category": null,
+      "id": "d2c77405-058e-4d50-89ad-fdfeb17a4652",
+      "node_id": "advisor_6",
+      "node_type": "llm",
+      "status": "succeeded",
+      "title": "优爆品提升顾问"
+    },
+    {
+      "elapsed_time": 0.000083,
+      "error_category": null,
+      "id": "659774e0-13f6-478e-acff-739a7a12420e",
+      "node_id": "merge",
+      "node_type": "variable-aggregator",
+      "status": "succeeded",
+      "title": "汇合唯一顾问结果"
+    },
+    {
+      "elapsed_time": 0.103622,
+      "error_category": "other_execution_error",
+      "id": "8933664c-590d-4edb-8e8b-f27701de7a90",
+      "node_id": "validate_report",
+      "node_type": "code",
+      "status": "exception",
+      "title": "校验报告结构、证据引用与交接容量"
+    },
+    {
+      "elapsed_time": 0.055867,
+      "error_category": "generation_failed_after_retry",
+      "id": "1e560236-1c6f-4403-aee8-181281a4f241",
+      "node_id": "generation_error",
+      "node_type": "code",
+      "status": "failed",
+      "title": "生成统一失败结果"
+    }
+  ],
+  "status": "failed",
+  "total_steps": 11,
+  "total_tokens": 12798
+}
