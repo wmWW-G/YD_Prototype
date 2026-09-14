@@ -1,0 +1,468 @@
+{
+  "functions": [
+    {
+      "download": false,
+      "function": "数据看板",
+      "headers": [],
+      "heading": "数据看板",
+      "module": "m-dash",
+      "reportTitle": null
+    },
+    {
+      "download": false,
+      "function": "日经营概览",
+      "headers": [],
+      "heading": "日经营概览",
+      "module": "m-dash",
+      "reportTitle": null
+    },
+    {
+      "download": false,
+      "function": "周经营概览",
+      "headers": [],
+      "heading": "周经营概览",
+      "module": "m-dash",
+      "reportTitle": null
+    },
+    {
+      "download": false,
+      "function": "月经营概览",
+      "headers": [],
+      "heading": "月经营概览",
+      "module": "m-dash",
+      "reportTitle": null
+    },
+    {
+      "download": true,
+      "function": "运营规划清单",
+      "headers": [
+        "阶段",
+        "落地项目",
+        "周期/节奏"
+      ],
+      "heading": "运营规划清单",
+      "module": "m-plan",
+      "reportTitle": "运营规划清单"
+    },
+    {
+      "download": true,
+      "function": "老店运营诊断规划",
+      "headers": [
+        "步骤",
+        "项目",
+        "要点"
+      ],
+      "heading": "老店运营诊断规划",
+      "module": "m-plan",
+      "reportTitle": "老店运营诊断规划"
+    },
+    {
+      "download": true,
+      "function": "3月新贸节作战计划",
+      "headers": [
+        "阶段",
+        "时间",
+        "关键动作"
+      ],
+      "heading": "3月新贸节作战计划",
+      "module": "m-plan",
+      "reportTitle": "3月新贸节作战计划"
+    },
+    {
+      "download": true,
+      "function": "9月采购节作战计划",
+      "headers": [
+        "动作",
+        "负责人",
+        "时间"
+      ],
+      "heading": "9月采购节作战计划",
+      "module": "m-plan",
+      "reportTitle": "9月采购节作战计划"
+    },
+    {
+      "download": true,
+      "function": "市场&客群定位",
+      "headers": [
+        "维度",
+        "分析",
+        "结论"
+      ],
+      "heading": "市场&客群定位",
+      "module": "m-position",
+      "reportTitle": "市场&客群定位"
+    },
+    {
+      "download": true,
+      "function": "公司定位",
+      "headers": [
+        "卖点维度",
+        "内容",
+        "状态"
+      ],
+      "heading": "公司定位",
+      "module": "m-position",
+      "reportTitle": "公司定位"
+    },
+    {
+      "download": true,
+      "function": "产品定位",
+      "headers": [
+        "定位维度",
+        "动作",
+        "作用"
+      ],
+      "heading": "产品定位",
+      "module": "m-position",
+      "reportTitle": "产品定位"
+    },
+    {
+      "download": true,
+      "function": "店铺装修文案",
+      "headers": [
+        "装修区块",
+        "文案要点",
+        "状态"
+      ],
+      "heading": "店铺装修文案",
+      "module": "m-position",
+      "reportTitle": "店铺装修文案"
+    },
+    {
+      "download": true,
+      "function": "详情页装修文案",
+      "headers": [
+        "详情区块",
+        "文案要点",
+        "状态"
+      ],
+      "heading": "详情页装修文案",
+      "module": "m-position",
+      "reportTitle": "详情页装修文案"
+    },
+    {
+      "download": true,
+      "function": "一键选品",
+      "headers": [
+        "选品源",
+        "产出",
+        "状态"
+      ],
+      "heading": "一键选品",
+      "module": "m-infra",
+      "reportTitle": "一键选品"
+    },
+    {
+      "download": true,
+      "function": "一键整理关键词",
+      "headers": [
+        "词库",
+        "数量",
+        "用途"
+      ],
+      "heading": "一键整理关键词",
+      "module": "m-infra",
+      "reportTitle": "一键整理关键词"
+    },
+    {
+      "download": true,
+      "function": "批量标题",
+      "headers": [
+        "能力",
+        "支持",
+        "状态"
+      ],
+      "heading": "批量标题",
+      "module": "m-infra",
+      "reportTitle": "批量标题"
+    },
+    {
+      "download": true,
+      "function": "批量发品",
+      "headers": [
+        "指标",
+        "数值",
+        "状态"
+      ],
+      "heading": "批量发品",
+      "module": "m-infra",
+      "reportTitle": "批量发品"
+    },
+    {
+      "download": true,
+      "function": "广告策略",
+      "headers": [
+        "阶段",
+        "推广方式",
+        "预算"
+      ],
+      "heading": "广告策略",
+      "module": "m-promo",
+      "reportTitle": "广告策略"
+    },
+    {
+      "download": true,
+      "function": "广告诊断优化",
+      "headers": [
+        "维度",
+        "数量",
+        "动作"
+      ],
+      "heading": "广告诊断优化",
+      "module": "m-promo",
+      "reportTitle": "广告诊断优化"
+    },
+    {
+      "download": true,
+      "function": "品广诊断优化",
+      "headers": [
+        "类型",
+        "数量",
+        "状态"
+      ],
+      "heading": "品广诊断优化",
+      "module": "m-promo",
+      "reportTitle": "品广诊断优化"
+    },
+    {
+      "download": true,
+      "function": "优爆品提升",
+      "headers": [
+        "分层",
+        "数量",
+        "策略"
+      ],
+      "heading": "优爆品提升",
+      "module": "m-top",
+      "reportTitle": "优爆品提升"
+    },
+    {
+      "download": true,
+      "function": "核心品跟进",
+      "headers": [
+        "优先级",
+        "动作",
+        "目标"
+      ],
+      "heading": "核心品跟进",
+      "module": "m-top",
+      "reportTitle": "核心品跟进"
+    },
+    {
+      "download": true,
+      "function": "单品历史数据",
+      "headers": [
+        "规则",
+        "周期",
+        "动作"
+      ],
+      "heading": "单品历史数据",
+      "module": "m-top",
+      "reportTitle": "单品历史数据"
+    },
+    {
+      "download": true,
+      "function": "店铺诊断",
+      "headers": [
+        "维度",
+        "评分",
+        "状态"
+      ],
+      "heading": "店铺诊断",
+      "module": "m-analysis",
+      "reportTitle": "店铺诊断"
+    },
+    {
+      "download": true,
+      "function": "产品诊断",
+      "headers": [
+        "分层",
+        "产品数",
+        "询盘"
+      ],
+      "heading": "产品诊断",
+      "module": "m-analysis",
+      "reportTitle": "产品诊断"
+    },
+    {
+      "download": true,
+      "function": "广告诊断",
+      "headers": [
+        "指标",
+        "数值",
+        "状态"
+      ],
+      "heading": "广告诊断",
+      "module": "m-analysis",
+      "reportTitle": "广告诊断"
+    },
+    {
+      "download": true,
+      "function": "品广诊断",
+      "headers": [
+        "类型",
+        "ROI",
+        "建议"
+      ],
+      "heading": "品广诊断",
+      "module": "m-analysis",
+      "reportTitle": "品广诊断"
+    },
+    {
+      "download": true,
+      "function": "优质RFQ信息采集",
+      "headers": [
+        "采集项",
+        "数量",
+        "状态"
+      ],
+      "heading": "优质RFQ信息采集",
+      "module": "m-biz",
+      "reportTitle": "优质RFQ信息采集"
+    },
+    {
+      "download": true,
+      "function": "RFQ报价跟进表",
+      "headers": [
+        "状态",
+        "数量",
+        "占比"
+      ],
+      "heading": "RFQ报价跟进表",
+      "module": "m-biz",
+      "reportTitle": "RFQ报价跟进表"
+    },
+    {
+      "download": true,
+      "function": "询盘明细采集分析",
+      "headers": [
+        "维度",
+        "数量",
+        "状态"
+      ],
+      "heading": "询盘明细采集分析",
+      "module": "m-biz",
+      "reportTitle": "询盘明细采集分析"
+    },
+    {
+      "download": true,
+      "function": "客户列表采集分析",
+      "headers": [
+        "客户类型",
+        "占比",
+        "数量"
+      ],
+      "heading": "客户列表采集分析",
+      "module": "m-biz",
+      "reportTitle": "客户列表采集分析"
+    },
+    {
+      "download": true,
+      "function": "询盘登录表",
+      "headers": [
+        "客户",
+        "国家",
+        "状态"
+      ],
+      "heading": "询盘登录表",
+      "module": "m-biz",
+      "reportTitle": "询盘登录表"
+    }
+  ],
+  "desktopAndCompact": [
+    {
+      "bodyWidth": 1094,
+      "cols": [
+        {
+          "h": 810,
+          "w": 283.9609375,
+          "x": 24,
+          "y": 74
+        },
+        {
+          "h": 810,
+          "w": 318.0390625,
+          "x": 347.9609375,
+          "y": 74
+        },
+        {
+          "h": 605.78125,
+          "w": 380,
+          "x": 690,
+          "y": 74
+        }
+      ],
+      "lines": "block",
+      "viewport": [
+        1094,
+        934
+      ]
+    },
+    {
+      "bodyWidth": 900,
+      "cols": [
+        {
+          "h": 650,
+          "w": 244.4296875,
+          "x": 16,
+          "y": 70
+        },
+        {
+          "h": 650,
+          "w": 290,
+          "x": 288.4296875,
+          "y": 70
+        },
+        {
+          "h": 635.171875,
+          "w": 287.5703125,
+          "x": 596.4296875,
+          "y": 70
+        }
+      ],
+      "lines": "block",
+      "viewport": [
+        900,
+        768
+      ]
+    }
+  ],
+  "mobile": {
+    "bodyWidth": 390,
+    "columns": [
+      {
+        "w": 358,
+        "x": 16,
+        "y": 109
+      },
+      {
+        "w": 358,
+        "x": 16,
+        "y": 779.046875
+      },
+      {
+        "w": 358,
+        "x": 16,
+        "y": 1463.609375
+      }
+    ],
+    "lines": "none",
+    "viewport": [
+      390,
+      844
+    ]
+  },
+  "actions": {
+    "bidirectional_mapping": true,
+    "all_output_fields": 15,
+    "normal_rows": "string",
+    "repaired_rows": "array",
+    "conflict_outputs_null": true,
+    "close_reopen": true,
+    "invalid_state": true,
+    "local_chat": true,
+    "original_entry_field_button": true,
+    "dashboard_day_switch": true
+  },
+  "consoleErrors": []
+}

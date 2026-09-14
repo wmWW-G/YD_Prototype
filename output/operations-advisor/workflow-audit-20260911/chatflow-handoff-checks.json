@@ -1,0 +1,133 @@
+{
+  "scope": "local Chatflow definition only; no published Chatflow verification",
+  "checks": [
+    {
+      "function_name": "数据看板",
+      "valid": "yes"
+    },
+    {
+      "function_name": "日经营概览",
+      "valid": "yes"
+    },
+    {
+      "function_name": "周经营概览",
+      "valid": "yes"
+    },
+    {
+      "function_name": "月经营概览",
+      "valid": "yes"
+    },
+    {
+      "function_name": "运营规划清单",
+      "valid": "yes"
+    },
+    {
+      "function_name": "老店运营诊断规划",
+      "valid": "yes"
+    },
+    {
+      "function_name": "3月新贸节作战计划",
+      "valid": "yes"
+    },
+    {
+      "function_name": "9月采购节作战计划",
+      "valid": "yes"
+    },
+    {
+      "function_name": "市场&客群定位",
+      "valid": "yes"
+    },
+    {
+      "function_name": "公司定位",
+      "valid": "yes"
+    },
+    {
+      "function_name": "产品定位",
+      "valid": "yes"
+    },
+    {
+      "function_name": "店铺装修文案",
+      "valid": "yes"
+    },
+    {
+      "function_name": "详情页装修文案",
+      "valid": "yes"
+    },
+    {
+      "function_name": "一键选品",
+      "valid": "yes"
+    },
+    {
+      "function_name": "一键整理关键词",
+      "valid": "yes"
+    },
+    {
+      "function_name": "批量标题",
+      "valid": "yes"
+    },
+    {
+      "function_name": "批量发品",
+      "valid": "yes"
+    },
+    {
+      "function_name": "广告策略",
+      "valid": "yes"
+    },
+    {
+      "function_name": "广告诊断优化",
+      "valid": "yes"
+    },
+    {
+      "function_name": "品广诊断优化",
+      "valid": "yes"
+    },
+    {
+      "function_name": "优爆品提升",
+      "valid": "yes"
+    },
+    {
+      "function_name": "核心品跟进",
+      "valid": "yes"
+    },
+    {
+      "function_name": "单品历史数据",
+      "valid": "yes"
+    },
+    {
+      "function_name": "店铺诊断",
+      "valid": "yes"
+    },
+    {
+      "function_name": "产品诊断",
+      "valid": "yes"
+    },
+    {
+      "function_name": "广告诊断",
+      "valid": "yes"
+    },
+    {
+      "function_name": "品广诊断",
+      "valid": "yes"
+    },
+    {
+      "function_name": "优质RFQ信息采集",
+      "valid": "yes"
+    },
+    {
+      "function_name": "RFQ报价跟进表",
+      "valid": "yes"
+    },
+    {
+      "function_name": "询盘明细采集分析",
+      "valid": "yes"
+    },
+    {
+      "function_name": "客户列表采集分析",
+      "valid": "yes"
+    },
+    {
+      "function_name": "询盘登录表",
+      "valid": "yes"
+    }
+  ]
+}

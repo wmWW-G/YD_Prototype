@@ -1,0 +1,25 @@
+{
+  "checked_at": "2026-09-11T05:28:45.346Z",
+  "run_id": "01e6f974-f5be-4dd7-9848-2cd714c3d76e",
+  "status": "succeeded",
+  "workflow_id": "85d7a7ef-a98d-4f77-b366-ab4081cc5a5f",
+  "elapsed_time": 31.33077,
+  "total_steps": 12,
+  "total_tokens": 13699,
+  "output_branch": "normal",
+  "report_status": "ok",
+  "report_id": "yd-operations-8f6a687c-e713-4bce-aa26-7dd39e38a4ea",
+  "module": "优爆品提升",
+  "function_name": "优爆品提升",
+  "data_status": "insufficient",
+  "rows_transport_type": "string",
+  "row_count": 4,
+  "column_counts": [
+    9,
+    9,
+    9,
+    9
+  ],
+  "handoff_rows_preserved": true,
+  "source": "browser initiated live workflow; service API GET verification"
+}

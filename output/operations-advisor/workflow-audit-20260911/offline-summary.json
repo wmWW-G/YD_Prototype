@@ -1,0 +1,703 @@
+{
+  "source_sha256": "7632932d9718b3a22aefc59ef2879afed9e9538740ddec94c0c0bec06d2d4cfb",
+  "node_count": 25,
+  "edge_count": 44,
+  "function_count": 32,
+  "entry_map_matches_local": true,
+  "schema_matches": {
+    "advisor_1": true,
+    "advisor_2": true,
+    "advisor_3": true,
+    "advisor_4": true,
+    "advisor_5": true,
+    "advisor_6": true,
+    "advisor_7": true,
+    "advisor_8": true,
+    "repair_report": true
+  },
+  "python_argument_matches": {
+    "prepare": true,
+    "validate_report": true,
+    "query_guard": true,
+    "validate_repaired": true,
+    "generation_error": true
+  },
+  "routes": [
+    {
+      "module": "数据看板",
+      "function_name": "数据看板",
+      "node": "advisor_1",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "数据看板",
+      "function_name": "日经营概览",
+      "node": "advisor_1",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "数据看板",
+      "function_name": "周经营概览",
+      "node": "advisor_1",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "数据看板",
+      "function_name": "月经营概览",
+      "node": "advisor_1",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "运营规划",
+      "function_name": "运营规划清单",
+      "node": "advisor_2",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "运营规划",
+      "function_name": "老店运营诊断规划",
+      "node": "advisor_2",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "运营规划",
+      "function_name": "3月新贸节作战计划",
+      "node": "advisor_2",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "运营规划",
+      "function_name": "9月采购节作战计划",
+      "node": "advisor_2",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "营销定位",
+      "function_name": "市场&客群定位",
+      "node": "advisor_3",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "营销定位",
+      "function_name": "公司定位",
+      "node": "advisor_3",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "营销定位",
+      "function_name": "产品定位",
+      "node": "advisor_3",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "营销定位",
+      "function_name": "店铺装修文案",
+      "node": "advisor_3",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "营销定位",
+      "function_name": "详情页装修文案",
+      "node": "advisor_3",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "运营基建",
+      "function_name": "一键选品",
+      "node": "advisor_4",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "运营基建",
+      "function_name": "一键整理关键词",
+      "node": "advisor_4",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "运营基建",
+      "function_name": "批量标题",
+      "node": "advisor_4",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "运营基建",
+      "function_name": "批量发品",
+      "node": "advisor_4",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "运营推广",
+      "function_name": "广告策略",
+      "node": "advisor_5",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "运营推广",
+      "function_name": "广告诊断优化",
+      "node": "advisor_5",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "运营推广",
+      "function_name": "品广诊断优化",
+      "node": "advisor_5",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "优爆品提升",
+      "function_name": "优爆品提升",
+      "node": "advisor_6",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "优爆品提升",
+      "function_name": "核心品跟进",
+      "node": "advisor_6",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "优爆品提升",
+      "function_name": "单品历史数据",
+      "node": "advisor_6",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "数据分析与优化",
+      "function_name": "店铺诊断",
+      "node": "advisor_7",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "数据分析与优化",
+      "function_name": "产品诊断",
+      "node": "advisor_7",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "数据分析与优化",
+      "function_name": "广告诊断",
+      "node": "advisor_7",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "数据分析与优化",
+      "function_name": "品广诊断",
+      "node": "advisor_7",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "商机转化",
+      "function_name": "优质RFQ信息采集",
+      "node": "advisor_8",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "商机转化",
+      "function_name": "RFQ报价跟进表",
+      "node": "advisor_8",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "商机转化",
+      "function_name": "询盘明细采集分析",
+      "node": "advisor_8",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "商机转化",
+      "function_name": "客户列表采集分析",
+      "node": "advisor_8",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    },
+    {
+      "module": "商机转化",
+      "function_name": "询盘登录表",
+      "node": "advisor_8",
+      "prepare": "yes",
+      "normal_status": "ok",
+      "repaired_status": "ok",
+      "normal_rows_type": "str",
+      "repaired_rows_type": "list",
+      "chat_envelope_equal": true
+    }
+  ],
+  "adversarial": {
+    "malformed_json": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：JSON无法解析"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：JSON无法解析"
+      }
+    },
+    "wrong_name": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：报告入口不匹配"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：报告入口不匹配"
+      }
+    },
+    "extra_field": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：report:字段不匹配"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：report:字段不匹配"
+      }
+    },
+    "missing_field": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：report:字段不匹配"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：report:字段不匹配"
+      }
+    },
+    "numeric_cell": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：report.rows[1][0]:不是字符串"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：report.rows[1][0]:不是字符串"
+      }
+    },
+    "ragged_rows": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：表格列数不一致"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：表格列数不一致"
+      }
+    },
+    "invalid_enum": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：report.data_status:枚举无效"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：report.data_status:枚举无效"
+      }
+    },
+    "empty_conclusion": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：report.conclusion:不可为空白"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：report.conclusion:不可为空白"
+      }
+    },
+    "too_many_points": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：摘要或快捷追问过多"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：摘要或快捷追问过多"
+      }
+    },
+    "sufficient_without_evidence": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：资料充足状态必须有实际证据"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：资料充足状态必须有实际证据"
+      }
+    },
+    "insufficient_without_missing": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：资料不足状态必须说明关键缺口"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：资料不足状态必须说明关键缺口"
+      }
+    },
+    "duplicate_evidence": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：证据ID重复"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：证据ID重复"
+      }
+    },
+    "unknown_evidence_ref": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：行动证据引用重复或不存在"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：行动证据引用重复或不存在"
+      }
+    },
+    "oversized_json": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：模型输出类型或长度无效"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：模型输出类型或长度无效"
+      }
+    },
+    "oversized_context_report": {
+      "validate_report": {
+        "status": "invalid_output",
+        "stderr_written": false,
+        "error": "结构化输出校验失败：报告超过追问容量，需保留处理范围并精简重复内容"
+      },
+      "validate_repaired": {
+        "status": "invalid_output",
+        "stderr_written": true,
+        "error": "结构化输出校验失败：报告超过追问容量，需保留处理范围并精简重复内容"
+      }
+    },
+    "ui_wrong_headers": {
+      "validate_report": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      },
+      "validate_repaired": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      }
+    },
+    "ui_empty_summary": {
+      "validate_report": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      },
+      "validate_repaired": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      }
+    },
+    "ui_long_sub": {
+      "validate_report": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      },
+      "validate_repaired": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      }
+    },
+    "ui_long_point": {
+      "validate_report": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      },
+      "validate_repaired": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      }
+    },
+    "internal_think_tag": {
+      "validate_report": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      },
+      "validate_repaired": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      }
+    },
+    "array_501": {
+      "validate_report": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      },
+      "validate_repaired": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      }
+    },
+    "nul_in_text": {
+      "validate_report": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      },
+      "validate_repaired": {
+        "status": "ok",
+        "stderr_written": false,
+        "error": ""
+      }
+    }
+  },
+  "normal_vs_repaired": {},
+  "knowledge_failure_branch": false,
+  "validator_schema_matches": {
+    "validate_report": true,
+    "validate_repaired": true
+  },
+  "invalid_inputs": [
+    "invalid_input",
+    "invalid_input",
+    "invalid_input",
+    "invalid_input",
+    "invalid_input",
+    "invalid_input",
+    "invalid_input"
+  ],
+  "query_guard": {
+    "有效检索问题": "rewrite",
+    "": "fallback",
+    "{}": "fallback",
+    "[]": "fallback",
+    "# 标题": "fallback",
+    "```json": "fallback",
+    "None": "fallback",
+    "字字字字字字字字字字字字字字字字字字字字": "fallback"
+  },
+  "failure_result": {
+    "status": "invalid_output",
+    "report": {},
+    "chat_inputs": {},
+    "error": "本次报告未能完成生成或校验，请稍后重试；持续失败时检查模型节点的运行记录。"
+  },
+  "end_fields": {
+    "input_error": [
+      "invalid_status",
+      "invalid_report",
+      "invalid_chat_inputs",
+      "invalid_error"
+    ],
+    "end_node": [
+      "status",
+      "report",
+      "chat_inputs",
+      "error"
+    ],
+    "end_repaired": [
+      "repaired_status",
+      "repaired_report",
+      "repaired_chat_inputs",
+      "repaired_error"
+    ],
+    "end_error": [
+      "failed_status",
+      "failed_report",
+      "failed_chat_inputs",
+      "failed_error"
+    ]
+  },
+  "output_names_unique": true
+}

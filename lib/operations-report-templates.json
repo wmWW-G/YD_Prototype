@@ -1,0 +1,254 @@
+{
+  "运营规划清单": {
+    "headers": [
+      "阶段",
+      "落地项目",
+      "周期/节奏"
+    ],
+    "max_points": 5,
+    "max_data_rows": 5
+  },
+  "老店运营诊断规划": {
+    "headers": [
+      "步骤",
+      "项目",
+      "要点"
+    ],
+    "max_points": 5,
+    "max_data_rows": 2
+  },
+  "3月新贸节作战计划": {
+    "headers": [
+      "阶段",
+      "时间",
+      "关键动作"
+    ],
+    "max_points": 4,
+    "max_data_rows": 4
+  },
+  "9月采购节作战计划": {
+    "headers": [
+      "动作",
+      "负责人",
+      "时间"
+    ],
+    "max_points": 4,
+    "max_data_rows": 4
+  },
+  "市场&客群定位": {
+    "headers": [
+      "维度",
+      "分析",
+      "结论"
+    ],
+    "max_points": 4,
+    "max_data_rows": 3
+  },
+  "公司定位": {
+    "headers": [
+      "卖点维度",
+      "内容",
+      "状态"
+    ],
+    "max_points": 5,
+    "max_data_rows": 4
+  },
+  "产品定位": {
+    "headers": [
+      "定位维度",
+      "动作",
+      "作用"
+    ],
+    "max_points": 4,
+    "max_data_rows": 3
+  },
+  "店铺装修文案": {
+    "headers": [
+      "装修区块",
+      "文案要点",
+      "状态"
+    ],
+    "max_points": 5,
+    "max_data_rows": 4
+  },
+  "详情页装修文案": {
+    "headers": [
+      "详情区块",
+      "文案要点",
+      "状态"
+    ],
+    "max_points": 5,
+    "max_data_rows": 4
+  },
+  "一键选品": {
+    "headers": [
+      "选品源",
+      "产出",
+      "状态"
+    ],
+    "max_points": 5,
+    "max_data_rows": 4
+  },
+  "一键整理关键词": {
+    "headers": [
+      "词库",
+      "数量",
+      "用途"
+    ],
+    "max_points": 3,
+    "max_data_rows": 3
+  },
+  "批量标题": {
+    "headers": [
+      "能力",
+      "支持",
+      "状态"
+    ],
+    "max_points": 4,
+    "max_data_rows": 3
+  },
+  "批量发品": {
+    "headers": [
+      "指标",
+      "数值",
+      "状态"
+    ],
+    "max_points": 3,
+    "max_data_rows": 3
+  },
+  "广告策略": {
+    "headers": [
+      "阶段",
+      "推广方式",
+      "预算"
+    ],
+    "max_points": 5,
+    "max_data_rows": 3
+  },
+  "广告诊断优化": {
+    "headers": [
+      "维度",
+      "数量",
+      "动作"
+    ],
+    "max_points": 5,
+    "max_data_rows": 3
+  },
+  "品广诊断优化": {
+    "headers": [
+      "类型",
+      "数量",
+      "状态"
+    ],
+    "max_points": 3,
+    "max_data_rows": 3
+  },
+  "优爆品提升": {
+    "headers": [
+      "分层",
+      "数量",
+      "策略"
+    ],
+    "max_points": 5,
+    "max_data_rows": 3
+  },
+  "核心品跟进": {
+    "headers": [
+      "优先级",
+      "动作",
+      "目标"
+    ],
+    "max_points": 3,
+    "max_data_rows": 3
+  },
+  "单品历史数据": {
+    "headers": [
+      "规则",
+      "周期",
+      "动作"
+    ],
+    "max_points": 5,
+    "max_data_rows": 3
+  },
+  "店铺诊断": {
+    "headers": [
+      "维度",
+      "评分",
+      "状态"
+    ],
+    "max_points": 3,
+    "max_data_rows": 3
+  },
+  "产品诊断": {
+    "headers": [
+      "分层",
+      "产品数",
+      "询盘"
+    ],
+    "max_points": 3,
+    "max_data_rows": 3
+  },
+  "广告诊断": {
+    "headers": [
+      "指标",
+      "数值",
+      "状态"
+    ],
+    "max_points": 3,
+    "max_data_rows": 3
+  },
+  "品广诊断": {
+    "headers": [
+      "类型",
+      "ROI",
+      "建议"
+    ],
+    "max_points": 2,
+    "max_data_rows": 2
+  },
+  "优质RFQ信息采集": {
+    "headers": [
+      "采集项",
+      "数量",
+      "状态"
+    ],
+    "max_points": 3,
+    "max_data_rows": 3
+  },
+  "RFQ报价跟进表": {
+    "headers": [
+      "状态",
+      "数量",
+      "占比"
+    ],
+    "max_points": 3,
+    "max_data_rows": 4
+  },
+  "询盘明细采集分析": {
+    "headers": [
+      "维度",
+      "数量",
+      "状态"
+    ],
+    "max_points": 3,
+    "max_data_rows": 3
+  },
+  "客户列表采集分析": {
+    "headers": [
+      "客户类型",
+      "占比",
+      "数量"
+    ],
+    "max_points": 3,
+    "max_data_rows": 3
+  },
+  "询盘登录表": {
+    "headers": [
+      "客户",
+      "国家",
+      "状态"
+    ],
+    "max_points": 3,
+    "max_data_rows": 3
+  }
+}

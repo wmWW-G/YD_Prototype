@@ -1,0 +1,428 @@
+[
+  {
+    "case": "数据看板",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "数据看板",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "日经营概览",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "日经营概览",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "周经营概览",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "周经营概览",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "月经营概览",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "月经营概览",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "运营规划清单",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "运营规划清单",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "老店运营诊断规划",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "老店运营诊断规划",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "3月新贸节作战计划",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "3月新贸节作战计划",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "9月采购节作战计划",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "9月采购节作战计划",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "市场&客群定位",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "市场&客群定位",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "公司定位",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "公司定位",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "产品定位",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "产品定位",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "店铺装修文案",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "店铺装修文案",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "详情页装修文案",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "详情页装修文案",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "一键选品",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "一键选品",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "一键整理关键词",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "一键整理关键词",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "批量标题",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "批量标题",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "批量发品",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "批量发品",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "广告策略",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "广告策略",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "广告诊断优化",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "广告诊断优化",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "品广诊断优化",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "品广诊断优化",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "优爆品提升",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "优爆品提升",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "核心品跟进",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "核心品跟进",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "单品历史数据",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "单品历史数据",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "店铺诊断",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "店铺诊断",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "产品诊断",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "产品诊断",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "广告诊断",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "广告诊断",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "品广诊断",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "品广诊断",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "优质RFQ信息采集",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "优质RFQ信息采集",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "RFQ报价跟进表",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "RFQ报价跟进表",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "询盘明细采集分析",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "询盘明细采集分析",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "客户列表采集分析",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "客户列表采集分析",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "询盘登录表",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "询盘登录表",
+    "branch": "repaired",
+    "accepted": true,
+    "rowsType": "array"
+  },
+  {
+    "case": "ui_wrong_headers",
+    "branch": "normal",
+    "accepted": false,
+    "code": "report_layout_mismatch"
+  },
+  {
+    "case": "ui_empty_summary",
+    "branch": "normal",
+    "accepted": false,
+    "code": "report_layout_mismatch"
+  },
+  {
+    "case": "ui_long_sub",
+    "branch": "normal",
+    "accepted": false,
+    "code": "report_layout_mismatch"
+  },
+  {
+    "case": "ui_long_point",
+    "branch": "normal",
+    "accepted": false,
+    "code": "report_layout_mismatch"
+  },
+  {
+    "case": "internal_think_tag",
+    "branch": "normal",
+    "accepted": false,
+    "code": "invalid_report"
+  },
+  {
+    "case": "array_501",
+    "branch": "normal",
+    "accepted": false,
+    "code": "invalid_report"
+  },
+  {
+    "case": "nul_in_text",
+    "branch": "normal",
+    "accepted": true,
+    "rowsType": "array"
+  }
+]

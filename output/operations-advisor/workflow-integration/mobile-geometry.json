@@ -1,0 +1,32 @@
+{
+  "panels": [
+    {
+      "id": "plugin-panel",
+      "rect": {
+        "bottom": 539.5,
+        "height": 527.5,
+        "left": 12,
+        "right": 314,
+        "top": 12,
+        "width": 302,
+        "x": 12,
+        "y": 12
+      }
+    },
+    {
+      "id": "aiDrawer",
+      "rect": {
+        "bottom": 1083,
+        "height": 527.5,
+        "left": 12,
+        "right": 314,
+        "top": 555.5,
+        "width": 302,
+        "x": 12,
+        "y": 555.5
+      }
+    }
+  ],
+  "scrollWidth": 326,
+  "width": 326
+}

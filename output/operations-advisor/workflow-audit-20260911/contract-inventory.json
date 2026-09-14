@@ -1,0 +1,727 @@
+{
+  "scope": "当前导出文件与本地接入代码的只读审计，不是修改建议的已实施版本",
+  "source_file": "/Users/garden/Downloads/来搜运营顾问｜workflow首次诊断 (1).yml",
+  "sha256": "7632932d9718b3a22aefc59ef2879afed9e9538740ddec94c0c0bec06d2d4cfb",
+  "inputs": [
+    {
+      "label": "所属板块",
+      "max_length": 48,
+      "options": [
+        "数据看板",
+        "运营规划",
+        "营销定位",
+        "运营基建",
+        "运营推广",
+        "优爆品提升",
+        "数据分析与优化",
+        "商机转化"
+      ],
+      "required": true,
+      "type": "select",
+      "value_selector": [],
+      "variable": "module"
+    },
+    {
+      "label": "点击的功能名称",
+      "max_length": 120,
+      "options": [],
+      "required": true,
+      "type": "text-input",
+      "value_selector": [],
+      "variable": "function_name"
+    },
+    {
+      "label": "本次报告唯一ID",
+      "max_length": 120,
+      "options": [],
+      "required": true,
+      "type": "text-input",
+      "value_selector": [],
+      "variable": "report_id"
+    },
+    {
+      "label": "店铺、对象、周期和真实数据",
+      "max_length": 48000,
+      "options": [],
+      "required": true,
+      "type": "paragraph",
+      "value_selector": [],
+      "variable": "business_context"
+    }
+  ],
+  "report_core_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "actions": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "acceptance": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "decision": {
+              "type": "string"
+            },
+            "evidence_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "id": {
+              "type": "string"
+            },
+            "owner": {
+              "type": "string"
+            },
+            "priority": {
+              "enum": [
+                "P0",
+                "P1",
+                "P2"
+              ],
+              "type": "string"
+            },
+            "review": {
+              "type": "string"
+            },
+            "steps": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "target": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "target",
+            "decision",
+            "steps",
+            "priority",
+            "owner",
+            "acceptance",
+            "review",
+            "evidence_ids"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "conclusion": {
+        "type": "string"
+      },
+      "content_markdown": {
+        "type": "string"
+      },
+      "data_status": {
+        "enum": [
+          "sufficient",
+          "partial",
+          "insufficient"
+        ],
+        "type": "string"
+      },
+      "evidence": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "fact": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "source": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "source",
+            "fact"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "follow_up_questions": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "missing_data": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "name": {
+        "type": "string"
+      },
+      "points": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "rows": {
+        "items": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type": "array"
+      },
+      "sub": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "sub",
+      "data_status",
+      "conclusion",
+      "points",
+      "rows",
+      "content_markdown",
+      "evidence",
+      "actions",
+      "missing_data",
+      "follow_up_questions"
+    ],
+    "type": "object"
+  },
+  "report_identity_fields": {
+    "schema_version": "string; current 1.0",
+    "module": "string; copied from prepare",
+    "function_name": "string; copied from prepare",
+    "report_id": "string; copied from prepare"
+  },
+  "transport_caveat": {
+    "normal.report.rows": "JSON string encoding string[][]",
+    "repaired.report.rows": "string[][] (old validator remains)",
+    "chat_inputs.diagnosis_context": "JSON string encoding an envelope with report.rows as string[][]",
+    "frontend.report.rows": "string[][] after proxy normalization"
+  },
+  "chat_inputs": {
+    "module": "string",
+    "business_context": "string; <=48000 characters in DSL",
+    "diagnosis_context": "JSON string; <=64000 characters"
+  },
+  "outputs_by_branch": {
+    "input_error": [
+      "invalid_status",
+      "invalid_report",
+      "invalid_chat_inputs",
+      "invalid_error"
+    ],
+    "end_node": [
+      "status",
+      "report",
+      "chat_inputs",
+      "error"
+    ],
+    "end_repaired": [
+      "repaired_status",
+      "repaired_report",
+      "repaired_chat_inputs",
+      "repaired_error"
+    ],
+    "end_error": [
+      "failed_status",
+      "failed_report",
+      "failed_chat_inputs",
+      "failed_error"
+    ]
+  },
+  "all_functions": [
+    {
+      "module": "数据看板",
+      "function_name": "数据看板",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": null,
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "数据看板",
+      "function_name": "日经营概览",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": null,
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "数据看板",
+      "function_name": "周经营概览",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": null,
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "数据看板",
+      "function_name": "月经营概览",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": null,
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "运营规划",
+      "function_name": "运营规划清单",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "阶段",
+          "落地项目",
+          "周期/节奏"
+        ],
+        "max_points": 5,
+        "max_data_rows": 5
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "运营规划",
+      "function_name": "老店运营诊断规划",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "步骤",
+          "项目",
+          "要点"
+        ],
+        "max_points": 5,
+        "max_data_rows": 2
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "运营规划",
+      "function_name": "3月新贸节作战计划",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "阶段",
+          "时间",
+          "关键动作"
+        ],
+        "max_points": 4,
+        "max_data_rows": 4
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "运营规划",
+      "function_name": "9月采购节作战计划",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "动作",
+          "负责人",
+          "时间"
+        ],
+        "max_points": 4,
+        "max_data_rows": 4
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "营销定位",
+      "function_name": "市场&客群定位",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "维度",
+          "分析",
+          "结论"
+        ],
+        "max_points": 4,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "营销定位",
+      "function_name": "公司定位",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "卖点维度",
+          "内容",
+          "状态"
+        ],
+        "max_points": 5,
+        "max_data_rows": 4
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "营销定位",
+      "function_name": "产品定位",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "定位维度",
+          "动作",
+          "作用"
+        ],
+        "max_points": 4,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "营销定位",
+      "function_name": "店铺装修文案",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "装修区块",
+          "文案要点",
+          "状态"
+        ],
+        "max_points": 5,
+        "max_data_rows": 4
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "营销定位",
+      "function_name": "详情页装修文案",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "详情区块",
+          "文案要点",
+          "状态"
+        ],
+        "max_points": 5,
+        "max_data_rows": 4
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "运营基建",
+      "function_name": "一键选品",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "选品源",
+          "产出",
+          "状态"
+        ],
+        "max_points": 5,
+        "max_data_rows": 4
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "运营基建",
+      "function_name": "一键整理关键词",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "词库",
+          "数量",
+          "用途"
+        ],
+        "max_points": 3,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "运营基建",
+      "function_name": "批量标题",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "能力",
+          "支持",
+          "状态"
+        ],
+        "max_points": 4,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "运营基建",
+      "function_name": "批量发品",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "指标",
+          "数值",
+          "状态"
+        ],
+        "max_points": 3,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "运营推广",
+      "function_name": "广告策略",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "阶段",
+          "推广方式",
+          "预算"
+        ],
+        "max_points": 5,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "运营推广",
+      "function_name": "广告诊断优化",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "维度",
+          "数量",
+          "动作"
+        ],
+        "max_points": 5,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "运营推广",
+      "function_name": "品广诊断优化",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "类型",
+          "数量",
+          "状态"
+        ],
+        "max_points": 3,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "优爆品提升",
+      "function_name": "优爆品提升",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "分层",
+          "数量",
+          "策略"
+        ],
+        "max_points": 5,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "优爆品提升",
+      "function_name": "核心品跟进",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "优先级",
+          "动作",
+          "目标"
+        ],
+        "max_points": 3,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "优爆品提升",
+      "function_name": "单品历史数据",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "规则",
+          "周期",
+          "动作"
+        ],
+        "max_points": 5,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "数据分析与优化",
+      "function_name": "店铺诊断",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "维度",
+          "评分",
+          "状态"
+        ],
+        "max_points": 3,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "数据分析与优化",
+      "function_name": "产品诊断",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "分层",
+          "产品数",
+          "询盘"
+        ],
+        "max_points": 3,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "数据分析与优化",
+      "function_name": "广告诊断",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "指标",
+          "数值",
+          "状态"
+        ],
+        "max_points": 3,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "数据分析与优化",
+      "function_name": "品广诊断",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "类型",
+          "ROI",
+          "建议"
+        ],
+        "max_points": 2,
+        "max_data_rows": 2
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "商机转化",
+      "function_name": "优质RFQ信息采集",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "采集项",
+          "数量",
+          "状态"
+        ],
+        "max_points": 3,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "商机转化",
+      "function_name": "RFQ报价跟进表",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "状态",
+          "数量",
+          "占比"
+        ],
+        "max_points": 3,
+        "max_data_rows": 4
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "商机转化",
+      "function_name": "询盘明细采集分析",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "维度",
+          "数量",
+          "状态"
+        ],
+        "max_points": 3,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "商机转化",
+      "function_name": "客户列表采集分析",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "客户类型",
+          "占比",
+          "数量"
+        ],
+        "max_points": 3,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    },
+    {
+      "module": "商机转化",
+      "function_name": "询盘登录表",
+      "input_contract": "same four workflow inputs",
+      "report_contract": "same core schema plus identity fields",
+      "ui_summary_template": {
+        "headers": [
+          "客户",
+          "国家",
+          "状态"
+        ],
+        "max_points": 3,
+        "max_data_rows": 3
+      },
+      "ui_rules_in_workflow": false
+    }
+  ]
+}

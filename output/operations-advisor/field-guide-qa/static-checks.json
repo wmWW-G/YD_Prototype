@@ -1,0 +1,55 @@
+{
+  "artifact_sha256": "f9d5372e66bffb4eb7b950fe32d7e419941ca27c5b5381459c14e6d7b31e3e2f",
+  "script_syntax": "passed",
+  "functions": 32,
+  "original_templates": 28,
+  "core_fields": 11,
+  "identity_fields": 4,
+  "dify_model_schema_counts": [
+    11,
+    11,
+    11,
+    11,
+    11,
+    11,
+    11,
+    11,
+    11
+  ],
+  "all_original_headers_match": true,
+  "source_example_conflicts_documented": [
+    {
+      "function": "运营规划清单",
+      "source_points": 22,
+      "contract_max_points": 5,
+      "overlong_points": true
+    },
+    {
+      "function": "老店运营诊断规划",
+      "source_points": 15,
+      "contract_max_points": 5,
+      "overlong_points": true
+    },
+    {
+      "function": "店铺装修文案",
+      "source_points": 6,
+      "contract_max_points": 5,
+      "overlong_points": false
+    },
+    {
+      "function": "详情页装修文案",
+      "source_points": 6,
+      "contract_max_points": 5,
+      "overlong_points": false
+    },
+    {
+      "function": "单品历史数据",
+      "source_points": 7,
+      "contract_max_points": 5,
+      "overlong_points": false
+    }
+  ],
+  "network_calls": 0,
+  "external_dependencies": 0,
+  "credential_patterns": 0
+}

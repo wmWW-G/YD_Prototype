@@ -1,0 +1,22 @@
+{
+  "bodyClientWidth": 834,
+  "bodyWidth": 834,
+  "chatCount": 4,
+  "drawer": {
+    "bottom": 699.25,
+    "height": 527.5,
+    "right": 418,
+    "width": 398,
+    "x": 20,
+    "y": 171.75
+  },
+  "panel": {
+    "bottom": 699.25,
+    "height": 527.5,
+    "right": 814,
+    "width": 380,
+    "x": 434,
+    "y": 171.75
+  },
+  "reportRows": 4
+}

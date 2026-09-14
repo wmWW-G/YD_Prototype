@@ -1756,35 +1756,24 @@ details.tool-fold[open] > summary .tool-fold-name { color: var(--accent); }
   margin-top: 16px;
 }
 
-/* ===== 左侧AI分析抽屉 ===== */
-.ai-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(20, 22, 35, 0.4);
-  z-index: 996;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s;
-}
-
-.ai-mask.show { opacity: 1; pointer-events: auto; }
-
+/* ===== 左侧AI分析面板：参与布局，和运营面板共同占用空间 ===== */
 .ai-drawer {
-  position: fixed;
-  left: 0; top: 0;
+  position: relative;
   width: 430px;
-  max-width: 88vw;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 430px;
+  order: -1;
   background: var(--bg);
-  z-index: 997;
-  transform: translateX(-100%);
-  transition: transform 0.25s ease;
-  display: flex;
+  /* 关闭时完全退出布局，运营面板自然回到中央，不留下残片或空白占位。 */
+  display: none;
   flex-direction: column;
-  border-radius: 12px 0 0 12px;
+  border-radius: 12px;
+  overflow: hidden;
   box-shadow: -4px 0 24px rgba(0,0,0,0.12);
 }
 
-.ai-drawer.open { transform: translateX(0); }
+.ai-drawer.open { display: flex; }
 
 .ai-drawer-head {
   display: flex;
@@ -1829,6 +1818,8 @@ details.tool-fold[open] > summary .tool-fold-name { color: var(--accent); }
 
 .ai-drawer-body {
   flex: 1;
+  /* 小窗口中允许正文缩小并独立滚动，让标题、关闭按钮和输入框始终留在抽屉内。 */
+  min-height: 0;
   overflow-y: auto;
   padding: 14px 16px;
   scrollbar-width: thin;
@@ -1847,6 +1838,16 @@ details.tool-fold[open] > summary .tool-fold-name { color: var(--accent); }
 .ai-loading .spinner { width: 22px; height: 22px; border-width: 3px; }
 
 .ai-content { display: none; }
+.ai-report-error { padding: 12px 0; }
+.ai-report-error h3 { font-size: 13px; margin: 16px 0 6px; }
+.ai-report-error p { margin: 6px 0; font-size: 12px; line-height: 1.7; }
+.ai-report-error .btn-mini { margin-top: 12px; padding: 8px 18px; border: 1px solid var(--accent); border-radius: 18px; color: var(--accent); background: var(--accent-soft); cursor: pointer; }
+.ai-content .ai-table-wrap { max-width: 100%; overflow-x: auto; }
+/* 仅防止动态长单词撑出面板，字号、行高和表格间距继续使用原 HTML 的规则。 */
+.ai-content .pt-text, .ai-content .ai-sub, .ai-content .report-table td { overflow-wrap: anywhere; }
+.ai-content .pt-text { min-width: 0; }
+.ai-drawer button:disabled { opacity: .45; cursor: not-allowed; }
+.ai-drawer input:disabled { background: var(--bg2); }
 
 .ai-content .ai-name {
   font-size: 14px;
@@ -1971,6 +1972,8 @@ details.tool-fold[open] > summary .tool-fold-name { color: var(--accent); }
   line-height: 1.65;
   color: var(--text);
   max-width: 82%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .ai-chat .chat-msg.user .chat-bubble {
@@ -2077,7 +2080,15 @@ details.tool-fold[open] > summary .tool-fold-name { color: var(--accent); }
 body { padding:20px; }
 .plugin-panel { max-height:calc(100dvh - 40px); }
 @media (max-width: 420px) { body { padding:0; align-items:flex-start; } .plugin-panel { width:100%; max-height:100dvh; border-radius:0; min-height:100dvh; } }
-@media (max-width: 1100px) { .ai-drawer { left:max(0px, calc((100vw - 430px)/2)) !important; width:min(430px, 100vw); max-height:100dvh; } }
+/* 两个面板整体居中；优先保留运营面板宽度，AI面板使用剩余空间。 */
+body.ai-open { gap:16px; }
+body.ai-open .plugin-panel { flex:0 0 380px; }
+/* 手机和平板窄窗改为上下排列，可沿页面滚动浏览，两块内容始终互不遮挡。 */
+@media (max-width: 760px) {
+  body.ai-open { flex-direction:column; justify-content:flex-start; align-items:center; padding:12px; }
+  body.ai-open .plugin-panel { flex:0 0 auto; width:min(380px, 100%); min-height:0; max-height:calc(100dvh - 24px); }
+  body.ai-open .ai-drawer { flex:0 0 auto; order:1; width:min(430px, 100%); }
+}
 </style>
 </head>
 <body>
@@ -3394,6 +3405,8 @@ body { padding:20px; }
 
     </div><!-- /tab-consult -->
 </div></div>
+<script src="../../src/dify-config.js"></script>
+<script src="workflow-client.js"></script>
 <script>
 // ===== Main Tab switching =====
 document.querySelectorAll('#mainTabBar .tab-btn').forEach(btn => {
@@ -3429,6 +3442,7 @@ function openModule(id) {
 }
 
 function backConsult() {
+  closeAiDrawer();
   document.querySelectorAll('#tab-consult .sub-view').forEach(v => v.classList.remove('active'));
   document.getElementById('consult-home').classList.add('active');
   document.getElementById('contentArea').scrollTop = 0;
@@ -4025,590 +4039,19 @@ function savePush() {
 }
 
 // ===== 左侧AI分析抽屉（点击SOP功能项触发） =====
-const AI_ANALYSIS = {
-  '市场定位': {
-    sub: '定类目 · 定国家 · 定客户',
-    points: [
-      '目标市场：建议聚焦 <b>美国 32%</b> / <b>德国 18%</b> / <b>英国 12%</b> 三大市场，集中投放资源',
-      '类目定级：锂电池组处于<span class="em">高增长期</span>，近30天询盘 +12.3%，建议定为主推类目',
-      '客群定位：主力买家为<span class="em">电子分销商</span>，月采购 $5K-20K，关注 UL/CE 认证'
-    ],
-    rows: [['国家','流量占比','询盘数','转化率'],['美国','32%','142','0.42%'],['德国','18%','81','0.38%'],['英国','12%','55','0.35%']]
-  },
-  '公司定位': {
-    sub: 'why choose us · 公司实力 · 定制能力 · 品控能力',
-    points: [
-      'why choose us?：<span class="em">金品诚企 · 工厂直供 · 48h快速打样</span>——买家为什么选你',
-      '公司实力：工厂规模/产线/设备/团队/年产能，<span class="em">高清产线实拍 + 视频</span>素材',
-      '定制能力：支持 OEM/ODM · 定制起订量 · 打样周期 · 定制流程（48h打样）',
-      '品控能力：质检流程 · 全检/抽检 · 认证资质（UL/CE/FDA 等）· 不良率控制承诺',
-      'PC/无线端装修：主视觉突出工厂实力 + 认证资质 + 核心产品矩阵；详情页5段式模板（卖点→参数→认证→工厂→合作）'
-    ],
-    rows: [['卖点维度','内容','状态'],['Why Choose Us','金品诚企·工厂直供·48h打样','待出'],['公司实力','产线实拍+年产能','待出'],['定制能力','OEM/ODM·起订量·流程','待出'],['品控能力','质检流程+认证','待出']]
-  },
-  '产品定位': {
-    sub: '产品分类 · 子类目确定 · 商品类型',
-    points: [
-      '产品分类：按<span class="em">类目分组</span>管理后台，便于橱窗/广告按组投放',
-      '子类目确定：锁定主攻<span class="em">子类目</span>（曝光/点击/询盘对比，优先优势子类目）',
-      '商品类型：确认<span class="em">定制/现货/品牌授权/新品</span>商品类型组合，匹配买家需求场景',
-      '建议首发 12 款：3款引流款 + 6款利润款 + 3款形象款'
-    ],
-    rows: [['定位维度','动作','作用'],['产品分类','类目分组','便于按组投放'],['子类目','优势类目锁定','吃透流量'],['商品类型','定制/现货组合','匹配买家']]
-  },
-  '运营规划': {
-    sub: '运营SOP导图 · 动员会',
-    points: [
-      '学习完成后由<span class="em">负责人主持落地启动会</span>，明确各职责人及落地时间',
-      '重新梳理运营SOP导图，打印张贴到公司墙上，全员对齐'
-    ],
-    rows: [['角色','职责','时间'],['负责人','主持启动会','第1天'],['运营','执行SOP','全程']]
-  },
-  '关键词库': {
-    sub: '主词表 + 关键词词库',
-    points: [
-      '建立《主词表》：核心大词 50+，覆盖类目主流搜索词',
-      '建立《关键词词库》：5-7天完成，目标 <span class="em">500+ 词</span>，按热度/竞争度四象限分类'
-    ],
-    rows: [['词库','数量','状态'],['主词表','86','待建'],['关键词词库','500+','整理中']]
-  },
-  '产品发布': {
-    sub: '模板确认 + 发品布词',
-    points: [
-      '模板确认（1天）：发布第1款产品确认整体布局，<span class="em">反复确认</span>后批量复制',
-      '发品布词（15天）：快速发品覆盖关键词，<span class="em">不重复发品</span>，多发行业定向征品'
-    ],
-    rows: [['阶段','周期','要点'],['模板确认','1天','首款定版'],['发品布词','15天','覆盖关键词']]
-  },
-  '推广策略': {
-    sub: 'P4P加推 · 分层打法',
-    points: [
-      '新店效果不好：<span class="em">全站推-日预算 / AI智投</span>（所有品）',
-      '1-2个月后针对转化高的产品单独创建计划',
-      '打爆品：全站推-推商品（按产品分类）+ 关键词推广（快速修改标签）'
-    ],
-    rows: [['阶段','推广方式','预算'],['选品期','全站推/AI智投','$30-50/天'],['爆品期','推商品+关键词','$80-120/天']]
-  },
-  '广告数据': {
-    sub: '周度广告复盘',
-    points: [
-      '核心指标：花费 / 曝光 / 点击 / 询盘 / ROI，<span class="em">每周2复盘</span>',
-      '识别高花费低询盘计划，剔除 <span class="em">0询盘关键词</span>',
-      '美/英/加/德核心国家定向溢价 20%'
-    ],
-    rows: [['指标','数值','趋势'],['花费','$3,842','+22%'],['询盘','456','+12.3%'],['ROI','3.2','健康']]
-  },
-  '问鼎/顶展/聚量诊断': {
-    sub: '三渠道诊断：问鼎/顶展/聚量',
-    points: [
-      '<span class="em">问鼎诊断</span>：品牌搜索量 / 竞品截流效果 / ROI',
-      '<span class="em">顶展诊断</span>：词排名 / 点击 / 转化 周度监控',
-      '<span class="em">聚量诊断</span>：聚量投放效果 / 花费 / ROI',
-      '低ROI词及时调整，品广<span class="em">优先绑定优爆品</span>'
-    ],
-    rows: [['渠道','花费','询盘'],['顶展','$860','42'],['问鼎','$540','28'],['聚量','$220','9']]
-  },
-  '优爆品提升': {
-    sub: '品广加权 + 营销加权',
-    points: [
-      '品广加权：顶展和问鼎<span class="em">优先绑定优爆品</span>',
-      '运营12项：定向征品/挑战赛/布网/好评/橱窗/认证/折扣/星级等',
-      '业务8项：EDM营销/开发信/直播/RFQ/好评回复等'
-    ],
-    rows: [['维度','动作数','状态'],['品广加权','1','待执行'],['营销加权-运营','12','待执行'],['营销加权-业务','8','待执行']]
-  },
-  '核心品资源跟进': {
-    sub: '橱窗 · 认证 · 榜单',
-    points: [
-      '核心品资源：移入橱窗 / 主营认证产品 / 绑定认证证书 / 订单绑定主推',
-      '进榜单统计：<span class="em">Most popular / Hot selling / Best reviewed</span> 及国家询盘榜单'
-    ],
-    rows: [['资源','状态'],['橱窗','待执行'],['主营认证','待执行'],['榜单统计','每周更新']]
-  },
-  '单品历史数据': {
-    sub: '跟踪单品历史数据统计',
-    points: [
-      '<span class="em">关键词流量来源</span>：识别主要引流词与增长词',
-      '<span class="em">国家来源</span>：识别核心市场与机会市场',
-      '单品历史数据统计：曝光 / 点击 / 访客 / 询盘 / 订单 全链路历史趋势',
-      'A. 按曝光（确保所有词TK）/点击/访客/反馈/订单转化逐品优化',
-      'B. <span class="em">每周2和每月3号</span>：优化数据不好的产品',
-      'C. 新品加广告3天后对有问题的产品优化',
-      'D. 90天以上数据不好的，考虑重新发布'
-    ],
-    rows: [['规则','周期','动作'],['常规优化','每周2','逐品诊断'],['新品优化','3天','问题修复'],['长尾品','90天','重发决策']]
-  },
-  '店铺诊断': {
-    sub: '核心指标诊断',
-    points: [
-      '一键导出报表，快速诊断：<span class="em">星等级 / 优爆品 / 橱窗利用率 / 店铺转化</span>',
-      '店铺星级 3星，距4星差12分；点击率 2.0% 低于行业均值'
-    ],
-    rows: [['指标','数值','状态'],['星等级','3星','预警'],['优爆品','24款','正常'],['橱窗利用率','68%','需提升']]
-  },
-  '产品诊断': {
-    sub: '分层 + 低效品',
-    points: [
-      '产品分层：优爆品 24 / 普通品 38 / 低效品 12',
-      '识别90天零效果产品，优化或重新发布',
-      '新品加广告3天后对有问题的产品优化'
-    ],
-    rows: [['分层','产品数','询盘'],['优爆品','24','312'],['普通品','38','118'],['低效品','12','6']]
-  },
-  '广告诊断': {
-    sub: '水位诊断',
-    points: [
-      '识别<span class="em">高点击零商机</span>产品（拖后腿产品）',
-      '剔除0询盘关键词，按计划/地域调整出价',
-      '每周2和每月3号：对数据不好的产品进行优化'
-    ],
-    rows: [['诊断项','数量','建议'],['0询盘词','24','剔除'],['拖后腿产品','4','调价'],['高潜产品','6','加价']]
-  },
-  '品广诊断': {
-    sub: '顶展 + 问鼎 效果',
-    points: [
-      '顶展词点击/转化/ROI一览，识别低效词与机会词',
-      '问鼎品牌搜索量变化与竞品截流效果评估'
-    ],
-    rows: [['类型','ROI','建议'],['顶展','2.1','保留'],['问鼎','1.8','观察']]
-  },
-  '产品优化': {
-    sub: '高曝光低点击 / 高点击低转化',
-    points: [
-      '<span class="em">高曝光低点击</span>：ID 0568 等产品曝光高但点击率&lt;1.5%，首图/标题吸引力不足',
-      '优化：重构主图（首图卖点/场景图），标题7项合规扫描+关键词植入',
-      '<span class="em">高点击低转化</span>：点击高但询盘/转化低，问题在详情页/价格/认证',
-      '优化：详情页5段式升级（卖点→参数→认证→工厂→合作），价格策略调整，补充认证资质（CoA/FDA）'
-    ],
-    rows: [['问题类型','判定','优化动作'],['高曝光低点击','CTR&lt;1.5%','重构主图+标题'],['高点击低转化','询盘率低','详情页+价格+认证']]
-  },
-  '店铺诊断与落地规划': {
-    sub: '七维诊断 + 落地规划',
-    points: [
-      '<span class="em">星等级</span>：3星距4星差12分，逐项突破星级短板',
-      '<span class="em">子类目诊断</span>：子类目曝光/点击/询盘对比，锂电池类目占优',
-      '<span class="em">优爆品诊断</span>：真爆品24/假爆品6，Pouch Battery完整度仅42%',
-      '<span class="em">橱窗诊断</span>：橱窗利用率68%，优品橱窗占比需提升',
-      '<span class="em">产品诊断</span>：低效品12款待优化；<span class="em">广告诊断</span>：24个0询盘词待清洗',
-      '<span class="em">员工诊断</span>：张经理成交8笔最高，赵助理回复率95%需提升',
-      '落地规划：点击率→重构主图+标题（进行中）；橱窗→优爆品移入（待执行）；转化率→详情页+优惠券'
-    ],
-    rows: [['诊断维度','现状','整改'],['星等级','3星','补分'],['橱窗利用率','68%','移入优品'],['假爆品','6款','清洗'],['0询盘词','24个','剔除']]
-  },
-  '营销推广SOP': {
-    sub: 'P4P加推 · 1个月',
-    points: [
-      '满足 <span class="em">100个品</span> 开始推广，全站推/AI智投分层',
-      '1个月后针对转化高的产品单独创建计划'
-    ],
-    rows: [['指标','数值'],['P4P花费','$3,842'],['ROI','3.2']]
-  },
-  '推广优化': {
-    sub: '店铺优化SOP',
-    points: [
-      'A/B/C/D 四条优化规则：曝光/点击/访客/反馈/订单转化',
-      '每周2和每月3号节奏复盘'
-    ],
-    rows: [['曝光量','48,320'],['点击率','2.0%'],['成交率','0.35%']]
-  },
-  'TOP RANKING榜单': {
-    sub: '三榜监测',
-    points: [
-      '统计 Most popular / Hot selling / Best reviewed 榜单产品ID及排名',
-      '追踪榜单排名变化，优爆品目标冲榜'
-    ],
-    rows: [['榜单','产品ID','排名'],['Most popular','6193','12'],['Hot selling','6193','8']]
-  },
-  '3月新贸节作战计划': {
-    sub: '大促备战 · 全链路作战',
-    points: [
-      '报名节点：新贸节报名已启动，需在<span class="em">窗口期截止前</span>完成报名审批与活动方案确认',
-      '预算筹备：大促期间 P4P 预算建议<span class="em">翻倍</span>，核心关键词出价上浮 30-50%，锁定流量高峰',
-      '爆品备战：锁定 20 款备战品，完成 12 项运营动作（橱窗/认证/优惠券/折扣/EDM），备战品完整度目标 90%+',
-      '团队分工：按全员行动表分解任务 —— 运营组（发品/推广）/ 业务组（营销/EDM）/ 老板（审批/产能核实）'
-    ],
-    rows: [['阶段','时间','关键动作'],['报名审批','截止前','报名+活动确认'],['预热蓄水','提前30天','爆品备战+EDM'],['大促爆发','3月','预算翻倍+冲榜'],['复盘','结束后','数据复盘+留存']]
-  },
-  '9月采购节作战计划': {
-    sub: '采购节冲刺 · 距报名截止5天',
-    points: [
-      '报名截止：<span class="em">距截止仅剩 5 天</span>，需立即完成报名审批、预算确认与产能核实',
-      '预算策略：8月实施 P4P 预算<span class="em">翻倍</span>（关键词出价上浮 30-50%），抢占采购节流量',
-      '爆品备战：24 款优爆品完成 12 项运营动作，Pouch Battery（询盘28）优先移入橱窗，目标 14 天破 50 询盘',
-      '全员行动表：7/30 前完成报名审批、预算确认、产能核实；业务员每日 20 封站内营销 + EDM'
-    ],
-    rows: [['动作','负责人','时间'],['报名审批','老板','5天内'],['预算翻倍','运营','8月'],['优爆品备战','运营','持续'],['全员营销','业务','每日']]
-  },
-  '国家榜单': {
-    sub: '分国家询盘榜单',
-    points: [
-      '统计进入不同国家的榜单排名，识别高潜力国家市场'
-    ],
-    rows: [['国家','产品ID','排名'],['美国','6193','3'],['德国','6193','7']]
-  },
-  '市场&客群定位': {
-    sub: '目标市场分析 · 客群及痛点分析',
-    points: [
-      '<span class="em">目标市场分析</span>：美国 32% / 德国 18% / 英国 12% 三大询盘来源国——定类目·定国家，核心国家 P4P 定向溢价 20%',
-      '<span class="em">客群画像</span>：主力买家为电子分销商（45%）/ 批发商 / 品牌商，月采购 $5K-20K，关注 UL/CE 认证与交期',
-      '<span class="em">痛点分析</span>：分销商怕压货（需低MOQ+混批）· 品牌商怕质量不稳（需认证+品控承诺）· 零售商怕断货（需稳定交期）',
-      '<span class="em">决策链</span>：采购经理→技术确认→老板审批，需备好认证与技术资料'
-    ],
-    rows: [['维度','分析','结论'],['目标市场','美/德/英询盘32/18/12%','定向溢价20%'],['客群画像','分销商45%·$5-20K','备认证与交期'],['痛点','压货/质量/断货','低MOQ+品控承诺']]
-  },
-  '目标市场分析': {
-    sub: '分国家市场机会',
-    points: [
-      '三大询盘来源国：<span class="em">美国 32%</span> / <span class="em">德国 18%</span> / <span class="em">英国 12%</span>',
-      '美/英/加/德核心国家建议 P4P 定向溢价 20%，阿联酋等低效国家暂停投放',
-      '德国/英国客单价高于美国，适合推中高端产品线'
-    ],
-    rows: [['国家','流量占比','询盘数'],['美国','32%','142'],['德国','18%','81'],['英国','12%','55']]
-  },
-  '买家画像': {
-    sub: 'B端买家特征',
-    points: [
-      '主力买家：<span class="em">电子分销商</span>，月采购 $5K-20K，占询盘 45%',
-      '关注点：UL/CE 认证、交期稳定性、阶梯价、48h打样',
-      '决策链：采购经理→技术确认→老板审批，需备好认证与技术资料'
-    ],
-    rows: [['买家类型','占比','月采购'],['分销商','45%','$5K-20K'],['终端工厂','30%','$2K-10K'],['贸易商','25%','$10K-50K']]
-  },
-  '品类机会洞察': {
-    sub: '本周热点品类',
-    points: [
-      '本周热点：<span class="em">Lifepo4 / BMS / Portable Power</span> 搜索涨幅靠前',
-      'Lifepo4 12V 100Ah 询盘 +35%，处于高增长期，建议尽快上新',
-      '结合供应链优势，锁定 2-3 个机会品类优先布局'
-    ],
-    rows: [['品类','热度','趋势'],['Lifepo4','高','+35%'],['BMS','中高','+22%'],['Portable Power','中','+18%']]
-  },
-  '一键选品': {
-    sub: 'AI全域选品',
-    points: [
-      '多信号源融合：<span class="em">国际站多榜单 + 50款趋势品榜单 + Google趋势品 + Tiktok趋势品</span> 等',
-      '国际站多榜单：类目TOP50/国家榜单/TopRanking榜 多维交叉',
-      '跨平台趋势：Google Trends 搜索热度 + TikTok 话题热度捕捉新兴品',
-      '交叉选品报告已产出 20 个 P0 PID，建议优先执行橱窗勾选 + P4P 推广',
-      '选品一票否决制：专利/售后/物流风险品直接剔除'
-    ],
-    rows: [['选品源','产出','状态'],['国际站多榜单','TOP50','可查看'],['Google趋势品','热度榜','可查看'],['Tiktok趋势品','话题榜','可查看'],['P0产品','20款','待执行']]
-  },
-  '一键整理关键词': {
-    sub: '多维度收集词库 · 关键词整理',
-    points: [
-      '<span class="em">多维度收集词库</span>：热搜词/蓝海词/竞品词/长尾词多维采集，目标 500+ 词',
-      '<span class="em">关键词整理</span>：按搜索热度/竞争度/相关性四象限分类整理，生成海军蓝风格 Excel',
-      '词库可一键导入直通车，覆盖《主词表》与《关键词词库》'
-    ],
-    rows: [['词库','数量','用途'],['核心词','86','标题'],['长尾词','240','发品'],['场景词','120','P4P']]
-  },
-  '批量标题': {
-    sub: 'AI标题引擎 · 中英双语',
-    points: [
-      '<span class="em">批量标题生成（中英）</span>：中英文标题批量生成，执行 7 项合规扫描（品牌词后置、多语言清洗）',
-      '<span class="em">商品卖点生成（中英）</span>：中英卖点自动萃取（五维卖点），支持批量 50 款',
-      '<span class="em">6张主图卖点</span>：主图卖点文案生成，配合场景/卖点图使用',
-      '配合 A/B 测试对比曝光/点击/转化数据'
-    ],
-    rows: [['能力','支持','状态'],['批量标题（中英）','50款','已完成'],['卖点生成（中英）','50款','已完成'],['6张主图卖点','6图/品','可生成']]
-  },
-  '批量发品': {
-    sub: '模板化批量发布',
-    points: [
-      'Excel 导入产品信息 → 自动生成标题/属性 → <span class="em">批量发布 50 款</span>',
-      '支持 1688/淘宝链接一键搬家，自动翻译适配类目',
-      '发布后自动检查审核状态与失败原因'
-    ],
-    rows: [['指标','数值','状态'],['批量发布','50款','支持'],['一键搬家','链接式','支持'],['审核通过率','96%','正常']]
-  },
-  '广告策略': {
-    sub: '全站推分层打法',
-    points: [
-      '新店铺/整店铺效果不好：<span class="em">全站推-日预算 / AI智投（所有品）</span>',
-      '1-2个月后，针对转化高的产品<span class="em">单独创建计划</span>',
-      '<span class="em">选品</span>：普通品/潜力优品/新品阶段 —— 全站推-日预算/AI智投（按产品分类）',
-      '<span class="em">选爆品</span>：优品 —— 全站推-日预算/AI智投',
-      '<span class="em">打爆品</span>：优爆品阶段 —— 全站推-推商品（按产品分类）+ 关键词推广（快速修改标签）'
-    ],
-    rows: [['阶段','推广方式','预算'],['选品期','全站推/AI智投','$30-50/天'],['选爆品','全站推/AI智投','$60-100/天'],['打爆品','推商品+关键词','$80-120/天']]
-  },
-  '广告诊断优化': {
-    sub: '五维诊断：计划/产品/国家/关键词/询盘',
-    points: [
-      '<span class="em">广告计划数据</span>：分计划花费/曝光/点击/ROI 周度复盘，识别高花费低询盘计划',
-      '<span class="em">产品数据</span>：4 款拖后腿产品需调价，6 款高潜产品加价',
-      '<span class="em">国家数据</span>：美/英/加/德溢价20%，阿联酋等暂停投放',
-      '<span class="em">关键词精准度</span>：24 个0询盘词清洗，词-产品匹配度检测',
-      '<span class="em">询盘质量</span>：广告来源询盘 L1-L4 等级分布与转化评估'
-    ],
-    rows: [['维度','数量','动作'],['拖后腿产品','4','调价'],['0询盘词','24','剔除'],['高潜产品','6','加价']]
-  },
-  '品广诊断优化': {
-    sub: '顶展 + 问鼎效果',
-    points: [
-      '顶展在投 5 词，2 词 ROI<1.5 需优化',
-      '问鼎覆盖 8 个品牌词，月品牌搜索量 320',
-      '建议低效词更换或调价，机会词加大投放'
-    ],
-    rows: [['类型','数量','状态'],['顶展词','5','2词待优化'],['问鼎词','8','正常'],['品牌搜索','320/月','+12%']]
-  },
-  '优爆品提升': {
-    sub: '产品分层 + 12项运营动作诊断',
-    points: [
-      '<span class="em">真爆品 24 款</span>：询盘312，资源全绑定，主推核心',
-      '<span class="em">潜力爆品</span>：顶展问鼎优先绑定培育；<span class="em">优品 38 款</span>：保持12项完整度',
-      '<span class="em">48H成为优品</span>：48小时优化达标；<span class="em">潜力优品+普通品</span>：按数据晋级',
-      '<span class="em">假爆品 6 款</span>：虚标爆品清洗降级',
-      '12项运营动作逐品诊断：Pouch Battery 完整度仅42%，需补橱窗/顶展/优惠券/EDM'
-    ],
-    rows: [['分层','数量','策略'],['真爆品','24','全资源绑定'],['优品','38','保持完整度'],['假爆品','6','清洗降级']]
-  },
-  '产品分层': {
-    sub: '六层产品结构',
-    points: [
-      '<span class="em">真爆品 24 款</span>：询盘312，资源全绑定，主推核心',
-      '<span class="em">潜力爆品</span>：有爆品潜质，顶展问鼎优先绑定培育',
-      '<span class="em">优品 38 款</span>：保持12项运营动作完整度',
-      '<span class="em">48H成为优品</span>：48小时内优化达标，快速迭代',
-      '<span class="em">潜力优品+普通品</span>：待提升产品池，按数据晋级',
-      '<span class="em">假爆品 6 款</span>：虚标爆品需清洗降级'
-    ],
-    rows: [['分层','数量','策略'],['真爆品','24','全资源绑定'],['潜力爆品','—','重点培育'],['优品','38','保持完整度'],['假爆品','6','清洗降级']]
-  },
-  '核心品跟进': {
-    sub: '登记表追踪',
-    points: [
-      '逐品追踪运营动作落地进度，<span class="em">每周更新核心产品登记表</span>',
-      '本周 P0：Pouch Battery 移入橱窗（完整度42%→75%）',
-      'P1：21700 Cell 申请顶展词（67%→92%）'
-    ],
-    rows: [['优先级','动作','目标'],['P0','移入橱窗','75%'],['P1','申请顶展','92%'],['P2','补优惠券','100%']]
-  },
-  '店铺诊断': {
-    sub: '全店健康度扫描',
-    points: [
-      '综合评分 B+：星级3星（距4星差12分）、点击率2.0%预警',
-      '付费流量占比 38% 偏高，需优化自然流量',
-      '询盘转化率 0.35% 低于行业均值，重点优化详情页'
-    ],
-    rows: [['维度','评分','状态'],['星级','3星','预警'],['流量结构','B','付费偏高'],['转化漏斗','C','待提升']]
-  },
-  '产品诊断': {
-    sub: '单品四维数据',
-    points: [
-      '曝光→点击→询盘→成交四维诊断，支持批量 20 款/次',
-      '识别 90 天零效果产品 12 款，建议优化/合并/下架',
-      'ID 0568 等低点击率产品需重构主图'
-    ],
-    rows: [['分层','产品数','询盘'],['优爆品','24','312'],['普通品','38','118'],['低效品','12','6']]
-  },
-  '广告诊断': {
-    sub: '全账户效果分析',
-    points: [
-      '月花费 $4,200，综合 ROI 3.2，<span class="em">24 个 0询盘词待清洗</span>',
-      '识别高花费低效计划与机会词',
-      '竞品广告监控：东莞健晨兴等重点竞品动态'
-    ],
-    rows: [['指标','数值','状态'],['月花费','$4,200','预算内'],['ROI','3.2','正常'],['待清洗词','24','待执行']]
-  },
-  '老店运营诊断规划': {
-    sub: '第1步 店铺诊断 → 第2步 老店运营规划',
-    points: [
-      '<span class="em">【第1步 · 店铺诊断（七维 + 落地）】</span>',
-      '星等级：当前3星，距4星差12分——逐项突破星级短板指标',
-      '子类目诊断：子类目曝光/点击/询盘对比，识别优势类目与弱势类目',
-      '优爆品诊断：真爆品24 / 潜力爆品 / 假爆品6 识别，12项运营动作完整度',
-      '橱窗诊断：橱窗利用率68%，优品橱窗占比检查，优先放优爆品',
-      '产品诊断：产品分层（优爆品/普通品/低效品），90天零效果品识别',
-      '广告诊断：P4P水位诊断，0询盘词清洗，地域出价优化',
-      '员工诊断：业务员询盘/回复率/成交/金额对比，跟进质量评估',
-      '落地规划：根据诊断问题输出落地整改优化执行计划，明确整改动作、负责人与完成时间，纳入周度跟进',
-      '<span class="em">【第2步 · 老店运营规划】</span>',
-      '店铺定位：定方向+装修——市场定位（定类目定国家）· 客群定位 · 公司优势 why choose us? · HOME页+详情装修（2天）· 产品定位（分类+选品5大模块）',
-      '基础建设：关键词库（词全 5天，《主词表》《关键词词库》）· 产品发布（模板确认1天 + 发品布词15天，不重复发品、多发行业定向征品）',
-      '流量获取（P4P加推 1个月，满足100个品后开始）：整店效果不好—全站推·日预算/AI智投（所有品）；1个月后转化高的产品单独建计划；选品—全站推按分类；选爆品—全站推+AI智投；打爆品—全站推·推商品+关键词推广；快速选出公司流量款、转化高的产品',
-      '打优爆品进榜单（六层结构）：优爆品资源绑定（顶展/问鼎）· 营销加权 · TOP RANKING榜单（Most popular/Hot selling/Best reviewed）· 国家询盘榜',
-      '诊断优化（四维诊断）：广告计划/产品/国家/关键词四维复盘 · 每周2和每月3号优化 · 拖后腿产品调价 · 0询盘词清洗'
-    ],
-    rows: [['步骤','项目','要点'],['第1步','店铺诊断','星等级/子类目/优爆品/橱窗/产品/广告/员工+落地'],['第2步','运营规划','店铺定位→基础建设→流量获取→爆品榜单→诊断优化']]
-  },
-  '店铺装修文案': {
-    sub: '一键输出店铺装修文案',
-    points: [
-      '<span class="em">【店铺装修文案 · 一键输出】</span>',
-      '店铺定位语：一句话讲清"卖什么品类 + 有什么实力 + 差异化优势"（工厂直供/48h打样）',
-      '主视觉 Banner 文案：核心类目 + 大促/新客利益点 · PC/无线端各 1 套',
-      '公司介绍页：Why Choose Us（工厂实力/产线/设备/团队）· 认证资质陈列（UL/CE/FDA 等）',
-      '分类导航页文案：按场景/系列/卖点分组，帮助买家快速定位',
-      '店铺公告/首页主推位文案：爆款 + 服务承诺（48h打样 · 支持定制）'
-    ],
-    rows: [['装修区块','文案要点','状态'],['店铺定位语','品类+实力+差异化','一键生成'],['Banner文案','主推类目+利益点','一键生成'],['公司页','Why Choose Us+认证','一键生成'],['分类导航','场景/系列分组','一键生成']]
-  },
-  '详情页装修文案': {
-    sub: '一键输出详情页装修文案',
-    points: [
-      '<span class="em">【详情页装修文案 · 一键输出】</span>',
-      '首屏卖点区：规格-参数-核心卖点一句话（对应搜索词）',
-      '场景图 + 细节图文案：尺寸/材质/工艺标注，痛点 → 方案',
-      '工厂实力区：车间/产线/设备实拍 + 检测流程',
-      '认证与承诺：证书展示 · 交期（48h打样）· 包装物流 · FAQ · 合作流程',
-      '关联推荐区：同系列/互补品推荐文案，提升客单价'
-    ],
-    rows: [['详情区块','文案要点','状态'],['首屏卖点','规格+核心卖点','一键生成'],['场景细节','尺寸材质工艺','一键生成'],['工厂实力','产线实拍+检测','一键生成'],['认证承诺','证书+交期+FAQ','一键生成']]
-  },
-  '运营规划清单': {
-    sub: 'TOP店落地计划：基础建设(15天-1个月) → 流量获取 → 爆品打造 → 推广优化 → 进榜单',
-    points: [
-      '<span class="em">【基础建设 · 15天-1个月】</span>',
-      '动员会：负责人主持落地启动会，明确各职责人及落地时间，重新梳理运营SOP导图，打印张贴公司墙上',
-      '市场定位SOP（1天）：市场定位—定类目 定国家；客群定位—定客户类型 提炼痛点；公司定位—why choose us?',
-      '公司定位SOP（2天）：HOME页+详情装修文案 · PC/无线端装修文案（素材+图片+视频）· 详情描述文案及模板设计（优先做）',
-      '产品定位SOP：产品分类（后台分组）· 选品1-2天（通过5大模块）',
-      '关键词SOP（5-7天）：关键词库（词全）—《主词表》《关键词词库》建立及整理',
-      '产品发布SOP（1天）：产品发布模板确认，发布第1款确认整体布局（反复确认）',
-      '发品布词（15天）：快速发品覆盖关键词（不重复发品，多发行业定向征品）',
-      '<span class="em">【流量获取 · 满50-100个品开始推广，1个月】</span>',
-      '营销推广SOP：新店/全店效果不好—全站推·日预算/AI智投（所有品）；1-2个月后针对转化高的产品单独创建计划',
-      '选品分层投放：普通品/潜力优品/新品—全站推·日预算/AI智投（按产品分类）；优品—全站推·日预算/AI智投；优爆品—全站推·推商品（按产品分类）+ 关键词推广（快速修改标签）',
-      '快速选出公司流量款、转化高的产品',
-      '<span class="em">【爆品打造】</span>',
-      '优爆品资源绑定：品广加权—顶展和问鼎优先绑定优爆品',
-      '营销加权-运营：发布定向征品 · 优爆品挑战赛 · 布产品网/关键词网 · 官方活动绑定主推 · 订单绑定主推链接 · 积累10+好评 · 10+成交买家 · 优爆款设橱窗 · 主营认证产品 · 绑定产品认证证书 · 爆款折扣促销 · 店铺星等级3星以上',
-      '营销加权-业务：每天20封站内营销+EDM营销 · 直播/短视频带爆品 · RFQ优先报主推品 · 业务员开发信附链接 · 好评100%回复（覆盖关键词/推荐核心品）· 关联订单优先绑核心产品',
-      '<span class="em">【推广优化】</span>',
-      '店铺优化SOP：目的—产品和人群精准匹配、给产品贴正确标签；按曝光（确保所有词TK）/点击/访客/反馈/订单转化优化',
-      '每周2和每月3号：对数据不好的产品进行优化；新产品加入广告3天后优化；90天以上数据差的不优化，考虑重新发布',
-      '<span class="em">【进榜单】</span>',
-      'TOP RANKING：Most popular / Hot selling / Best reviewed 榜单—统计进入各榜单的产品ID及排名',
-      '国家榜单-询盘榜单：统计进入不同国家的榜单排名'
-    ],
-    rows: [['阶段','落地项目','周期/节奏'],['基础建设','动员会·市场/公司/产品定位·词库·发品','15天-1个月'],['流量获取','P4P全站推/AI智投·分层投放','50-100品起·1个月'],['爆品打造','资源绑定+营销加权（运营/业务）','持续'],['推广优化','四维诊断+每周2/每月3号','周复盘'],['进榜单','TOP RANKING+国家询盘榜','持续跟踪']]
-  },
-  '新店铺落地执行表': {
-    sub: '第1个月：基建 → 拉数据 → 复盘（西凯西·东莞）',
-    points: [
-      '<span class="em">【基建】</span>（7.15已完成）',
-      '店铺定位：同行分析/客户定位/产品定位/公司定位/3个月运营规划（鸡公老师）',
-      '美工装修（详情+首页文案设计确认）· 产品分类梳理（后台分组）· 店铺管理（公司信息完整度）',
-      '关键词库（主词表+词库表，HOODIES/T-SHIRT分类完成）· 产品素材（分类主图）· 详情模板（每类1条确认）',
-      '全力发品（优先发无TK词，目标关键词覆盖完）· 老链接优化（CTR<1%/询盘率<2%的优化，转化好的不动）',
-      '<span class="em">【拉数据】</span>',
-      '广告：每周看3次（屏蔽词/国家）优化1次 · 智能创意10个 · 优先绑定主推产品 · 每2周导报表（顶展CTR<5%/问鼎CTR<2%优化）',
-      '核心产品：询盘多的积累数据 · 订单优先绑核心品 · 登记核心品跟进表 · 业务询盘分析登记',
-      '店铺数据：每周2/每月3号导【店铺核心指标/产品分层/广告/月报表】分析，及时优化',
-      '<span class="em">【第1阶段复盘】</span>',
-      '星等级/优爆品数/子类目复盘（类目流量及转化）',
-      '产品分析：每周2导出 · 曝光500+看CTR（参考行业均值，转化低粉色）· 点击20+看询盘率5%',
-      '产品分层提升：普通+潜力→优品（广告跑数据/AI助手/定向征品）· 优品→潜力爆品（优中选优）· 爆品（询盘>10重点推广，自然流量好的不推）· 月底制定下月优爆品目标',
-      '广告报表四维：计划（钱/CTR/L1+占比/商机转化率）· 产品（曝光300看CTR，无商机剔除）· 国家（点击20看转化，无转化屏蔽）· 关键词（不精准词屏蔽）'
-    ],
-    rows: [['阶段','项目','节奏'],['基建','定位/装修/词库/发品','7.15起'],['拉数据','广告/核心品/店铺数据','每周2/每月3'],['复盘','产品/分层/广告报表','每周2导出']]
-  },
-  '落地规划': {
-    sub: '运营经营计划 + 业务经营计划',
-    points: [
-      '<span class="em">【运营经营计划】</span>',
-      'SOP落地：新店5阶段（定位→基建→流量→爆品→诊断）+ 老店六维诊断整改',
-      '产品：Pouch Battery 移入橱窗（P0）· ID 0568 重构主图 · 低效品12款优化',
-      '广告：24个0询盘词清洗（P1）· 21700 Cell 申请顶展 · 核心国家溢价20%',
-      '大促：9月采购节报名审批 + 8月P4P预算翻倍',
-      '<span class="em">【业务经营计划】</span>',
-      '客户跟进：Jean Haagar PI确认 · Fernando Diaz PCM细节 · Christian 封闭式推进',
-      '询盘回复：每日跟进，回复率78%→目标85%，响应≤2h',
-      '营销触达：爆款每日EDM + 20封站内营销 · 优质RFQ报价',
-      '客户挽回：益佳鑫老客户流失（19.5%）挽回机制启动'
-    ],
-    rows: [['分类','计划','状态'],['运营经营','SOP/产品/广告/大促','进行中'],['业务经营','客户/询盘/营销/挽回','进行中']]
-  },
-  '成交顾问': {
-    sub: '客户背调顾问 · 询盘分析回复',
-    points: [
-      '<span class="em">客户背调顾问</span>：六阶段背调（公司核实→业务匹配→采购能力→决策链→信用评估→风险提示），47份报告',
-      '<span class="em">询盘分析回复</span>：询盘质量分级（A级22%）+ 业务员跟进分析（响应2.3h/回复率78%）',
-      '谈判话术：异议处理 · 压价应对 · 逼单技巧（六维交付）',
-      '重点客户：Jean Haagar PI已发待确认 · Fernando Diaz 等PCM细节'
-    ],
-    rows: [['能力','覆盖','状态'],['客户背调','47份','已积累'],['询盘分析','456条','已覆盖'],['谈判话术','6维','可调用']]
-  },
-  '优质RFQ信息采集': {
-    sub: 'RFQ自动筛选采集',
-    points: [
-      '自动筛选<span class="em">优质RFQ</span>：本周采集 24 条优质RFQ，高星级买家 8 个已推送',
-      '极端过滤规则：国家 / 买家星级 / 报价人数上限三重筛选',
-      '优质 RFQ 直达业务员，避免无效报价浪费时间'
-    ],
-    rows: [['采集项','数量','状态'],['优质RFQ','24','已采集'],['高星级买家','8','已推送'],['待报价','5','待跟进']]
-  },
-  'RFQ报价跟进表': {
-    sub: '报价全流程管理',
-    points: [
-      '本周新增 RFQ 38 条，已报价 24 条，<span class="em">8 条待跟进</span>，已成交 3 条',
-      'RFQ智能体极端过滤：国家/买家星级/报价人数上限',
-      '重点 RFQ：Custom PCB Assembly（5星买家，1000pcs）跟进中'
-    ],
-    rows: [['状态','数量','占比'],['新增','38','—'],['已报价','24','63%'],['待跟进','8','21%'],['已成交','3','8%']]
-  },
-  '询盘明细采集分析': {
-    sub: '询盘明细批量采集与质量分析',
-    points: [
-      '询盘明细<span class="em">一键批量采集</span>：本月采集 456 条询盘明细',
-      '质量分级：A级22% / B级38% / C/D级40%，重点跟进A级',
-      '按产品/国家/来源渠道多维度分析询盘构成'
-    ],
-    rows: [['维度','数量','状态'],['询盘明细','456','已采集'],['A级询盘','100','重点跟进'],['已同步','456','已完成']]
-  },
-  '客户列表采集分析': {
-    sub: '客户列表数据采集与画像分析',
-    points: [
-      '客户列表<span class="em">批量采集</span>：采集客户 86 家（分销商45%/终端工厂30%/贸易商25%）',
-      '客户画像：电子分销商为主，月采购 $5K-20K',
-      '结合询盘来源识别高潜客户，进入成交顾问跟进'
-    ],
-    rows: [['客户类型','占比','数量'],['分销商','45%','39'],['终端工厂','30%','26'],['贸易商','25%','21']]
-  },
-  '询盘登录表': {
-    sub: '统一录入与跟进',
-    points: [
-      '全店询盘统一录入、分配、跟进状态追踪',
-      '本月 456 条询盘，业务员平均响应 2.3h，回复率 78%',
-      '重点客户：Jean Haagar（法国）PI已发待确认，Fernando Diaz（美国）等PCM细节'
-    ],
-    rows: [['客户','国家','状态'],['Jean Haagar','法国','跟进中'],['Fernando Diaz','美国','待确认'],['Christian R.','美国','需关注']]
-  },
-  '客户背调': {
-    sub: '六阶段背调SOP',
-    points: [
-      '六阶段流程：公司核实→业务匹配→采购能力→决策链→信用评估→风险提示',
-      '已积累 <span class="em">47 份背调报告</span>，含 LinkedIn 验证 + 海关数据',
-      '背调通过率 68%，有效降低恶意询盘与比价风险'
-    ],
-    rows: [['维度','覆盖','状态'],['公司核实','100%','已覆盖'],['采购能力','86%','已覆盖'],['信用评估','72%','已覆盖']]
-  },
-  '询盘分析': {
-    sub: '询盘质量评估',
-    points: [
-      '按国家/产品/渠道分析询盘质量分级：A级占比 22%（目标30%）',
-      '业务员跟进分析：响应速度/回复率/转化率多维对比',
-      '支持每周询盘分析会主持材料一键生成'
-    ],
-    rows: [['等级','占比','处理'],['A级','22%','重点跟进'],['B级','38%','常规'],['C/D级','40%','批量维护']]
-  }
-};
-
+/**
+ * 同步两个面板的高度；位置由正常文档布局决定，不能再以浮层覆盖运营面板。
+ * @returns {void} 无参数、无返回值；必要元素不存在时直接返回，不主动抛出异常。
+ */
 function positionAiDrawer() {
   const panel = document.querySelector('.plugin-panel');
   const drawer = document.getElementById('aiDrawer');
   if (!panel || !drawer) return;
-  const pr = panel.getBoundingClientRect();
-  const dw = drawer.offsetWidth;
-  // 抽屉右缘与面板左缘贴合连接：重叠 4px 覆盖面板圆角与阴影，视觉无缝
-  drawer.style.left = (pr.left - dw + 4) + 'px';
-  drawer.style.top = pr.top + 'px';
-  drawer.style.height = pr.height + 'px';
+  // 使用与响应式样式一致的上下留白，让报告正文滚动时保留底部输入和关闭按钮。
+  const verticalPadding = window.innerWidth <= 760 ? 24 : 40;
+  const height = Math.min(panel.getBoundingClientRect().height, Math.max(0, window.innerHeight - verticalPadding));
+  drawer.style.height = height + 'px';
 }
-
-let currentAiSummary = null;
 
 function openAiDrawer(summaryEl) {
   let name = summaryEl.childNodes[0].textContent.trim();
@@ -4633,64 +4076,15 @@ function markFuncActive(el) {
   }
 }
 
+/**
+ * 打开并排的诊断面板并提交当前功能；参数为功能名和被点击元素，无返回值或主动异常。
+ */
 function openAiDrawerByName(name, sourceEl) {
-  positionAiDrawer();
   markFuncActive(sourceEl);
-  currentAiSummary = sourceEl || null;
-  // 每次打开：重置对话模式，绑定当前功能（每个抽屉独立对话）
-  aiChatName = name;
-  aiChatReady = false;
-  document.getElementById('aiChatMsgs').innerHTML = '';
-  document.getElementById('aiChat').classList.remove('open');
-  const data = AI_ANALYSIS[name] || {
-    sub: 'AI 智能分析',
-    points: ['已加载「' + name + '」数据报表，AI 正在提炼关键结论与执行建议'],
-    rows: [['曝光量','48,320'],['询盘数','456'],['转化率','0.35%']]
-  };
-
-  document.getElementById('aiMask').classList.add('show');
+  document.body.classList.add('ai-open');
   document.getElementById('aiDrawer').classList.add('open');
-  document.getElementById('aiTitle').textContent = '🤖 AI分析 · ' + name;
-  document.getElementById('aiContent').innerHTML = '';
-  document.querySelector('.ai-loading').style.display = 'flex';
-  document.getElementById('aiContent').style.display = 'none';
-  const btn = document.getElementById('aiDownloadBtn');
-  btn.textContent = '⬇ 下载分析报表';
-  btn.style.background = '';
-
-  // 模拟AI分析加载
-  setTimeout(function () {
-    document.querySelector('.ai-loading').style.display = 'none';
-    const content = document.getElementById('aiContent');
-    content.style.display = 'block';
-    content.innerHTML =
-      '<div class="ai-name">' + name + '</div>' +
-      '<div class="ai-sub">' + data.sub + ' · AI自动分析 · ' + new Date().toLocaleString('zh-CN') + '</div>' +
-      data.points.map(function (p, i) {
-        return '<div class="ai-point"><span class="pt-dot">' + (i + 1) + '</span><span class="pt-text">' + p + '</span></div>';
-      }).join('') +
-      '<div class="ai-table-wrap"><table class="report-table">' +
-        data.rows.map(function (r, i) {
-          return '<tr class="' + (i === 0 ? 'report-th' : '') + '">' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>';
-        }).join('') +
-        '</table></div>';
-    // 运营规划清单 / 老店运营诊断规划：弹出即展开AI对话，可直接追问
-    if (name === '运营规划清单' || name === '老店运营诊断规划') {
-      document.getElementById('aiChat').classList.add('open');
-      if (!aiChatReady) initAiChat();
-    }
-  }, 1200);
-
-  document.getElementById('aiDownloadBtn').onclick = function () {
-    this.textContent = '✓ 已下载';
-    this.style.background = 'var(--green)';
-    this.style.borderColor = 'var(--green)';
-    // 下载完成 → 标记当前功能为"完成"
-    if (currentAiSummary) {
-      const st = currentAiSummary.querySelector('.sop-status');
-      if (st) { setSopStatus(st, true); }
-    }
-  };
+  positionAiDrawer();
+  window.YD_OPERATIONS_WORKFLOW.generate(name);
 }
 
 // 设置SOP功能状态：true=完成(绿) false=未完成(红)
@@ -4714,106 +4108,12 @@ document.querySelectorAll('details.sop-item > summary').forEach(function (s) {
 });
 
 function closeAiDrawer() {
+  window.YD_OPERATIONS_WORKFLOW.cancel();
   document.getElementById('aiDrawer').classList.remove('open');
-  document.getElementById('aiMask').classList.remove('show');
+  document.body.classList.remove('ai-open');
   document.querySelectorAll('.func-item.func-on, details.sop-item > summary.func-on, details.sop-wrap > summary.func-on').forEach(function (x) {
     x.classList.remove('func-on');
   });
-}
-
-// ===== AI抽屉：对话模式 =====
-let aiChatName = '';
-let aiChatReady = false;
-
-const AI_QUICK_QS = [
-  '怎么定类目？',
-  '目标国家怎么选？',
-  '客群怎么定位？',
-  '公司优势怎么写？'
-];
-
-const AI_REPLIES = [
-  { keys: ['类目', '定类目'], reply: '定类目建议：1) 看行业热度——锂电池组近30天询盘 +12.3%，处于<span class="em">高增长期</span>；2) 看竞争度——TOP50榜单中本类目占 12 席，机会中等；3) 结合供应链优势锁定 2-3 个主类目，首发 12 款产品。' },
-  { keys: ['国家', '市场'], reply: '目标国家建议：<span class="em">美国 32%</span>、<span class="em">德国 18%</span>、<span class="em">英国 12%</span> 为三大询盘来源国。美/英/加/德核心国家建议 P4P 定向溢价 20%，阿联酋等低效国家可暂停投放。' },
-  { keys: ['客群', '客户', '画像'], reply: '客群定位：主力买家为<span class="em">电子分销商</span>，月采购 $5K-20K，关注 UL/CE 认证与交期。建议：详情页突出认证 + 产能 + 48h打样能力，针对分销商设计阶梯价。' },
-  { keys: ['公司', '优势', 'why'], reply: '公司定位（why choose us）：金品诚企3星 · 24款优爆品 · 工厂直供 · 48h快速打样 · 100%好评回复。建议将 3 大核心优势前置到 HOME 页首屏与详情页第 1 屏。' },
-  { keys: ['SOP', '进度', '清单'], reply: '当前「' + aiChatName + '」运营规划清单按 5 大步推进：<span class="em">基础建设(15天-1个月) → 流量获取(50-100品起推) → 爆品打造 → 推广优化(每周2/每月3号) → 进榜单</span>。建议负责人主持落地启动会，明确各职责人及落地时间。' },
-  { keys: ['基础', '词库', '关键词', '发品'], reply: '基础建设要点：<span class="em">动员会</span>先行（明确职责人与时间）；<span class="em">市场/公司/产品定位</span>定方向（1-2天）；<span class="em">关键词SOP 5-7天</span>建《主词表》+《关键词词库》词全；<span class="em">产品发布SOP 1天</span>确认首款整体布局；<span class="em">发品布词15天</span>快速覆盖关键词——不重复发品、多发行业定向征品。' },
-  { keys: ['P4P', '推广', '流量', '智投'], reply: '流量获取节奏：满 <span class="em">50-100个品</span> 开始推广（全站推·日预算/AI智投，1个月）；1-2个月后针对<span class="em">转化高的产品单独创建计划</span>；分层投放：普通/潜力/新品→全站推按分类，优品→全站推+AI智投，优爆品→全站推·推商品+关键词推广，快速筛出公司流量款。' },
-  { keys: ['爆品', '资源', '加权', '橱窗'], reply: '爆品打造三步：1) <span class="em">资源绑定</span>——顶展/问鼎优先绑优爆品；2) <span class="em">营销加权-运营</span>——定向征品·挑战赛·产品/关键词网·橱窗·主营认证·绑认证证书·爆款折扣·星等级3星+；3) <span class="em">营销加权-业务</span>——每天20封站内营销+EDM·直播短视频带品·RFQ报主推·好评100%回复·订单优先绑核心品。' },
-  { keys: ['榜单', 'TOP', '排名'], reply: '进榜单跟踪：<span class="em">TOP RANKING</span>——Most popular / Hot selling / Best reviewed 榜单统计产品ID及排名；<span class="em">国家榜单-询盘榜单</span>——统计不同国家榜单排名，为广告定向与优爆品调整提供依据。' },
-  { keys: ['诊断', '店铺诊断'], reply: '店铺诊断第1步按七维+落地推进：<span class="em">星等级</span>（当前3星距4星差12分，逐项突破短板）· <span class="em">子类目</span>（曝光/点击/询盘对比识别强弱类目）· <span class="em">优爆品</span>（真爆品24/假爆品6识别+12项动作完整度）· <span class="em">橱窗</span>（利用率68%优先放优爆品）· <span class="em">产品</span>（分层+90天零效果品）· <span class="em">广告</span>（P4P水位+0询盘词清洗+地域优化）· <span class="em">员工</span>（询盘/回复率/成交/金额对比）→ 输出落地整改计划（含负责人+完成时间，周度跟进）。' },
-  { keys: ['星级', '星等级', '4星'], reply: '星等级突破：当前 <span class="em">3星，距4星差12分</span>。建议按星级评分项逐项补分——提升星等级核心分项：橱窗绑优爆品、主营认证、爆款订单转化与好评积累，月度复盘差距项。' },
-  { keys: ['橱窗'], reply: '橱窗优化：当前利用率 <span class="em">68%</span>。优先把 <span class="em">真爆品/潜力爆品移入橱窗</span>，检查优品橱窗占比，保持橱窗位持续绑定优爆品以拉自然流量加权。' },
-  { keys: ['员工', '业务员', '跟进'], reply: '员工诊断：对比业务员<span class="em">询盘量/回复率/成交数/成交金额</span>，识别跟进短板。建议：响应≤2h、回复率目标85%、未成交询盘复盘，Top业务员话术沉淀为模板推广全员。' },
-  { keys: ['报表', '下载', '导出'], reply: '可以点击底部 <span class="em">⬇ 下载分析报表</span> 按钮导出当前分析结果（Excel/PDF），或切换到 📊 分析模式查看完整数据表格。' }
-];
-
-function initAiChat() {
-  aiChatReady = true;
-  const quick = document.getElementById('aiChatQuick');
-  const qs = aiChatName === '老店运营诊断规划'
-    ? ['店铺诊断先做什么？', '星等级怎么提升？', '橱窗怎么优化？', '诊断后怎么落地？']
-    : aiChatName === '运营规划清单'
-      ? ['基础建设做什么？', 'P4P怎么推？', '爆品怎么打造？', '进榜单怎么跟踪？']
-      : AI_QUICK_QS;
-  quick.innerHTML = qs.map(function (q) {
-    return '<button onclick="sendQuickChat(\'' + q + '\')">' + q + '</button>';
-  }).join('');
-  appendAiMsg('ai', '你好，我是 AI 运营顾问！我正在分析「<span class="em">' + aiChatName + '</span>」的数据报表。有什么运营问题可以直接问我，或点击上方快捷问题。');
-}
-
-function appendAiMsg(role, html) {
-  const box = document.getElementById('aiChatMsgs');
-  const msg = document.createElement('div');
-  msg.className = 'chat-msg ' + role;
-  const avatar = role === 'ai' ? '🤖' : '我';
-  msg.innerHTML = '<div class="chat-avatar">' + avatar + '</div><div class="chat-bubble"></div>';
-  // 用户输入只作为文本展示；内置报告保留原始排版。
-  const bubble = msg.querySelector('.chat-bubble');
-  if (role === 'user') bubble.textContent = html; else bubble.innerHTML = html;
-  box.appendChild(msg);
-  box.scrollTop = box.scrollHeight;
-}
-
-function sendQuickChat(q) {
-  document.getElementById('aiChatInput').value = q;
-  sendAiChat();
-}
-
-function sendAiChat() {
-  const input = document.getElementById('aiChatInput');
-  const q = input.value.trim();
-  if (!q) return;
-  input.value = '';
-  // 输入即在分析下方展开对话模式
-  document.getElementById('aiChat').classList.add('open');
-  if (!aiChatReady) initAiChat();
-  appendAiMsg('user', q);
-  // AI思考中
-  appendAiMsg('ai', '<span class="em">AI 思考中...</span>');
-  setTimeout(function () {
-    // 移除思考中
-    const msgs = document.getElementById('aiChatMsgs');
-    const last = msgs.lastElementChild;
-    if (last && last.textContent.indexOf('思考中') !== -1) last.remove();
-    // 关键词匹配回复
-    let reply = '';
-    for (let i = 0; i < AI_REPLIES.length; i++) {
-      const r = AI_REPLIES[i];
-      let hit = false;
-      for (let k = 0; k < r.keys.length; k++) {
-        if (q.indexOf(r.keys[k]) !== -1) { hit = true; break; }
-      }
-      if (hit) { reply = r.reply; break; }
-    }
-    // 兜底：基于当前功能的分析要点
-    if (!reply) {
-      const pts = AI_ANALYSIS[aiChatName] ? AI_ANALYSIS[aiChatName].points[0] : '';
-      reply = '关于「' + aiChatName + '」：' + pts + ' 如需更细的分析，可切换到 📊 分析模式查看完整报表，或点击 ⬇ 下载。';
-    }
-    appendAiMsg('ai', reply);
-  }, 900);
 }
 
 // 绑定SOP功能项：点击 → 左侧AI分析抽屉
@@ -4831,7 +4131,7 @@ document.querySelectorAll('details.sop-wrap > summary').forEach(function (s) {
   }
 });
 
-// 窗口缩放时保持抽屉与面板拼接
+// 窗口缩放时同步面板高度；横向或纵向排列由 CSS 根据 iframe 宽度处理。
 window.addEventListener('resize', function () {
   if (document.getElementById('aiDrawer').classList.contains('open')) positionAiDrawer();
 });
@@ -4839,7 +4139,6 @@ window.addEventListener('resize', function () {
 </script>
 
 <!-- 左侧AI分析抽屉 -->
-<div class="ai-mask" id="aiMask" onclick="closeAiDrawer()"></div>
 <div class="ai-drawer" id="aiDrawer">
   <div class="ai-drawer-head">
     <span class="ai-avatar">🤖</span>
@@ -4847,22 +4146,18 @@ window.addEventListener('resize', function () {
     <button class="ai-close" onclick="closeAiDrawer()">✕</button>
   </div>
   <div class="ai-drawer-body">
-    <div class="ai-loading"><span class="spinner"></span>AI 正在分析报表...</div>
+    <div class="ai-loading" role="status" aria-live="polite"><span class="spinner"></span><span id="aiProgress">正在准备诊断</span><small>使用演示数据</small></div>
     <div class="ai-content" id="aiContent"></div>
-    <div class="ai-chat" id="aiChat">
-      <div class="ai-chat-msgs" id="aiChatMsgs"></div>
-      <div class="ai-chat-quick" id="aiChatQuick"></div>
-    </div>
   </div>
   <div class="ai-drawer-foot">
     <div class="mode-analysis" id="modeAnalysis">
       <button class="btn-mini" onclick="closeAiDrawer()">关闭</button>
-      <button class="btn-mini primary" id="aiDownloadBtn">⬇ 下载分析报表</button>
+      <button class="btn-mini primary" id="aiDownloadBtn" disabled onclick="window.YD_OPERATIONS_WORKFLOW.download()">⬇ 下载分析报表</button>
     </div>
     <div class="mode-chat" id="modeChat">
       <div class="ai-chat-input-row">
-        <input type="text" id="aiChatInput" placeholder="💬 向AI提问：怎么定类目？" onkeydown="if(event.key==='Enter')sendAiChat()">
-        <button class="send-btn" onclick="sendAiChat()">➤</button>
+        <input type="text" id="aiChatInput" maxlength="4000" placeholder="报告生成后可继续追问" disabled aria-label="报告追问" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();window.YD_OPERATIONS_WORKFLOW.sendChat();}">
+        <button class="send-btn" id="aiChatSend" disabled aria-label="发送追问" onclick="window.YD_OPERATIONS_WORKFLOW.sendChat()">➤</button>
       </div>
     </div>
   </div>

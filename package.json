@@ -4,6 +4,7 @@
   "description": "Yingdan static prototype and browser extension verification scripts.",
   "private": true,
   "scripts": {
+    "dev:operations": "node operations-dev-server.cjs",
     "test": "node --test browser-extension/inquiry-analyzer.test.js tests/*.test.js",
     "test:dify": "node --test tests/*.test.js",
     "check:cloudflare": "npx wrangler deploy --dry-run",
