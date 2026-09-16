@@ -1030,3 +1030,82 @@ Excel 交付验证方式：
 - 7 个冲突均已解决。`npm test` 200/200 通过，暂存区空白检查通过。测试包括受控 HTTP/SSE 和运营报告契约校验，不代表线上服务的当前可用性。
 - 无凭据隔离服务在 127.0.0.1:18947 验证。浏览器通过四个作图菜单切换、6 张整套下载演示、仅第二张调整；运营顾问模块可打开，未配置时正确展示错误并禁用下载与追问。控制台无 error；390px 宿主与 326px 运营 iframe 均无横向溢出，桌面双面板可完整显示。未读取钥匙串或重跑线上 Dify。
 - main 与原有工作区未修改、未合并、未推送。main 尚有独立的 Dify 工作流及旧页面未提交内容，正式合并时须保留并区分处理。自动测试原始输出在 `/tmp/yd-merge-tests.log`。
+
+### 主图目标语言（2026-09-15）
+
+- 主图页作图选项新增“目标语言”下拉框，默认英语，提供中文及常见外语选项。`targetLanguage` 保存在入口会话和生成上下文中，重做沿用历史选择，新建任务恢复英语；模拟生成方案包含目标语言要求。
+
+
+### AI 作图五个 302.AI Workflow（2026-09-16）
+
+- 用户指定使用任务「查看302 AI API密钥页面」（`01a0a7d0-8335-7880-bc5d-e192ab05c7db`）中的 302.AI 中转站，随后明确模型为 **GPT Image 2.5**。初次交付为本地 DSL；后续修复导入崩溃时，已备份并更新用户导入的主图 Dify 草稿（未发布）。没有改接前端，也没有修改已有 OpenRouter 插件。
+- 目录：`dify-workflows/image-studio-302/`。`Product_Main_Image_Generation.yaml`（主图）、`Product_Image_Set_Generation.yaml`（套图）、`Product_Detail_Image_Generation.yaml`（详情图）、`Generated_Image_Editing.yaml`（单张调整）、`Similar_Product_Image_Batch_Generation.yaml`（同款扩展）是五个独立应用；直接使用目录内 YAML，不再额外打包 ZIP。当前是候选契约 `image-studio-302-v1-candidate`，主图已完成 Dify Cloud 导入和编排面板验收；其余四份尚未逐一导入验收，均未发布；主图 Lite 与 302 生图全链路已真实通过。
+- 默认环境变量 `IMAGE_MODEL=gpt-image-2.5-flare`，可改为 `gpt-image-2.5-sunburst`；这是在用户指定 2.5 系列后的默认型号选择，尚未比较两者效果。`API_302_KEY` 是空的 secret 环境变量，导入后填写，真实密钥不落入 DSL。使用原生 HTTP 节点直连 `https://api.302.ai/v1/images/edits`，不依赖旧 WF-007、PTJ Workflow Tool 或自建 OpenRouter 插件。
+- 五个流程均新增豆包 `doubao-seed-2-0-lite-260215` 视觉规划，复用火山方舟 0.0.15。链路为输入校验 → Lite 看图/整套规划 → JSON 字段与图位严格校验 → 302 生图。模型参数使用原生 `response_format=json_schema`、strict schema；Dify 通用结构化提示词回退关闭。真实插件限制 max_tokens≤2048，因此规划使用精简文本，超长/截断会被校验拦截。主图/调整/同款 7 节点，套图/详情图 11 节点；对外输入输出契约保持不变。
+- 主图/同款：一次请求生成 1–10 张；调整：只生成 1 张，其他图由调用方保留。套图：固定首张 main，合计 2–10 张；详情图：1–10 张。整套职责先确定，迭代并发 2，所有图共享原始商品/参考/Logo 和同一整套描述，不把一张生成图自动作为其他图的商品来源。
+- 公共入参：`task_id`（必填，1–100 位字母数字/下划线/横线）、`instruction`（最多 4000 字，调整时必填）、`language`（默认英语，最多 40 字）、`aspect_ratio`。首次作图使用 `product_image`（必填）和可选 `style_image`/`logo_image`；调整使用必填 `source_image`；同款同时使用必填 `product_image` 和 `source_image`。每张文件限 PNG/JPEG/WebP、10 MB，需先经 Dify 文件上传或远程文件入参，不能直接传浏览器 FileReader Data URL。
+- 主图 `visual_direction` 对应现有五种方向，`image_text` 对应附带信息（最多 2000 字）；有风格参考图时忽略失效的附带信息选项。`quantity` 对应主图版数或同款数量。套图/详情图 `slots_json` 是有序 JSON 数组，每项严格为 `id/role/brief`，brief 上限 500 字，spec 必须提供真实规格；角色集合与当前 `SET_ROLES`、`LISTING_ROLES` 相同。`retry_slot_ids_json` 可指定原方案中的失败图位，完整 slots 保留用于构造一致上下文，只过滤执行集合。没有自动重试。
+- 前端未来映射：`prompt → instruction`、`targetLanguage → language`、`ratio → aspect_ratio`、`visualStyle → visual_direction`、`attachedInfo → image_text`、`setSlots → slots_json`；图片各自按角色上传后传入。套图/详情图当前无语言控件，暂使用 Workflow 默认英语，不代表页面已经新增。`PTJ-1` 不作为 API 模型 ID 传递。
+- 输出：各 Flow 的 `result` 带 task_id/kind/model/contract_version/status。单张或同款结果中 `images` 为 HTTPS 图片 URL 数组，`expected` 为预期数量；套图/详情图结果中 `items` 按原图位排序，保留 slot_id/index/role/title/status/images/error_code，另有 succeeded_count/failed_slot_ids。整套还返回 `plan` 和 `result_json`。输入校验错误在 Code 节点终止，调用方须处理 Dify workflow_failed；供应商错误正文不回显。HTTP 超时为 unknown，须先核对供应商执行状态，不能盲目重试造成重复扣费。
+- 尺寸保守适配：1:1、3:2、2:3 使用文档列出的 1024x1024、1536x1024、1024x1536；其他页面比例使用 size=auto 并写入提示词，**不保证精确像素比例**。编辑默认 auto。实际输出比例、三类参考图的 multipart 数组编码、返回链接有效期和图像一致性仍需真实接口验收；302.AI 的 2.5 产品页链接了通用 GPT-Image 接口，但部分接口枚举仍停留旧模型，不能据静态文档声称已联调通过。
+- 资料依据：302.AI 产品 `https://302.ai/product/detail/gpt-image-2.5-flare`、`https://302.ai/product/detail/gpt-image-2.5-sunburst`；图片接口 `https://doc.302.ai/288853817e0`；Dify 官方 1.9.1 HTTP/Iteration 节点源代码。HTTP 原生读取文件，TLS 校验开启，Key 使用 Bearer 引用 secret，节点重试关闭。
+- 维护：`build_workflows.py` 使用 dify-workflow CLI 创建应用，再填入原生图结构；`nodes/prepare.py`、`validate_plan.py`、`normalize.py`、`aggregate.py` 是嵌入 Code 节点的源码。用 `/Users/garden/.local/share/dify-workflow-cli/.venv/bin/python dify-workflows/image-studio-302/build_workflows.py` 重建，修改源码后必须重建；构建脚本会为三份非迭代应用运行 CLI layout 并只合并布局坐标，避免旧 CLI 序列化改变原生 retry_config；不要直接对最终 DSL 执行旧版 CLI layout/export。脚本以 Python logging 记录构建与检查状态，不输出密钥或用户素材。
+- 验证：`verify_workflows.py` 对最终 YAML 中的代码执行 23 项离线测试，覆盖字段/图位限制、文件类型大小、2.5 型号、方向与参考图优先级、指定图位重试、DAG/变量引用、错误脱敏、数量不符及超时状态。主图/调整/同款通过 CLI `validate --strict`、`checklist`、`layout`；套图/详情图保留 Dify 官方 `iteration-start`，本机 CLI 0.1.0 因枚举缺失无法解析，使用显式坐标和上述结构审计，**不能宣称这两份通过 CLI 校验或已在 Dify 导入成功**。主图 Lite 与图片接口实测通过；其余四份和多辅助素材待真实验证。
+
+- 命名更新：按用户最新要求，五份 YAML 与 Dify 应用名使用完整英文业务名称（Product Main Image Generation、Product Image Set Generation、Product Detail Image Generation、Generated Image Editing、Similar Product Image Batch Generation）；文件名使用下划线分隔单词，Dify 显示名称保留空格；构建与验证脚本同步，内部业务标识和接口字段不变。
+
+- 导入崩溃修复（2026-09-16）：Chrome 实际控制台报 Monaco `TypeError: $.create is not a function`。HTTP `default_value` 的 headers/files 错写为原生对象/数组；Dify 前端需要 JSON 字符串 `'{}'`/`'[]'`。五份 YAML 与 builder 已同步修复，新增 JSON 文本类型回归检查。主图应用 `cc34e1f4-bd3d-43bc-ae8e-203cf85e116a` 已通过界面备份不含密钥的旧草稿、覆盖导入修复文件、刷新确认五节点画布和 HTTP 异常默认值编辑器正常打开。没有发布或运行生图；其他四份只完成本地同源修复与检查。
+
+- Lite 实测（2026-09-16）：主图草稿已导入新版，任务 lite-vision-test-20260916，输入 assets/image-studio/mug-studio-main.png，未传参考图/Logo。Lite 8.163 秒、约 2395 tokens，准确识别米色斑点杯身和棕色内壁/杯沿；返回 visual_summary/style/images，slot_id=image，后续 validate_plan 在 Dify 实际通过。302 HTTP 节点因 API_302_KEY 空触发 AuthorizationConfigError，未证明图片生成成功，未发布。其他四份仅同源构建和离线测试，不能称为逐一实测。
+- 实测兼容修复：Cloud Sandbox 无法序列化原生 File；prepare 的内部绑定改为文件 type/mime_type/size 标量并还原校验元数据，原图直接供 LLM/HTTP 使用，外部字段不变。可选图为空已通过主图实测。指定失败图位重试会重新规划完整序列再筛选执行，尚未持久化复用上一轮 LLM 方案；最大 10 图的规划容量及多辅助图片尚未真实验证。
+
+- 主图全链路实测（2026-09-16 10:50）：用户在 Dify 填写 API_302_KEY 后，以 task_id=main-image-live-20260916-01 运行一次。Lite 8.852 秒（约 2401 tokens），302 GPT Image 2.5 Flare 节点 15.639 秒，最终 status=succeeded、返回一张 1024×1024 图片。已在浏览器打开验收，米色斑点杯、棕色内壁/杯沿、无文字或 Logo；结果 URL 和状态记录于 validation-results.json。未读取/落盘真实密钥，未发布；此证据仅覆盖主图单商品图入口，不代表其余四个流程已实测。
+
+### 作图候选 v2：有图 / 无图分流（2026-09-16）
+
+- 用户明确授权增加无商品图路径，并明确 Logo 仍作为生图素材、固定左上角。当前目录五份 YAML 为 v2 候选，旧版无密钥 DSL 保留在 `dify-workflows/image-studio-302/versions/v1-image-only/`。历史 v1 实测记录仅适用于旧版。
+- 输入差异：主图/套图/详情图 product_image 从必填改为选填；无商品图时 instruction 必须包含商品描述（程序检查非空，描述充分性由调用方负责）。不新增或重命名外部字段。调整仍要求 source_image；同款仍要求 product_image+source_image。quantity、visual_direction、instruction 保留原接口。
+- 有商品图：按真实图片保持商品身份；无商品图：按文字创造商品，明确为文字构想，参考图和 Logo 不作为商品身份来源。任意图片存在走 `/v1/images/edits`；完全无图走 `/v1/images/generations` JSON 请求。Logo 提示词要求左上角、完整比例、约 4% 安全边距、不遮挡商品。接口字段规格以 302 官方 generations/edits 文档为依据。
+- 两个 HTTP 分支独立归一化，再用变量聚合器输出同一 result；套图分流位于每张迭代内部。主图12节点，套图/详情图16节点，调整/同款7节点。输出字段结构不变，contract_version 改为 image-studio-302-v2-candidate；调用方若严格检查版本字符串需同步接受 v2。未冻结、未改接前端。
+- 迁移：导入对应 v2 DSL，更新调用方必填判断与版本接受范围；回退使用 versions/v1-image-only 对应文件并恢复商品图必填。导入普通本地文件仍需检查环境密钥，不能把空密钥覆盖正式配置。本次主图更新使用同 ID 与 Dify `[__HIDDEN__]` 保留机制，不读取密钥。
+
+- v2 主图实测：`v2-text-only-20260916` 全无图片输入成功生成深蓝色杯子；`v2-product-image-20260916` 使用商品图成功保留米色斑点杯身份并改为浅灰背景。两次 result.status=succeeded，图片均为 1024×1024，已浏览器验收，URL 见 validation-results.json。原有密钥保留成功，未发布。25 项离线测试通过；其他四个应用和 Logo 实际还原效果尚未逐一实测。
+
+### 作图候选 v3：全流程双模式、移除 task_id 与渲染修复（2026-09-16）
+
+- 用户明确要求全部五个 Flow 去掉 task_id 并支持文生图/图生图，且修复 Chrome 中的组件渲染失败。本节为最新状态，覆盖上文 v1/v2 必填规则；历史测试不能自动视作 v3 验收。
+- 输入/输出变更：Start 移除 task_id，result/metadata/整套items中亦不再输出 task_id；contract_version 升级 image-studio-302-v3-candidate。所有文件输入选填；缺少商品图和原图时必须提供 instruction；编辑的 instruction 始终必填。调用方不再传任务标识，可使用 Dify 自带 workflow_run_id 关联运行；如依赖返回 task_id 或严格版本字符串需迁移。quantity、visual_direction、image_text 规则未改。
+- 编辑：有 source_image 时仅修改指定部分；无图按文字从零生成。相似商品：双图分别提供商品身份/风格，单图据实际角色生成，没有任何图时根据文字构想，不宣称复刻不存在的图片。所有流程按任意图片是否存在分流 edits/generations；主图/编辑/同款12节点，套图/详情16节点。
+- 崩溃根因：套图/详情 each_start 的 data.type=iteration-start 正确，但外层 type=custom 错误；Dify普通NodeComponentMap没有此组件，触发 React #130 undefined component。现设外层 custom-iteration-start，保留真实迭代节点。原先 HTTP 默认值 JSON 字符串修复继续保留。
+- 回退：v2无密钥YAML保存在 versions/v2-main-dual-mode；v1在 versions/v1-image-only。回退需同步调用方任务标识与文件必填校验。密钥只在 Dify 保留，导入升级派生文件使用原环境变量 ID + [__HIDDEN__]，源文件不存密钥。
+- examples.json 已移除任务标识，并为五个Flow补充纯文字输入示例。26项离线测试通过，包括外层迭代组件类型、所有Flow双分支与无图输入要求。
+
+- v3 最终验收：五个 Chrome Dify 草稿均已更新、画布和关键节点面板正常。套图/详情的 React #130 已实际修复并刷新验证；调整/同款当前未复现旧渲染失败，新版全部12节点逐个面板验收通过。套图/详情重新排布迭代内部节点，消除重叠。
+- 全部五个 Flow 的文生图/图生图共10个成功case，合计12张图（套图每路径2张，其他每路径1张）；全部图片已浏览器目视验收。task_id输入与返回均移除。用户分别配置了5个应用的Key，保存于Dify；未发布、未接入原型页面。具体app ids、图片URL、输入、耗时与局限见 validation-results.json。27项离线测试通过；套图/详情CLI枚举限制仍在，以实际Dify运行与自定义检查补充。
+- 已知限制：未测试最大10图规划、Logo精确还原、所有辅助素材组合；无图输入的商品描述仅做非空校验。HTTP授权配置错误目前在业务结果中归一化为TRANSPORT_OR_TIMEOUT/unknown，运行追踪可区分AuthorizationConfigError，不能据此盲目重试。
+- 2026-09-16 后续简化：用户否决逐张素材选择/文图路由。套图、详情图统一向每张请求传入全部已上传素材，LLM仅在每张prompt中说明素材用途；企业介绍、合作或定制流程可忽略商品图，定制成品展示仍参考商品，Logo保持左上角。取消强制每张展示商品的提示词；企业事实不足时用示意排版，不编造真实厂房、认证或产能。没有任何上传图片时仍保留此前文生图入口。输入输出、16节点结构、按slots_json完整生成的规则不变，无独立数量输入。公司实力尚无独立role枚举，内容通过现有图位brief/instruction表达。
+- 上述提示词已更新本地源文件及套图/详情图Dify草稿，刷新并检查LLM面板确认持久化，保留现有环境变量ID与密钥，未发布。27项离线检查通过；CLI仍因iteration-start枚举不支持而报错。新提示词未重跑付费生图，前述12张结果属于旧提示词版本，不作为此次效果验收。主图/编辑/同款的共享prepare文本随本地重建更新，线上三份草稿本轮未覆盖。
+- 随后按用户要求真实生成新版套图6张、详情图8张，14/14返回成功且逐张目视检查。统一上传同一马克杯图，公司介绍/流程/品质检查等信息页未出现杯子，证明本次样例中提示词忽略素材有效；未测Logo。存在详情图额外添加图位英文标题、细节页多窗拼排、品质页对勾可能暗示合格的问题，未自动重跑或修改，原样记录在 `dify-workflows/image-studio-302/工作流生成结果.md` 最新章节；旧12张历史结果保留。公司名、流程、300 ml均为测试假设资料。详细URL和观察已补充validation-results.json的shared_material_prompt_revision.full_suite_test。
+- 信息丰富版（同日）：用户提供手表/工业设备海报作为密度参考，并明确“卖点/场景”等用途必须展开内容。套图/详情加入ROLE_GUIDES，按用途策划事实、画面、文案、参数卡、应用窗、合作信息；允许同一主题内多分区，禁止多个图位合成总览。取消70词逐图上限与空brief默认禁字，保留明确无字要求；资料来自instruction及brief，不新增字段或节点。当前火山插件真实拒绝max_tokens=8192（上限2048），已恢复2048，将公共详细约束放Code中、LLM只写单图差异与文案，整套prompt文字预算合计900英文词。套图3/3、详情2/2真实成功，5图已目视并加入同一Markdown；信息量提升，但有Full Customization、ergonomic等超出输入的表达，定制页仍出现杯子示意，不能宣称事实与禁用要求完全通过。27项离线检查通过，最大10图丰富规划未实测；详情在validation-results.json.rich_content_revision。两份草稿已同步，未发布。
+- TokenMind Logo专项：5流程分别真实执行成功，共7图（主图1/套图2/详情2/调整1/同款1），全部目视检查并追加到原结果Markdown最前面。素材使用TokenMindOmni品牌目录的TokenMind_single_logo_bold_center_transparent_1024.png，中心/四角透明已读像素确认。主图/套图/详情上传独立Logo；调整/同款现无独立Logo字段，用此次带Logo主图测保留，未改接口。7图均在左上角，但套图卖点图擅加深色圆底、部分细节/星芒简化；不能称精确保真通过。调整与同款主要外观和位置保留。结果及差异见validation-results.json.logo_tests，未后期修图、未发布。
+- 开放方向候选升级（同日，用户明确授权）：主图/套图/详情的visual_direction从select枚举改为文本（最长100字符，默认简洁展示）；slots_json.role从固定枚举改为非空方向语义文本（最长100字符），旧main/selling/scene等仅作标签别名保留，新名称不需注册。统一EXPAND_DIRECTION代替逐用途ROLE_GUIDES，由LLM结合商品图/资料理解主题、展开内容与版式。信息型方向本身授权生成事实范围内文案，instruction/brief留空不等于禁字；明确无字/简洁要求优先。没有图和商品描述仍拒绝，方向不能充当商品事实。
+- 上述契约差异：字段名、slot三键{id,role,brief}、结果结构不变；放开主图必须第一张与spec必须单独填写brief的旧语义限制，仍保留图数、ID唯一性、顺序、类型与长度校验。未知role在返回中原样保留、title使用方向原文，因此后端/消费端的严格枚举与role分支需同步放开；前端应传可理解的方向名称，不传无含义内部编码。现原型仍未接入真实生成，未宣称端到端接通。候选v3尚未冻结，不修改冻结基线；旧三份无密钥DSL已归档versions/v3-rich-fixed-directions，回退前调用方须撤回新增方向。examples.json已加入三种开放方向示例，28项离线检查通过。草稿已同步，未发布；真实测试结果记录在validation-results.json.open_direction_revision。
+
+- 开放方向实测补充（2026-09-16）：仅原马克杯图、空instruction/brief，核心卖点/应用场景/新方向色彩搭配累计7次成功运行、9张图，28项离线测试通过。最终主图具备标题、主体、三细节模块；套图和主图仍出现无事实支持的Ergonomic/Comfortable措辞，严格事实质量未通过。原始结果与历次稀疏结果均保留于工作流生成结果.md，validation-results.json.open_direction_revision保存最终DSL哈希和质量边界；三份草稿已同步但未发布。
+
+- Input/Output现状文档（2026-09-16）：`dify-workflows/image-studio-302/工作流Input与OutputSchema.md`从当前五份DSL的Start/End与运行代码整理，含完整字段表、JSON Schema定义、图位JSON、重试/异常分支、界面与代码长度差异及源文件哈希。仅记录候选契约，不改变Workflow或冻结状态；后续字段变更须同步更新该文档。
+
+### 作图原型真实调用接入（2026-09-16，初次接入记录；后续验收见下）
+
+- `src/image-studio.js`主图/套图/详情页的开始作图、再生成整套、单张重做、图片调整和同款按钮改为真实请求；海报、批量修图入口和换装原型没有自动映射到不匹配的Workflow。真实进度以节点事件展示阶段，不再用计时器回填示例图片。历史输入冻结；结果失败保留旧图，partial只保存真实返回图片并提示不完整，不自动付费重试。
+- `src/image-studio-client.js`负责同源配置检测、按角色逐张上传和SSE读取；图片在点击生成后上传。`api/image-studio.js`提供GET配置布尔值、POST上传/运行；`lib/image-workflow.js`负责五种路由白名单、输入校验、Dify上传及流式Workflow输出校验。Key仅服务端持有，日志仅含请求ID、kind、运行ID和状态；远程结果图再次编辑时浏览器需能跨域读取素材，若供应商未允许CORS会提示读取失败，这一路尚待真实联调。
+- 五种kind对应 `DIFY_IMAGE_MAIN_API_KEY`、`DIFY_IMAGE_SET_API_KEY`、`DIFY_IMAGE_LISTING_API_KEY`、`DIFY_IMAGE_EDIT_API_KEY`、`DIFY_IMAGE_SIMILAR_API_KEY`。这是Dify应用Key，不能填写302 Key。本机读取根目录`.env.image-studio.local`（权限600、git忽略、静态服务不可下载）；环境变量优先，填完后重启。Workflow需要发布后才能使用应用API，当前尚未在本轮发布或取得应用Key，不宣称端到端已成功。
+- `operations-dev-server.cjs`保留运营接口，新增`/api/image-studio`、15MiB请求体限制、同源/Host检查及12分钟作图超时。启动`npm run dev:images`监听127.0.0.1:8891；`npm run dev:operations`仍默认8895。本轮8891已启动新版，未部署外网。
+- 接口契约仍为image-studio-302-v3-candidate；前端把内部role转为语义名称传给slots_json，没有固定后端用途枚举。取消原型spec说明强制必填，与现有Workflow保持一致。UI套图仍固定主图展示结构；language沿用保存值/默认英语。编辑无独立Logo参数，同款按已选成图保留Logo。
+- 验证：176项Node测试通过（含五流程请求/错误/流事件、跨入口历史快照、同款数量、编辑只改一张、图位重试）；旧模拟计时断言改为可控网络结果测试。浏览器已检验主图未配置时真实提示且保留示例、详情内容控件、390px窄屏布局。受应用Key缺失影响，本轮没有从原型发起真实付费生成；不能用先前Dify草稿测试代替原型端到端验收。结果记录仅当前页面会话保存，刷新后不持久保留。
+
+### 作图原型真实联调更新（2026-09-16）
+
+- 用户已配置五个应用Key，重启8891后五个应用info/parameters鉴权通过且名称、字段匹配。从原型真实执行：主图纯文字1张、详情单模块1张、同款1张、调整1张成功；套图第二次2个图位仅返回1张，属于partial，不宣称全部成功。首次主图商品图HTTP499；首次套图TLS握手超时；编辑首次302节点401，用户更新环境Key后已成功。运行ID、图片与边界见工作流生成结果.md及validation-results.json.prototype_integration_test。
+- 已证明远程生成图可由浏览器跨域读取、上传到Dify并再次调整；浅蓝背景调整结果已目视检查。修复Dify全局partial-succeeded时有效outputs被丢弃的问题；套图部分成功使用原始slotIndex保持副图序号。195项Node测试通过。页面会话未刷新以保留生成记录，最新前端序号修复在下次加载生效。
+- 本轮没有更改Workflow字段或冻结状态，没有部署外网。既有凭据待配置描述为历史记录；当前五项均已配置。套图仍未完整通过本轮验收，HTTP失败未自动付费重试；图中文字事实质量仍有Ergonomic未经资料证明的问题。

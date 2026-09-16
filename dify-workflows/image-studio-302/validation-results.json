@@ -1,0 +1,910 @@
+{
+  "live_api_called": true,
+  "dify_import_verified": true,
+  "checks": {
+    "main": {
+      "validate": {
+        "exit_code": 0,
+        "output": "✓ Workflow is valid\n"
+      },
+      "checklist": {
+        "exit_code": 0,
+        "output": "✓ Checklist passed — no issues found\n"
+      },
+      "sha256": "2aa31bf4d4e68bd8f18a8b3775e8dadf34b6b60ab585d928dfc108f9722ed6d2",
+      "file": "Product_Main_Image_Generation.yaml",
+      "previous_revision_browser_verification": {
+        "import_verified": true,
+        "app_id": "cc34e1f4-bd3d-43bc-ae8e-203cf85e116a",
+        "date": "2026-09-16",
+        "scope": "Reimported draft through Dify Cloud UI; refreshed canvas and opened HTTP node including default-value editor without crash. Not published or executed."
+      }
+    },
+    "edit": {
+      "validate": {
+        "exit_code": 0,
+        "output": "✓ Workflow is valid\n"
+      },
+      "checklist": {
+        "exit_code": 0,
+        "output": "✓ Checklist passed — no issues found\n"
+      },
+      "sha256": "c797f3a910ad6aa69041dc59567e2cbedf8ce899efe5ccb0f108659493449759",
+      "file": "Generated_Image_Editing.yaml"
+    },
+    "similar": {
+      "validate": {
+        "exit_code": 0,
+        "output": "✓ Workflow is valid\n"
+      },
+      "checklist": {
+        "exit_code": 0,
+        "output": "✓ Checklist passed — no issues found\n"
+      },
+      "sha256": "99a34f2e47a3cd968e5913bd3a78d513168d44c7aa9010d101544e78e7e6be1a",
+      "file": "Similar_Product_Image_Batch_Generation.yaml"
+    },
+    "set": {
+      "validate": {
+        "exit_code": 1,
+        "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+      },
+      "checklist": {
+        "exit_code": 1,
+        "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+      },
+      "sha256": "dd2f23572176ca4248f1f44b060ea2105e773ef9f84255614b78da4b0aff8c87",
+      "file": "Product_Image_Set_Generation.yaml"
+    },
+    "listing": {
+      "validate": {
+        "exit_code": 1,
+        "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+      },
+      "checklist": {
+        "exit_code": 1,
+        "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+      },
+      "sha256": "b5a17f3f1d6f4c92890c55f07f982da3cdaf2ec974e5ccddf6ed89da8d11341b",
+      "file": "Product_Detail_Image_Generation.yaml"
+    }
+  },
+  "offline_tests": {
+    "count": 27,
+    "status": "passed",
+    "command": "python verify_workflows.py",
+    "scope": "Final DSL code, DAG/bindings, all five dual modes, absence of task_id, special iteration-start rendering, nonoverlapping iteration node positions, JSON escaping"
+  },
+  "known_limitations": [
+    "Suite iteration-start still unsupported by local CLI 0.1.0 enum; actual Dify import and runtime validation is tracked per flow.",
+    "Logo top-left instruction has offline coverage; exact Logo fidelity and auxiliary-only image generation not visually tested.",
+    "Ten-slot planning and non-native aspect ratios not exhaustively tested.",
+    "HTTP authorization configuration errors currently normalize to unknown TRANSPORT_OR_TIMEOUT; node trace identifies configuration failure before request."
+  ],
+  "fix": "HTTP object/array default values must be JSON strings for Monaco editor, not native YAML mappings/sequences",
+  "llm_live_test_verified": true,
+  "planner": {
+    "model": "doubao-seed-2-0-lite-260215",
+    "provider": "langgenius/volcengine/volcengine",
+    "plugin_version": "0.0.15",
+    "mode": "native response_format json_schema strict; Dify prompt fallback disabled",
+    "max_tokens": 2048
+  },
+  "dify_import_verified_scope": [
+    "main",
+    "set",
+    "listing",
+    "edit",
+    "similar"
+  ],
+  "image_generation_verified": true,
+  "image_generation_verified_scope": [
+    "main",
+    "set",
+    "listing",
+    "edit",
+    "similar"
+  ],
+  "v1_historical_live_tests": {
+    "live_test": {
+      "date": "2026-09-16",
+      "app_id": "cc34e1f4-bd3d-43bc-ae8e-203cf85e116a",
+      "task_id": "lite-vision-test-20260916",
+      "fixture": "assets/image-studio/mug-studio-main.png",
+      "optional_images": false,
+      "llm_seconds": 8.163,
+      "llm_tokens_approx": 2395,
+      "visual_observation": "beige speckled mug, brown interior and rim",
+      "structured_plan_validation": "Dify validate_plan completed in 343.783 ms",
+      "image_step_error": "AuthorizationConfigError: API_302_KEY empty",
+      "published": false
+    },
+    "live_image_test": {
+      "date": "2026-09-16",
+      "task_id": "main-image-live-20260916-01",
+      "status": "succeeded",
+      "llm_seconds": 8.852,
+      "llm_tokens_approx": 2401,
+      "image_node_seconds": 15.639,
+      "image_count": 1,
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "url": "https://file.302.ai/gpt/imgs/20260916/2cd6659d2ce856e252b5889f41689082.png",
+      "visual_review": "Beige speckled mug with brown interior and rim; no text or logo; square image opened and inspected in browser.",
+      "published": false
+    }
+  },
+  "revision": "image-studio-302-v3-candidate",
+  "v2_historical_live_tests": [
+    {
+      "task_id": "v2-text-only-20260916",
+      "status": "succeeded",
+      "input": "text only; no product/style/logo image",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "url": "https://file.302.ai/gpt/imgs/20260916/7b4c1d4038c7fcfc3ab6a056ca999a45.png",
+      "visual_review": "Dark blue mug matches text description; no lettering or logo."
+    },
+    {
+      "task_id": "v2-product-image-20260916",
+      "status": "succeeded",
+      "input": "product image only; change background to light gray",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "url": "https://file.302.ai/gpt/imgs/20260916/5127555b54a58ceddfad617aec179326.png",
+      "visual_review": "Preserved cream speckled mug and brown interior/rim; background changed to light gray; no text/logo."
+    }
+  ],
+  "live_v3_tests": {
+    "main": {
+      "app_id": "cc34e1f4-bd3d-43bc-ae8e-203cf85e116a",
+      "import_verified": true,
+      "render_verified": true,
+      "text_only": {
+        "status": "succeeded",
+        "time": "2026-09-16 13:36:59",
+        "url": "https://file.302.ai/gpt/imgs/20260916/bb2e133a1dfcca9fadfa350c300a1e63.png",
+        "no_task_id_in_result": true,
+        "visual_review": "1024x1024; light green cylindrical matte mug with round handle and light gray background, matching text input."
+      },
+      "image_test": {
+        "status": "succeeded",
+        "time": "2026-09-16 13:44:38",
+        "url": "https://file.302.ai/gpt/imgs/20260916/de1b3924f1002a39f7bf2b9bc5953f57.png",
+        "input_image": "assets/image-studio/mug-studio-main.png",
+        "instruction": "保留商品外观，浅灰背景，无额外文字或Logo",
+        "no_task_id_in_result": true,
+        "visual_review": "1024x1024; preserved cream speckled mug with brown interior, background light gray, no added text/logo."
+      }
+    },
+    "listing": {
+      "app_id": "3ae596b4-b6eb-4903-a49c-34e1460385cb",
+      "tab_id": "1363555763",
+      "dsl": "Product_Detail_Image_Generation.yaml",
+      "import_verified": true,
+      "rendering_fixed": true,
+      "original_error": "React #130 undefined component; old each_start outer type custom; duplicate auto-added imagesstart0 custom-iteration-start",
+      "task_id_removed_ui": true,
+      "image_test": {
+        "time_local": "13:40:15",
+        "status": "succeeded",
+        "image_count": 1,
+        "image_url": "https://file.302.ai/gpt/imgs/20260916/4bbbb9d9618920eee6d9c27f42df0fb9.png",
+        "instruction": "以商品图为准保留商品外观，在浅灰背景展示商品完整外观，不显示任何文字和 Logo。",
+        "slots_json": [
+          {
+            "id": "intro_1",
+            "role": "intro",
+            "brief": "商品概览，无文案"
+          }
+        ],
+        "product_image": "assets/image-studio/mug-studio-main.png",
+        "planner_observation": "Detected speckled ceramic texture without it being supplied in text",
+        "visual_review": {
+          "accessible": true,
+          "dimensions": "1024x1024",
+          "passed": true,
+          "observation": "Cream speckled ceramic mug with brown interior/rim and right handle; light gray background, full product visible, no text or logo, no obvious structural defect. Visual review confirms overall identity, not pixel-exact fidelity."
+        }
+      },
+      "published": false,
+      "pre_key_test": {
+        "time_local": "13:35:58",
+        "instruction": "生成奶油白色陶瓷马克杯的商品详情介绍图，棕色杯口，手柄在右侧，柔和自然光，浅米色背景，不显示任何文字和 Logo。",
+        "slots_json": [
+          {
+            "id": "intro_1",
+            "role": "intro",
+            "brief": "商品概览，无文案"
+          }
+        ],
+        "planner_success": true,
+        "planner_seconds": 5.106,
+        "planner_tokens": 1456,
+        "iteration_route": "text_request -> text_render -> text_normalize -> render_result",
+        "http_elapsed_ms": 0.317,
+        "result_status": "failed",
+        "item_status": "unknown",
+        "error_code": "TRANSPORT_OR_TIMEOUT",
+        "image_count": 0,
+        "note": "HTTP failed immediately; user then began updating environment key. Waiting for completion before further testing."
+      },
+      "text_test": {
+        "time_local": "13:39:19",
+        "status": "succeeded",
+        "image_count": 1,
+        "image_url": "https://file.302.ai/gpt/imgs/20260916/b613fd09ddbd70385bf4b33211ff22df.png",
+        "instruction": "生成奶油白色陶瓷马克杯的商品详情介绍图，棕色杯口，手柄在右侧，柔和自然光，浅米色背景，不显示任何文字和 Logo。",
+        "slots_json": [
+          {
+            "id": "intro_1",
+            "role": "intro",
+            "brief": "商品概览，无文案"
+          }
+        ],
+        "product_image": null,
+        "visual_review": {
+          "accessible": true,
+          "dimensions": "1024x1024",
+          "passed": true,
+          "observation": "Cream white ceramic mug, brown rim, handle on right, soft light beige background, full product visible, no text or logo, no obvious structural defect."
+        }
+      },
+      "final_layout": {
+        "import_verified": true,
+        "reload_render_error_count": 0,
+        "http_text_panel_verified": true,
+        "http_image_panel_verified": true,
+        "task_id_absent": true,
+        "secret_preserved_using_latest_export_ids": true,
+        "logic_unchanged_after_live_tests": true
+      }
+    },
+    "edit": {
+      "app_id": "b8e81945-91f5-4e0a-9b62-1b9aa1a89e23",
+      "tab_id": "1363556207",
+      "imported": true,
+      "text_test": {
+        "status": "succeeded",
+        "images": 1,
+        "planner_seconds": 3.741,
+        "planner_tokens": 1101,
+        "image_seconds": 11.22,
+        "url": "https://file.302.ai/gpt/imgs/20260916/c09b0e7f204000f42811e846a8b95f10.png",
+        "inputs": {
+          "source_image": null,
+          "product_image": null,
+          "quantity": 1
+        },
+        "route": "/v1/images/generations",
+        "schema_validation": true,
+        "output_has_task_id": false,
+        "visual_image_review": true,
+        "visual_review_note": "完整可显示：深蓝哑光杯、圆润右把手、浅灰背景及柔光，符合文字要求；无文字Logo，未见明显结构异常。",
+        "visual_review_method": "Browser screenshot of existing generated image URL; no download or new generation"
+      },
+      "image_test": {
+        "status": "succeeded",
+        "images": 1,
+        "planner_seconds": 30.304,
+        "planner_tokens": 2450,
+        "image_seconds": 19.062,
+        "url": "https://file.302.ai/gpt/imgs/20260916/8b27dbae935c77151efd8924a3280c12.png",
+        "inputs": {
+          "source_image": "assets/image-studio/mug-studio-main.png",
+          "product_image": null,
+          "quantity": 1
+        },
+        "route": "/v1/images/edits",
+        "schema_validation": true,
+        "output_has_task_id": false,
+        "visual_image_review": true,
+        "visual_review_note": "完整可显示：米白斑点杯、棕色内壁、右侧把手均保留；背景为浅蓝并保留叶影，符合改背景要求。无额外文字或Logo，未见明显主体异常。仅视觉对照，非逐像素保真。",
+        "visual_review_method": "Browser screenshot of existing generated image URL; no download or new generation"
+      },
+      "all_12_node_panels_verified": true,
+      "render_error_after_import": false,
+      "key_added_by_user": true,
+      "pre_key_runs": {
+        "text": "AuthorizationConfigError before request",
+        "image": "AuthorizationConfigError before request"
+      }
+    },
+    "similar": {
+      "app_id": "0e0be20b-42d3-44f5-be87-0385ea82d9f5",
+      "tab_id": "1363556196",
+      "imported": true,
+      "text_test": {
+        "status": "succeeded",
+        "images": 1,
+        "planner_seconds": 3.831,
+        "planner_tokens": 1124,
+        "image_seconds": 10.798,
+        "url": "https://file.302.ai/gpt/imgs/20260916/d5e6aac005b656b41b5d228c8e5e7a53.png",
+        "inputs": {
+          "source_image": null,
+          "product_image": null,
+          "quantity": 1
+        },
+        "route": "/v1/images/generations",
+        "schema_validation": true,
+        "output_has_task_id": false,
+        "visual_image_review": true,
+        "visual_review_note": "完整可显示：深绿色哑光杯、圆润右把手、米色背景与柔光，符合文字要求；无文字Logo，未见明显结构异常。",
+        "visual_review_method": "Browser screenshot of existing generated image URL; no download or new generation"
+      },
+      "image_test": {
+        "status": "succeeded",
+        "images": 1,
+        "planner_seconds": 10.503,
+        "planner_tokens": 2434,
+        "image_seconds": 16.87,
+        "url": "https://file.302.ai/gpt/imgs/20260916/664b6eb6a186cd4db9f9da6176286d9d.png",
+        "inputs": {
+          "source_image": "assets/image-studio/mug-studio-main.png",
+          "product_image": null,
+          "quantity": 1
+        },
+        "route": "/v1/images/edits",
+        "schema_validation": true,
+        "output_has_task_id": false,
+        "visual_image_review": true,
+        "visual_review_note": "完整可显示：米白斑点杯与棕色内壁、右把手和暖米色摄影风格保留；背景叶影有变化，符合轻微风格变体。无额外文字Logo，未见明显主体异常。",
+        "visual_review_method": "Browser screenshot of existing generated image URL; no download or new generation"
+      },
+      "all_12_node_panels_verified": true,
+      "render_error_after_import": false,
+      "key_added_by_user": true,
+      "pre_key_runs": {
+        "text": "AuthorizationConfigError before request",
+        "image": "AuthorizationConfigError before request"
+      }
+    },
+    "set": {
+      "flow": "Product_Image_Set_Generation",
+      "app_id": "993dd24c-f5c3-4682-9738-58a120934ee7",
+      "tab_id": "1363556204",
+      "final_import_verified": true,
+      "final_render_verified": true,
+      "task_id_removed": true,
+      "all_images_optional": true,
+      "api_key_preserved": true,
+      "published": false,
+      "layout_review": "最终自适应截图可见16节点，迭代分支两行排列，无重叠；HTTP编辑面板正常",
+      "root_cause": "each_start外层type错误写成custom，导致Dify NodeComponentMap[iteration-start]未定义触发React130；修为custom-iteration-start",
+      "cases": [
+        {
+          "mode": "image_to_image",
+          "run_label": "13:40:21",
+          "status": "succeeded",
+          "succeeded_count": 2,
+          "input_image": "assets/image-studio/mug-studio-main.png",
+          "instruction": "根据商品图片生成一套电商产品摄影，准确保留商品外观；柔和自然光、米色背景。主图完整展示，细节图突出杯口和手柄。不要任何文字或 Logo。",
+          "slots": [
+            {
+              "id": "hero",
+              "role": "main",
+              "brief": "完整展示杯子，正面略俯视"
+            },
+            {
+              "id": "detail_1",
+              "role": "detail",
+              "brief": "近景展示杯口与手柄连接位置"
+            }
+          ],
+          "planner_seconds": 28.165,
+          "planner_tokens": 3158,
+          "iteration_seconds": 17.915,
+          "urls": [
+            "https://file.302.ai/gpt/imgs/20260916/c7bf6308305df21a5aa6d8e6e79a8ff4.png",
+            "https://file.302.ai/gpt/imgs/20260916/7561d05fe517167c6224cb7a3540829b.png"
+          ],
+          "visual_review": "两图均可访问，奶油白斑点杯身、棕色内壁及右侧手柄清晰，主图完整杯子，细节图聚焦杯口与手柄连接，米色底色统一，无多余文字/Logo。"
+        },
+        {
+          "mode": "text_to_image",
+          "run_label": "13:42:07",
+          "status": "succeeded",
+          "succeeded_count": 2,
+          "input_image": null,
+          "instruction": "生成一套奶油白陶瓷马克杯产品摄影。杯子为圆筒形，右侧圆弧手柄，棕色杯口与内壁。柔和自然光和米色背景，整套保持同一商品与风格，不要任何文字或 Logo。",
+          "planner_seconds": 5.397,
+          "planner_tokens": 1950,
+          "iteration_seconds": 12.334,
+          "urls": [
+            "https://file.302.ai/gpt/imgs/20260916/d256f5138ec9e85795f074ce915a13ca.png",
+            "https://file.302.ai/gpt/imgs/20260916/6e5ccb6b59a4a417a7bcaf74c885a630.png"
+          ],
+          "visual_review": "两图均可访问，按文字产生光滑奶油白杯、棕色内壁；主图完整商品、细节图杯口和手柄特写，同套配色与材质一致，无文字/Logo。"
+        }
+      ],
+      "limitations": [
+        "仅两图位代表性样例，未验证Logo及所有图位角色",
+        "最终重导仅布局变更，未重复收费测试",
+        "填Key前两次运行因AuthorizationConfigError在发送前失败；已配置后两个分支均成功",
+        "Dify UI把节点配置错误结果归成TRANSPORT_OR_TIMEOUT，已报root后续改进"
+      ]
+    }
+  },
+  "v3_summary": {
+    "all_five_imported": true,
+    "all_five_render_verified": true,
+    "all_five_dual_mode_live_tested": true,
+    "successful_live_test_cases": 10,
+    "generated_images": 12,
+    "images_visually_reviewed": 12,
+    "published": false,
+    "offline_tests_passed": 27
+  },
+  "shared_material_prompt_revision": {
+    "date": "2026-09-16",
+    "changes": "All uploaded images remain attached to each slot; prompt-only reference use instructions; no per-image asset routing.",
+    "offline_tests": 27,
+    "live_generation_tested": true,
+    "draft_import_verified": true,
+    "checks": {
+      "Product_Image_Set_Generation": {
+        "sha256": "2e4b2e04c6a7a4e608ac4504c5d9920feb2405a04658b960e77529bf8b43d10a",
+        "validate": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        },
+        "checklist": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        }
+      },
+      "Product_Detail_Image_Generation": {
+        "sha256": "6e0d19b9edc4971bd4c278f51f5ccb73ced2d19a8ad8057115d6fdfaaf91841a",
+        "validate": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        },
+        "checklist": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        }
+      }
+    },
+    "previous_live_results_scope": "Prior v3 prompt revision; not acceptance evidence for these new prompts.",
+    "published": false,
+    "full_suite_test": {
+      "date": "2026-09-16",
+      "product_image": "assets/image-studio/mug-studio-main.png",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "fictional_test_facts": true,
+      "visual_review": "All 14 images inspected; company/process images omitted mug. Detail outputs add role headings; detail close-up contains panels; quality checks use ticks that may imply passed checks.",
+      "runs": [
+        {
+          "kind": "set",
+          "status": "succeeded",
+          "expected": 6,
+          "succeeded_count": 6,
+          "items": [
+            {
+              "slot_id": "hero",
+              "title": "商品全貌",
+              "url": "https://file.302.ai/gpt/imgs/20260916/83a999c3038a013ef500eeb257a61671.png",
+              "visual_note": "完整商品展示，不加文字。"
+            },
+            {
+              "slot_id": "detail",
+              "title": "细节展示",
+              "url": "https://file.302.ai/gpt/imgs/20260916/0656db15916513e5be7dfd74b48e1a6d.png",
+              "visual_note": "杯口、内壁与手柄连接特写。"
+            },
+            {
+              "slot_id": "scene",
+              "title": "办公场景",
+              "url": "https://file.302.ai/gpt/imgs/20260916/e1b165607486d9ddbab93797b75eaad3.png",
+              "visual_note": "办公桌使用场景，保持商品主要外观。"
+            },
+            {
+              "slot_id": "company",
+              "title": "公司介绍",
+              "url": "https://file.302.ai/gpt/imgs/20260916/41706760ad7aa7472218ecdcd4530d2b.png",
+              "visual_note": "上传了商品图，但要求忽略商品。公司名称和三项服务使用测试资料；结果未出现杯子。"
+            },
+            {
+              "slot_id": "custom",
+              "title": "定制合作流程",
+              "url": "https://file.302.ai/gpt/imgs/20260916/0d82d4a8872aed1150f80db18bc880ad.png",
+              "visual_note": "Brief → Design → Sample → Confirm；结果未出现杯子。"
+            },
+            {
+              "slot_id": "spec",
+              "title": "规格信息",
+              "url": "https://file.302.ai/gpt/imgs/20260916/0ff88e5b8b87eae8c782e3a35063f6c8.png",
+              "visual_note": "Capacity 300 ml。300 ml 是本次输入的测试参数，不是从图片识别出的事实。"
+            }
+          ]
+        },
+        {
+          "kind": "listing",
+          "status": "succeeded",
+          "expected": 8,
+          "succeeded_count": 8,
+          "items": [
+            {
+              "slot_id": "intro",
+              "title": "产品介绍",
+              "url": "https://file.302.ai/gpt/imgs/20260916/9181b6647ff844a9d20705972f411dde.png",
+              "visual_note": "Ceramic Mug 标题与商品展示。"
+            },
+            {
+              "slot_id": "detail",
+              "title": "结构与细节",
+              "url": "https://file.302.ai/gpt/imgs/20260916/a86742cf3f0512be0fe03da9437aefbe.png",
+              "visual_note": "Product Details；成图包含多个局部特写小窗，尚未严格遵守不拼图约束。"
+            },
+            {
+              "slot_id": "company",
+              "title": "公司介绍",
+              "url": "https://file.302.ai/gpt/imgs/20260916/686e0fbf4c0d32a5d0aab7388cb958d3.png",
+              "visual_note": "商品图被忽略，但标题自动用了 Core Selling Points，公司名称被排成其中一项，语义排版有待调整。"
+            },
+            {
+              "slot_id": "scene",
+              "title": "应用场景",
+              "url": "https://file.302.ai/gpt/imgs/20260916/af4eed763226589b1895df908b9b4659.png",
+              "visual_note": "Everyday Use 办公桌场景。"
+            },
+            {
+              "slot_id": "spec",
+              "title": "规格选择",
+              "url": "https://file.302.ai/gpt/imgs/20260916/0c4809a245a9d0397faa317817fcfba2.png",
+              "visual_note": "Capacity 300 ml，仅为测试参数。"
+            },
+            {
+              "slot_id": "craft",
+              "title": "定制流程",
+              "url": "https://file.302.ai/gpt/imgs/20260916/dfd3f85a6f328f6e1f056193af03505b.png",
+              "visual_note": "未出现杯子；模型额外加了 Craft & Customization 标题。"
+            },
+            {
+              "slot_id": "quality",
+              "title": "品质检查示意",
+              "url": "https://file.302.ai/gpt/imgs/20260916/b94e6e1438a02f6f3b5ff63873a88d94.png",
+              "visual_note": "未出现杯子；模型额外加了 Quality Assurance 标题和对勾，容易被理解为已通过检查，不宜直接作为真实品质声明。"
+            },
+            {
+              "slot_id": "cooperation",
+              "title": "合作流程",
+              "url": "https://file.302.ai/gpt/imgs/20260916/9ada4cb349a611d94f1773084356f8c8.png",
+              "visual_note": "未出现杯子；Inquiry → Requirements → Confirmation → Follow-up，模型额外加了 Packaging & Cooperation 标题。"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "rich_content_revision": {
+    "date": "2026-09-16",
+    "scope": [
+      "set",
+      "listing"
+    ],
+    "max_tokens": 2048,
+    "nodes_added": 0,
+    "contract_changed": false,
+    "offline_tests": 27,
+    "draft_imported": true,
+    "live_generation_tested": true,
+    "initial_attempt": "8192 rejected before generation by installed Volcengine plugin max_tokens <=2048; reverted to2048 and moved shared detail into controlled prompts.",
+    "checks": {
+      "Product_Image_Set_Generation": {
+        "sha256": "12e5e3e4cb6c39049a68d69c60b72839b6f0174eb15e2f5f9c85cd1dc55af348",
+        "validate": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        },
+        "checklist": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        }
+      },
+      "Product_Detail_Image_Generation": {
+        "sha256": "70c5b6177fde79e2792486eaa7b12385aede6ae1ac93f53efbbbb7577198af14",
+        "validate": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        },
+        "checklist": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        }
+      }
+    },
+    "successful_images": 5,
+    "upload_retry": "Initial re-upload references invalid before execution; removed files, re-uploaded, waited for completion; subsequent runs succeeded.",
+    "results": [
+      {
+        "title": "产品概览",
+        "url": "https://file.302.ai/gpt/imgs/20260916/58d94fb5e4e876b3f895b8691597fbd3.png",
+        "visual_note": "形成主体、规格卡、三类场景和采购服务条；Full Customization Available表述比输入的三种定制选项更宽泛。"
+      },
+      {
+        "title": "核心卖点",
+        "url": "https://file.302.ai/gpt/imgs/20260916/5c3f1c05ad8c6ec425788843cae4bede.png",
+        "visual_note": "外观细节、定制选项、包装配置多区展开；出现输入未提供的ergonomic形容词，不能作为已证实卖点。"
+      },
+      {
+        "title": "应用场景",
+        "url": "https://file.302.ai/gpt/imgs/20260916/b17cd1bc9d71fff2751db9b182b6194b.png",
+        "visual_note": "分别展示办公、咖啡店、企业礼品及用途说明，不再只是更换背景。"
+      },
+      {
+        "title": "公司服务",
+        "url": "https://file.302.ai/gpt/imgs/20260916/667ff63737ad1ca436d177026d00ea3a.png",
+        "visual_note": "按目标客户、服务、提交清单展开，没有使用上传马克杯做主体。"
+      },
+      {
+        "title": "定制合作",
+        "url": "https://file.302.ai/gpt/imgs/20260916/1689f813efd6ff24b68ea75b5af13614.png",
+        "visual_note": "完整展现定制项、合作步骤、包装和提交清单；仍出现杯子示意与YOUR LOGO，未完全遵守本图不要杯子的要求。"
+      }
+    ]
+  },
+  "logo_tests": {
+    "date": "2026-09-16",
+    "asset": "/Users/garden/Self/TokenMindOmni/brand/TokenMind_materials_package_v2/00_Logo_Assets/TokenMind_single_logo_bold_center_transparent_1024.png",
+    "source_alpha_verified": true,
+    "successful_workflow_runs": 5,
+    "successful_images": 7,
+    "strict_fidelity_passed": false,
+    "graph_changed": false,
+    "note": "main/set/listing use independent logo input; edit/similar preserve logo from branded source, no independent logo field tested. Visual review only; no pixelwise preservation claim.",
+    "branded_source_url": "https://file.302.ai/gpt/imgs/20260916/3ac2e0040deacf935f0c532ea3aefbc0.png",
+    "results": [
+      {
+        "kind": "main",
+        "title": "主图 · 新增Logo",
+        "url": "https://file.302.ai/gpt/imgs/20260916/3ac2e0040deacf935f0c532ea3aefbc0.png",
+        "visual_note": "左上角出现金色TOKEN/MIND圆环，无明显遮挡；文字、装饰和线条为生成模型重绘，非原PNG逐像素贴入。"
+      },
+      {
+        "kind": "set",
+        "title": "套图 · 产品概览",
+        "url": "https://file.302.ai/gpt/imgs/20260916/dbfcd97da68bdf343611d0bb95ca14ad.png",
+        "visual_note": "左上角预留位置，无明显遮挡；细小字样和点阵还原存在差异。"
+      },
+      {
+        "kind": "set",
+        "title": "套图 · 核心卖点",
+        "url": "https://file.302.ai/gpt/imgs/20260916/d25c41f1a7a5fbb2851f0283402e2119.png",
+        "visual_note": "左上角位置正确，但擅自增加深色圆底，违背透明底要求，本图Logo保真不通过。"
+      },
+      {
+        "kind": "listing",
+        "title": "详情图 · 公司服务",
+        "url": "https://file.302.ai/gpt/imgs/20260916/ba127dabf13fe34c248ee6a0da39730e.png",
+        "visual_note": "左上角放置圆环，未遮挡信息卡；圆环高光、星芒和小装饰被简化，不能视为精确还原。"
+      },
+      {
+        "kind": "listing",
+        "title": "详情图 · 定制流程",
+        "url": "https://file.302.ai/gpt/imgs/20260916/a9ca3c79ca8ea9ec0f90c18dcfa87310.png",
+        "visual_note": "左上角放置圆环，未遮挡标题；原Logo装饰被简化。定制说明区还生成了示意Logo图标，不等同于上传的品牌Logo。"
+      },
+      {
+        "kind": "edit",
+        "title": "图片调整 · 保留Logo",
+        "url": "https://file.302.ai/gpt/imgs/20260916/0d597b857ab2b3ddeeb314e5e8be872a.png",
+        "visual_note": "背景变为浅蓝灰，左上角原有Logo位置与主要外观保留；属于带Logo原图的编辑测试，不是独立上传Logo。"
+      },
+      {
+        "kind": "similar",
+        "title": "同款扩展 · 保留Logo",
+        "url": "https://file.302.ai/gpt/imgs/20260916/c5221fb102407ba7a359b4ceec48d674.png",
+        "visual_note": "背景增加叶影，左上角原有Logo位置与主要外观保留；属于带Logo参考图的扩展测试，不是独立上传Logo。"
+      }
+    ]
+  },
+  "open_direction_revision": {
+    "date": "2026-09-16",
+    "candidate_only": true,
+    "contract_changes": {
+      "visual_direction": "main/set/listing: select enum -> text-input string, <=100 chars, default 简洁展示",
+      "slots_json.role": "known enum -> nonempty semantic direction string <=100 chars; legacy aliases preserved; role echoed unchanged",
+      "slot_semantics": "No main-first requirement; no special spec brief requirement. Ordered requested slots retained; lack of facts must not be invented.",
+      "unchanged": "Input names, JSON slot keys, ids, quantities and output structure unchanged. Candidate v3 label retained; not frozen.",
+      "consumer_impact": "Strict downstream enums and role-based rendering must accept arbitrary direction strings.",
+      "rollback": "versions/v3-rich-fixed-directions; callers must revert new direction values before rollback."
+    },
+    "offline_tests": 28,
+    "draft_imported": true,
+    "live_generation_tested": true,
+    "checks": {
+      "Product_Main_Image_Generation": {
+        "sha256": "47ef8283db5d54febbf34970b256b9f06fd2c95c9362d9affe812b88c4272a1a",
+        "validate": {
+          "exit_code": 0,
+          "output": "✓ Workflow is valid\n"
+        },
+        "checklist": {
+          "exit_code": 0,
+          "output": "✓ Checklist passed — no issues found\n"
+        }
+      },
+      "Product_Image_Set_Generation": {
+        "sha256": "1184b6c9ef206f82a30f68dfbfc42af05335c928697e8e0fe05f2eca7ac12ec3",
+        "validate": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        },
+        "checklist": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        }
+      },
+      "Product_Detail_Image_Generation": {
+        "sha256": "d510ccd9cb64d8be86f28e8e8d1bd46fbcbc942fb8dd8a0c85b2819b89ba1e34",
+        "validate": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        },
+        "checklist": {
+          "exit_code": 1,
+          "output": "✗ Failed to parse: 1 validation error for DifyDSL\nworkflow.graph.nodes.5.data.type\n  Input should be 'start', 'end', 'answer', 'llm', 'tool', 'code', 'if-else', \n'template-transform', 'question-classifier', 'parameter-extractor', \n'http-request', 'knowledge-retrieval', 'variable-aggregator', 'assigner', \n'list-operator', 'iteration', 'loop', 'agent', 'document-extractor', \n'human-input', 'knowledge-index', 'datasource', 'trigger-webhook', \n'trigger-schedule' or 'trigger-plugin' \n    For further information visit https://errors.pydantic.dev/2.13/v/enum\n"
+        }
+      }
+    },
+    "test_input": {
+      "product_image": "assets/image-studio/mug-studio-main.png",
+      "instruction": "",
+      "slot_brief": "",
+      "logo": false,
+      "language": "英语"
+    },
+    "images": [
+      {
+        "kind": "main",
+        "direction": "核心卖点",
+        "url": "https://file.302.ai/gpt/imgs/20260916/ba6671f01c4afd7a5865412a82add624.png",
+        "attempt": "first",
+        "status": "succeeded",
+        "visual_review": "仅商品照，信息不足"
+      },
+      {
+        "kind": "set",
+        "direction": "核心卖点",
+        "url": "https://file.302.ai/gpt/imgs/20260916/ed4785f6dcb6274b1e59ba3d6989e43b.png",
+        "attempt": "first",
+        "status": "succeeded",
+        "visual_review": "出现未经提供的Handcrafted"
+      },
+      {
+        "kind": "set",
+        "direction": "应用场景",
+        "url": "https://file.302.ai/gpt/imgs/20260916/367214c86ce5ca1c8a84e24f2aa25cfd.png",
+        "attempt": "first",
+        "status": "succeeded",
+        "visual_review": "分场景展示"
+      },
+      {
+        "kind": "listing",
+        "direction": "色彩搭配",
+        "url": "https://file.302.ai/gpt/imgs/20260916/0328451e20ef447edadc3ebdfaf26b34.png",
+        "attempt": "first",
+        "status": "succeeded",
+        "visual_review": "颜色分区，开放方向可运行"
+      },
+      {
+        "kind": "main",
+        "direction": "核心卖点",
+        "url": "https://file.302.ai/gpt/imgs/20260916/844eb1fefd5e677761401f8656a014ff.png",
+        "attempt": "second",
+        "status": "succeeded",
+        "visual_review": "主体加两行小字，密度仍不足"
+      },
+      {
+        "kind": "set",
+        "direction": "核心卖点",
+        "url": "https://file.302.ai/gpt/imgs/20260916/9a3cf49a039b5c4520b13820c8a3e4b4.png",
+        "attempt": "second",
+        "status": "succeeded",
+        "visual_review": "主体与三细节模块，但出现未经证实的Sturdy Ergonomic Handle"
+      },
+      {
+        "kind": "set",
+        "direction": "应用场景",
+        "url": "https://file.302.ai/gpt/imgs/20260916/28a201bab1fecc6c5e86347d480122b9.png",
+        "attempt": "second",
+        "status": "succeeded",
+        "visual_review": "主体与Home Kitchen/Office Use/Morning Breakfast三场景"
+      },
+      {
+        "kind": "listing",
+        "direction": "色彩搭配",
+        "url": "https://file.302.ai/gpt/imgs/20260916/c420a7ae076c9ae759dfa318a9faabce.png",
+        "attempt": "second",
+        "status": "succeeded",
+        "visual_review": "主题、主体、三色块；其中一个是背景配色，信息量适中"
+      },
+      {
+        "kind": "main",
+        "direction": "核心卖点",
+        "url": "https://file.302.ai/gpt/imgs/20260916/8f52dfeeedbba1f0d48fea887173ff72.png",
+        "attempt": "final_main_layout",
+        "status": "succeeded",
+        "visual_review": "标题、主体、三个细节区与短文案已形成；Comfortable Grip Handle仍属仅凭外观无法证实的体验描述。"
+      }
+    ],
+    "quality_limitations": [
+      "API运行和开放方向兼容性通过，不等于全部事实质量通过。套图出现Sturdy Ergonomic Handle，最终主图出现Comfortable Grip Handle，均没有用户事实依据。",
+      "主图最终版已实测；套图/详情第二轮使用与最终版相同的有效分支逻辑，最后补丁仅增强主图布局。",
+      "没有新增逐方向节点或固定用途模板；未发布，前后端尚未端到端接入。"
+    ],
+    "successful_workflow_runs": 7,
+    "generated_images": 9,
+    "published": false,
+    "strict_factual_quality_passed": false
+  },
+  "prototype_integration_test": {
+    "date": "2026-09-16",
+    "entry": "http://127.0.0.1:8891",
+    "application_keys_verified": 5,
+    "all_flows_passed": false,
+    "node_tests_passed": 195,
+    "runs": [
+      {
+        "kind": "main",
+        "status": "succeeded",
+        "workflow_run_id": "56dda554-e848-437f-9158-9d623b6c7a25",
+        "images": [
+          "https://file.302.ai/gpt/imgs/20260916/66838733c7f33f7631e2ae7d6b974496.png"
+        ],
+        "note": "独立纯文字蓝色马克杯案例成功；首次商品图案例HTTP499，未重试该任务。"
+      },
+      {
+        "kind": "set",
+        "status": "partial",
+        "workflow_run_id": "f28f04e7-19c3-4f9b-b8dd-ddb72fd6a12e",
+        "images": [
+          "https://file.302.ai/gpt/imgs/20260916/0f565316d77c86f6a2b9f024733f9cc7.png"
+        ],
+        "note": "选择2张，返回1张；首次两图均失败，Dify追踪确认TLS握手超时；第二次部分成功，未继续批量重跑。"
+      },
+      {
+        "kind": "listing",
+        "status": "succeeded",
+        "workflow_run_id": "d2d99cb5-c99b-48de-a847-ed6d495baaff",
+        "images": [
+          "https://file.302.ai/gpt/imgs/20260916/80e5530cc9ea99c5d585ecbee6ee9b63.png"
+        ],
+        "note": "本轮仅选1个详情模块做最小联调；按所选图位传入，未把产品能力限制为1张。"
+      },
+      {
+        "kind": "edit",
+        "status": "succeeded",
+        "workflow_run_id": "3837009b-28b0-4044-a1a9-ee9269a65bd1",
+        "images": [
+          "https://file.302.ai/gpt/imgs/20260916/4abacaeea1ae93c39eeec4eeca3b5fa2.png"
+        ],
+        "note": "首次302节点401；用户更新Key后成功。直接使用本轮套图返回的远程图片，验证跨域读取、重新上传、调整与页面回显。"
+      },
+      {
+        "kind": "similar",
+        "status": "succeeded",
+        "workflow_run_id": "fbfd411a-cb3c-4476-b3c3-45469a237a8e",
+        "images": [
+          "https://file.302.ai/gpt/imgs/20260916/91e7d0ab784d4aca418a44b288ec44e4.png"
+        ],
+        "note": "页面选中商品示例图后生成1张，返回真实图片。"
+      }
+    ],
+    "limitations": [
+      "Set second run returned 1 of 2 images",
+      "Main initial image input request returned HTTP499; separate text-only case passed",
+      "Unsupported ergonomic copy remains a quality issue",
+      "UI history is memory-only"
+    ]
+  }
+}

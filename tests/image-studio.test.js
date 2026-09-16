@@ -11,11 +11,11 @@ const source = fs.readFileSync(path.join(__dirname, '../src/image-studio.js'), '
  * @param {Function} [FileReader] 可选的受控文件读取器，用于测试读取成功、失败和并发替换。
  * @returns {object} 测试入口及 runPending 定时器推进函数。源码执行错误会直接抛出。
  */
-function harness(FileReader) {
+function harness(FileReader, run = async () => { throw new Error("未配置"); }) {
   const timeouts = new Map(), intervals = new Map();
   let sequence = 0;
   const sandbox = {
-    window: {}, FileReader, console: {info() {}, warn() {}},
+    window: { YD_IMAGE_CLIENT: {run} }, FileReader, console: {info() {}, warn() {}},
     setTimeout(fn) { const id = ++sequence; timeouts.set(id, fn); return id; },
     clearTimeout(id) { timeouts.delete(id); },
     setInterval(fn) { const id = ++sequence; intervals.set(id, fn); return id; },
@@ -52,29 +52,6 @@ function setHarness(selectedMode = 'image-set') {
   return {api, session};
 }
 
-test('套图默认一主五副，每次固定一套，旧套数和多图输入不扩大本次任务', () => {
-  const {api, session} = setHarness();
-  assert.equal(session.setSlots.length, 6);
-  assert.equal(session.setSlots[0].role, 'main');
-  assert.equal(session.setSlots.filter(slot => slot.role === 'main').length, 1);
-  session.quantity = 2;
-  session.uploads.push({name:'旧补充图',url:'old-extra.jpg'});
-  session.quality = '高';
-  assert.equal(api.count(), 6);
-  api.plan(true);
-  assert.equal(session.phase, 'planning');
-  assert.equal(api.changeSetSlots(), false, '生成期间不能添加副图');
-  assert.equal(api.updateSetRole('secondary-1', 'detail'), false);
-  api.runPending();
-  assert.equal(session.results.length, 6);
-  assert.ok(session.results.every(item => item.variant === 1));
-  assert.equal(session.results.filter(item => item.role === 'main').length, 1);
-  assert.equal(session.resultContext.quantity, 1);
-  assert.equal(session.resultQuantity, 1);
-  assert.equal(session.resultContext.uploads.length, 1);
-  assert.equal(session.resultContext.quality, '中');
-});
-
 test('副图可增删和更换用途，主图固定，数量限制及新建后的示例可预览', () => {
   const {api, session} = setHarness();
   assert.equal(api.changeSetSlots('main'), false);
@@ -94,83 +71,6 @@ test('副图可增删和更换用途，主图固定，数量限制及新建后�
   assert.equal(sample.results.length, 2);
   assert.equal(sample.resultId, 'sample-image-set');
   assert.equal(session.history.length, 0, '临时示例不冒充生成历史');
-});
-
-test('规格图需要明确参数，填写前阻止生成，说明中的用户内容安全转义', () => {
-  const {api, session} = setHarness();
-  api.updateSetRole('secondary-1', 'spec');
-  api.plan(true);
-  assert.equal(session.phase, 'results');
-  assert.equal(session.setContentOpen, true);
-  assert.equal(session.setNotesOpen['secondary-1'], true);
-  assert.equal(session.history.length, 0);
-  session.setSlots[1].brief = '容量 350 ml；<script>test</script>';
-  assert.match(api.renderSetContentEditor(), /&lt;script&gt;test&lt;\/script&gt;/);
-  assert.doesNotMatch(api.renderSetContentEditor(), /<script>/);
-  api.plan(true);
-  api.runPending();
-  assert.match(session.plans[1].prompt, /容量 350 ml/);
-  assert.equal(session.results[1].role, 'spec');
-});
-
-test('套图冻结逐图安排、素材和 Logo，跨入口生成及后续编辑不会串写', () => {
-  const {api, session} = setHarness();
-  session.setSlots[1].brief = '只展示已提供的特点';
-  session.prompt = '整体暖色调、自然光，需要文字时使用英文';
-  session.logo = [{name: '原 Logo', url: 'original-logo.png'}];
-  session.ratio = '4:5';
-  api.plan(true);
-  session.setSlots[1].role = 'packaging';
-  session.setSlots[1].brief = '后改说明';
-  session.prompt = '后改统一要求';
-  session.uploads[0].url = 'later-product.jpg';
-  session.logo[0].url = 'later-logo.png';
-  api.setActive(null, 'image-main');
-  const main = api.initial();
-  api.setActive(main);
-  api.runPending();
-  assert.equal(session.resultContext.setSlots[1].role, 'selling');
-  assert.equal(session.results[1].brief, '只展示已提供的特点');
-  assert.equal(session.resultContext.logo[0].url, 'original-logo.png');
-  assert.notEqual(session.resultContext.uploads[0].url, 'later-product.jpg');
-  assert.equal(session.resultRatio, '4:5');
-  assert.match(session.plans[0].prompt, /品牌 Logo/);
-  assert.ok(session.plans.every(item => item.prompt.includes('整套统一要求：整体暖色调、自然光，需要文字时使用英文')));
-  assert.ok(session.plans.every(item => !item.prompt.includes('后改统一要求')));
-  assert.match(session.plans[1].prompt, /本图要求：只展示已提供的特点/);
-  assert.doesNotMatch(session.plans[0].prompt, /只展示已提供的特点/);
-  assert.equal(main.history.length, 0);
-  assert.equal(main.results.length, 1);
-  const copy = api.resultSnapshot(session);
-  copy.resultContext.setSlots[1].brief = '修改副本';
-  assert.equal(session.history[0].resultContext.setSlots[1].brief, '只展示已提供的特点');
-});
-
-test('再生成一套沿用历史整套安排，保留旧结果与当前未提交的配置', () => {
-  const {api, session} = setHarness();
-  api.changeSetSlots('secondary-5');
-  session.quantity = 2;
-  session.setSlots[1].brief = '原卖点';
-  session.logo = [{name: 'Logo', url: 'old-logo.png'}];
-  api.plan(true);
-  api.runPending();
-  const record = api.resultSnapshot(session);
-  session.setSlots[1].brief = '新卖点';
-  api.changeSetSlots();
-  session.quantity = 3;
-  session.ratio = '9:16';
-  const inputs = JSON.stringify(api.copyGenerationContext(session));
-  assert.equal(api.repeatSet(record), true);
-  assert.equal(api.repeatSet(record), false);
-  api.runPending();
-  assert.equal(session.results.length, 5);
-  assert.ok(session.results.every(item => item.variant === 1));
-  assert.equal(session.results[1].brief, '原卖点');
-  assert.equal(session.resultContext.style[0].url, record.results[0].image);
-  assert.equal(session.resultContext.logo[0].url, 'old-logo.png');
-  assert.equal(session.resultRatio, '1:1');
-  assert.equal(JSON.stringify(api.copyGenerationContext(session)), inputs);
-  assert.equal(session.history.find(item => item.resultId === record.resultId).results.length, 5);
 });
 
 test('套图单图上传原子替换，多文件仅取第一张，失败和并发不覆盖正确图片', async () => {
@@ -208,141 +108,6 @@ test('套图单图上传原子替换，多文件仅取第一张，失败和并�
   readers[4].onload();await Promise.resolve();
   readers[5].onload();await multiple;
   assert.equal(poster.uploads.length,2,'海报仍允许多张素材');
-});
-
-test('重做只更新所选记录的一张图，切换页面和重复点击不污染其他结果', () => {
-  const {api, session} = setHarness();
-  api.plan(true);
-  api.runPending();
-  const first = api.resultSnapshot(session);
-  api.plan(true);
-  api.runPending();
-  const current = JSON.stringify(session.results);
-  const unchanged = JSON.stringify(first.results[0]);
-  assert.equal(api.redoSetImage(first, 2), true);
-  assert.equal(api.redoSetImage(first, 2), false);
-  api.setActive(null, 'image-main');
-  const main = api.initial();
-  api.setActive(main);
-  api.runPending();
-  const saved = session.history.find(item => item.resultId === first.resultId);
-  assert.equal(saved.results[2].revision, 1);
-  assert.equal(JSON.stringify(saved.results[0]), unchanged);
-  assert.equal(JSON.stringify(session.results), current);
-  assert.equal(main.refining, undefined);
-  assert.equal(session.refining, false);
-  assert.equal(session.history.length, 2);
-});
-
-test('套图单张调整在原组保存，不复制整套结果或改写其他图片', () => {
-  const {api, session} = setHarness();
-  api.plan(true);
-  api.runPending();
-  const originalId = session.resultId;
-  const first = JSON.stringify(session.results[0]);
-  session.selected = 2;
-  session.adjustment = '提高背景亮度';
-  api.adjustImage();
-  api.runPending();
-  assert.equal(session.resultId, originalId);
-  assert.equal(session.history.length, 1);
-  assert.equal(session.history[0].results[2].note, '提高背景亮度');
-  assert.equal(JSON.stringify(session.results[0]), first);
-  assert.equal(api.setGalleryRecords()[0].results.length, 6);
-});
-
-test('图片信息固定于生成时，左侧编辑与快照副本不会改变历史', () => {
-  const api = harness(), session = api.initial();
-  api.setActive(session);
-  session.ratio = '4:5';
-  session.visualStyle = '创意表达';
-  session.style = [{name: '最初参考图', url: 'original-reference.jpg'}];
-  api.plan(true);
-  // 模拟异步过程中素材被替换，结果必须使用开始时的参数。
-  session.style[0].url = 'later-reference.jpg';
-  session.ratio = '16:9';
-  session.uploads[0].name = '后来的商品';
-  api.runPending();
-  assert.equal(session.resultRatio, '4:5');
-  assert.equal(session.resultContext.style[0].url, 'original-reference.jpg');
-  assert.equal(session.resultContext.uploads[0].name, '示例商品');
-  const snapshot = api.resultSnapshot(session);
-  snapshot.resultContext.style[0].url = 'changed-copy.jpg';
-  assert.equal(session.history[0].resultContext.style[0].url, 'original-reference.jpg');
-  const info = api.renderImageInfo(session.history[0], 0);
-  assert.match(info, /4:5/);
-  assert.match(info, /original-reference.jpg/);
-  assert.doesNotMatch(info, /later-reference|16:9|changed-copy/);
-});
-
-test('旧图生成同款按张计数，保留原图、原始商品和当前输入', () => {
-  const api = harness();
-  api.setActive(null, 'image-set');
-  const session = api.initial();
-  api.setActive(session, 'image-set');
-  const original = api.resultSnapshot(session);
-  session.ratio = '9:16';
-  session.visualStyle = '场景应用';
-  session.uploads = [{name: '另一个商品', url: 'new-product.jpg'}];
-  session.style = [{name: '另一种风格', url: 'new-style.jpg'}];
-  session.prompt = '暂时没有提交的要求';
-  const currentInputs = JSON.stringify(api.copyGenerationContext(session));
-  api.openRepeat(original, 3);
-  session.repeatQuantity = '3';
-  assert.equal(api.createSimilar(), true);
-  assert.equal(api.createSimilar(), false, '重复提交不能启动第二次任务');
-  api.runPending();
-  assert.equal(session.results.length, 3, '套图同款不应乘以每版 6 张');
-  assert.equal(session.resultContext.uploads[0].url, original.resultContext.uploads[0].url);
-  assert.equal(session.resultContext.ratio, '1:1');
-  assert.equal(session.resultContext.style[0].url, original.results[3].image);
-  assert.equal(session.resultContext.style[0].sourceRecordId, original.resultId);
-  assert.equal(session.resultContext.style[0].sourceIndex, 3);
-  assert.ok(session.results.every(item => item.image === original.results[3].image));
-  assert.equal(JSON.stringify(api.copyGenerationContext(session)), currentInputs);
-  assert.equal(api.galleryRecords().length, 2);
-  assert.equal(session.history.find(item => item.resultId === original.resultId).results.length, 6);
-  assert.equal(original.resultContext.style.length, 0);
-  assert.equal(api.galleryRecords()[0].resultId, session.resultId);
-});
-
-test('同款数量只接受 1–10 的整数，错误输入不会创建任务', () => {
-  for (const quantity of ['', 0, -1, 2.5, 11, 'abc']) {
-    const api = harness(), session = api.initial();
-    api.setActive(session);
-    api.openRepeat(api.resultSnapshot(session), 0);
-    session.repeatQuantity = quantity;
-    assert.equal(api.createSimilar(), false, String(quantity));
-    assert.equal(session.phase, 'results');
-    assert.equal(session.history.length, 0);
-    assert.equal(session.dialog, 'repeat');
-  }
-  for (const quantity of [1, 10]) {
-    const api = harness(), session = api.initial();
-    api.setActive(session);
-    api.openRepeat(api.resultSnapshot(session), 0);
-    session.repeatQuantity = String(quantity);
-    assert.equal(api.createSimilar(), true);
-    api.runPending();
-    assert.equal(session.results.length, quantity);
-  }
-});
-
-test('同款生成期间切换入口，结果仍回到发起任务的会话', () => {
-  const api = harness(), main = api.initial();
-  api.setActive(main);
-  api.openRepeat(api.resultSnapshot(main), 0);
-  main.repeatQuantity = '2';
-  api.createSimilar();
-  api.setActive(null, 'image-poster');
-  const poster = api.initial();
-  api.setActive(poster, 'image-poster');
-  api.runPending();
-  assert.equal(main.resultMode, 'image-main');
-  assert.equal(main.results.length, 2);
-  assert.equal(poster.resultMode, 'image-poster');
-  assert.equal(poster.history.length, 0);
-  assert.equal(poster.resultTime, '示例作品');
 });
 
 test('信息小标使用原方向，参考图优先，缺失参数不套用当前输入', () => {
@@ -403,104 +168,6 @@ test('附带信息拒绝空白和超长输入，保留草稿供修正', () => {
   assert.equal(api.saveAttachedInfo(), true);
 });
 
-test('文字按任务保存，后续编辑不改变历史，批量同款保留原文字', () => {
-  const api = harness(), session = api.initial();
-  api.setActive(session);
-  api.chooseDirection('附带信息');
-  session.attachedInfoDraft = '原始标题\n准确规格';
-  api.saveAttachedInfo();
-  api.plan(true);
-  session.attachedInfo = '后改的文字';
-  api.runPending();
-  assert.equal(session.resultContext.imageText, '原始标题\n准确规格');
-  assert.match(session.plans[0].prompt, /原始标题\n准确规格/);
-  assert.doesNotMatch(session.plans[0].prompt, /后改的文字/);
-  const record = api.resultSnapshot(session);
-  api.chooseDirection('创意表达');
-  api.openRepeat(record, 0);
-  session.repeatQuantity = '2';
-  api.createSimilar();
-  api.runPending();
-  assert.equal(session.resultContext.imageText, '原始标题\n准确规格');
-  assert.match(session.plans[0].prompt, /原始标题\n准确规格/);
-  assert.equal(session.visualStyle, '创意表达');
-  assert.equal(session.attachedInfo, '后改的文字');
-});
-
-test('参考图和其他方向不会带入未启用的附带信息', () => {
-  const api = harness(), session = api.initial();
-  api.setActive(session);
-  session.attachedInfo = '暂不展示的文字';
-  api.plan(true);
-  api.runPending();
-  assert.equal(session.resultContext.imageText, '');
-  assert.doesNotMatch(session.plans[0].prompt, /暂不展示/);
-  session.visualStyle = '附带信息';
-  session.style = [{name: '参考图', url: 'style.jpg'}];
-  api.chooseDirection('附带信息');
-  assert.equal(session.dialog, null);
-  api.plan(true);
-  api.runPending();
-  assert.equal(session.resultContext.imageText, '');
-  assert.doesNotMatch(session.plans[0].prompt, /暂不展示/);
-  assert.equal(session.attachedInfo, '暂不展示的文字');
-});
-
-test('主图固定中等清晰度且不带入已移除字段，其他入口沿用原设置', () => {
-  const api = harness(), session = api.initial();
-  api.setActive(session);
-  session.quality = '高';
-  session.product = '旧商品名称';
-  session.selling = '旧卖点';
-  session.buyers = '旧客户';
-  session.logo = [{name: '旧 Logo', url: 'old-logo.png'}];
-  assert.doesNotMatch(api.renderInlineSettings(), /输出清晰度|补充商品信息|品牌 Logo/);
-  assert.match(api.renderDirectionControl(), /value="附带信息"/);
-  api.plan(true);
-  api.runPending();
-  assert.equal(session.resultContext.quality, '中');
-  assert.equal(session.resultContext.logo[0].url, 'old-logo.png');
-  assert.match(session.plans[0].prompt, /品牌 Logo/);
-  assert.doesNotMatch(session.plans[0].prompt, /旧商品名称|旧卖点|旧客户|高清晰度/);
-  const record = api.resultSnapshot(session);
-  record.resultContext.quality = '高';
-  api.openRepeat(record, 0);
-  session.repeatQuantity = 1;
-  api.createSimilar();
-  api.runPending();
-  assert.equal(session.resultContext.quality, '中');
-  api.setActive(null, 'image-poster');
-  const poster = api.initial();
-  api.setActive(poster, 'image-poster');
-  assert.match(api.renderInlineSettings(), /输出清晰度|补充商品信息/);
-  assert.doesNotMatch(api.renderDirectionControl(), /value="附带信息"/);
-  api.chooseDirection('附带信息');
-  assert.equal(poster.dialog, null);
-  poster.quality = '高';
-  api.plan(true);
-  api.runPending();
-  assert.equal(poster.resultContext.quality, '高');
-});
-
-test('主图保留 Logo，图片生成和批量同款使用历史 Logo 而非当前更换的素材', () => {
-  const api = harness(), session = api.initial();
-  api.setActive(session);
-  session.logo = [{name: '品牌标识', url: 'original-logo.png'}];
-  api.plan(true);
-  session.logo[0].url = 'later-logo.png';
-  api.runPending();
-  assert.equal(session.resultContext.logo[0].url, 'original-logo.png');
-  assert.match(session.plans[0].prompt, /加入所提供的品牌 Logo/);
-  const original = api.resultSnapshot(session);
-  api.openRepeat(original, 0);
-  session.repeatQuantity = 2;
-  api.createSimilar();
-  api.runPending();
-  assert.equal(session.resultContext.logo[0].url, 'original-logo.png');
-  assert.equal(session.logo[0].url, 'later-logo.png');
-  assert.match(session.plans[0].prompt, /品牌 Logo/);
-});
-
 test('Logo 替换原子完成，失败保留旧图，并发采用最后选择且不影响风格参考图', async () => {
   const readers = [];
   class ControlledReader {
@@ -530,84 +197,6 @@ test('Logo 替换原子完成，失败保留旧图，并发采用最后选择且
   assert.equal(session.style[0].url, 'style.png');
 });
 
-
-test('详情图默认八种内容，规格缺失时定位输入，统一要求与逐图内容冻结且跨入口不串写', () => {
-  const {api, session} = setHarness('image-listing');
-  assert.equal(session.setSlots.length, 8);
-  assert.ok(session.setSlots.every(slot => slot.role !== 'main'));
-  assert.equal(api.count(), 8);
-  api.plan(true);
-  assert.equal(session.phase, 'results');
-  assert.equal(session.setContentOpen, true);
-  assert.equal(session.setNotesOpen['detail-5'], true);
-  session.setSlots[4].brief = '容量 350 ml';
-  session.setSlots[0].brief = '仅用于介绍页的文字';
-  session.prompt = '整套浅灰背景，文字用英文';
-  session.quality = '高';
-  session.quantity = 3;
-  session.logo = [{name:'测试 Logo',url:'logo.png'}];
-  api.plan(true);
-  session.setSlots[0].brief = '后改文字';
-  api.setActive(null, 'image-set');
-  const other = api.initial();
-  api.setActive(other, 'image-set');
-  api.runPending();
-  assert.equal(session.results.length, 8);
-  assert.equal(session.resultMode, 'image-listing');
-  assert.equal(session.resultContext.quality, '中');
-  assert.equal(session.resultContext.quantity, 1);
-  assert.ok(session.plans.every(item => item.title.startsWith('详情 ')));
-  assert.ok(session.plans.every(item => item.prompt.includes('整套浅灰背景，文字用英文') && item.prompt.includes('品牌 Logo')));
-  assert.match(session.plans[0].prompt, /仅用于介绍页的文字/);
-  assert.ok(session.plans.slice(1).every(item => !item.prompt.includes('仅用于介绍页的文字')));
-  assert.match(session.plans[5].title, /工艺与定制/);
-  assert.match(session.plans[4].prompt, /容量 350 ml/);
-  assert.equal(other.history.length, 0);
-});
-
-test('详情图首张可编辑和删除，按实际图位生成，最少一张最多十张', () => {
-  const {api, session} = setHarness('image-listing');
-  assert.equal(api.updateSetRole('detail-1', 'quality'), true);
-  assert.equal(api.updateSetRole('detail-1', 'main'), false);
-  assert.equal(api.changeSetSlots(), true);
-  assert.equal(api.changeSetSlots(), true);
-  assert.equal(api.changeSetSlots(), false);
-  assert.equal(new Set(session.setSlots.map(item => item.id)).size, 10);
-  assert.equal(api.changeSetSlots('detail-1'), true);
-  while (session.setSlots.length > 1) api.changeSetSlots(session.setSlots[0].id);
-  assert.equal(api.changeSetSlots(session.setSlots[0].id), false);
-  assert.equal(api.count(), 1);
-  session.results = [];
-  const sample = api.setGalleryRecords()[0];
-  assert.equal(sample.resultId, 'sample-image-listing');
-  assert.equal(sample.results.length, 1);
-  api.plan(true);api.runPending();
-  assert.equal(session.results.length, 1);
-  assert.equal(session.history.length, 1);
-});
-
-test('详情图再生成沿用历史内容，单张重做和调整不复制整组，拒绝套图记录', () => {
-  const {api, session} = setHarness('image-listing');
-  session.setSlots[4].brief = '容量 350 ml';
-  api.plan(true);api.runPending();
-  const first = api.resultSnapshot(session);
-  session.setSlots[4].brief = '后改规格';
-  assert.equal(api.repeatSet(first), true);api.runPending();
-  assert.equal(session.resultContext.setSlots[4].brief, '容量 350 ml');
-  assert.equal(session.resultMode, 'image-listing');
-  assert.equal(session.results.length, 8);
-  const current = api.resultSnapshot(session), count = session.history.length;
-  assert.equal(api.redoSetImage(current, 1), true);api.runPending();
-  assert.equal(session.results[1].revision, 1);
-  assert.equal(session.results[0].revision, undefined);
-  session.selected = 2;session.adjustment = '调整这张详情图';
-  api.adjustImage();api.runPending();
-  assert.equal(session.history.length, count);
-  assert.equal(session.history.find(record=>record.resultId===session.resultId).results[2].note, '调整这张详情图');
-  const wrong = {...current,resultMode:'image-set'};
-  assert.equal(api.repeatSet(wrong), false);
-  assert.equal(api.redoSetImage(wrong, 0), false);
-});
 
 test('详情图只保留一张商品图，读取失败和并发更换不会清空原图', async () => {
   const readers = [];
@@ -643,32 +232,63 @@ test('套图和详情图示例也提供整套下载、单张调整与下载入�
   }
 });
 
-test('整套下载使用所点历史记录的张数，单张下载只选择该图，不修改任务', () => {
-  const {api, session} = setHarness();
-  const original = api.resultSnapshot(session);
-  api.changeSetSlots();
-  const before = JSON.stringify(session);
-  assert.equal(session.results.length, 7);
-  assert.equal(api.downloadRecord(original), 6);
-  assert.equal(api.downloadRecord(original, 3), 1);
-  assert.equal(api.downloadRecord(original, -1), 0);
-  assert.equal(api.downloadRecord(original, 6), 0);
-  assert.equal(api.downloadRecord(original, 1.5), 0);
-  assert.equal(JSON.stringify(session), before);
+/** 可控网络桩，显式完成或拒绝，不依赖模拟计时器冒充生图。 */
+function liveHarness(mode='image-main') {
+ const calls=[];
+ const api=harness(undefined,(kind,inputs,files,onProgress)=>new Promise((resolve,reject)=>calls.push({kind,inputs,files,onProgress,resolve,reject})));
+ api.setActive(null,mode);const session=api.initial();api.setActive(session,mode);
+ return {api,session,calls};
+}
+/** 等待已解决的网络Promise传回状态层。 */
+async function settle(){for(let i=0;i<8;i++)await Promise.resolve();}
+/** 构造真实结果结构，图片URL区别于所有示例素材。 */
+function complete(call,status='succeeded') {
+ const base={status,model:'gpt-image-2.5-flare'};
+ const result=['set','listing'].includes(call.kind)?{...base,items:JSON.parse(call.inputs.slots_json).filter(x=>!call.inputs.retry_slot_ids_json||JSON.parse(call.inputs.retry_slot_ids_json).includes(x.id)).map((slot,index)=>({slot_id:slot.id,title:slot.role,status:'succeeded',images:[{index:0,url:'https://example.com/'+slot.id+'.png'}]}))}:{...base,images:Array.from({length:call.inputs.quantity||1},(_,index)=>({index,url:'https://example.com/new-'+index+'.png'}))};
+ call.resolve({result,plan:[],workflow_run_id:'run-test'});
+}
+test('主图发送历史冻结的商品/Logo/语言/附带信息，成功才替换示例',async()=>{
+ const {api,session,calls}=liveHarness();session.visualStyle='附带信息';session.attachedInfo='真实文案';session.logo=[{url:'logo.png'}];session.targetLanguage='中文';
+ const old=session.results[0].image;api.plan(true);api.plan(true);assert.equal(calls.length,1);assert.equal(session.results[0].image,old);
+ session.logo[0].url='changed.png';session.attachedInfo='later';
+ assert.equal(calls[0].files.logo_image.url,'logo.png');assert.equal(calls[0].inputs.image_text,'真实文案');assert.equal(calls[0].inputs.language,'中文');
+ complete(calls[0]);await settle();assert.equal(session.results[0].image,'https://example.com/new-0.png');assert.equal(session.resultContext.imageText,'真实文案');
 });
-
-test('示例单张修改只更新当前图，更改其他图位不会清空该图调整', () => {
-  for (const selectedMode of ['image-set','image-listing']) {
-    const {api, session} = setHarness(selectedMode);
-    const before = JSON.stringify(session.results[0]);
-    session.selected = 1;session.adjustment = '背景改为浅灰，保留商品颜色';
-    api.adjustImage();api.runPending();
-    assert.equal(session.results[1].note, session.adjustment);
-    assert.equal(JSON.stringify(session.results[0]), before);
-    const selectedId=session.results[1].slotId;
-    api.updateSetRole(session.setSlots.at(-1).id,'scene');
-    assert.equal(session.results.find(item=>item.slotId===selectedId).note, session.adjustment);
-    api.updateSetRole(selectedId,'spec');
-    assert.equal(session.results.find(item=>item.slotId===selectedId).note, undefined);
-  }
+test('套图/详情按选中图位顺序传语义名称，无数量参数，空规格说明允许',async()=>{
+ for(const mode of ['image-set','image-listing']){
+  const {api,session,calls}=liveHarness(mode);session.quantity=9;session.setSlots[1].role='spec';session.setSlots[1].brief='';session.uploads.push({url:'ignored.png'});
+  api.plan(true);assert.equal(calls.length,1);assert.equal(calls[0].inputs.quantity,undefined);
+  const slots=JSON.parse(calls[0].inputs.slots_json);assert.equal(slots.length,mode==='image-set'?6:8);assert.match(slots[1].role,/规格/);assert.equal(slots[1].brief,'');
+  api.setActive(null,'image-main');const other=api.initial();api.setActive(other,'image-main');complete(calls[0]);await settle();
+  assert.equal(session.results.length,slots.length);assert.equal(other.history.length,0);assert.equal(session.resultContext.quantity,1);
+ }
+});
+test('错误保留原图且不伪造成功记录，partial保留已取得图片',async()=>{
+ const {api,session,calls}=liveHarness();const before=JSON.stringify(session.results);api.plan(true);calls[0].reject(new Error('连接中断'));await settle();
+ assert.equal(JSON.stringify(session.results),before);assert.equal(session.history.length,0);assert.equal(session.runError,'连接中断');
+ api.plan(true);complete(calls[1],'partial');await settle();assert.equal(session.results[0].real,true);assert.match(session.runError,/部分/);
+});
+test('套图部分成功保留原图位序号，不把第一张成功副图编号为零',async()=>{
+ const {api,session,calls}=liveHarness('image-set');api.plan(true);
+ const slot=JSON.parse(calls[0].inputs.slots_json)[1];
+ calls[0].resolve({result:{status:'partial',model:'gpt-image-2.5-flare',items:[{slot_id:slot.id,title:slot.role,images:[{url:'https://example.com/partial.png'}]}]},plan:[]});
+ await settle();assert.equal(session.results.length,1);assert.equal(session.results[0].slotIndex,1);assert.match(session.runError,/部分/);
+});
+test('同款走独立流程，使用所选结果图与原商品，数量不乘套图张数',async()=>{
+ const {api,session,calls}=liveHarness('image-set');const old=api.resultSnapshot(session);api.openRepeat(old,2);session.repeatQuantity=3;
+ assert.equal(api.createSimilar(),true);assert.equal(calls[0].kind,'similar');assert.equal(calls[0].inputs.quantity,3);assert.equal(calls[0].files.source_image.url,old.results[2].image);
+ session.uploads=[{url:'later.png'}];complete(calls[0]);await settle();assert.equal(session.results.length,3);assert.equal(session.resultContext.uploads[0].url,old.resultContext.uploads[0].url);
+ for(const invalid of [0,11,2.5]){api.openRepeat(old,0);session.repeatQuantity=invalid;assert.equal(api.createSimilar(),false);}
+});
+test('单张调整调用edit且只替换选中图，失败不修改原图',async()=>{
+ const {api,session,calls}=liveHarness('image-set');api.plan(true);complete(calls[0]);await settle();const first=session.results[0].image;
+ session.selected=2;session.adjustment='换白背景';const work=api.adjustImage();assert.equal(calls[1].kind,'edit');assert.equal(calls[1].inputs.instruction,'换白背景');
+ complete(calls[1]);await work;assert.equal(session.results[0].image,first);assert.equal(session.results[2].image,'https://example.com/new-0.png');
+ session.adjustment='继续修改';const failed=api.adjustImage();calls[2].reject(new Error('失败'));await failed;assert.equal(session.results[2].image,'https://example.com/new-0.png');
+});
+test('整套重做指定图位传完整方案加retry，只更新该记录，拒绝跨入口记录',async()=>{
+ const {api,session,calls}=liveHarness('image-listing');api.plan(true);complete(calls[0]);await settle();const record=api.resultSnapshot(session);
+ const work=api.redoSetImage(record,2);assert.deepEqual(JSON.parse(calls[1].inputs.retry_slot_ids_json),[record.results[2].slotId]);assert.equal(JSON.parse(calls[1].inputs.slots_json).length,8);
+ complete(calls[1]);await work;assert.equal(session.results[2].revision,1);assert.equal(session.results[0].revision,undefined);
+ assert.equal(await api.redoSetImage({...record,resultMode:'image-set'},0),false);
 });

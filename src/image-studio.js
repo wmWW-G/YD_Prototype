@@ -1,7 +1,7 @@
 /* global window, document */
 /**
  * AI 作图交互原型。以批图匠的选型、模板、逐张方案确认和结果预览为参考。
- * 全部处理只发生在浏览器内；不会上传素材、请求模型或扣除额度。
+ * 主图、套图、详情图及其调整/同款通过同源服务真实调用；其他工具仍保留独立原型。
  */
 window.YD_IMAGE_STUDIO = (() => {
   const ASSETS = 'assets/image-studio/';
@@ -71,7 +71,7 @@ window.YD_IMAGE_STUDIO = (() => {
     const type=GENERATION_TYPES[mode]||'set';
     const titles=imageTitles(type);
     const generation=Boolean(GENERATION_TYPES[mode]);
-    const session={ type, template:type==='listing'?'listing':'dense', visualStyle:'简洁展示', ratio:'1:1', quality:'中', model:'PTJ-1', quantity:1, prompt:generation?'米白背景，自然光，突出陶瓷质感':'', uploads:generation?[{name:'示例商品',url:ASSETS+STUDIO_PHOTO,sample:true}]:[], style:[], logo:[], outfit:[], retouch:'去水印', phase:'results', plans:[], dialog:null, settingsOpen:false, structureOpen:false, productInfoOpen:false, selected:0, history:[], results:titles.map((title,i)=>({image:resultImage(i),title})), resultMode:mode, resultType:type, resultRatio:'1:1', resultQuantity:1, resultModel:'PTJ-1', resultTime:'示例作品', resultCreatedAt:Date.now(), resultId:'sample-'+mode, progress:0 };
+    const session={ type, template:type==='listing'?'listing':'dense', visualStyle:'简洁展示', targetLanguage:'英语', ratio:'1:1', quality:'中', model:'PTJ-1', quantity:1, prompt:generation?'米白背景，自然光，突出陶瓷质感':'', uploads:generation?[{name:'示例商品',url:ASSETS+STUDIO_PHOTO,sample:true}]:[], style:[], logo:[], outfit:[], retouch:'去水印', phase:'results', plans:[], dialog:null, settingsOpen:false, structureOpen:false, productInfoOpen:false, selected:0, history:[], results:titles.map((title,i)=>({image:resultImage(i),title})), resultMode:mode, resultType:type, resultRatio:'1:1', resultQuantity:1, resultModel:'PTJ-1', resultTime:'示例作品', resultCreatedAt:Date.now(), resultId:'sample-'+mode, progress:0 };
     session.attachedInfo='';
     if(isSuiteMode()) {
       session.setSlots=(type==='listing'?LISTING_ROLES:SET_ROLES.slice(0,6)).map((role,index)=>({id:type==='listing'?'detail-'+(index+1):index?'secondary-'+index:'main',role:role.id,brief:''}));
@@ -178,14 +178,15 @@ window.YD_IMAGE_STUDIO = (() => {
   function copyGenerationContext(source) {
     if(!source)return null;
     const context={};
-    for(const field of ['type','template','visualStyle','ratio','quality','model','quantity','prompt','product','selling','buyers','retouch','attachedInfo','imageText'])context[field]=source[field];
+    for(const field of ['type','template','visualStyle','targetLanguage','ratio','quality','model','quantity','prompt','product','selling','buyers','retouch','attachedInfo','imageText','workflowKind','sourceImage'])context[field]=source[field];
     for(const field of ['uploads','style','logo','outfit'])context[field]=(source[field]||[]).map(item=>({...item}));
+    if(source.sourceImage)context.sourceImage={...source.sourceImage};
     if(source.setSlots)context.setSlots=source.setSlots.map(item=>({...item}));
     return context;
   }
 
   /** 取得图位用途，未知旧值回退为该类型的细节展示。@param {string} id 用途 ID。@param {string} type 产物类型，读取历史时显式传入。@returns {object} 固定用途定义。不抛异常。 */
-  function setRole(id,type=active.type) { const roles=suiteRoles(type);return roles.find(item=>item.id===id)||roles.find(item=>item.id==='detail'); }
+  function setRole(id,type=active.type) { const roles=suiteRoles(type);return roles.find(item=>item.id===id)||{id,name:id,hint:'补充此图要表达的内容',image:STUDIO_PHOTO}; }
 
   /** 按当前图位生成示例图片及角色标签。@param {object} source 套图设置。@returns {object[]} 本地演示素材。不抛异常。 */
   function setExampleImages(source) {
@@ -221,7 +222,7 @@ window.YD_IMAGE_STUDIO = (() => {
     return `<div class="studio-set-content" id="studio-set-content" ${active.setContentOpen?'':'hidden'}><fieldset ${['planning','generating'].includes(active.phase)||active.refining?'disabled':''}><div class="studio-set-choice-grid">${renderDirectionSelect()}${slots.map((slot,index)=>{
       const notes=slot.role==='spec'||(active.setNotesOpen[slot.id]??Boolean(slot.brief));
       const noun=listing?'详情图':'副图',label=listing?`详情 ${index+1}`:`副图 ${index+1}`;
-      return `<div class="studio-set-slot"><div class="studio-set-slot-head"><label for="studio-set-role-${slot.id}">${label}</label><button type="button" class="studio-slot-note" data-set-note="${slot.id}" aria-expanded="${Boolean(notes)}" ${slot.role==='spec'?'disabled':''}>${slot.role==='spec'?'必填':notes?'收起':'说明'}</button><button type="button" class="studio-slot-remove" data-set-remove="${slot.id}" aria-label="移除第${index+1}张${noun}" ${active.setSlots.length<=minimum?'disabled':''}>${toolIcon('x')}</button></div><select id="studio-set-role-${slot.id}" data-set-role="${slot.id}" aria-label="第${index+1}张${noun}用途">${options.map(role=>`<option value="${role.id}" ${role.id===slot.role?'selected':''}>${role.name}</option>`).join('')}</select>${notes?`<textarea data-set-brief="${slot.id}" aria-label="第${index+1}张${noun}补充说明" maxlength="500" placeholder="${setRole(slot.role).hint}${slot.role==='spec'?'（必填）':'（选填）'}">${esc(slot.brief)}</textarea>`:''}</div>`;
+      return `<div class="studio-set-slot"><div class="studio-set-slot-head"><label for="studio-set-role-${slot.id}">${label}</label><button type="button" class="studio-slot-note" data-set-note="${slot.id}" aria-expanded="${Boolean(notes)}" >${notes?'收起':'说明'}</button><button type="button" class="studio-slot-remove" data-set-remove="${slot.id}" aria-label="移除第${index+1}张${noun}" ${active.setSlots.length<=minimum?'disabled':''}>${toolIcon('x')}</button></div><select id="studio-set-role-${slot.id}" data-set-role="${slot.id}" aria-label="第${index+1}张${noun}用途">${options.map(role=>`<option value="${role.id}" ${role.id===slot.role?'selected':''}>${role.name}</option>`).join('')}</select>${notes?`<textarea data-set-brief="${slot.id}" aria-label="第${index+1}张${noun}补充说明" maxlength="500" placeholder="${setRole(slot.role).hint}（选填）">${esc(slot.brief)}</textarea>`:''}</div>`;
     }).join('')}</div><div class="studio-set-content-footer"><button type="button" class="studio-set-add-slot" data-action="add-set-slot" ${active.setSlots.length>=10?'disabled':''}>${toolIcon('plus')}${listing?'添加详情图':'添加副图'}</button><small>${listing?'每套 1–10 张':'固定 1 张主图 · 最多 10 张'}</small></div></fieldset></div>`;
   }
 
@@ -231,7 +232,7 @@ window.YD_IMAGE_STUDIO = (() => {
     const working=['planning','generating'].includes(active.phase)||active.refining;
     const sample=records.every(record=>record.resultTime==='示例作品');
     const shown=records;
-    return `<header class="studio-set-intro"><h2>${sample?(active.type==='listing'?'详情图效果示例':'整套效果示例'):'生成结果'}</h2><p>${sample?'示例图片，仅供参考':'演示结果 · 最新生成在前'}</p></header>${working?`<div class="studio-gallery-progress" role="status"><span class="studio-spinner"></span><span>${active.refining?'正在重做这张图片…':active.phase==='planning'?'正在准备整套画面…':`正在生成 · ${active.progress} / ${active.plans.length} 张`}</span></div>`:''}${groupRecordsByDate(shown).map(group=>`<section class="studio-date-group" aria-label="${group.label}"><h3><time datetime="${group.key}">${group.label}</time></h3>${group.records.map(renderSetRecord).join('')}</section>`).join('')}`;
+    return `<header class="studio-set-intro"><h2>${sample?(active.type==='listing'?'详情图效果示例':'整套效果示例'):'生成结果'}</h2><p>${sample?'示例图片，仅供参考':'最新生成在前'}</p></header>${renderRunError()}${working?`<div class="studio-gallery-progress" role="status"><span class="studio-spinner"></span><span>${esc(active.progressText||'正在处理图片…')}</span></div>`:''}${groupRecordsByDate(shown).map(group=>`<section class="studio-date-group" aria-label="${group.label}"><h3><time datetime="${group.key}">${group.label}</time></h3>${group.records.map(renderSetRecord).join('')}</section>`).join('')}`;
   }
 
   /** 展示每套结果及下载入口，示例和生成结果都可逐张调整、下载，生成结果另可重做。@param {object} record 固定输入和结果快照。@returns {string} 图片网格。不抛异常。 */
@@ -239,7 +240,7 @@ window.YD_IMAGE_STUDIO = (() => {
     const sample=record.resultTime==='示例作品';
     const variants=[...new Set(record.results.map(item=>item.variant||1))];
     const attr=`data-gallery-record="${esc(record.resultId)}"`;
-    return `<div class="studio-gallery-batch"><div class="studio-batch-head"><span>${sample?'示例':new Date(record.resultCreatedAt).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false})} · ${variants.length} 套 · ${record.results.length} 张</span>${!sample?`<button type="button" ${attr} data-gallery-action="repeat-set">再生成一套</button>`:''}<button type="button" class="studio-set-download" ${attr} data-gallery-action="download" aria-label="下载整套">${toolIcon('download')}下载整套<span>${record.results.length} 张</span></button></div>${variants.map(variant=>`${variants.length>1?`<p class="studio-set-variant-label">第 ${variant} 套</p>`:''}<div class="studio-gallery-grid">${record.results.map((item,index)=>({item,index})).filter(({item})=>(item.variant||1)===variant).map(({item,index},position)=>`<article class="studio-gallery-card studio-set-card ${item.role==='main'?'is-primary':''}"><div class="studio-gallery-media"><button type="button" class="studio-hero-image" ${attr} data-gallery-index="${index}" data-gallery-action="preview" aria-label="放大${esc(item.title)}"><img src="${esc(item.image)}" alt="${esc(item.title)}" loading="lazy"></button>${renderImageInfo(record,index)}</div><p class="studio-gallery-title"><span>${suiteImageLabel(record.resultType,item.role,position)}</span>${esc(setRole(item.role,record.resultType).name)}</p><div class="studio-canvas-actions"><button type="button" ${attr} data-gallery-index="${index}" data-gallery-action="adjust">${toolIcon('wand')}调整</button><button type="button" ${attr} data-gallery-index="${index}" data-gallery-action="download-one">${toolIcon('download')}下载</button>${!sample?`<button type="button" class="studio-repeat-trigger" ${attr} data-gallery-index="${index}" data-gallery-action="redo-set-image">${toolIcon('sparkles')}重做这张</button>`:''}</div>${item.revision?'<small class="studio-set-updated">已重做 · 演示</small>':''}${item.note?`<p class="studio-result-note">${esc(item.note)}<small>调整已记录，图片仍为演示素材。</small></p>`:''}</article>`).join('')}</div>`).join('')}</div>`;
+    return `<div class="studio-gallery-batch"><div class="studio-batch-head"><span>${sample?'示例':new Date(record.resultCreatedAt).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false})} · ${variants.length} 套 · ${record.results.length} 张</span>${!sample?`<button type="button" ${attr} data-gallery-action="repeat-set">再生成一套</button>`:''}<button type="button" class="studio-set-download" ${attr} data-gallery-action="download" aria-label="下载整套">${toolIcon('download')}下载整套<span>${record.results.length} 张</span></button></div>${variants.map(variant=>`${variants.length>1?`<p class="studio-set-variant-label">第 ${variant} 套</p>`:''}<div class="studio-gallery-grid">${record.results.map((item,index)=>({item,index})).filter(({item})=>(item.variant||1)===variant).map(({item,index},position)=>`<article class="studio-gallery-card studio-set-card ${item.role==='main'?'is-primary':''}"><div class="studio-gallery-media"><button type="button" class="studio-hero-image" ${attr} data-gallery-index="${index}" data-gallery-action="preview" aria-label="放大${esc(item.title)}"><img src="${esc(item.image)}" alt="${esc(item.title)}" loading="lazy"></button>${renderImageInfo(record,index)}</div><p class="studio-gallery-title"><span>${suiteImageLabel(record.resultType,item.role,item.slotIndex ?? position)}</span>${esc(setRole(item.role,record.resultType).name)}</p><div class="studio-canvas-actions"><button type="button" ${attr} data-gallery-index="${index}" data-gallery-action="adjust">${toolIcon('wand')}调整</button><button type="button" ${attr} data-gallery-index="${index}" data-gallery-action="download-one">${toolIcon('download')}下载</button>${!sample?`<button type="button" class="studio-repeat-trigger" ${attr} data-gallery-index="${index}" data-gallery-action="redo-set-image">${toolIcon('sparkles')}重做这张</button>`:''}</div>${item.revision?'<small class="studio-set-updated">已重做</small>':''}${item.note?`<p class="studio-result-note">${esc(item.note)}<small>已按要求生成新图片。</small></p>`:''}</article>`).join('')}</div>`).join('')}</div>`;
   }
 
   /** 更新仅用于展示的初始示例；历史任务始终保留自己的内容安排。@returns {void} 无主动异常。 */
@@ -247,7 +248,7 @@ window.YD_IMAGE_STUDIO = (() => {
     if(active.resultTime==='示例作品') {
       // 示例现已允许改单图；改变其他图位时，按稳定 ID 保留未换用途图片的调整记录。
       const previous=new Map(active.results.map(item=>[item.slotId,item]));
-      active.results=setExampleImages(active).map(item=>{const old=previous.get(item.slotId);return old?.role===item.role?{...item,note:old.note,revision:old.revision}:item;});
+      active.results=setExampleImages(active).map(item=>{const old=previous.get(item.slotId);return old?.role===item.role?{...item,...(old.real?{image:old.image,real:true}:{}),note:old.note,revision:old.revision}:item;});
       active.resultContext=copyGenerationContext(active);
     }
   }
@@ -293,19 +294,21 @@ window.YD_IMAGE_STUDIO = (() => {
     generate(active,mode,context);return true;
   }
 
-  /** 演示重做一个图位，保持同组其他结果和该记录的生成参数。@param {object} record 记录。@param {number} index 图片索引。@returns {boolean} 是否开始。不抛异常。 */
-  function redoSetImage(record,index) {
+  /** 真实重做一个图位，保持同组其他结果和该记录的生成参数。@param {object} record 记录。@param {number} index 图片索引。@returns {boolean} 是否开始。不抛异常。 */
+  async function redoSetImage(record,index) {
     if(!isSuiteMode()||record.resultMode!==mode||['planning','generating'].includes(active.phase)||active.refining||!record.results[index])return false;
-    const session=active,updated={...record.results[index],revision:(record.results[index].revision||0)+1};
-    session.refining=true;render();
-    setTimeout(()=>{
-      const saved=session.history.find(item=>item.resultId===record.resultId);
-      if(saved)saved.results[index]={...updated};
+    const session=active,context=copyGenerationContext(record.resultContext),item=record.results[index];
+    if(!context?.setSlots||!item.slotId){toast('这张图片缺少图位信息，请重新生成整套');return false;}
+    session.refining=true;session.runError='';render();
+    try {
+      const output=await requestLive(context,context.type,{retry_slot_ids_json:JSON.stringify([item.slotId])},session);
+      const image=output.result.items?.find(row=>row.slot_id===item.slotId)?.images?.[0];
+      if(!image)throw new Error('这张图片未生成，原结果已保留；请先核对任务记录。');
+      const updated={...item,image:image.url,revision:(item.revision||0)+1,real:true};
+      const saved=session.history.find(row=>row.resultId===record.resultId);if(saved)saved.results[index]={...updated};
       if(session.resultId===record.resultId)session.results[index]={...updated};
-      session.refining=false;
-      if(active===session){render();toast('已重做这张图片（演示）');}
-      console.info('[yingdan-image-studio] 单张套图重做演示完成',{index});
-    },650);
+    }catch(error){session.runError=error.message;}
+    finally{session.refining=false;session.phase=session.results.length?'results':'empty';if(active===session)render();}
     return true;
   }
 
@@ -369,7 +372,7 @@ window.YD_IMAGE_STUDIO = (() => {
         <div class="studio-gallery-media"><button type="button" class="studio-hero-image" ${recordAttr} data-gallery-index="${i}" data-gallery-action="preview" aria-label="放大${esc(item.title)}"><img src="${esc(item.image)}" alt="${esc(item.title)}" loading="lazy"></button>${renderImageInfo(record,i)}</div>
         <p class="studio-gallery-title">${esc(item.title)}</p>
         <div class="studio-canvas-actions"><button type="button" ${recordAttr} data-gallery-index="${i}" data-gallery-action="adjust">${toolIcon('wand')}调整</button><button type="button" ${recordAttr} data-gallery-index="${i}" data-gallery-action="download-one">${toolIcon('download')}下载</button><button type="button" class="studio-repeat-trigger" ${recordAttr} data-gallery-index="${i}" data-gallery-action="repeat">${toolIcon('sparkles')}批量生成同款</button></div>
-        ${item.note?`<p class="studio-result-note">调整要求：${esc(item.note)}<small>已记录，当前仍为示例图片。</small></p>`:''}
+        ${item.note?`<p class="studio-result-note">调整要求：${esc(item.note)}<small>已按要求生成新图片。</small></p>`:''}
       </article>`).join('')}</div></div>`;
   }
 
@@ -377,10 +380,10 @@ window.YD_IMAGE_STUDIO = (() => {
   function renderCanvas() {
     const records=galleryRecords();
     const working=['planning','generating'].includes(active.phase);
-    const progress=working?`<div class="studio-gallery-progress" role="status"><span class="studio-spinner"></span><span>${active.phase==='planning'?'正在准备画面…':`正在生成图片 · ${active.progress} / ${active.plans.length} 张`}</span></div>`:'';
-    if(!records.length)return progress||`<div class="studio-canvas-empty">${toolIcon('photo-up')}<h2>好图片，从你的商品开始</h2><p>添加商品图片，写下想法，就可以开始作图。</p><button type="button" class="studio-secondary" data-action="example">试试示例商品</button></div>`;
+    const progress=(working||active.refining)?`<div class="studio-gallery-progress" role="status"><span class="studio-spinner"></span><span>${esc(active.progressText||'正在处理图片…')}</span></div>`:'';
+    if(!records.length)return renderRunError()+progress||`<div class="studio-canvas-empty">${toolIcon('photo-up')}<h2>好图片，从你的商品开始</h2><p>添加商品图片，写下想法，就可以开始作图。</p><button type="button" class="studio-secondary" data-action="example">试试示例商品</button></div>`;
     const sample=records.every(record=>record.resultTime==='示例作品');
-    return `<div class="studio-canvas"><header class="studio-canvas-head"><h2>${sample?'示例效果':'生成结果'}</h2><p>${sample?'AI 生成的示例图片，仅供参考':'演示结果 · 最新生成的图片在前'}</p></header>${progress}
+    return `<div class="studio-canvas"><header class="studio-canvas-head"><h2>${sample?'示例效果':'生成结果'}</h2><p>${sample?'AI 生成的示例图片，仅供参考':'最新生成的图片在前'}</p></header>${renderRunError()}${progress}
       ${groupRecordsByDate(records).map(group=>`<section class="studio-date-group" aria-label="${group.label}"><h3><time datetime="${group.key}">${group.label}</time></h3>${group.records.map(renderGalleryRecord).join('')}</section>`).join('')}
       </div>`;
   }
@@ -388,7 +391,7 @@ window.YD_IMAGE_STUDIO = (() => {
   /** 渲染更多设置的原位内容；生图模型沿用默认值。@returns {string} 参数和选填信息 HTML。不抛异常。 */
   function renderInlineSettings() {
     const main=mode==='image-main';
-    return `<div class="studio-drawer-fields">${select('ratio','画面比例',['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9'])}${select('quantity','生成版数',[1,2,3,4,5,6,7,8,9,10])}${main?'':select('quality','输出清晰度',['低','中','高'])}</div><p class="studio-count-summary">每版 ${TYPE[active.type][1]} 张 · 共 ${count()} 张</p>${main?'':`<details class="studio-advanced" data-settings-section="productInfoOpen" ${active.productInfoOpen?'open':''}><summary>补充商品信息（选填）</summary>${[['product','商品名称'],['selling','核心卖点'],['buyers','目标客户']].map(([field,label])=>`<label>${label}<input data-field="${field}" value="${esc(active[field])}" maxlength="200"></label>`).join('')}${upload('logo','品牌 Logo（选填）',1)}</details>`}<button type="button" class="studio-new-task" data-action="reset">新建作图任务</button>`;
+    return `<div class="studio-drawer-fields">${select('ratio','画面比例',['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9'])}${select('quantity','生成版数',[1,2,3,4,5,6,7,8,9,10])}${main?select('targetLanguage','目标语言',['英语','中文','西班牙语','法语','德语','葡萄牙语','意大利语','俄语','日语','韩语','阿拉伯语']):''}${main?'':select('quality','输出清晰度',['低','中','高'])}</div><p class="studio-count-summary">每版 ${TYPE[active.type][1]} 张 · 共 ${count()} 张</p>${main?'':`<details class="studio-advanced" data-settings-section="productInfoOpen" ${active.productInfoOpen?'open':''}><summary>补充商品信息（选填）</summary>${[['product','商品名称'],['selling','核心卖点'],['buyers','目标客户']].map(([field,label])=>`<label>${label}<input data-field="${field}" value="${esc(active[field])}" maxlength="200"></label>`).join('')}${upload('logo','品牌 Logo（选填）',1)}</details>`}<button type="button" class="studio-new-task" data-action="reset">新建作图任务</button>`;
   }
 
   /** 在触发按钮下方展开或收起，保留表单焦点及滚动位置。@returns {void} 无主动异常。 */
@@ -504,12 +507,13 @@ window.YD_IMAGE_STUDIO = (() => {
     // 用所选结果图作为新任务的风格参考，商品和比例来自那张图生成时的输入。
     context.style=[{name:item.title,url:item.image,sourceRecordId:record.resultId,sourceIndex:source.index}];
     context.quantity=amount;
+    context.workflowKind='similar';context.sourceImage={name:item.title,url:item.image};
     if(!session.history.some(entry=>entry.resultId===record.resultId))session.history.push(resultSnapshot(record));
     session.plans=Array.from({length:amount},(_,i)=>({variant:i+1,title:item.title,imageOverride:item.image,prompt:`${context.prompt||''}保持商品主体一致，${context.ratio}构图。${directionGuidance(context)}${item.note||''}`,edit:false,feedback:''}));
     session.pendingContext=context;
     session.dialog=null;session.repeatSource=null;
     generate(session,record.resultMode,context);
-    console.info('[yingdan-image-studio] 同款演示开始',{count:amount});
+    console.info('[yingdan-image-studio] 同款任务开始',{count:amount});
     return true;
   }
 
@@ -527,22 +531,21 @@ window.YD_IMAGE_STUDIO = (() => {
     session.history.unshift(resultSnapshot(session));
   }
 
-  /** 演示单图调整；仅更新本张备注，明确图片并未经过真实模型处理。@returns {void} 无主动异常。 */
-  function adjustImage() {
+  /** 真实调用单图调整，仅成功时替换选中图片，失败保留原图。@returns {void} 无主动异常。 */
+  async function adjustImage() {
     if(!active.adjustment?.trim()){toast('请写下想调整的地方');return;}
-    const session=active, index=active.selected, note=active.adjustment.trim();
-    session.dialog=null;session.refining=true;render();
-    setTimeout(()=>{
-      session.results[index]={...session.results[index],note};
-      session.refining=false;
-      // 套图按同一组逐张维护，修改一张不会再复制整套占满结果区。
-      if(isSuiteMode(session.resultMode)) {
-        const saved=session.history.find(item=>item.resultId===session.resultId);
-        if(saved)saved.results[index]={...session.results[index]};
-      }else saveRecord(session);
-      if(active===session){render();toast('调整要求已记录，当前展示的仍是示例图片');}
-      console.info('[yingdan-image-studio] 单图调整演示完成',{index});
-    },600);
+    if(active.refining)return;
+    const session=active,index=active.selected,note=active.adjustment.trim(),original={...active.results[index]};
+    const context=copyGenerationContext(active.resultContext||active);
+    session.dialog=null;session.refining=true;session.runError='';render();
+    try {
+      const output=await window.YD_IMAGE_CLIENT.run('edit',{instruction:note,language:context.targetLanguage||'英语',aspect_ratio:context.ratio||'auto'},{source_image:{name:original.title,url:original.image}},event=>updateLiveProgress(session,event));
+      const image=output.result.images?.[0];if(!image)throw new Error('调整未完成，原图已保留；请先核对任务记录。');
+      session.results[index]={...original,image:image.url,note,real:true};session.realResult=true;
+      if(isSuiteMode(session.resultMode)) {const saved=session.history.find(item=>item.resultId===session.resultId);if(saved)saved.results[index]={...session.results[index]};}
+      else saveRecord(session);
+    }catch(error){session.runError=error.message;}
+    finally{session.refining=false;session.phase=session.results.length?'results':'empty';if(active===session)render();}
   }
 
   /** 渲染右侧方案或结果。@returns {string} HTML。不抛异常。 */
@@ -571,10 +574,6 @@ window.YD_IMAGE_STUDIO = (() => {
     if(mode==='image-retouch'&&!active.uploads.length) { toast('请先添加需要修改的图片'); return; }
     if(mode==='image-outfit'&&(!active.uploads.length||!active.outfit.length)) { toast('请先添加服装图和模特图片'); return; }
     if(GENERATION_TYPES[mode]&&!active.uploads.length&&!active.prompt.trim()&&!active.product) { toast('请添加商品图片，或填写商品和画面要求'); root.querySelector('[data-field="prompt"]').focus(); return; }
-    if(isSuiteMode()) {
-      const missing=active.setSlots.find(slot=>slot.role==='spec'&&!slot.brief.trim());
-      if(missing){active.setContentOpen=true;active.setNotesOpen[missing.id]=true;render();root?.querySelector(`[data-set-brief="${missing.id}"]`)?.focus();toast(active.type==='listing'?'请补充实际规格，或更换这张详情图的内容':'请补充规格信息，或选择其他副图用途');return;}
-    }
     const session=active, currentMode=mode,context=copyGenerationContext(active);
     if(currentMode==='image-main') {
       context.quality='中';
@@ -584,13 +583,14 @@ window.YD_IMAGE_STUDIO = (() => {
     }
     if(isSuiteMode(currentMode)){context.quantity=1;context.uploads=context.uploads.slice(0,1);context.quality='中';context.product='';context.selling='';context.buyers='';}
     session.pendingContext=context;
+    if(['image-main','image-set','image-listing'].includes(currentMode)) { generate(session,currentMode,context); return; }
     active.phase='planning'; render();
     setTimeout(()=> {
       const per=currentMode==='image-retouch'?Math.max(1,context.uploads.length):TYPE[context.type][1];
       const purpose=currentMode==='image-retouch'?`执行${context.retouch}，仅修改指定区域，保持其他画面不变。`:currentMode==='image-outfit'?'把服装参考图中的服装自然替换到模特身上，保持姿态、五官与背景一致。':'';
       const titles=imageTitles(context.type);
       const direction=GENERATION_TYPES[currentMode]?directionGuidance(context):'';
-      session.plans=isSuiteMode(currentMode)?buildSetPlans(context):Array.from({length:per*context.quantity},(_,i)=>({variant:Math.floor(i/per)+1,title:currentMode==='image-retouch'?`${context.retouch} · 第 ${i%per+1} 张`:titles[i%titles.length],prompt:`${purpose}${context.product||'参考素材中的商品'}，${GENERATION_TYPES[currentMode]?titles[i%titles.length]:'保持原图构图'}。保持主体造型、颜色与材质一致，${context.ratio}构图，${context.quality}清晰度。${context.selling?'突出 '+context.selling+'。':''}${context.buyers?'面向 '+context.buyers+'。':''}${direction}${context.prompt||(GENERATION_TYPES[currentMode]?'':'使用自然光与干净背景，突出主体。')}`,edit:false,feedback:''}));
+      session.plans=isSuiteMode(currentMode)?buildSetPlans(context):Array.from({length:per*context.quantity},(_,i)=>({variant:Math.floor(i/per)+1,title:currentMode==='image-retouch'?`${context.retouch} · 第 ${i%per+1} 张`:titles[i%titles.length],prompt:`${purpose}${context.product||'参考素材中的商品'}，${GENERATION_TYPES[currentMode]?titles[i%titles.length]:'保持原图构图'}。保持主体造型、颜色与材质一致，${context.ratio}构图，${context.quality}清晰度。${currentMode==='image-main'?`画面文案目标语言为${context.targetLanguage||'英语'}。`:''}${context.selling?'突出 '+context.selling+'。':''}${context.buyers?'面向 '+context.buyers+'。':''}${direction}${context.prompt||(GENERATION_TYPES[currentMode]?'':'使用自然光与干净背景，突出主体。')}`,edit:false,feedback:''}));
       // 轻量生图无需再确认技术提示词；保留异步开始时的会话，切换入口也不会串写。
       if(direct)generate(session,currentMode);
       else {session.phase='review';if(active===session)render();}
@@ -599,6 +599,7 @@ window.YD_IMAGE_STUDIO = (() => {
   }
   /** 播放本地结果出现过程并保存固定参数。@param {object} session 所属会话。@param {string} currentMode 入口。@param {object} context 任务开始时的输入。@returns {void} 无主动异常。 */
   function generate(session=active,currentMode=mode,context=session.pendingContext||copyGenerationContext(session)) {
+    if(['image-main','image-set','image-listing'].includes(currentMode))return generateLive(session,currentMode,context);
     session.phase='generating'; session.progress=0; if(active===session)render();
     const timer=setInterval(()=> {
       session.progress=Math.min(session.plans.length,session.progress+Math.max(1,Math.ceil(session.plans.length/6)));
@@ -614,6 +615,49 @@ window.YD_IMAGE_STUDIO = (() => {
       if(active===session)render();
     },350);
   }
+  /** 用真实节点事件更新所属会话；切换入口不会把异步结果写入新页面。 */
+  function updateLiveProgress(session,event) {
+    session.phase=event.stage==='generating'?'generating':'planning';
+    session.progressText={uploading:'正在上传素材…',planning:'正在理解商品并规划画面…',generating:'正在生成图片，请稍候…'}[event.stage]||'正在处理…';
+    if(event.runId)session.workflowRunId=event.runId;
+    if(active===session)render();
+  }
+  /** 从固定历史输入构造业务请求；方向传名称、图位传顺序，文件按角色分别上传。 */
+  async function requestLive(context,kind,extra={},session=active) {
+    const inputs={instruction:context.prompt||'',language:context.targetLanguage||'英语',aspect_ratio:context.ratio||'1:1'};
+    const files={product_image:context.uploads?.[0]};
+    if(kind==='similar'){files.source_image=context.sourceImage||context.style?.[0];inputs.quantity=Number(context.quantity)||1;}
+    else {
+      files.style_image=context.style?.[0];files.logo_image=context.logo?.[0];inputs.visual_direction=context.visualStyle||'简洁展示';
+      if(kind==='main'){inputs.quantity=Number(context.quantity)||1;inputs.image_text=context.imageText||'';}
+      else inputs.slots_json=JSON.stringify(context.setSlots.map(slot=>({id:slot.id,role:setRole(slot.role,context.type).name,brief:slot.brief||''})));
+    }
+    return window.YD_IMAGE_CLIENT.run(kind,{...inputs,...extra},files,event=>updateLiveProgress(session,event));
+  }
+  /** 执行主图/整套/同款真实任务；失败保留旧图，部分成功不以示例图补齐。 */
+  async function generateLive(session,currentMode,context) {
+    if(['planning','generating'].includes(session.phase)||session.refining)return;
+    const kind=context.workflowKind||context.type;
+    session.phase='planning';session.runError='';session.progressText='正在准备素材…';session.progress=0;
+    if(active===session)render();
+    try {
+      const output=await requestLive(context,kind,{},session),result=output.result;
+      const images=['set','listing'].includes(kind)?result.items.flatMap(row=>row.images.map(image=>{
+        const slot=context.setSlots.find(slot=>slot.id===row.slot_id);
+        return {image:image.url,title:row.title,role:slot?.role||row.role,slotId:row.slot_id,slotIndex:context.setSlots.findIndex(entry=>entry.id===row.slot_id),brief:slot?.brief||'',variant:1,real:true};
+      })):result.images.map((image,index)=>({image:image.url,title:kind==='similar'?'同款图片 '+(index+1):'商品主图 '+(index+1),variant:index+1,real:true}));
+      if(!images.length)throw new Error('本次未取得图片，原结果已保留；请先核对任务记录再重试。');
+      if(session.results.length&&!session.history.some(row=>row.resultId===session.resultId))session.history.push(resultSnapshot(session));
+      Object.assign(session,{results:images,resultMode:currentMode,resultType:context.type,resultRatio:context.ratio,resultQuantity:context.quantity,resultModel:result.model,resultContext:copyGenerationContext(context),pendingContext:null,selected:0,realResult:true,workflowRunId:output.workflow_run_id,plans:output.plan||[],progress:images.length});
+      if(result.status!=='succeeded')session.runError=`已保留 ${images.length} 张图片，部分结果未完成，请核对任务记录后再重做。`;
+      saveRecord(session);
+      console.info('[yingdan-image-studio] 真实作图完成',{kind,status:result.status,count:images.length,runId:output.workflow_run_id});
+    }catch(error){session.runError=error.message;console.warn('[yingdan-image-studio] 未取得完整结果');}
+    finally{session.phase=session.results.length?'results':'empty';if(active===session)render();}
+  }
+  /** 展示持续错误反馈，不在失败后伪装成功或自动重试收费请求。 */
+  function renderRunError(){return active.runError?`<div class="studio-run-error" role="alert">${esc(active.runError)}</div>`:'';}
+
   /** 导入本地素材。@param {string} field 素材分组。@param {FileList|Array<File>} files 图片。@returns {Promise<void>} 失败显示反馈，不传播异常。 */
   async function addFiles(field,files) {
     if(['planning','generating','review'].includes(active.phase)||active.refining){toast('当前任务完成后可以更换素材');return;}
@@ -655,14 +699,14 @@ window.YD_IMAGE_STUDIO = (() => {
       :previous==='preview'?`[data-preview="${active.selected}"]`:`[data-action="${previous==='history'?'history':'templates'}"]`;
     root?.querySelector(selector)?.focus();
   }
-  /** 演示下载所点记录或单张图片，不读取左侧当前选项，也不触发真实文件下载。@param {object} record 所点图片记录。@param {number|null} index 单图索引，null 表示整组。@returns {number} 本次选中的图片数量，非法输入为 0。不抛异常。 */
-  function downloadRecord(record,index=null) {
-    if(!record?.results?.length)return 0;
-    if(index!==null&&(!Number.isInteger(index)||index<0||index>=record.results.length))return 0;
-    const amount=index===null?record.results.length:1;
-    toast(index===null?`整套下载已演示，共 ${amount} 张示例图片`:'单张下载已演示，当前为示例图片');
-    console.info('[yingdan-image-studio] 下载演示',{mode:record.resultMode,recordId:record.resultId,index,count:amount});
-    return amount;
+  /** 下载所点记录或单张图片，不读取左侧当前选项。@param {object} record 所点图片记录。@param {number|null} index 单图索引，null 表示整组。@returns {number} 本次选中的图片数量，非法输入为 0。不抛异常。 */
+  async function downloadRecord(record,index=null) {
+    if(!record?.results?.length)return;
+    const images=index===null?record.results:[record.results[index]];if(images.some(item=>!item))return;
+    try{for(const [i,item] of images.entries()){
+      const response=await fetch(item.image);if(!response.ok)throw new Error('下载失败');const blob=await response.blob();
+      const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`image-${index===null?i+1:index+1}.png`;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
+    }}catch(error){toast('图片下载受限，请打开大图后保存原图');}
   }
 
   /** 按键及按钮动作分发。@param {string} action 固定动作标识。@returns {void} 无主动异常。 */

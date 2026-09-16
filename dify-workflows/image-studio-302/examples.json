@@ -1,0 +1,184 @@
+{
+  "main": {
+    "inputs": {
+      "instruction": "柔和自然光，保留商品真实形状和颜色",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "product_image": {
+        "type": "image",
+        "transfer_method": "local_file",
+        "upload_file_id": "UPLOAD_PRODUCT_FILE_ID"
+      },
+      "visual_direction": "简洁展示",
+      "quantity": 1
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "set": {
+    "inputs": {
+      "instruction": "柔和自然光，保留商品真实形状和颜色",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "product_image": {
+        "type": "image",
+        "transfer_method": "local_file",
+        "upload_file_id": "UPLOAD_PRODUCT_FILE_ID"
+      },
+      "visual_direction": "简洁展示",
+      "slots_json": "[{\"id\": \"hero\", \"role\": \"main\", \"brief\": \"\"}, {\"id\": \"detail_1\", \"role\": \"detail\", \"brief\": \"展示杯口与手柄连接位置\"}, {\"id\": \"spec_1\", \"role\": \"spec\", \"brief\": \"容量 300 ml\"}]"
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "listing": {
+    "inputs": {
+      "instruction": "柔和自然光，保留商品真实形状和颜色",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "product_image": {
+        "type": "image",
+        "transfer_method": "local_file",
+        "upload_file_id": "UPLOAD_PRODUCT_FILE_ID"
+      },
+      "visual_direction": "简洁展示",
+      "slots_json": "[{\"id\": \"intro_1\", \"role\": \"intro\", \"brief\": \"陶瓷杯，用于日常饮水\"}, {\"id\": \"detail_1\", \"role\": \"detail\", \"brief\": \"展示手柄与杯口\"}, {\"id\": \"spec_1\", \"role\": \"spec\", \"brief\": \"容量 300 ml\"}]"
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "edit": {
+    "inputs": {
+      "instruction": "把背景改为浅灰色，商品、现有文字、构图保持不变",
+      "language": "英语",
+      "aspect_ratio": "auto",
+      "source_image": {
+        "type": "image",
+        "transfer_method": "local_file",
+        "upload_file_id": "UPLOAD_SELECTED_RESULT_FILE_ID"
+      }
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "similar": {
+    "inputs": {
+      "instruction": "柔和自然光，保留商品真实形状和颜色",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "product_image": {
+        "type": "image",
+        "transfer_method": "local_file",
+        "upload_file_id": "UPLOAD_PRODUCT_FILE_ID"
+      },
+      "source_image": {
+        "type": "image",
+        "transfer_method": "local_file",
+        "upload_file_id": "UPLOAD_SELECTED_RESULT_FILE_ID"
+      },
+      "quantity": 4
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "main_text_only": {
+    "inputs": {
+      "instruction": "根据文字从零生成深蓝色圆柱马克杯，圆形把手，浅灰背景，无文字，无 Logo。",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "visual_direction": "简洁展示",
+      "quantity": 1
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "set_text_only": {
+    "inputs": {
+      "instruction": "根据文字从零生成深蓝色圆柱马克杯，圆形把手，浅灰背景，无文字，无 Logo。",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "visual_direction": "简洁展示",
+      "slots_json": "[{\"id\": \"hero\", \"role\": \"main\", \"brief\": \"\"}, {\"id\": \"detail_1\", \"role\": \"detail\", \"brief\": \"展示杯口与手柄连接位置\"}, {\"id\": \"spec_1\", \"role\": \"spec\", \"brief\": \"容量 300 ml\"}]"
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "listing_text_only": {
+    "inputs": {
+      "instruction": "根据文字从零生成深蓝色圆柱马克杯，圆形把手，浅灰背景，无文字，无 Logo。",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "visual_direction": "简洁展示",
+      "slots_json": "[{\"id\": \"intro_1\", \"role\": \"intro\", \"brief\": \"陶瓷杯，用于日常饮水\"}, {\"id\": \"detail_1\", \"role\": \"detail\", \"brief\": \"展示手柄与杯口\"}, {\"id\": \"spec_1\", \"role\": \"spec\", \"brief\": \"容量 300 ml\"}]"
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "edit_text_only": {
+    "inputs": {
+      "instruction": "根据文字从零生成深蓝色圆柱马克杯，圆形把手，浅灰背景，无文字，无 Logo。",
+      "language": "英语",
+      "aspect_ratio": "auto"
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "similar_text_only": {
+    "inputs": {
+      "instruction": "根据文字从零生成深蓝色圆柱马克杯，圆形把手，浅灰背景，无文字，无 Logo。",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "quantity": 4
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "main_open_direction": {
+    "inputs": {
+      "instruction": "",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "product_image": {
+        "type": "image",
+        "transfer_method": "local_file",
+        "upload_file_id": "UPLOAD_PRODUCT_FILE_ID"
+      },
+      "visual_direction": "核心卖点",
+      "quantity": 1
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "set_open_direction": {
+    "inputs": {
+      "instruction": "",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "product_image": {
+        "type": "image",
+        "transfer_method": "local_file",
+        "upload_file_id": "UPLOAD_PRODUCT_FILE_ID"
+      },
+      "visual_direction": "信息丰富",
+      "slots_json": "[{\"id\": \"slot_1\", \"role\": \"核心卖点\", \"brief\": \"\"}, {\"id\": \"slot_2\", \"role\": \"应用场景\", \"brief\": \"\"}]"
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  },
+  "listing_open_direction": {
+    "inputs": {
+      "instruction": "",
+      "language": "英语",
+      "aspect_ratio": "1:1",
+      "product_image": {
+        "type": "image",
+        "transfer_method": "local_file",
+        "upload_file_id": "UPLOAD_PRODUCT_FILE_ID"
+      },
+      "visual_direction": "信息丰富",
+      "slots_json": "[{\"id\": \"slot_1\", \"role\": \"色彩搭配\", \"brief\": \"\"}]"
+    },
+    "response_mode": "streaming",
+    "user": "image-studio-demo"
+  }
+}

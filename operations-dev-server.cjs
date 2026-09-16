@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { createOperationsHandler } = require('./api/operations-diagnosis');
+const { createImageStudioHandler } = require('./api/image-studio');
 const { sendJson } = require('./lib/dify-http');
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2' };
@@ -28,7 +29,7 @@ function readOperationsKey(kind) {
  * @returns {http.Server} 尚未监听的服务器，调用方负责 listen/close。
  * @throws {Error} 根目录无效时抛出；单次请求错误转换为安全响应。
  */
-function createOperationsServer({ root = __dirname, port = 8895, apiKey = '', chatApiKey = '', fetchImpl = fetch, logger = console } = {}) {
+function createOperationsServer({ root = __dirname, port = 8895, apiKey = '', chatApiKey = '', fetchImpl = fetch, logger = console, imageEnv = process.env } = {}) {
   const realRoot = fs.realpathSync(root);
   const allowedHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
   const handlerOptions = { env: {
@@ -37,14 +38,16 @@ function createOperationsServer({ root = __dirname, port = 8895, apiKey = '', ch
     OPERATIONS_ALLOWED_ORIGINS: `http://127.0.0.1:${port},http://localhost:${port}`
   }, fetchImpl, logger };
   const handler = createOperationsHandler(handlerOptions);
+  const imageHandler = createImageStudioHandler({ env: { ...imageEnv, IMAGE_STUDIO_ALLOWED_ORIGINS: `http://127.0.0.1:${port},http://localhost:${port}` }, fetchImpl, logger });
   const chatHandler = createOperationsHandler({ ...handlerOptions, kind: 'chat' });
   return http.createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     if (!allowedHosts.has(req.headers.host)) { sendJson(res, 403, { message: '不允许此访问地址。' }); return; }
     try {
       const urlPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-      if (['/api/operations-diagnosis', '/api/operations-chat'].includes(urlPath)) {
+      if (['/api/operations-diagnosis', '/api/operations-chat', '/api/image-studio'].includes(urlPath)) {
         const isChat = urlPath === '/api/operations-chat';
+        const isImage = urlPath === '/api/image-studio';
         if (req.method === 'POST') {
           if (!/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) {
             sendJson(res, 415, { message: '请使用 JSON 提交诊断资料。' }); return;
@@ -53,13 +56,13 @@ function createOperationsServer({ root = __dirname, port = 8895, apiKey = '', ch
           let size = 0;
           for await (const chunk of req) {
             size += chunk.length;
-            if (size > (isChat ? 400000 : 200000)) { sendJson(res, 413, { message: '诊断资料过大，请精简后重试。' }); return; }
+            if (size > (isImage ? 15*1024*1024 : isChat ? 400000 : 200000)) { sendJson(res, 413, { message: '诊断资料过大，请精简后重试。' }); return; }
             chunks.push(chunk);
           }
           try { req.body = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
           catch { sendJson(res, 400, { message: '诊断资料格式无效。' }); return; }
         }
-        await (isChat ? chatHandler : handler)(req, res); return;
+        await (isImage ? imageHandler : isChat ? chatHandler : handler)(req, res); return;
       }
       if (!['GET', 'HEAD'].includes(req.method)) { sendJson(res, 405, { message: '不支持此请求方式。' }); return; }
       const relative = urlPath === '/' ? 'index.html' : urlPath.slice(1);
@@ -87,6 +90,13 @@ function createOperationsServer({ root = __dirname, port = 8895, apiKey = '', ch
 }
 
 if (require.main === module) {
+  // 本地凭据仅由Node读取；静态白名单禁止下载.env。现有环境变量优先。
+  const localEnv = path.join(__dirname, '.env.image-studio.local');
+  if (fs.existsSync(localEnv)) {
+    for (const [name, value] of Object.entries(require('node:util').parseEnv(fs.readFileSync(localEnv, 'utf8')))) {
+      if (/^DIFY_IMAGE_(MAIN|SET|LISTING|EDIT|SIMILAR)_API_KEY$/.test(name) && !process.env[name]) process.env[name] = value;
+    }
+  }
   const port = Number(process.env.OPERATIONS_PORT || 8895);
   const directory = path.join(__dirname, 'output/operations-advisor');
   fs.mkdirSync(directory, { recursive: true });
