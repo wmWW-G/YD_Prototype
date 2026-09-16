@@ -292,3 +292,19 @@ test('整套重做指定图位传完整方案加retry，只更新该记录，拒
  complete(calls[1]);await work;assert.equal(session.results[2].revision,1);assert.equal(session.results[0].revision,undefined);
  assert.equal(await api.redoSetImage({...record,resultMode:'image-set'},0),false);
 });
+
+// 防止新增选项意外增加默认张数，或提交时丢失每张对应的企业资料。
+test('新增企业主题按语义传输，逐张补充资料与历史快照保持对应',async()=>{
+ for(const mode of ['image-set','image-listing']){
+  const {api,session,calls}=liveHarness(mode);
+  assert.equal(session.setSlots.length,mode==='image-set'?6:8);
+  api.updateSetRole(session.setSlots[1].id,'company');
+  api.updateSetRole(session.setSlots[2].id,'manufacturing');
+  session.setSlots[0].brief='主视觉说明';session.setSlots[1].brief='测试企业，十人团队';session.setSlots[2].brief='成型 → 烧制 → 检验';
+  const html=api.renderSetContentEditor();assert.equal((html.match(/<textarea data-set-brief=/g)||[]).length,session.setSlots.length);
+  api.plan(true);const slots=JSON.parse(calls[0].inputs.slots_json);
+  assert.equal(slots[0].brief,'主视觉说明');assert.equal(slots[1].role,'公司实力');assert.equal(slots[2].role,'生产制造流程');assert.equal(slots[2].brief,'成型 → 烧制 → 检验');
+  session.setSlots[2].brief='后续修改';complete(calls[0]);await settle();
+  assert.equal(session.resultContext.setSlots[2].brief,'成型 → 烧制 → 检验');
+ }
+});

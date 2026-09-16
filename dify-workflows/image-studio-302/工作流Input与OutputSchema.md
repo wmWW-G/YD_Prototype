@@ -2,6 +2,10 @@
 
 日期：2026-09-16。依据当前本地五份 YAML 的 Start/End 定义及嵌入运行代码整理，版本为 `image-studio-302-v3-candidate`，是候选契约，尚未正式冻结。本文记录现状，不修改 Workflow，不代表已发布或已接入前后端。
 
+2026-09-16 内容与版式修订：新增前端企业主题及逐张选填说明；套图/详情取消固定三分区，按内容规划多样构图，接口字段不变。
+
+2026-09-16 内容密度修订：套图/详情的默认“简洁展示”仅控制背景和排版，逐张role负责内容策划；无字需明确要求。仅改内部提示词，Start/End定义、字段类型、数量和顺序均与提交`0920ecf2`一致。
+
 ## 阅读说明
 
 Input指Dify调用的`inputs`对象；Output指结束节点输出对象（API响应中的业务outputs），不包含Dify的workflow_run_id、运行状态、SSE事件等外层封装。五个流程均无task_id，也无Legacy文件列表输入。密钥与IMAGE_MODEL是环境配置，不是业务Input。
@@ -66,7 +70,7 @@ Input Schema：`#/$defs/Product_Image_Set_GenerationInput`；Output Schema：`#/
 
 实际结束节点字段：`result`: object, `result_json`: string, `plan`: array[object]。
 
-源文件 SHA-256：`1184b6c9ef206f82a30f68dfbfc42af05335c928697e8e0fe05f2eca7ac12ec3`。
+源文件 SHA-256：`4a3cc164c5bd09995fe5957bc6e53efa1516408aba08216714de834e79c564e9`。
 
 ## 详情图 · Product Detail Image Generation
 
@@ -90,7 +94,7 @@ Input Schema：`#/$defs/Product_Detail_Image_GenerationInput`；Output Schema：
 
 实际结束节点字段：`result`: object, `result_json`: string, `plan`: array[object]。
 
-源文件 SHA-256：`d510ccd9cb64d8be86f28e8e8d1bd46fbcbc942fb8dd8a0c85b2819b89ba1e34`。
+源文件 SHA-256：`64e615d562cefd473d918b8fb7dd9a71736d821a8f69bc0a6fe6dfaa0c4572a4`。
 
 ## 图片调整 · Generated Image Editing
 

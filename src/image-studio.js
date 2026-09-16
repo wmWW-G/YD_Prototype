@@ -20,6 +20,17 @@ window.YD_IMAGE_STUDIO = (() => {
     {name:'创意表达', desc:'运用色彩、道具增强吸引力'}
   ];
   const INFO_DIRECTION = {name:'附带信息', desc:'在商品画面中加入简短文字信息'};
+  // 两类整套共用采购主题；只扩充选择，不改变默认图数。事实由每张的补充资料提供。
+  const BUSINESS_ROLES = [
+    {id:'company',name:'公司实力',hint:'填写公司定位、真实规模、经验或团队优势',image:STUDIO_PHOTO},
+    {id:'manufacturing',name:'生产制造流程',hint:'按顺序填写实际生产步骤、工艺和关键环节',image:'mug-handle.jpg'},
+    {id:'equipment',name:'工厂与设备',hint:'填写车间、设备名称、用途及已确认的产能',image:STUDIO_PHOTO},
+    {id:'inspection',name:'质量检测',hint:'填写实际检测项目、方法及执行标准',image:'mug-handle.jpg'},
+    {id:'customization',name:'定制能力',hint:'填写支持定制的部位、材料、颜色或服务范围',image:'mug-combo.jpg'},
+    {id:'certification',name:'资质认证',hint:'填写真实认证名称、适用产品及有效范围',image:'mug-front.jpg'},
+    {id:'delivery',name:'仓储与交付',hint:'填写实际备货、包装、运输方式与交期',image:'mug-combo.jpg'},
+    {id:'cooperation',name:'合作流程',hint:'填写询盘、打样、确认、生产到交付的实际步骤',image:'mug-office.jpg'}
+  ];
   // 副图按展示用途定义；默认组合不依赖额外参数，规格图由用户主动选择并填写。
   const SET_ROLES = [
     {id:'main',name:'商品全貌',hint:'完整清楚地呈现商品主体',image:STUDIO_PHOTO},
@@ -29,7 +40,8 @@ window.YD_IMAGE_STUDIO = (() => {
     {id:'angle',name:'其他角度',hint:'补充希望展示的角度或部位',image:'mug-rim.jpg'},
     {id:'bundle',name:'组合展示',hint:'说明需要一起展示的商品或配件',image:'mug-combo.jpg'},
     {id:'spec',name:'规格信息',hint:'填写实际尺寸、容量等参数及单位',image:'mug-front.jpg'},
-    {id:'packaging',name:'包装展示',hint:'补充需要展示的包装形式和信息',image:'mug-combo.jpg'}
+    {id:'packaging',name:'包装展示',hint:'补充需要展示的包装形式和信息',image:'mug-combo.jpg'},
+    ...BUSINESS_ROLES
   ];
   // 详情页按阅读顺序组织内容；规格只使用用户提供的数据，不从示例素材推断。
   const LISTING_ROLES = [
@@ -40,7 +52,8 @@ window.YD_IMAGE_STUDIO = (() => {
     {id:'spec',name:'规格选择',hint:'填写实际尺寸、容量、型号等参数及单位',image:'mug-rim.jpg'},
     {id:'craft',name:'工艺与定制',hint:'补充实际工艺或可提供的定制项目',image:'mug-handle.jpg'},
     {id:'quality',name:'品质保障',hint:'填写已确认的质检、认证或售后信息',image:'mug-front.jpg'},
-    {id:'packaging',name:'包装与合作',hint:'说明实际包装方式与合作信息',image:'mug-combo.jpg'}
+    {id:'packaging',name:'包装与合作',hint:'说明实际包装方式与合作信息',image:'mug-combo.jpg'},
+    ...BUSINESS_ROLES
   ];
   const TEMPLATES = [
     { id: 'dense', name: '高信息量商品套图', tag: '高信息量', desc: '产品全景、细节、卖点、规格、工艺与包装，完整呈现采购信息。', count: 6 },
@@ -74,7 +87,7 @@ window.YD_IMAGE_STUDIO = (() => {
     const session={ type, template:type==='listing'?'listing':'dense', visualStyle:'简洁展示', targetLanguage:'英语', ratio:'1:1', quality:'中', model:'PTJ-1', quantity:1, prompt:generation?'米白背景，自然光，突出陶瓷质感':'', uploads:generation?[{name:'示例商品',url:ASSETS+STUDIO_PHOTO,sample:true}]:[], style:[], logo:[], outfit:[], retouch:'去水印', phase:'results', plans:[], dialog:null, settingsOpen:false, structureOpen:false, productInfoOpen:false, selected:0, history:[], results:titles.map((title,i)=>({image:resultImage(i),title})), resultMode:mode, resultType:type, resultRatio:'1:1', resultQuantity:1, resultModel:'PTJ-1', resultTime:'示例作品', resultCreatedAt:Date.now(), resultId:'sample-'+mode, progress:0 };
     session.attachedInfo='';
     if(isSuiteMode()) {
-      session.setSlots=(type==='listing'?LISTING_ROLES:SET_ROLES.slice(0,6)).map((role,index)=>({id:type==='listing'?'detail-'+(index+1):index?'secondary-'+index:'main',role:role.id,brief:''}));
+      session.setSlots=(type==='listing'?LISTING_ROLES.slice(0,8):SET_ROLES.slice(0,6)).map((role,index)=>({id:type==='listing'?'detail-'+(index+1):index?'secondary-'+index:'main',role:role.id,brief:''}));
       session.setSlotSequence=session.setSlots.length;session.setContentOpen=false;session.setNotesOpen={};
       session.results=setExampleImages(session);
     }
@@ -214,15 +227,16 @@ window.YD_IMAGE_STUDIO = (() => {
     return `<section class="studio-set-options" aria-label="画面与内容"><div class="studio-set-picker-row"><div><h2>画面与内容</h2><button type="button" class="studio-set-summary" data-action="set-content" aria-label="${listing?'选择画面方向与详情内容':'选择画面方向与副图'}" aria-expanded="${active.setContentOpen}" aria-controls="studio-set-content"><span><strong>${esc(direction)}</strong><small>${listing?`本套共 ${active.setSlots.length} 张详情图`:`1 张主图 ＋ ${active.setSlots.length-1} 张副图`}</small></span>${toolIcon('chevron-down')}</button></div>${renderReferenceTile()}</div>${renderSetContentEditor()}</section>`;
   }
 
-  /** 在同一面板内选择方向和逐张内容；规格始终显示必填输入，其他说明按需显示。@returns {string} 内容编辑 HTML。不抛异常。 */
+  /** 在同一面板内选择方向和逐张内容；每张默认显示选填资料，也允许收起。@returns {string} 内容编辑 HTML。不抛异常。 */
   function renderSetContentEditor() {
     const listing=active.type==='listing',minimum=listing?1:2;
-    const slots=listing?active.setSlots:active.setSlots.slice(1);
+    const slots=active.setSlots;
     const options=suiteRoles().filter(role=>role.id!=='main');
     return `<div class="studio-set-content" id="studio-set-content" ${active.setContentOpen?'':'hidden'}><fieldset ${['planning','generating'].includes(active.phase)||active.refining?'disabled':''}><div class="studio-set-choice-grid">${renderDirectionSelect()}${slots.map((slot,index)=>{
-      const notes=slot.role==='spec'||(active.setNotesOpen[slot.id]??Boolean(slot.brief));
-      const noun=listing?'详情图':'副图',label=listing?`详情 ${index+1}`:`副图 ${index+1}`;
-      return `<div class="studio-set-slot"><div class="studio-set-slot-head"><label for="studio-set-role-${slot.id}">${label}</label><button type="button" class="studio-slot-note" data-set-note="${slot.id}" aria-expanded="${Boolean(notes)}" >${notes?'收起':'说明'}</button><button type="button" class="studio-slot-remove" data-set-remove="${slot.id}" aria-label="移除第${index+1}张${noun}" ${active.setSlots.length<=minimum?'disabled':''}>${toolIcon('x')}</button></div><select id="studio-set-role-${slot.id}" data-set-role="${slot.id}" aria-label="第${index+1}张${noun}用途">${options.map(role=>`<option value="${role.id}" ${role.id===slot.role?'selected':''}>${role.name}</option>`).join('')}</select>${notes?`<textarea data-set-brief="${slot.id}" aria-label="第${index+1}张${noun}补充说明" maxlength="500" placeholder="${setRole(slot.role).hint}（选填）">${esc(slot.brief)}</textarea>`:''}</div>`;
+      const notes=active.setNotesOpen[slot.id]??true;
+      const primary=!listing&&slot.role==='main';
+      const label=listing?`详情 ${index+1}`:primary?'主图':`副图 ${index}`;
+      return `<div class="studio-set-slot"><div class="studio-set-slot-head"><label for="studio-set-role-${slot.id}">${label}</label><button type="button" class="studio-slot-note" data-set-note="${slot.id}" aria-expanded="${Boolean(notes)}" >${notes?'收起':'补充内容'}</button><button type="button" class="studio-slot-remove" data-set-remove="${slot.id}" aria-label="移除${label}" ${primary||active.setSlots.length<=minimum?'disabled':''}>${toolIcon('x')}</button></div><select id="studio-set-role-${slot.id}" data-set-role="${slot.id}" ${primary?'disabled':''} aria-label="${label}用途">${(primary?[setRole('main')]:options).map(role=>`<option value="${role.id}" ${role.id===slot.role?'selected':''}>${role.name}</option>`).join('')}</select>${notes?`<textarea data-set-brief="${slot.id}" aria-label="${label}补充说明" maxlength="500" placeholder="选填：${setRole(slot.role).hint}">${esc(slot.brief)}</textarea>`:''}</div>`;
     }).join('')}</div><div class="studio-set-content-footer"><button type="button" class="studio-set-add-slot" data-action="add-set-slot" ${active.setSlots.length>=10?'disabled':''}>${toolIcon('plus')}${listing?'添加详情图':'添加副图'}</button><small>${listing?'每套 1–10 张':'固定 1 张主图 · 最多 10 张'}</small></div></fieldset></div>`;
   }
 

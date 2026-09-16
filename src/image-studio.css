@@ -383,3 +383,6 @@
 
 /* 真实调用失败保留可读反馈，长提示在窄屏自然换行。 */
 .studio-run-error {margin:12px 0;padding:12px 16px;border:1px solid #fecaca;border-radius:10px;background:#fff7f7;color:#991b1b;line-height:1.6;overflow-wrap:anywhere;}
+
+/* 逐张资料默认展开后，手机端单列排列，给公司信息和流程文字留足阅读宽度。 */
+@media(max-width:600px) {.studio-set-choice-grid {grid-template-columns:minmax(0,1fr);}.studio-set-slot textarea {font-size:12px;min-height:84px;}}

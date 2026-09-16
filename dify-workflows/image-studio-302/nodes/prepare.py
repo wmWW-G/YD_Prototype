@@ -159,11 +159,14 @@ def main(product_image=None, style_image=None, logo_image=None, source_image=Non
             jobs.append({'slot_id':slot_id,'index':index,'role':role,'title':roles.get(role, SET_ROLES.get(role, LISTING_ROLES.get(role, role))),'brief':brief})
         # 一次固定整套结构，逐张生成均使用相同方案，避免不同图位互相挤占内容。
         structure = json.dumps(jobs,ensure_ascii=False)
+        # 套图风格只控制视觉表现；不能把默认简洁展示误解为所有副图都禁字。
+        base = base.replace('用户明确要求简洁、无字或限定修改范围时必须遵守。',
+                            '简洁展示仅控制背景与排版，不降低图位内容深度；仅用户明确要求无字、纯商品照片或限定修改范围时遵守。')
         base += ('\n整套统一：出现商品时保持商品身份一致，所有图保持字体层级、信息卡规范和视觉风格一致；'
                  '根据用户品牌资料或参考图确定配色；未指定时采用与商品匹配的统一配色。'
                  '默认按信息丰富且易读的B2B电商海报设计，充分利用用户提供的公司和商品事实分配到相关图位；'
                  '用标题、主体视觉、卖点说明、参数卡、应用或合作模块形成阅读层次，不能仅用三个空泛标签代替完整内容。'
-                 '资料不足时减少信息，不虚构；用户明确要求无文字或简洁展示时以用户要求为准。'
+                 '资料不足时减少未经证实的事实陈述，仍通过多个可见细节、关联场景和视觉说明展开主题。简洁展示是视觉风格，不等于低信息量或禁字；仅用户明确要求无文字或只要单张商品照片时减少内容。'
                  '全部已上传素材统一传入每张生成请求，但不要求每张都展示商品。'
                  '公司实力、合作服务、定制流程等不需要展示商品的图，忽略上传的商品图片，不在画面中加入该商品；'
                  '定制成品展示仍参考商品图。风格图只借鉴风格，Logo仍按左上角规则使用。'
@@ -177,7 +180,7 @@ def main(product_image=None, style_image=None, logo_image=None, source_image=Non
             job['prompt'] += '\n本图也必须遵循上述通用扩写要求。具体内容以本图说明优先，方向仅引导主题，不强制套商品卖点。'
             # 图位未填写brief时仍可使用整套资料，不能默认禁字而丢掉公司/产品信息。
             if not job['brief']:
-                job['prompt'] += '从整套资料中选取与本图用途相关的事实规划内容；没有相关事实则仅展示，不推测补齐。'
+                job['prompt'] += '从整套资料中选取与本图用途相关的事实规划内容；缺少参数时仍围绕可见外观和相关视觉关系展开，不能退化为无文案的单张特写。对无法确认的规格或包装不得编造；改为中性结构示意或明确标为概念示意，不暗示已提供该包装或服务。'
     else:
         jobs = [{'slot_id':'image','index':0,'role':kind,'title':{'main':'商品主图','edit':'调整结果','similar':'同款图片'}[kind],'prompt':base}]
     all_jobs = [dict(job) for job in jobs]
